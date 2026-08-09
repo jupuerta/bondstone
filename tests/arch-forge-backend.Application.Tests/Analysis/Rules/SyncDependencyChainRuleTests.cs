@@ -25,7 +25,7 @@ public class SyncDependencyChainRuleTests
         var findings = _rule.Evaluate(graph).ToList();
 
         var finding = Assert.Single(findings);
-        Assert.Equal("SYNC_CHAIN", finding.RuleCode);
+        Assert.Equal("SYNC_CHAIN", finding.Code);
         Assert.Equal(a.Id, finding.NodeId);
     }
 

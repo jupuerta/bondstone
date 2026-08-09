@@ -24,7 +24,7 @@ public class SpofRuleTests
         var findings = _rule.Evaluate(graph).ToList();
 
         var finding = Assert.Single(findings);
-        Assert.Equal("SPOF", finding.RuleCode);
+        Assert.Equal("SPOF", finding.Code);
         Assert.Equal(database.Id, finding.NodeId);
     }
 

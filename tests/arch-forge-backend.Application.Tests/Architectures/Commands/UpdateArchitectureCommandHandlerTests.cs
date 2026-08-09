@@ -49,18 +49,19 @@ public class UpdateArchitectureCommandHandlerTests
     public async Task Handle_MatchingVersion_IncrementsVersionAndPersistsChanges()
     {
         var architecture = await SeedArchitecture();
+        var originalVersion = architecture.Version;
         var command = new UpdateArchitectureCommand
         {
             Id = architecture.Id,
             Name = "Renamed",
-            Version = architecture.Version,
+            Version = originalVersion,
             Nodes = [new NodeDto { Type = NodeType.Service, Name = "Orders", PositionX = 1, PositionY = 2 }]
         };
 
         var result = await _handler.Handle(command);
 
         Assert.NotNull(result);
-        Assert.Equal(architecture.Version + 1, result!.Version);
+        Assert.Equal(originalVersion + 1, result!.Version);
 
         var persisted = await _repository.GetByIdAsync(architecture.Id);
         Assert.Equal("Renamed", persisted!.Name);
