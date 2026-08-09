@@ -11,14 +11,8 @@ namespace arch_forge_backend.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterColumn<string>(
-                name: "Configuration",
-                table: "Nodes",
-                type: "jsonb",
-                nullable: true,
-                oldClrType: typeof(string),
-                oldType: "text",
-                oldNullable: true);
+            migrationBuilder.Sql(
+                @"ALTER TABLE ""Nodes"" ALTER COLUMN ""Configuration"" TYPE jsonb USING ""Configuration""::jsonb;");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "UpdatedAt",
