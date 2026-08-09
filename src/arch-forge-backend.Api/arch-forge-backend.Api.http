@@ -1,0 +1,6 @@
+@arch_forge_backend.Api_HostAddress = http://localhost:5012
+
+GET {{arch_forge_backend.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

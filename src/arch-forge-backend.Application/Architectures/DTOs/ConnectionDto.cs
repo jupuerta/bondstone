@@ -1,0 +1,14 @@
+using arch_forge_backend.Domain.Enums;
+
+namespace arch_forge_backend.Application.Architectures.DTOs;
+
+public class ConnectionDto
+{
+    public Guid Id { get; set; }
+    public Guid SourceNodeId { get; set; }
+    public Guid TargetNodeId { get; set; }
+    public ProtocolType Protocol { get; set; }
+    public bool Synchronous { get; set; }
+    public int? TimeoutSeconds { get; set; }
+    public int? Retries { get; set; }
+}
