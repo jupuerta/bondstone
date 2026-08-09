@@ -51,10 +51,10 @@ public class ArchitectureAnalyzerTests
         public IEnumerable<RuleFinding> Evaluate(ArchitectureGraph graph)
         {
             for (var i = 0; i < criticalCount; i++)
-                yield return new RuleFinding { RuleCode = "STUB_CRIT", Severity = Severity.Critical, Message = "critical" };
+                yield return new RuleFinding { Code = "STUB_CRIT", Severity = Severity.Critical, Message = "critical" };
 
             for (var i = 0; i < warningCount; i++)
-                yield return new RuleFinding { RuleCode = "STUB_WARN", Severity = Severity.Warning, Message = "warning" };
+                yield return new RuleFinding { Code = "STUB_WARN", Severity = Severity.Warning, Message = "warning" };
         }
     }
 }

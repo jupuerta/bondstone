@@ -23,7 +23,7 @@ public class SyncDependencyChainRule : IArchitectureRule
 
             yield return new RuleFinding
             {
-                RuleCode = Code,
+                Code = Code,
                 Severity = Severity,
                 NodeId = node.Id,
                 Message = $"'{node.Name}' inicia una cadena de dependencias síncronas de longitud {chainLength}."

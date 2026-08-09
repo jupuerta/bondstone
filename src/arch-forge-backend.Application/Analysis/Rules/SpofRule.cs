@@ -27,7 +27,7 @@ public class SpofRule : IArchitectureRule
 
             yield return new RuleFinding
             {
-                RuleCode = Code,
+                Code = Code,
                 Severity = Severity,
                 NodeId = node.Id,
                 Message = $"'{node.Name}' es un punto único de fallo: {dependents.Count} componentes dependen de él sin redundancia."
