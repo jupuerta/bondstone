@@ -17,12 +17,7 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
     [Fact]
     public async Task FullFlow_CreateGetUpdateConflictAnalyze_BehavesPerContract()
     {
-        var createResponse = await _client.PostAsJsonAsync("/api/architectures", new { name = "Checkout flow" });
-        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
-        var created = await createResponse.Content.ReadFromJsonAsync<JsonObject>();
-        var id = created!["id"]!.GetValue<Guid>();
-        var shareToken = created["shareToken"]!.GetValue<string>();
-        Assert.Equal(1, created["version"]!.GetValue<int>());
+        var (id, shareToken) = await CreateArchitectureAsync("Checkout flow");
 
         var getResponse = await _client.GetAsync($"/api/architectures/{shareToken}");
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
@@ -38,10 +33,10 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
             version = 1,
             nodes = new object[]
             {
-                new { id = apiNodeId, type = "Api", name = "Api", positionX = 0, positionY = 0 },
-                new { id = ordersNodeId, type = "Service", name = "Orders", positionX = 100, positionY = 0 },
-                new { id = paymentsNodeId, type = "Service", name = "Payments", positionX = 200, positionY = 0 },
-                new { id = bankNodeId, type = "Service", name = "Bank", positionX = 300, positionY = 0 }
+                new { id = apiNodeId, type = "Api", name = "Api", position = new { x = 0, y = 0 } },
+                new { id = ordersNodeId, type = "Service", name = "Orders", position = new { x = 100, y = 0 } },
+                new { id = paymentsNodeId, type = "Service", name = "Payments", position = new { x = 200, y = 0 } },
+                new { id = bankNodeId, type = "Service", name = "Bank", position = new { x = 300, y = 0 } }
             },
             connections = new object[]
             {
@@ -61,11 +56,164 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
         var conflict = await staleResponse.Content.ReadFromJsonAsync<JsonObject>();
         Assert.Equal(2, conflict!["currentVersion"]!.GetValue<int>());
 
+        var reloaded = await _client.GetFromJsonAsync<JsonObject>($"/api/architectures/{shareToken}");
+        Assert.Equal(4, reloaded!["nodes"]!.AsArray().Count);
+        Assert.Equal(3, reloaded["connections"]!.AsArray().Count);
+
         var analyzeResponse = await _client.PostAsync($"/api/architectures/{id}/analyze", content: null);
         Assert.Equal(HttpStatusCode.OK, analyzeResponse.StatusCode);
         var analysis = await analyzeResponse.Content.ReadFromJsonAsync<JsonObject>();
         var findings = analysis!["findings"]!.AsArray();
         Assert.Contains(findings, f => f!["code"]!.GetValue<string>() == "SYNC_CHAIN");
+        Assert.True(analysis["score"]!.GetValue<int>() is >= 0 and <= 100);
+    }
+
+    [Fact]
+    public async Task Put_RepeatedWithSameNodeIds_KeepsSavingAndBumpsVersion()
+    {
+        // The autosave loop re-sends the same client-generated ids on every flush.
+        var (id, shareToken) = await CreateArchitectureAsync("Autosave");
+
+        var apiNodeId = Guid.NewGuid();
+        var databaseNodeId = Guid.NewGuid();
+        var connectionId = Guid.NewGuid();
+
+        object Snapshot(int version, double x) => new
+        {
+            name = "Autosave",
+            version,
+            nodes = new object[]
+            {
+                new { id = apiNodeId, type = "Api", name = "Api", position = new { x, y = 0 } },
+                new { id = databaseNodeId, type = "Database", name = "Db", position = new { x = 200, y = 0 } }
+            },
+            connections = new object[]
+            {
+                new { id = connectionId, sourceNodeId = apiNodeId, targetNodeId = databaseNodeId, protocol = "Sql", synchronous = true }
+            }
+        };
+
+        for (var version = 1; version <= 4; version++)
+        {
+            var response = await _client.PutAsJsonAsync($"/api/architectures/{id}", Snapshot(version, version * 10));
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var body = await response.Content.ReadFromJsonAsync<JsonObject>();
+            Assert.Equal(version + 1, body!["version"]!.GetValue<int>());
+        }
+
+        var reloaded = await _client.GetFromJsonAsync<JsonObject>($"/api/architectures/{shareToken}");
+        Assert.Equal(5, reloaded!["version"]!.GetValue<int>());
+        Assert.Equal(2, reloaded["nodes"]!.AsArray().Count);
+        Assert.Equal(1, reloaded["connections"]!.AsArray().Count);
+
+        var movedNode = reloaded["nodes"]!.AsArray().Single(n => n!["id"]!.GetValue<Guid>() == apiNodeId);
+        Assert.Equal(40, movedNode!["position"]!["x"]!.GetValue<double>());
+    }
+
+    [Fact]
+    public async Task Put_NodeConfiguration_RoundTripsAsJsonObject()
+    {
+        var (id, shareToken) = await CreateArchitectureAsync("Configured");
+        var queueNodeId = Guid.NewGuid();
+
+        var response = await _client.PutAsJsonAsync($"/api/architectures/{id}", new
+        {
+            name = "Configured",
+            version = 1,
+            nodes = new object[]
+            {
+                new
+                {
+                    id = queueNodeId,
+                    type = "Queue",
+                    name = "Orders queue",
+                    position = new { x = 10, y = 20 },
+                    configuration = new { durable = true, deadLetterQueue = false, maxRetries = 3 }
+                }
+            },
+            connections = Array.Empty<object>()
+        });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var reloaded = await _client.GetFromJsonAsync<JsonObject>($"/api/architectures/{shareToken}");
+        var configuration = reloaded!["nodes"]!.AsArray().Single()!["configuration"]!.AsObject();
+        Assert.True(configuration["durable"]!.GetValue<bool>());
+        Assert.Equal(3, configuration["maxRetries"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task Put_ConfigurationThatDoesNotMatchSchema_ReturnsBadRequest()
+    {
+        var (id, _) = await CreateArchitectureAsync("Bad configuration");
+
+        var response = await _client.PutAsJsonAsync($"/api/architectures/{id}", new
+        {
+            name = "Bad configuration",
+            version = 1,
+            nodes = new object[]
+            {
+                new
+                {
+                    id = Guid.NewGuid(),
+                    type = "Queue",
+                    name = "Orders queue",
+                    position = new { x = 0, y = 0 },
+                    configuration = new { durable = "not-a-boolean" }
+                }
+            },
+            connections = Array.Empty<object>()
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Put_ConnectionReferencingUnknownNode_ReturnsBadRequest()
+    {
+        var (id, _) = await CreateArchitectureAsync("Dangling edge");
+
+        var response = await _client.PutAsJsonAsync($"/api/architectures/{id}", new
+        {
+            name = "Dangling edge",
+            version = 1,
+            nodes = Array.Empty<object>(),
+            connections = new object[]
+            {
+                new
+                {
+                    id = Guid.NewGuid(),
+                    sourceNodeId = Guid.NewGuid(),
+                    targetNodeId = Guid.NewGuid(),
+                    protocol = "Http",
+                    synchronous = true
+                }
+            }
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Put_UnknownArchitecture_ReturnsNotFound()
+    {
+        var response = await _client.PutAsJsonAsync($"/api/architectures/{Guid.NewGuid()}", new
+        {
+            name = "Ghost",
+            version = 1,
+            nodes = Array.Empty<object>(),
+            connections = Array.Empty<object>()
+        });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Analyze_UnknownArchitecture_ReturnsNotFound()
+    {
+        var response = await _client.PostAsync($"/api/architectures/{Guid.NewGuid()}/analyze", content: null);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
@@ -82,5 +230,16 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
         var response = await _client.GetAsync("/api/architectures/does-not-exist");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    private async Task<(Guid Id, string ShareToken)> CreateArchitectureAsync(string name)
+    {
+        var response = await _client.PostAsJsonAsync("/api/architectures", new { name });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        var created = await response.Content.ReadFromJsonAsync<JsonObject>();
+        Assert.Equal(1, created!["version"]!.GetValue<int>());
+
+        return (created["id"]!.GetValue<Guid>(), created["shareToken"]!.GetValue<string>());
     }
 }

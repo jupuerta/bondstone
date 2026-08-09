@@ -22,7 +22,47 @@ public class UpdateArchitectureCommandValidator : AbstractValidator<UpdateArchit
     public UpdateArchitectureCommandValidator()
     {
         RuleFor(c => c.Name).NotEmpty().MaximumLength(200);
+        RuleFor(c => c.Version).GreaterThan(0);
+
+        RuleForEach(c => c.Nodes).ChildRules(node =>
+        {
+            node.RuleFor(n => n.Id).NotEmpty().WithMessage("Each node must carry a client-generated id.");
+            node.RuleFor(n => n.Name).NotEmpty().MaximumLength(200);
+            node.RuleFor(n => n.Type).IsInEnum();
+        });
+
+        RuleFor(c => c.Nodes)
+            .Must(HaveUniqueIds)
+            .WithMessage("Node ids must be unique within an architecture.");
+
+        RuleForEach(c => c.Connections).ChildRules(connection =>
+        {
+            connection.RuleFor(c => c.Id).NotEmpty().WithMessage("Each connection must carry a client-generated id.");
+            connection.RuleFor(c => c.Protocol).IsInEnum();
+            connection.RuleFor(c => c.TimeoutSeconds).GreaterThan(0).When(c => c.TimeoutSeconds.HasValue);
+            connection.RuleFor(c => c.Retries).GreaterThanOrEqualTo(0).When(c => c.Retries.HasValue);
+        });
+
+        RuleFor(c => c.Connections)
+            .Must(HaveUniqueIds)
+            .WithMessage("Connection ids must be unique within an architecture.");
+
+        // The PUT carries a full snapshot, so every edge has to resolve against the nodes in the
+        // same payload - otherwise it would be persisted pointing at a node that does not exist.
+        RuleFor(c => c.Connections)
+            .Must((command, connections) =>
+            {
+                var nodeIds = command.Nodes.Select(n => n.Id).ToHashSet();
+                return connections.All(c => nodeIds.Contains(c.SourceNodeId) && nodeIds.Contains(c.TargetNodeId));
+            })
+            .WithMessage("Every connection must reference nodes included in the same request.");
     }
+
+    private static bool HaveUniqueIds(List<NodeDto> nodes) =>
+        nodes.Select(n => n.Id).Distinct().Count() == nodes.Count;
+
+    private static bool HaveUniqueIds(List<ConnectionDto> connections) =>
+        connections.Select(c => c.Id).Distinct().Count() == connections.Count;
 }
 
 public class UpdateArchitectureCommandHandler
@@ -54,22 +94,20 @@ public class UpdateArchitectureCommandHandler
 
         ValidateNodeConfigurations(command.Nodes);
 
-        architecture.Name = command.Name;
-
-        architecture.Nodes = command.Nodes.Select(n => new Node
+        var nodes = command.Nodes.Select(n => new Node
         {
-            Id = n.Id == Guid.Empty ? Guid.NewGuid() : n.Id,
+            Id = n.Id,
             ArchitectureId = architecture.Id,
             Type = n.Type,
             Name = n.Name,
-            PositionX = n.PositionX,
-            PositionY = n.PositionY,
-            Configuration = n.Configuration
+            PositionX = n.Position.X,
+            PositionY = n.Position.Y,
+            Configuration = n.Configuration?.GetRawText()
         }).ToList();
 
-        architecture.Connections = command.Connections.Select(c => new Connection
+        var connections = command.Connections.Select(c => new Connection
         {
-            Id = c.Id == Guid.Empty ? Guid.NewGuid() : c.Id,
+            Id = c.Id,
             ArchitectureId = architecture.Id,
             SourceNodeId = c.SourceNodeId,
             TargetNodeId = c.TargetNodeId,
@@ -79,10 +117,11 @@ public class UpdateArchitectureCommandHandler
             Retries = c.Retries
         }).ToList();
 
+        architecture.Name = command.Name;
         architecture.Version += 1;
         architecture.UpdatedAt = DateTime.UtcNow;
 
-        await _repository.SaveChangesAsync(cancellationToken);
+        await _repository.ReplaceGraphAsync(architecture, nodes, connections, cancellationToken);
 
         return new UpdateArchitectureResult { Version = architecture.Version, UpdatedAt = architecture.UpdatedAt };
     }
@@ -91,16 +130,23 @@ public class UpdateArchitectureCommandHandler
     {
         foreach (var node in nodes)
         {
-            if (string.IsNullOrWhiteSpace(node.Configuration))
+            if (node.Configuration is not { } configuration)
                 continue;
+
+            if (configuration.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+                continue;
+
+            // Guards the jsonb column: anything that is not an object would either fail at the
+            // database or make the typed schema meaningless.
+            if (configuration.ValueKind != JsonValueKind.Object)
+                throw new InvalidNodeConfigurationException(node.Name, "configuration must be a JSON object.");
 
             if (!_configurationRegistry.TryGetProvider(node.Type, out var provider))
                 continue;
 
             try
             {
-                using var document = JsonDocument.Parse(node.Configuration);
-                provider.Deserialize(document.RootElement);
+                provider.Deserialize(configuration);
             }
             catch (JsonException ex)
             {

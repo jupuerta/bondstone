@@ -4,21 +4,28 @@ namespace arch_forge_backend.Application.Analysis.Rules;
 
 public class SyncDependencyChainRule : IArchitectureRule
 {
-    private const int MinChainLength = 3;
+    // Length is measured in components, not hops: API -> Orders -> Payments is a chain of 3
+    // (ArchForge_decisiones_arquitectura_V1_1.md §3.1).
+    private const int MinChainComponents = 3;
 
     public string Code => "SYNC_CHAIN";
     public Severity Severity => Severity.Warning;
 
     public IEnumerable<RuleFinding> Evaluate(ArchitectureGraph graph)
     {
-        var edgesBySource = graph.Connections
-            .Where(c => c.Synchronous)
-            .ToLookup(c => c.SourceNodeId);
+        var synchronousEdges = graph.Connections.Where(c => c.Synchronous).ToList();
+        var edgesBySource = synchronousEdges.ToLookup(c => c.SourceNodeId);
+        var nodesWithIncomingSyncEdge = synchronousEdges.Select(c => c.TargetNodeId).ToHashSet();
 
         foreach (var node in graph.Nodes)
         {
-            var chainLength = FindLongestChain(node.Id, edgesBySource, new HashSet<Guid> { node.Id });
-            if (chainLength < MinChainLength)
+            // Report each chain once, from the node that starts it, instead of once per node
+            // along the way.
+            if (nodesWithIncomingSyncEdge.Contains(node.Id))
+                continue;
+
+            var components = FindLongestChain(node.Id, edgesBySource, [node.Id]) + 1;
+            if (components < MinChainComponents)
                 continue;
 
             yield return new RuleFinding
@@ -26,7 +33,7 @@ public class SyncDependencyChainRule : IArchitectureRule
                 Code = Code,
                 Severity = Severity,
                 NodeId = node.Id,
-                Message = $"'{node.Name}' inicia una cadena de dependencias síncronas de longitud {chainLength}."
+                Message = $"'{node.Name}' inicia una cadena de dependencias síncronas de {components} componentes."
             };
         }
     }

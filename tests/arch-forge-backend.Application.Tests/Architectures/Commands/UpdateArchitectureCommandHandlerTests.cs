@@ -1,3 +1,4 @@
+using System.Text.Json;
 using arch_forge_backend.Application.Architectures.Commands;
 using arch_forge_backend.Application.Architectures.DTOs;
 using arch_forge_backend.Application.Common.Exceptions;
@@ -6,6 +7,7 @@ using arch_forge_backend.Application.Configuration.Schemas;
 using arch_forge_backend.Application.Tests.TestDoubles;
 using arch_forge_backend.Domain.Entities;
 using arch_forge_backend.Domain.Enums;
+using FluentValidation;
 using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Architectures.Commands;
@@ -20,7 +22,9 @@ public class UpdateArchitectureCommandHandlerTests
         var registry = new NodeConfigurationRegistry([
             new NodeConfigurationProvider<ApiConfiguration>(NodeType.Api),
             new NodeConfigurationProvider<DatabaseConfiguration>(NodeType.Database),
-            new NodeConfigurationProvider<QueueConfiguration>(NodeType.Queue)
+            new NodeConfigurationProvider<ServiceConfiguration>(NodeType.Service),
+            new NodeConfigurationProvider<QueueConfiguration>(NodeType.Queue),
+            new NodeConfigurationProvider<CacheConfiguration>(NodeType.Cache)
         ]);
 
         _handler = new UpdateArchitectureCommandHandler(_repository, registry, new UpdateArchitectureCommandValidator());
@@ -55,7 +59,7 @@ public class UpdateArchitectureCommandHandlerTests
             Id = architecture.Id,
             Name = "Renamed",
             Version = originalVersion,
-            Nodes = [new NodeDto { Type = NodeType.Service, Name = "Orders", PositionX = 1, PositionY = 2 }]
+            Nodes = [Node(NodeType.Service, "Orders", x: 1, y: 2)]
         };
 
         var result = await _handler.Handle(command);
@@ -65,19 +69,130 @@ public class UpdateArchitectureCommandHandlerTests
 
         var persisted = await _repository.GetByIdAsync(architecture.Id);
         Assert.Equal("Renamed", persisted!.Name);
-        Assert.Single(persisted.Nodes);
+        var node = Assert.Single(persisted.Nodes);
+        Assert.Equal(1, node.PositionX);
+        Assert.Equal(2, node.PositionY);
+    }
+
+    [Fact]
+    public async Task Handle_ReplacesPreviousGraphInsteadOfMerging()
+    {
+        var architecture = await SeedArchitecture();
+        var kept = Node(NodeType.Api, "Api");
+        var dropped = Node(NodeType.Database, "Db");
+
+        await _handler.Handle(new UpdateArchitectureCommand
+        {
+            Id = architecture.Id,
+            Name = "Original",
+            Version = architecture.Version,
+            Nodes = [kept, dropped]
+        });
+
+        await _handler.Handle(new UpdateArchitectureCommand
+        {
+            Id = architecture.Id,
+            Name = "Original",
+            Version = architecture.Version,
+            Nodes = [kept]
+        });
+
+        var persisted = await _repository.GetByIdAsync(architecture.Id);
+        Assert.Equal(kept.Id, Assert.Single(persisted!.Nodes).Id);
+    }
+
+    [Fact]
+    public async Task Handle_ConnectionReferencingUnknownNode_ThrowsValidationException()
+    {
+        var architecture = await SeedArchitecture();
+        var api = Node(NodeType.Api, "Api");
+
+        var command = new UpdateArchitectureCommand
+        {
+            Id = architecture.Id,
+            Name = "Renamed",
+            Version = architecture.Version,
+            Nodes = [api],
+            Connections =
+            [
+                new ConnectionDto
+                {
+                    Id = Guid.NewGuid(),
+                    SourceNodeId = api.Id,
+                    TargetNodeId = Guid.NewGuid(),
+                    Protocol = ProtocolType.Http,
+                    Synchronous = true
+                }
+            ]
+        };
+
+        await Assert.ThrowsAsync<ValidationException>(() => _handler.Handle(command));
+    }
+
+    [Fact]
+    public async Task Handle_DuplicateNodeIds_ThrowsValidationException()
+    {
+        var architecture = await SeedArchitecture();
+        var id = Guid.NewGuid();
+
+        var command = new UpdateArchitectureCommand
+        {
+            Id = architecture.Id,
+            Name = "Renamed",
+            Version = architecture.Version,
+            Nodes = [Node(NodeType.Api, "Api", id: id), Node(NodeType.Service, "Orders", id: id)]
+        };
+
+        await Assert.ThrowsAsync<ValidationException>(() => _handler.Handle(command));
+    }
+
+    [Fact]
+    public async Task Handle_NodeWithoutId_ThrowsValidationException()
+    {
+        var architecture = await SeedArchitecture();
+
+        var command = new UpdateArchitectureCommand
+        {
+            Id = architecture.Id,
+            Name = "Renamed",
+            Version = architecture.Version,
+            Nodes = [Node(NodeType.Api, "Api", id: Guid.Empty)]
+        };
+
+        await Assert.ThrowsAsync<ValidationException>(() => _handler.Handle(command));
     }
 
     [Fact]
     public async Task Handle_InvalidQueueConfiguration_ThrowsInvalidNodeConfigurationException()
     {
         var architecture = await SeedArchitecture();
+        var node = Node(NodeType.Queue, "Orders queue");
+        node.Configuration = Json("""{"durable":"not-a-boolean"}""");
+
         var command = new UpdateArchitectureCommand
         {
             Id = architecture.Id,
             Name = "Renamed",
             Version = architecture.Version,
-            Nodes = [new NodeDto { Type = NodeType.Queue, Name = "Orders queue", Configuration = "{ not valid json" }]
+            Nodes = [node]
+        };
+
+        await Assert.ThrowsAsync<InvalidNodeConfigurationException>(() => _handler.Handle(command));
+    }
+
+    [Fact]
+    public async Task Handle_ConfigurationThatIsNotAnObject_ThrowsInvalidNodeConfigurationException()
+    {
+        var architecture = await SeedArchitecture();
+        var node = Node(NodeType.Service, "Orders");
+        node.Configuration = Json("\"just a string\"");
+
+        var command = new UpdateArchitectureCommand
+        {
+            Id = architecture.Id,
+            Name = "Renamed",
+            Version = architecture.Version,
+            Nodes = [node]
         };
 
         await Assert.ThrowsAsync<InvalidNodeConfigurationException>(() => _handler.Handle(command));
@@ -87,18 +202,33 @@ public class UpdateArchitectureCommandHandlerTests
     public async Task Handle_ValidQueueConfiguration_Succeeds()
     {
         var architecture = await SeedArchitecture();
+        var node = Node(NodeType.Queue, "Orders queue");
+        node.Configuration = Json("""{"durable":true,"deadLetterQueue":false,"maxRetries":3}""");
+
         var command = new UpdateArchitectureCommand
         {
             Id = architecture.Id,
             Name = "Renamed",
             Version = architecture.Version,
-            Nodes = [new NodeDto { Type = NodeType.Queue, Name = "Orders queue", Configuration = """{"durable":true,"deadLetterQueue":false,"maxRetries":3}""" }]
+            Nodes = [node]
         };
 
         var result = await _handler.Handle(command);
 
         Assert.NotNull(result);
+        Assert.Equal("""{"durable":true,"deadLetterQueue":false,"maxRetries":3}""",
+            (await _repository.GetByIdAsync(architecture.Id))!.Nodes[0].Configuration);
     }
+
+    private static NodeDto Node(NodeType type, string name, double x = 0, double y = 0, Guid? id = null) => new()
+    {
+        Id = id ?? Guid.NewGuid(),
+        Type = type,
+        Name = name,
+        Position = new PositionDto { X = x, Y = y }
+    };
+
+    private static JsonElement Json(string json) => JsonDocument.Parse(json).RootElement.Clone();
 
     private async Task<Architecture> SeedArchitecture()
     {

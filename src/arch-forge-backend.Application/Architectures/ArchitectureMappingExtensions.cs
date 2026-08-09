@@ -1,3 +1,4 @@
+using System.Text.Json;
 using arch_forge_backend.Application.Architectures.DTOs;
 using arch_forge_backend.Domain.Entities;
 
@@ -22,9 +23,8 @@ public static class ArchitectureMappingExtensions
         Id = node.Id,
         Type = node.Type,
         Name = node.Name,
-        PositionX = node.PositionX,
-        PositionY = node.PositionY,
-        Configuration = node.Configuration
+        Position = new PositionDto { X = node.PositionX, Y = node.PositionY },
+        Configuration = ParseConfiguration(node.Configuration)
     };
 
     public static ConnectionDto ToDto(this Connection connection) => new()
@@ -37,4 +37,15 @@ public static class ArchitectureMappingExtensions
         TimeoutSeconds = connection.TimeoutSeconds,
         Retries = connection.Retries
     };
+
+    // Configuration is stored as jsonb but surfaced to the client as a JSON object, not as an
+    // escaped string - see Technical_Design_V1 §6.2.
+    private static JsonElement? ParseConfiguration(string? configuration)
+    {
+        if (string.IsNullOrWhiteSpace(configuration))
+            return null;
+
+        using var document = JsonDocument.Parse(configuration);
+        return document.RootElement.Clone();
+    }
 }

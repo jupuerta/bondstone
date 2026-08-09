@@ -19,5 +19,17 @@ public class FakeArchitectureRepository : IArchitectureRepository
         return Task.CompletedTask;
     }
 
+    public Task ReplaceGraphAsync(
+        Architecture architecture,
+        IReadOnlyCollection<Node> nodes,
+        IReadOnlyCollection<Connection> connections,
+        CancellationToken cancellationToken = default)
+    {
+        architecture.Nodes = nodes.ToList();
+        architecture.Connections = connections.ToList();
+        _store[architecture.Id] = architecture;
+        return Task.CompletedTask;
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 }

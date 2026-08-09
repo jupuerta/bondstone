@@ -89,6 +89,10 @@ namespace arch_forge_backend.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ArchitectureId");
 
+                    b.HasIndex("SourceNodeId");
+
+                    b.HasIndex("TargetNodeId");
+
                     b.ToTable("Connections");
                 });
 
@@ -132,6 +136,18 @@ namespace arch_forge_backend.Infrastructure.Persistence.Migrations
                     b.HasOne("arch_forge_backend.Domain.Entities.Architecture", null)
                         .WithMany("Connections")
                         .HasForeignKey("ArchitectureId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("arch_forge_backend.Domain.Entities.Node", null)
+                        .WithMany()
+                        .HasForeignKey("SourceNodeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("arch_forge_backend.Domain.Entities.Node", null)
+                        .WithMany()
+                        .HasForeignKey("TargetNodeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
