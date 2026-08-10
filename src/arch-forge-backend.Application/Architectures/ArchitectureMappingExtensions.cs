@@ -39,13 +39,13 @@ public static class ArchitectureMappingExtensions
     };
 
     // Configuration is stored as jsonb but surfaced to the client as a JSON object, not as an
-    // escaped string - see Technical_Design_V1 §6.2.
-    private static JsonElement? ParseConfiguration(string? configuration)
+    // escaped string - see Technical_Design_V1 §6.2. The column is not null, so this always
+    // yields an object; the fallback only covers rows written before that constraint existed.
+    private static JsonElement ParseConfiguration(string? configuration)
     {
-        if (string.IsNullOrWhiteSpace(configuration))
-            return null;
+        using var document = JsonDocument.Parse(
+            string.IsNullOrWhiteSpace(configuration) ? Node.EmptyConfiguration : configuration);
 
-        using var document = JsonDocument.Parse(configuration);
         return document.RootElement.Clone();
     }
 }

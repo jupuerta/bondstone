@@ -102,7 +102,7 @@ public class UpdateArchitectureCommandHandler
             Name = n.Name,
             PositionX = n.Position.X,
             PositionY = n.Position.Y,
-            Configuration = n.Configuration?.GetRawText()
+            Configuration = ToStoredConfiguration(n.Configuration)
         }).ToList();
 
         var connections = command.Connections.Select(c => new Connection
@@ -125,6 +125,13 @@ public class UpdateArchitectureCommandHandler
 
         return new UpdateArchitectureResult { Version = architecture.Version, UpdatedAt = architecture.UpdatedAt };
     }
+
+    // The column is jsonb not null (Technical_Design_V1 §5.1): a node the client sends without
+    // configuration is stored as an empty object rather than NULL.
+    private static string ToStoredConfiguration(JsonElement? configuration) =>
+        configuration is { } value && value.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined)
+            ? value.GetRawText()
+            : Node.EmptyConfiguration;
 
     private void ValidateNodeConfigurations(List<NodeDto> nodes)
     {

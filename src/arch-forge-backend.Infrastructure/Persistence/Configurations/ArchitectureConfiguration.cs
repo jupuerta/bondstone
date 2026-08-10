@@ -12,7 +12,9 @@ public class ArchitectureConfiguration : IEntityTypeConfiguration<Architecture>
         builder.Property(a => a.Name).IsRequired().HasMaxLength(200);
         builder.Property(a => a.ShareToken).IsRequired().HasMaxLength(20);
         builder.HasIndex(a => a.ShareToken).IsUnique();
-        builder.Property(a => a.Version).IsConcurrencyToken();
+        // Technical_Design_V1 §5.1: "Version integer not null default 1". The app always writes
+        // the version explicitly; the store default only matters for rows created outside it.
+        builder.Property(a => a.Version).IsConcurrencyToken().HasDefaultValue(1);
 
         builder.HasMany(a => a.Nodes)
             .WithOne()

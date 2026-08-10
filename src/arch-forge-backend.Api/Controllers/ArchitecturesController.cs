@@ -10,13 +10,13 @@ public class ArchitecturesController : ControllerBase
 {
     private readonly CreateArchitectureCommandHandler _createHandler;
     private readonly UpdateArchitectureCommandHandler _updateHandler;
-    private readonly GetArchitectureByIdQueryHandler _getHandler;
+    private readonly GetArchitectureByShareTokenQueryHandler _getHandler;
     private readonly AnalyzeArchitectureQueryHandler _analyzeHandler;
 
     public ArchitecturesController(
         CreateArchitectureCommandHandler createHandler,
         UpdateArchitectureCommandHandler updateHandler,
-        GetArchitectureByIdQueryHandler getHandler,
+        GetArchitectureByShareTokenQueryHandler getHandler,
         AnalyzeArchitectureQueryHandler analyzeHandler)
     {
         _createHandler = createHandler;
@@ -35,7 +35,7 @@ public class ArchitecturesController : ControllerBase
     [HttpGet("{shareToken}")]
     public async Task<IActionResult> GetByShareToken(string shareToken, CancellationToken cancellationToken)
     {
-        var result = await _getHandler.Handle(new GetArchitectureByIdQuery { ShareToken = shareToken }, cancellationToken);
+        var result = await _getHandler.Handle(new GetArchitectureByShareTokenQuery { ShareToken = shareToken }, cancellationToken);
         return result is null ? NotFound() : Ok(result);
     }
 

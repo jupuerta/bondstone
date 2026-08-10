@@ -30,7 +30,7 @@ public static class DependencyInjection
 
         services.AddScoped<CreateArchitectureCommandHandler>();
         services.AddScoped<UpdateArchitectureCommandHandler>();
-        services.AddScoped<GetArchitectureByIdQueryHandler>();
+        services.AddScoped<GetArchitectureByShareTokenQueryHandler>();
         services.AddScoped<AnalyzeArchitectureQueryHandler>();
 
         return services;

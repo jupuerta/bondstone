@@ -3,6 +3,7 @@ using arch_forge_backend.Api.Middleware;
 using arch_forge_backend.Application;
 using arch_forge_backend.Infrastructure;
 using arch_forge_backend.Infrastructure.Persistence;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,6 +25,17 @@ builder.Services.AddCors(options =>
 builder.Services.AddExceptionHandler<ArchForgeExceptionHandler>();
 builder.Services.AddProblemDetails();
 
+// TLS terminates at the reverse proxy (§9), which forwards plain HTTP on the compose
+// network. Without this the app would read every request as http:// and build wrong
+// absolute URLs (e.g. the Location header on 201 Created).
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    // The proxy is the adjacent container on a private network, not a known static IP.
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -41,8 +53,15 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseForwardedHeaders();
 app.UseExceptionHandler();
-app.UseHttpsRedirection();
+
+// Only in development, where Kestrel actually serves an HTTPS port (launchSettings).
+// In the container the API is HTTP-only behind the proxy that terminates TLS, so
+// redirecting here would send clients to a port nothing listens on.
+if (app.Environment.IsDevelopment())
+    app.UseHttpsRedirection();
+
 app.UseCors(FrontendCorsPolicy);
 app.MapControllers();
 

@@ -46,7 +46,9 @@ namespace arch_forge_backend.Infrastructure.Persistence.Migrations
 
                     b.Property<int>("Version")
                         .IsConcurrencyToken()
-                        .HasColumnType("integer");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
 
                     b.HasKey("Id");
 
@@ -106,7 +108,10 @@ namespace arch_forge_backend.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("Configuration")
-                        .HasColumnType("jsonb");
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasDefaultValueSql("'{}'::jsonb");
 
                     b.Property<string>("Name")
                         .IsRequired()

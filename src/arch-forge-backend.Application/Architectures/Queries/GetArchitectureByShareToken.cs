@@ -3,21 +3,21 @@ using arch_forge_backend.Application.Common.Interfaces;
 
 namespace arch_forge_backend.Application.Architectures.Queries;
 
-public class GetArchitectureByIdQuery
+public class GetArchitectureByShareTokenQuery
 {
     public string ShareToken { get; set; } = string.Empty;
 }
 
-public class GetArchitectureByIdQueryHandler
+public class GetArchitectureByShareTokenQueryHandler
 {
     private readonly IArchitectureRepository _repository;
 
-    public GetArchitectureByIdQueryHandler(IArchitectureRepository repository)
+    public GetArchitectureByShareTokenQueryHandler(IArchitectureRepository repository)
     {
         _repository = repository;
     }
 
-    public async Task<ArchitectureDto?> Handle(GetArchitectureByIdQuery query, CancellationToken cancellationToken = default)
+    public async Task<ArchitectureDto?> Handle(GetArchitectureByShareTokenQuery query, CancellationToken cancellationToken = default)
     {
         var architecture = await _repository.GetByShareTokenAsync(query.ShareToken, cancellationToken);
         return architecture?.ToDto();

@@ -105,7 +105,7 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
         var reloaded = await _client.GetFromJsonAsync<JsonObject>($"/api/architectures/{shareToken}");
         Assert.Equal(5, reloaded!["version"]!.GetValue<int>());
         Assert.Equal(2, reloaded["nodes"]!.AsArray().Count);
-        Assert.Equal(1, reloaded["connections"]!.AsArray().Count);
+        Assert.Single(reloaded["connections"]!.AsArray());
 
         var movedNode = reloaded["nodes"]!.AsArray().Single(n => n!["id"]!.GetValue<Guid>() == apiNodeId);
         Assert.Equal(40, movedNode!["position"]!["x"]!.GetValue<double>());
@@ -140,6 +140,31 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
         var configuration = reloaded!["nodes"]!.AsArray().Single()!["configuration"]!.AsObject();
         Assert.True(configuration["durable"]!.GetValue<bool>());
         Assert.Equal(3, configuration["maxRetries"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task Put_NodeWithoutConfiguration_RoundTripsAsEmptyObject()
+    {
+        // §5.1: the column is jsonb NOT NULL, so an unconfigured node reads back as {}, not null.
+        var (id, shareToken) = await CreateArchitectureAsync("Unconfigured");
+
+        var response = await _client.PutAsJsonAsync($"/api/architectures/{id}", new
+        {
+            name = "Unconfigured",
+            version = 1,
+            nodes = new object[]
+            {
+                new { id = Guid.NewGuid(), type = "Api", name = "Api", position = new { x = 0, y = 0 } }
+            },
+            connections = Array.Empty<object>()
+        });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var reloaded = await _client.GetFromJsonAsync<JsonObject>($"/api/architectures/{shareToken}");
+        var configuration = reloaded!["nodes"]!.AsArray().Single()!["configuration"];
+
+        Assert.NotNull(configuration);
+        Assert.Empty(configuration!.AsObject());
     }
 
     [Fact]

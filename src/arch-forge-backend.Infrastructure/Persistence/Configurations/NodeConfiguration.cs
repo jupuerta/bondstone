@@ -11,6 +11,9 @@ public class NodeConfiguration : IEntityTypeConfiguration<Node>
         builder.HasKey(n => n.Id);
         builder.Property(n => n.Name).IsRequired().HasMaxLength(200);
         builder.Property(n => n.Type).HasConversion<string>().HasMaxLength(50);
-        builder.Property(n => n.Configuration).HasColumnType("jsonb");
+        builder.Property(n => n.Configuration)
+            .HasColumnType("jsonb")
+            .IsRequired()
+            .HasDefaultValueSql("'{}'::jsonb");
     }
 }

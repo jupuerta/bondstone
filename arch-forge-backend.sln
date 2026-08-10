@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "arch-forge-backend.Applicat
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "arch-forge-backend.Api.IntegrationTests", "tests\arch-forge-backend.Api.IntegrationTests\arch-forge-backend.Api.IntegrationTests.csproj", "{C059296F-717C-4C11-B146-D8AAB947A2CB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "arch-forge-backend.Domain.Tests", "tests\arch-forge-backend.Domain.Tests\arch-forge-backend.Domain.Tests.csproj", "{168610D4-7395-44B4-93E2-04694D4B6994}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -101,6 +103,18 @@ Global
 		{C059296F-717C-4C11-B146-D8AAB947A2CB}.Release|x64.Build.0 = Release|Any CPU
 		{C059296F-717C-4C11-B146-D8AAB947A2CB}.Release|x86.ActiveCfg = Release|Any CPU
 		{C059296F-717C-4C11-B146-D8AAB947A2CB}.Release|x86.Build.0 = Release|Any CPU
+		{168610D4-7395-44B4-93E2-04694D4B6994}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{168610D4-7395-44B4-93E2-04694D4B6994}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{168610D4-7395-44B4-93E2-04694D4B6994}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{168610D4-7395-44B4-93E2-04694D4B6994}.Debug|x64.Build.0 = Debug|Any CPU
+		{168610D4-7395-44B4-93E2-04694D4B6994}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{168610D4-7395-44B4-93E2-04694D4B6994}.Debug|x86.Build.0 = Debug|Any CPU
+		{168610D4-7395-44B4-93E2-04694D4B6994}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{168610D4-7395-44B4-93E2-04694D4B6994}.Release|Any CPU.Build.0 = Release|Any CPU
+		{168610D4-7395-44B4-93E2-04694D4B6994}.Release|x64.ActiveCfg = Release|Any CPU
+		{168610D4-7395-44B4-93E2-04694D4B6994}.Release|x64.Build.0 = Release|Any CPU
+		{168610D4-7395-44B4-93E2-04694D4B6994}.Release|x86.ActiveCfg = Release|Any CPU
+		{168610D4-7395-44B4-93E2-04694D4B6994}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -112,5 +126,6 @@ Global
 		{B76C96FF-50E3-4174-8E8F-EAC500F84F93} = {43BA981D-AB4D-46D0-96D6-6AEEF7F19A06}
 		{D339FC5F-9A84-488F-B47A-BA16A7B1C6DD} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{C059296F-717C-4C11-B146-D8AAB947A2CB} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{168610D4-7395-44B4-93E2-04694D4B6994} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal
