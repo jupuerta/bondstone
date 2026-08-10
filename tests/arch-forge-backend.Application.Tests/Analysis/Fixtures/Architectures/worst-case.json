@@ -1,0 +1,200 @@
+{
+  "name": "worst-case",
+  "nodes": [
+    {
+      "id": "a0000000-0000-0000-0000-000000000001",
+      "type": "Gateway",
+      "name": "Gateway"
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000002",
+      "type": "Service",
+      "name": "Orders"
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000003",
+      "type": "Service",
+      "name": "Payments"
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000004",
+      "type": "Service",
+      "name": "Inventory"
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000005",
+      "type": "Service",
+      "name": "Shipping"
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000006",
+      "type": "Service",
+      "name": "Notifications"
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000007",
+      "type": "Service",
+      "name": "Users"
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000008",
+      "type": "Service",
+      "name": "Billing"
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000009",
+      "type": "Service",
+      "name": "Search"
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000010",
+      "type": "Database",
+      "name": "Db",
+      "configuration": {
+        "readReplicas": null
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "c0000000-0000-0000-0000-000000000001",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000001",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000002",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5,
+        "retries": 2
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000002",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000002",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000003",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {}
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000003",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000002",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000005",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5,
+        "retries": 3
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000004",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000002",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000006",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000005",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000002",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000007",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000006",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000002",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000008",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000007",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000002",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000009",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000008",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000002",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000010",
+      "protocol": "Sql",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000009",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000003",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000004",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000010",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000004",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000002",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000011",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000005",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000006",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000012",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000006",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000010",
+      "protocol": "Sql",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000013",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000007",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000010",
+      "protocol": "Sql",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000014",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000008",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000010",
+      "protocol": "Sql",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Rules;
-using arch_forge_backend.Domain.Entities;
+using arch_forge_backend.Application.Tests.Analysis.Rules.Support;
 using arch_forge_backend.Domain.Enums;
 using Xunit;
 
@@ -9,123 +9,214 @@ namespace arch_forge_backend.Application.Tests.Analysis.Rules;
 public class SpofRuleTests
 {
     private readonly SpofRule _rule = new();
+    private readonly GraphBuilder _builder = new();
 
     [Fact]
-    public void Evaluate_ThreeServicesDependOnSameDatabaseWithNoRedundancy_FlagsDatabaseAsCriticalSpof()
+    public void PatternA_ThreeDependents_IsCritical()
     {
-        var database = NewNode(NodeType.Database, "Database");
-        var orders = NewNode(NodeType.Service, "Orders");
-        var payments = NewNode(NodeType.Service, "Payments");
-        var users = NewNode(NodeType.Service, "Users");
+        _builder
+            .Node("Db", NodeType.Database)
+            .Nodes(NodeType.Service, "Orders", "Payments", "Users")
+            .Connect("Orders", "Db").Connect("Payments", "Db").Connect("Users", "Db");
 
-        var graph = new ArchitectureGraph(
-            [database, orders, payments, users],
-            [Connect(orders, database), Connect(payments, database), Connect(users, database)]);
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
-        var result = _rule.Evaluate(graph);
-
-        var finding = Assert.Single(result.Findings);
         Assert.Equal(RuleCodes.Spof, finding.Code);
         Assert.Equal(Area.Availability, finding.Area);
         Assert.Equal(Severity.Critical, finding.Severity);
-        Assert.Equal(FindingElement.Node(database.Id), Assert.Single(finding.Elements));
+        Assert.Contains("3 componentes dependen de él", finding.Message);
+        Assert.Equal(_builder.NodeElement("Db"), Assert.Single(finding.Elements));
     }
 
     [Fact]
-    public void Evaluate_ExactlyTwoDependents_FlagsAsWarning()
+    public void PatternA_ExactlyTwoDependents_IsWarning()
     {
         // Severity by blast radius (D4.x): two dependents is not the same failure as ten.
-        var database = NewNode(NodeType.Database, "Database");
-        var orders = NewNode(NodeType.Service, "Orders");
-        var payments = NewNode(NodeType.Service, "Payments");
+        _builder
+            .Node("Db", NodeType.Database)
+            .Nodes(NodeType.Service, "Orders", "Payments")
+            .Connect("Orders", "Db").Connect("Payments", "Db");
 
-        var graph = new ArchitectureGraph(
-            [database, orders, payments],
-            [Connect(orders, database), Connect(payments, database)]);
-
-        var finding = Assert.Single(_rule.Evaluate(graph).Findings);
-
-        Assert.Equal(Severity.Warning, finding.Severity);
+        Assert.Equal(Severity.Warning, Assert.Single(_rule.Evaluate(_builder.Build()).Findings).Severity);
     }
 
     [Fact]
-    public void Evaluate_PublishesFactCarryingTheSeverity()
+    public void PatternA_SingleDependent_PassesInsteadOfFiring()
     {
-        // MISSING_RESILIENCE escalates only towards a Critical SPOF, so the severity travels
-        // inside the fact (D5.1).
-        var database = NewNode(NodeType.Database, "Database");
-        var orders = NewNode(NodeType.Service, "Orders");
-        var payments = NewNode(NodeType.Service, "Payments");
+        // The rule had something to check and it was fine - a green check, not silence (D1.4).
+        // Were this "not applicable", Availability could never reach a clean 100.
+        _builder
+            .Node("Db", NodeType.Database)
+            .Node("Api", NodeType.Api)
+            .Connect("Api", "Db");
 
-        var graph = new ArchitectureGraph(
-            [database, orders, payments],
-            [Connect(orders, database), Connect(payments, database)]);
+        var result = _rule.Evaluate(_builder.Build());
 
-        _rule.Evaluate(graph);
+        Assert.True(result.IsApplicable);
+        Assert.Empty(result.Findings);
+    }
+
+    [Fact]
+    public void PatternB_GatewayWithNoDependents_IsCritical()
+    {
+        // The flagship example (§18, Post 4): nobody points at a gateway, so pattern A sees
+        // nothing. Remove it and everything behind it becomes unreachable.
+        _builder
+            .Node("Gateway", NodeType.Gateway)
+            .Nodes(NodeType.Service, "Users", "Orders", "Payments")
+            .Connect("Gateway", "Users").Connect("Gateway", "Orders").Connect("Gateway", "Payments");
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal(Severity.Critical, finding.Severity);
+        Assert.Contains("3 componentes quedan inalcanzables", finding.Message);
+        Assert.Equal(_builder.NodeElement("Gateway"), Assert.Single(finding.Elements));
+    }
+
+    [Fact]
+    public void PatternB_OnlyOneNodeBehindIt_DoesNotFire()
+    {
+        _builder
+            .Node("Api", NodeType.Api)
+            .Node("Db", NodeType.Database)
+            .Connect("Api", "Db");
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Fact]
+    public void PatternB_AlternativePathKeepsEverythingReachable_DoesNotFire()
+    {
+        // Api1 is not a point of passage: without it, Cache and Queue are still reachable via Api2.
+        _builder
+            .Node("LB", NodeType.LoadBalancer)
+            .Nodes(NodeType.Api, "Api1", "Api2")
+            .Node("Cache", NodeType.Cache)
+            .Node("Queue", NodeType.Queue)
+            .Connect("LB", "Api1").Connect("LB", "Api2")
+            .Connect("Api1", "Cache").Connect("Api2", "Cache")
+            .Connect("Api1", "Queue").Connect("Api2", "Queue");
+
+        var findings = _rule.Evaluate(_builder.Build()).Findings;
+
+        Assert.DoesNotContain(findings, f => f.Elements.Contains(_builder.NodeElement("Api1")));
+    }
+
+    [Fact]
+    public void BothPatterns_ReportOneFindingWithTheHighestSeverity()
+    {
+        // Orders has two dependents (pattern A, Warning) and is the only way through to what is
+        // behind it (pattern B, Critical). One finding per node, the worse severity (D4.x).
+        _builder
+            .Node("Gateway", NodeType.Gateway)
+            .Nodes(NodeType.Service, "Orders", "Payments", "Inventory")
+            .Connect("Gateway", "Orders")
+            .Connect("Orders", "Payments")
+            .Connect("Payments", "Inventory")
+            .Connect("Inventory", "Orders");
+
+        var findings = _rule.Evaluate(_builder.Build()).Findings;
+
+        var orders = Assert.Single(findings, f => f.Elements.Contains(_builder.NodeElement("Orders")));
+        Assert.Equal(Severity.Critical, orders.Severity);
+        Assert.Contains("inalcanzables", orders.Message);
+    }
+
+    [Fact]
+    public void LoadBalancerSpreadingOverTwoNodesOfTheSameType_IsNeverFlagged()
+    {
+        // Without this exception the model loops: you add a balancer to fix a SPOF and the
+        // balancer becomes the SPOF, with no way out (D4.x).
+        _builder
+            .Node("LB", NodeType.LoadBalancer)
+            .Nodes(NodeType.Api, "Api1", "Api2")
+            .Connect("LB", "Api1").Connect("LB", "Api2");
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Fact]
+    public void LoadBalancerWithASingleTarget_IsNotExempt()
+    {
+        // It balances nothing, so it is a point of passage like any other.
+        _builder
+            .Node("LB", NodeType.LoadBalancer)
+            .Node("Api", NodeType.Api)
+            .Node("Db", NodeType.Database)
+            .Connect("LB", "Api").Connect("Api", "Db");
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal(_builder.NodeElement("LB"), Assert.Single(finding.Elements));
+    }
+
+    [Fact]
+    public void ExplicitRedundancy_NodeBehindABalancer_IsExempt()
+    {
+        // Api1 and Api2 each serve both consumers, and the balancer is what makes them
+        // interchangeable.
+        _builder
+            .Node("LB", NodeType.LoadBalancer)
+            .Nodes(NodeType.Api, "Api1", "Api2")
+            .Nodes(NodeType.Service, "Orders", "Payments")
+            .Connect("LB", "Api1").Connect("LB", "Api2")
+            .Connect("Orders", "Api1").Connect("Orders", "Api2")
+            .Connect("Payments", "Api1").Connect("Payments", "Api2");
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Fact]
+    public void EquivalentSibling_SameTypeAndSameDependents_IsExempt()
+    {
+        _builder
+            .Nodes(NodeType.Database, "Db", "DbReplica")
+            .Nodes(NodeType.Service, "Orders", "Payments")
+            .Connect("Orders", "Db").Connect("Orders", "DbReplica")
+            .Connect("Payments", "Db").Connect("Payments", "DbReplica");
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Fact]
+    public void SiblingsOfTheSameTypeServingDifferentConsumers_AreNotRedundant()
+    {
+        // V1 asked only for "some dependent in common", which with microservices exempted Users,
+        // Orders and Payments from each other for hanging off the same gateway (D4.x).
+        _builder
+            .Nodes(NodeType.Database, "Db", "Reporting")
+            .Nodes(NodeType.Service, "Orders", "Payments", "Users")
+            .Connect("Orders", "Db").Connect("Orders", "Reporting")
+            .Connect("Payments", "Db").Connect("Users", "Db");
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal(_builder.NodeElement("Db"), Assert.Single(finding.Elements));
+    }
+
+    [Fact]
+    public void Evaluate_PublishesOneFactPerFindingCarryingItsSeverity()
+    {
+        // MISSING_RESILIENCE escalates only towards a Critical SPOF, so the fact and the finding
+        // must agree on the severity (D5.1).
+        _builder
+            .Node("Db", NodeType.Database)
+            .Nodes(NodeType.Service, "Orders", "Payments")
+            .Connect("Orders", "Db").Connect("Payments", "Db");
+
+        var graph = _builder.Build();
+        var findings = _rule.Evaluate(graph).Findings;
 
         var fact = Assert.IsType<SinglePointOfFailureFact>(Assert.Single(graph.Facts));
-        Assert.Equal(database.Id, fact.NodeId);
-        Assert.Equal(Severity.Warning, fact.Severity);
-    }
-
-    [Fact]
-    public void Evaluate_RedundantSiblingCoveringSameDependent_DoesNotFlagSpof()
-    {
-        var database = NewNode(NodeType.Database, "Database");
-        var databaseReplica = NewNode(NodeType.Database, "DatabaseReplica");
-        var orders = NewNode(NodeType.Service, "Orders");
-        var payments = NewNode(NodeType.Service, "Payments");
-
-        var graph = new ArchitectureGraph(
-            [database, databaseReplica, orders, payments],
-            [
-                Connect(orders, database),
-                Connect(payments, database),
-                Connect(orders, databaseReplica)
-            ]);
-
-        var result = _rule.Evaluate(graph);
-
-        Assert.True(result.IsApplicable);
-        Assert.Empty(result.Findings);
-    }
-
-    [Fact]
-    public void Evaluate_SingleDependent_IsApplicableAndFindsNothing()
-    {
-        // Applicable, because there is a node with dependents to check - it just passes (D1.4).
-        var database = NewNode(NodeType.Database, "Database");
-        var orders = NewNode(NodeType.Service, "Orders");
-
-        var graph = new ArchitectureGraph([database, orders], [Connect(orders, database)]);
-
-        var result = _rule.Evaluate(graph);
-
-        Assert.True(result.IsApplicable);
-        Assert.Empty(result.Findings);
+        Assert.Equal(_builder.IdOf("Db"), fact.NodeId);
+        Assert.Equal(Assert.Single(findings).Severity, fact.Severity);
     }
 
     [Fact]
     public void Evaluate_NoNodeHasDependents_IsNotApplicable()
     {
-        var graph = new ArchitectureGraph([NewNode(NodeType.Api, "Api")], []);
+        _builder.Node("Api", NodeType.Api).Node("Db", NodeType.Database);
 
-        Assert.False(_rule.Evaluate(graph).IsApplicable);
+        Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
     }
-
-    private static Node NewNode(NodeType type, string name) => new()
-    {
-        Id = Guid.NewGuid(),
-        Type = type,
-        Name = name
-    };
-
-    private static Connection Connect(Node source, Node target) => new()
-    {
-        Id = Guid.NewGuid(),
-        SourceNodeId = source.Id,
-        TargetNodeId = target.Id,
-        Protocol = ProtocolType.Http,
-        Synchronous = true
-    };
 }

@@ -1,15 +1,19 @@
+using arch_forge_backend.Domain.Entities;
+using arch_forge_backend.Domain.Enums;
+
 namespace arch_forge_backend.Application.Analysis.Rules;
 
 /// <summary>
-/// V2 VS1: adapted to the new contract, still on V1's semantics - shared dependency (pattern A)
-/// with the "sibling of the same type sharing a dependent" redundancy heuristic. VS3 replaces
-/// both: pattern B (single point of passage) and redundancy as an explicit relation through
-/// LoadBalancer (D4.x).
+/// V2 D4.x. Two patterns, because with the invariant "source depends on target" (D3.3) a gateway
+/// has zero dependents: defining a SPOF only as "≥2 components depend on it" would never have
+/// fired on the product's flagship example.
 /// </summary>
 public class SpofRule : IArchitectureRule
 {
     private const int SharedDependencyMin = 2;
-    private const int CriticalDependents = 3;
+    private const int SharedDependencyCritical = 3;
+    private const int UnreachableMin = 2;
+    private const int RedundantInstancesMin = 2;
 
     public string Code => RuleCodes.Spof;
     public Area Area => Area.Availability;
@@ -19,52 +23,131 @@ public class SpofRule : IArchitectureRule
     public string PassedMessage => "Ningún componente concentra el funcionamiento del sistema.";
 
     public string PassedExplanation =>
-        "Se ha comprobado que ningún componente compartido deja el sistema sin alternativa si deja de funcionar.";
+        "Se ha comprobado, componente a componente, qué dejaría de funcionar si cayera: ninguno se lleva por delante el resto del sistema.";
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
-        var dependentsByTarget = graph.Connections
-            .GroupBy(c => c.TargetNodeId)
-            .ToDictionary(g => g.Key, g => g.Select(c => c.SourceNodeId).Distinct().ToList());
+        var dependentsByNode = graph.Nodes.ToDictionary(
+            node => node.Id,
+            node => graph.IncomingByTarget[node.Id].Select(c => c.SourceNodeId).Distinct().ToHashSet());
 
-        // Nothing to check if no node has dependents at all.
-        if (dependentsByTarget.Count == 0)
+        // Nothing to check while nobody depends on anybody.
+        if (!dependentsByNode.Values.Any(dependents => dependents.Count > 0))
             return RuleResult.NotApplicable;
 
+        var reachableFromRoots = ReachableFromRoots(graph, excluded: null);
         var findings = new List<RuleFinding>();
 
         foreach (var node in graph.Nodes)
         {
-            if (!dependentsByTarget.TryGetValue(node.Id, out var dependents) || dependents.Count < SharedDependencyMin)
+            if (IsRedundancyMechanism(graph, node) || HasRedundancy(graph, node, dependentsByNode))
                 continue;
 
-            var hasRedundantSibling = graph.Nodes.Any(other =>
-                other.Id != node.Id &&
-                other.Type == node.Type &&
-                dependentsByTarget.TryGetValue(other.Id, out var otherDependents) &&
-                otherDependents.Intersect(dependents).Any());
+            var dependents = dependentsByNode[node.Id].Count;
 
-            if (hasRedundantSibling)
+            // Pattern B: how much of the system stops being reachable without it. Always Critical
+            // - a single point of passage takes everything behind it down with it.
+            var unreachable = reachableFromRoots.Count == 0
+                ? 0
+                : reachableFromRoots.Except(ReachableFromRoots(graph, excluded: node.Id)).Count(id => id != node.Id);
+
+            if (unreachable >= UnreachableMin)
+            {
+                findings.Add(Report(graph, node, Severity.Critical,
+                    $"'{node.Name}' es un punto único de fallo: {unreachable} componentes quedan inalcanzables si deja de funcionar."));
+                continue;
+            }
+
+            // Pattern A: shared dependency, graded by how many depend on it.
+            if (dependents < SharedDependencyMin)
                 continue;
 
-            // Severity by blast radius (D4.x): what the finding costs depends on how much stops
-            // working with the node, not on which rule found it.
-            var severity = dependents.Count >= CriticalDependents ? Severity.Critical : Severity.Warning;
+            var severity = dependents >= SharedDependencyCritical ? Severity.Critical : Severity.Warning;
 
-            // MISSING_RESILIENCE escalates only towards a Critical SPOF, so the fact carries the
-            // severity and not just the node (D5.1).
-            graph.Facts.Add(new SinglePointOfFailureFact(node.Id, severity));
-
-            findings.Add(new RuleFinding(
-                Code,
-                Area,
-                severity,
-                $"'{node.Name}' es un punto único de fallo: {dependents.Count} componentes dependen de él sin redundancia.",
-                "No existe ningún componente equivalente que pueda asumir su trabajo. Cualquier incidencia en él afecta a todo lo que hay detrás.",
-                "Añade un LoadBalancer con al menos dos instancias equivalentes, o replica el componente para que sus consumidores tengan alternativa.",
-                [FindingElement.Node(node.Id)]));
+            findings.Add(Report(graph, node, severity,
+                $"'{node.Name}' es un punto único de fallo: {dependents} componentes dependen de él sin redundancia."));
         }
 
         return RuleResult.Applicable(findings);
+    }
+
+    // One finding per node, with the highest severity it earns. MISSING_RESILIENCE only escalates
+    // towards a Critical one, so the severity travels inside the fact too (D5.1).
+    private RuleFinding Report(ArchitectureGraph graph, Node node, Severity severity, string message)
+    {
+        graph.Facts.Add(new SinglePointOfFailureFact(node.Id, severity));
+
+        return new RuleFinding(
+            Code,
+            Area,
+            severity,
+            message,
+            "No existe ningún componente equivalente que pueda asumir su trabajo. Cualquier incidencia en él afecta a todo lo que hay detrás.",
+            "Añade un LoadBalancer con al menos dos instancias equivalentes, o replica el componente para que sus consumidores tengan alternativa.",
+            [FindingElement.Node(node.Id)]);
+    }
+
+    /// <summary>
+    /// A LoadBalancer spreading traffic over ≥2 nodes of the same type is never flagged (D4.x).
+    /// It is the redundancy mechanism itself: without this exception the model loops - you add a
+    /// balancer to fix a SPOF and the balancer becomes the SPOF, with no way out.
+    /// </summary>
+    private static bool IsRedundancyMechanism(ArchitectureGraph graph, Node node) =>
+        node.Type == NodeType.LoadBalancer && BalancedTypes(graph, node).Any();
+
+    private static bool HasRedundancy(ArchitectureGraph graph, Node node, Dictionary<Guid, HashSet<Guid>> dependentsByNode)
+    {
+        // Explicit: it hangs from a LoadBalancer that spreads over ≥2 nodes of its type.
+        var behindBalancer = graph.IncomingByTarget[node.Id]
+            .Select(c => graph.NodesById.GetValueOrDefault(c.SourceNodeId))
+            .Any(source => source is { Type: NodeType.LoadBalancer } && BalancedTypes(graph, source).Contains(node.Type));
+
+        if (behindBalancer)
+            return true;
+
+        var dependents = dependentsByNode[node.Id];
+
+        // Equivalent sibling: same type, and serving exactly the same consumers. V1 asked only for
+        // "some dependent in common", which breaks with microservices - Users, Orders and Payments
+        // are all Services hanging off the same gateway and would exempt each other as if they
+        // were replicas. Serving nobody is not redundancy either, so an empty set does not count.
+        return dependents.Count > 0 && graph.Nodes.Any(other =>
+            other.Id != node.Id &&
+            other.Type == node.Type &&
+            dependentsByNode[other.Id].SetEquals(dependents));
+    }
+
+    /// <summary>Node types this balancer spreads over with at least two instances.</summary>
+    private static IEnumerable<NodeType> BalancedTypes(ArchitectureGraph graph, Node balancer) =>
+        graph.OutgoingBySource[balancer.Id]
+            .Select(c => graph.NodesById.GetValueOrDefault(c.TargetNodeId))
+            .Where(target => target is not null)
+            .GroupBy(target => target!.Type)
+            .Where(byType => byType.Select(target => target!.Id).Distinct().Count() >= RedundantInstancesMin)
+            .Select(byType => byType.Key);
+
+    /// <summary>
+    /// What traffic can still get to, entering through the roots. Costs O(V · (V+E)) over the
+    /// whole rule; irrelevant at the sizes this product handles, and replaceable by a dominator
+    /// tree the day it is not (D4.x).
+    /// </summary>
+    private static HashSet<Guid> ReachableFromRoots(ArchitectureGraph graph, Guid? excluded)
+    {
+        var reachable = new HashSet<Guid>();
+        var pending = new Stack<Guid>(graph.RootNodes.Select(n => n.Id).Where(id => id != excluded));
+
+        while (pending.TryPop(out var nodeId))
+        {
+            if (!reachable.Add(nodeId))
+                continue;
+
+            foreach (var edge in graph.OutgoingBySource[nodeId])
+            {
+                if (edge.TargetNodeId != excluded)
+                    pending.Push(edge.TargetNodeId);
+            }
+        }
+
+        return reachable;
     }
 }

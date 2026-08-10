@@ -18,4 +18,8 @@
     <ProjectReference Include="..\..\src\arch-forge-backend.Application\arch-forge-backend.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="Analysis\Fixtures\Architectures\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

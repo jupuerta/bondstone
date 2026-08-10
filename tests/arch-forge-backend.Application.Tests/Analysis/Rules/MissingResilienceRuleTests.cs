@@ -1,0 +1,167 @@
+using arch_forge_backend.Application.Analysis;
+using arch_forge_backend.Application.Analysis.Rules;
+using arch_forge_backend.Application.Tests.Analysis.Rules.Support;
+using arch_forge_backend.Domain.Enums;
+using Xunit;
+
+namespace arch_forge_backend.Application.Tests.Analysis.Rules;
+
+public class MissingResilienceRuleTests
+{
+    private readonly MissingResilienceRule _rule = new();
+    private readonly GraphBuilder _builder = new();
+
+    [Fact]
+    public void SynchronousEdgeWithoutTimeout_IsAWarning()
+    {
+        _builder
+            .Node("Orders")
+            .Node("Db", NodeType.Database)
+            .Connect("Orders", "Db");
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal(RuleCodes.MissingResilience, finding.Code);
+        Assert.Equal(Area.Resilience, finding.Area);
+        Assert.Equal(Severity.Warning, finding.Severity);
+        Assert.Equal("La llamada de 'Orders' a 'Db' no tiene protección frente a fallos.", finding.Message);
+        Assert.Equal(_builder.EdgeElement("Orders", "Db"), Assert.Single(finding.Elements));
+    }
+
+    [Fact]
+    public void AsynchronousEdge_IsIgnored()
+    {
+        // On an asynchronous call these mechanisms do not apply.
+        _builder
+            .Node("Orders")
+            .Node("Queue", NodeType.Queue)
+            .Connect("Orders", "Queue", synchronous: false)
+            .Node("Api", NodeType.Api).Connect("Api", "Orders", timeoutSeconds: 5);
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Fact]
+    public void TimeoutTowardsANodeThatIsNotASpof_Passes()
+    {
+        // Asking for a circuit breaker everywhere would flag the whole graph (D4.4).
+        _builder
+            .Node("Orders")
+            .Node("Db", NodeType.Database)
+            .Connect("Orders", "Db", timeoutSeconds: 5);
+
+        var result = _rule.Evaluate(_builder.Build());
+
+        Assert.True(result.IsApplicable);
+        Assert.Empty(result.Findings);
+    }
+
+    [Fact]
+    public void TimeoutTowardsACriticalSpofWithoutFallback_EscalatesToCritical()
+    {
+        _builder
+            .Node("Orders")
+            .Node("Db", NodeType.Database)
+            .Connect("Orders", "Db", timeoutSeconds: 5);
+
+        var graph = _builder.Build();
+        graph.Facts.Add(new SinglePointOfFailureFact(_builder.IdOf("Db"), Severity.Critical));
+
+        var finding = Assert.Single(_rule.Evaluate(graph).Findings);
+
+        Assert.Equal(Severity.Critical, finding.Severity);
+        Assert.Contains("'Db' es un punto único de fallo", finding.Explanation);
+    }
+
+    [Fact]
+    public void TimeoutTowardsAWarningSpof_DoesNotEscalate()
+    {
+        // The correction of v1.1: with SPOF graded by blast radius, escalating towards any SPOF
+        // turned a correct architecture with one shared cache into a pile of criticals.
+        _builder
+            .Node("Orders")
+            .Node("Cache", NodeType.Cache)
+            .Connect("Orders", "Cache", timeoutSeconds: 5);
+
+        var graph = _builder.Build();
+        graph.Facts.Add(new SinglePointOfFailureFact(_builder.IdOf("Cache"), Severity.Warning));
+
+        Assert.Empty(_rule.Evaluate(graph).Findings);
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void CircuitBreakerOrFallbackTowardsACriticalSpof_Passes(bool circuitBreaker, bool fallback)
+    {
+        _builder
+            .Node("Orders")
+            .Node("Db", NodeType.Database)
+            .Connect("Orders", "Db", timeoutSeconds: 5, circuitBreaker: circuitBreaker, fallback: fallback);
+
+        var graph = _builder.Build();
+        graph.Facts.Add(new SinglePointOfFailureFact(_builder.IdOf("Db"), Severity.Critical));
+
+        Assert.Empty(_rule.Evaluate(graph).Findings);
+    }
+
+    [Fact]
+    public void NoTimeoutTowardsACriticalSpof_IsCriticalAndSaysBothReasons()
+    {
+        _builder
+            .Node("Orders")
+            .Node("Db", NodeType.Database)
+            .Connect("Orders", "Db");
+
+        var graph = _builder.Build();
+        graph.Facts.Add(new SinglePointOfFailureFact(_builder.IdOf("Db"), Severity.Critical));
+
+        var finding = Assert.Single(_rule.Evaluate(graph).Findings);
+
+        Assert.Equal(Severity.Critical, finding.Severity);
+        Assert.Contains("Sin timeout", finding.Explanation);
+        Assert.Contains("punto único de fallo", finding.Explanation);
+        Assert.Contains("Configura un timeout", finding.Suggestion);
+    }
+
+    [Fact]
+    public void EdgeAlreadyReportedByRetryAmplification_StaysQuiet()
+    {
+        // D4.5: the more specific rule already said the timeout is missing. Saying it again under
+        // a second code is noise, not information.
+        _builder
+            .Node("Orders")
+            .Node("Payments")
+            .Connect("Orders", "Payments", retries: 3);
+
+        var graph = _builder.Build();
+        graph.Facts.Add(new RetryAmplificationFact(_builder.EdgeId("Orders", "Payments")));
+
+        Assert.Empty(_rule.Evaluate(graph).Findings);
+    }
+
+    [Fact]
+    public void AtMostOneFindingPerEdge()
+    {
+        _builder
+            .Node("Orders")
+            .Node("Db", NodeType.Database)
+            .Connect("Orders", "Db");
+
+        var graph = _builder.Build();
+        graph.Facts.Add(new SinglePointOfFailureFact(_builder.IdOf("Db"), Severity.Critical));
+
+        Assert.Single(_rule.Evaluate(graph).Findings);
+    }
+
+    [Fact]
+    public void NoSynchronousEdge_IsNotApplicable()
+    {
+        _builder
+            .Node("Orders")
+            .Node("Queue", NodeType.Queue)
+            .Connect("Orders", "Queue", synchronous: false);
+
+        Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
+    }
+}

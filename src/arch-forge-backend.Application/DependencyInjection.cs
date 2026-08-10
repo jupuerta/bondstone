@@ -14,8 +14,16 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-        services.AddScoped<IArchitectureRule, SpofRule>();
-        services.AddScoped<IArchitectureRule, SyncDependencyChainRule>();
+        // The seven rules of D4.6. Registration order is deliberately not the execution order:
+        // the analyzer runs every Producer before every Consumer (D5.2), so reordering this list
+        // cannot break the escalation of MISSING_RESILIENCE.
+        services.AddScoped<IArchitectureRule, SpofRule>();                  // Producer
+        services.AddScoped<IArchitectureRule, CycleRule>();                 // Producer
+        services.AddScoped<IArchitectureRule, RetryAmplificationRule>();    // Producer
+        services.AddScoped<IArchitectureRule, SyncDependencyChainRule>();   // Consumer
+        services.AddScoped<IArchitectureRule, MissingResilienceRule>();     // Consumer
+        services.AddScoped<IArchitectureRule, HighCouplingRule>();          // Consumer
+        services.AddScoped<IArchitectureRule, MissingCacheRule>();          // Consumer
         services.AddScoped<ArchitectureAnalyzer>();
 
         services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<ApiConfiguration>(NodeType.Api));

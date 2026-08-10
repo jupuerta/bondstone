@@ -1,0 +1,104 @@
+using arch_forge_backend.Application.Analysis;
+using arch_forge_backend.Domain.Entities;
+using arch_forge_backend.Domain.Enums;
+
+namespace arch_forge_backend.Application.Tests.Analysis.Rules.Support;
+
+/// <summary>
+/// Builds graphs by name so a rule test reads like the architecture it describes. Ids are
+/// sequential and deterministic: two runs produce the same graph, and declaration order is id
+/// order, which is what makes CYCLE's canonical form predictable in a test.
+/// </summary>
+public class GraphBuilder
+{
+    private readonly Dictionary<string, Node> _nodes = [];
+
+    // A list, not a dictionary: two components can be connected twice, and HIGH_COUPLING has to
+    // count that as one dependency.
+    private readonly List<(string Source, string Target, Connection Connection)> _connections = [];
+    private int _nextId;
+
+    public GraphBuilder Node(string name, NodeType type = NodeType.Service, string configuration = "{}")
+    {
+        _nodes.Add(name, new Node
+        {
+            Id = NextId(),
+            Type = type,
+            Name = name,
+            Configuration = configuration
+        });
+
+        return this;
+    }
+
+    public GraphBuilder Nodes(NodeType type, params string[] names)
+    {
+        foreach (var name in names)
+            Node(name, type);
+
+        return this;
+    }
+
+    /// <summary>Source depends on target - the invariant of D3.3, and the direction of every edge.</summary>
+    public GraphBuilder Connect(
+        string source,
+        string target,
+        bool synchronous = true,
+        int? timeoutSeconds = null,
+        int? retries = null,
+        bool circuitBreaker = false,
+        bool fallback = false,
+        ProtocolType protocol = ProtocolType.Http)
+    {
+        _connections.Add((source, target, new Connection
+        {
+            Id = NextId(),
+            SourceNodeId = IdOf(source),
+            TargetNodeId = IdOf(target),
+            Protocol = protocol,
+            Synchronous = synchronous,
+            Configuration = Resilience(timeoutSeconds, retries, circuitBreaker, fallback)
+        }));
+
+        return this;
+    }
+
+    public Guid IdOf(string name) => _nodes[name].Id;
+
+    public Guid EdgeId(string source, string target) =>
+        _connections.First(c => c.Source == source && c.Target == target).Connection.Id;
+
+    public FindingElement NodeElement(string name) => FindingElement.Node(IdOf(name));
+
+    public FindingElement EdgeElement(string source, string target) => FindingElement.Connection(EdgeId(source, target));
+
+    /// <summary>Resolves the elements of a finding back to names, so assertions read as a walk.</summary>
+    public IEnumerable<string> Names(IEnumerable<FindingElement> elements) => elements.Select(element =>
+    {
+        if (element.Type == ElementType.Node)
+            return _nodes.Values.Single(n => n.Id == element.Id).Name;
+
+        var edge = _connections.Single(c => c.Connection.Id == element.Id);
+        return $"{edge.Source}->{edge.Target}";
+    });
+
+    public ArchitectureGraph Build() => new(_nodes.Values.ToList(), _connections.Select(c => c.Connection).ToList());
+
+    private Guid NextId() => new($"00000000-0000-0000-0000-{++_nextId:000000000000}");
+
+    private static string Resilience(int? timeoutSeconds, int? retries, bool circuitBreaker, bool fallback)
+    {
+        var fields = new List<string>();
+
+        if (timeoutSeconds is not null)
+            fields.Add($"\"timeoutSeconds\":{timeoutSeconds}");
+
+        if (retries is not null)
+            fields.Add($"\"retries\":{retries}");
+
+        fields.Add($"\"circuitBreaker\":{(circuitBreaker ? "true" : "false")}");
+        fields.Add($"\"fallback\":{(fallback ? "true" : "false")}");
+
+        return $"{{{string.Join(",", fields)}}}";
+    }
+}

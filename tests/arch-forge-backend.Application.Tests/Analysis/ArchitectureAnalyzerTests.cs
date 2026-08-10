@@ -1,6 +1,6 @@
+using System.Text;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Rules;
-using arch_forge_backend.Domain.Entities;
 using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Analysis;
@@ -19,6 +19,22 @@ public class ArchitectureAnalyzerTests
         Assert.Empty(result.Findings);
         Assert.Equal(6, result.Areas.Count);
         Assert.All(result.Areas, area => Assert.Equal(AreaState.NoRules, area.State));
+    }
+
+    [Fact]
+    public void Analyze_WhereNoRuleApplies_ReturnsNullScoreAndNoScoredArea()
+    {
+        // The same conclusion by the other road: rules exist, none of them had anything to check
+        // here. Still not a 100 (D1.2, rules 3 and 4).
+        var result = new ArchitectureAnalyzer([
+            StubRule.NotApplicable(Area.Availability),
+            StubRule.NotApplicable(Area.Resilience)
+        ]).Analyze(EmptyGraph);
+
+        Assert.Null(result.Score);
+        Assert.Empty(result.Findings);
+        Assert.DoesNotContain(result.Areas, area => area.State == AreaState.Scored);
+        Assert.Equal(0, result.Summary.Passed);
     }
 
     [Fact]
@@ -56,6 +72,17 @@ public class ArchitectureAnalyzerTests
     }
 
     [Fact]
+    public void Analyze_RuleWithFindings_DoesNotAlsoCountAsPassed()
+    {
+        var result = new ArchitectureAnalyzer([
+            StubRule.WithFindings(Area.Availability, RuleCodes.Spof, Severity.Critical)
+        ]).Analyze(EmptyGraph);
+
+        Assert.Equal(0, result.Summary.Passed);
+        Assert.DoesNotContain(result.Findings, f => f.Severity == Severity.Good);
+    }
+
+    [Fact]
     public void Analyze_RuleThatDoesNotApply_LeavesItsAreaOutOfTheAverage()
     {
         // D1.2, rule 3: an area whose rules had nothing to check does not enter the average, and
@@ -77,8 +104,8 @@ public class ArchitectureAnalyzerTests
         // Availability: one critical -> 85. Coupling: two warnings -> 100 - 5 - 2.5 = 92.5 -> 93.
         // Average of the two areas the user sees: (85 + 93) / 2 = 89.
         var result = new ArchitectureAnalyzer([
-            StubRule.WithFindings(Area.Availability, "A_RULE", Severity.Critical),
-            StubRule.WithFindings(Area.Coupling, "C_RULE", Severity.Warning, Severity.Warning)
+            StubRule.WithFindings(Area.Availability, RuleCodes.Spof, Severity.Critical),
+            StubRule.WithFindings(Area.Coupling, RuleCodes.HighCoupling, Severity.Warning, Severity.Warning)
         ]).Analyze(EmptyGraph);
 
         Assert.Equal(85, AreaOf(result, Area.Availability).Score);
@@ -88,16 +115,64 @@ public class ArchitectureAnalyzerTests
     }
 
     [Fact]
+    public void Analyze_AreaFedBySeveralRules_CapsEachRuleOnItsOwn()
+    {
+        // The cap of D1.1 is per rule code, not per area: 100 - 45 - 15 = 40. Were it per area,
+        // Resilience could never drop past 55 no matter how many different things were wrong.
+        var result = new ArchitectureAnalyzer([
+            StubRule.WithFindings(Area.Resilience, RuleCodes.MissingResilience,
+                Enumerable.Repeat(Severity.Critical, 6).ToArray()),
+            StubRule.WithFindings(Area.Resilience, RuleCodes.SyncChain, Severity.Critical)
+        ]).Analyze(EmptyGraph);
+
+        Assert.Equal(40, AreaOf(result, Area.Resilience).Score);
+    }
+
+    [Fact]
     public void Analyze_RunsEveryProducerBeforeAnyConsumer()
     {
-        // D5.2: the consumer must see the facts, whatever order the rules were registered in.
+        // D5.2: the consumer must see the facts whatever order the rules were registered in -
+        // here the consumer is registered first on purpose.
         var seenByConsumer = new List<ArchitectureFact>();
-        var producer = new FactProducingRule();
-        var consumer = new FactReadingRule(seenByConsumer);
 
-        new ArchitectureAnalyzer([consumer, producer]).Analyze(new ArchitectureGraph([], []));
+        new ArchitectureAnalyzer([
+            new FactConsumingRule(Area.Resilience, RuleCodes.MissingResilience, seenByConsumer),
+            new FactPublishingRule(Area.Availability, RuleCodes.Spof, factCount: 2)
+        ]).Analyze(new ArchitectureGraph([], []));
 
-        Assert.Single(seenByConsumer);
+        Assert.Equal(2, seenByConsumer.Count);
+    }
+
+    [Fact]
+    public void Analyze_OrderOfRulesWithinAPhase_DoesNotChangeTheResult()
+    {
+        // This is the assertion the whole two-phase design rests on (D5.2): if the order inside a
+        // phase mattered, two phases would not be enough and the engine would need the DAG.
+        IArchitectureRule[] rules = [
+            new FactPublishingRule(Area.Availability, RuleCodes.Spof, factCount: 2),
+            new FactPublishingRule(Area.Coupling, RuleCodes.Cycle, factCount: 1),
+            new FactConsumingRule(Area.Resilience, RuleCodes.MissingResilience, []),
+            new FactConsumingRule(Area.Scalability, RuleCodes.MissingCache, [])
+        ];
+
+        var forwards = new ArchitectureAnalyzer(rules).Analyze(new ArchitectureGraph([], []));
+        var backwards = new ArchitectureAnalyzer(rules.Reverse()).Analyze(new ArchitectureGraph([], []));
+
+        Assert.Equal(Render(forwards), Render(backwards));
+    }
+
+    [Fact]
+    public void Analyze_RunTwiceOverTheSameGraph_GivesTheSameResult()
+    {
+        // Facts from a previous run must not pile up: a producer publishing on every pass would
+        // make the second analysis of an unchanged architecture disagree with the first.
+        var analyzer = new ArchitectureAnalyzer([
+            new FactPublishingRule(Area.Availability, RuleCodes.Spof, factCount: 2),
+            new FactConsumingRule(Area.Resilience, RuleCodes.MissingResilience, [])
+        ]);
+        var graph = new ArchitectureGraph([], []);
+
+        Assert.Equal(Render(analyzer.Analyze(graph)), Render(analyzer.Analyze(graph)));
     }
 
     [Fact]
@@ -117,19 +192,83 @@ public class ArchitectureAnalyzerTests
             result.Findings.Select(f => f.Code));
     }
 
+    [Fact]
+    public void Analyze_SeveralFindingsFromOneRule_KeepTheOrderItEmittedThem()
+    {
+        // The last tie-break of D2.1, rule 4: at equal severity, area and code, emission order.
+        var result = new ArchitectureAnalyzer([
+            StubRule.WithMessages(Area.Availability, RuleCodes.Spof, Severity.Critical, "first", "second", "third")
+        ]).Analyze(EmptyGraph);
+
+        Assert.Equal(["first", "second", "third"], result.Findings.Select(f => f.Message));
+    }
+
+    [Fact]
+    public void Constructor_TwoRulesSharingACode_Throws()
+    {
+        // The cap is per code (D1.1) and a code means one thing (D2.4): two rules answering to
+        // the same one would double-penalize in silence.
+        var exception = Assert.Throws<InvalidOperationException>(() => new ArchitectureAnalyzer([
+            StubRule.WithFindings(Area.Availability, RuleCodes.Spof, Severity.Critical),
+            StubRule.WithFindings(Area.Resilience, RuleCodes.Spof, Severity.Warning)
+        ]));
+
+        Assert.Contains(RuleCodes.Spof, exception.Message);
+    }
+
+    [Fact]
+    public void Analyze_RuleReportingFindingsWhileNotApplicable_Throws()
+    {
+        // Not applicable means there was nothing to check (D1.4); findings under an area marked
+        // as having nothing to say is a contradiction, not a state to render.
+        var analyzer = new ArchitectureAnalyzer([new MisbehavingRule(applicable: false, matchingCode: true)]);
+
+        Assert.Throws<InvalidOperationException>(() => analyzer.Analyze(EmptyGraph));
+    }
+
+    [Fact]
+    public void Analyze_RuleEmittingAFindingUnderAnotherCode_Throws()
+    {
+        // Penalties are grouped by the rule's code and area; a finding that disagrees would be
+        // charged to one heading and displayed under another.
+        var analyzer = new ArchitectureAnalyzer([new MisbehavingRule(applicable: true, matchingCode: false)]);
+
+        Assert.Throws<InvalidOperationException>(() => analyzer.Analyze(EmptyGraph));
+    }
+
     private static AreaScore AreaOf(AnalysisResult result, Area area) => result.Areas.Single(a => a.Area == area);
+
+    // Records compare their list members by reference, so the whole result is rendered to text to
+    // compare two runs in one assertion - and a failure prints what actually differs.
+    private static string Render(AnalysisResult result)
+    {
+        var rendered = new StringBuilder()
+            .AppendLine($"{result.ScoringVersion} score={result.Score?.ToString() ?? "-"}")
+            .AppendLine($"summary={result.Summary}");
+
+        foreach (var area in result.Areas)
+            rendered.AppendLine($"area {area.Area} {area.State} {area.Score?.ToString() ?? "-"}");
+
+        foreach (var finding in result.Findings)
+        {
+            var elements = string.Join(",", finding.Elements.Select(e => $"{e.Type}:{e.Id}"));
+            rendered.AppendLine($"finding {finding.Severity} {finding.Area} {finding.Code} '{finding.Message}' [{elements}]");
+        }
+
+        return rendered.ToString();
+    }
 
     private sealed class StubRule : IArchitectureRule
     {
         private readonly bool _isApplicable;
-        private readonly Severity[] _severities;
+        private readonly (Severity Severity, string Message)[] _findings;
 
-        private StubRule(Area area, string code, bool isApplicable, Severity[] severities)
+        private StubRule(Area area, string code, bool isApplicable, (Severity, string)[] findings)
         {
             Area = area;
             Code = code;
             _isApplicable = isApplicable;
-            _severities = severities;
+            _findings = findings;
         }
 
         public static StubRule Applicable(Area area) => new(area, CodeFor(area), true, []);
@@ -137,7 +276,10 @@ public class ArchitectureAnalyzerTests
         public static StubRule NotApplicable(Area area) => new(area, CodeFor(area), false, []);
 
         public static StubRule WithFindings(Area area, string code, params Severity[] severities) =>
-            new(area, code, true, severities);
+            new(area, code, true, severities.Select(s => (s, "message")).ToArray());
+
+        public static StubRule WithMessages(Area area, string code, Severity severity, params string[] messages) =>
+            new(area, code, true, messages.Select(m => (severity, m)).ToArray());
 
         public string Code { get; }
         public Area Area { get; }
@@ -151,12 +293,12 @@ public class ArchitectureAnalyzerTests
             if (!_isApplicable)
                 return RuleResult.NotApplicable;
 
-            return RuleResult.Applicable(_severities
-                .Select(severity => new RuleFinding(Code, Area, severity, "message", "explanation", "suggestion", []))
+            return RuleResult.Applicable(_findings
+                .Select(f => new RuleFinding(Code, Area, f.Severity, f.Message, "explanation", "suggestion", []))
                 .ToList());
         }
 
-        // Real codes, so the ordering test uses the same alphabet the product does.
+        // Real codes, so the ordering tests use the same alphabet the product does.
         private static string CodeFor(Area area) => area switch
         {
             Area.Availability => RuleCodes.Spof,
@@ -166,35 +308,74 @@ public class ArchitectureAnalyzerTests
         };
     }
 
-    private sealed class FactProducingRule : IArchitectureRule
+    /// <summary>A producer: publishes facts and reports one warning for each.</summary>
+    private sealed class FactPublishingRule(Area area, string code, int factCount) : IArchitectureRule
     {
-        public string Code => "PRODUCER";
-        public Area Area => Area.Availability;
+        public string Code => code;
+        public Area Area => area;
         public Severity DefaultSeverity => Severity.Warning;
         public RulePhase Phase => RulePhase.Producer;
-        public string PassedMessage => "produced";
-        public string PassedExplanation => "produced";
+        public string PassedMessage => $"{code} passed.";
+        public string PassedExplanation => $"{code} was checked.";
 
         public RuleResult Evaluate(ArchitectureGraph graph)
         {
-            graph.Facts.Add(new SinglePointOfFailureFact(Guid.NewGuid(), Severity.Critical));
-            return RuleResult.Applicable();
+            var findings = new List<RuleFinding>();
+
+            for (var i = 0; i < factCount; i++)
+            {
+                // Deterministic ids: two runs must produce byte-identical results.
+                var nodeId = new Guid($"00000000-0000-0000-0000-{i:000000000000}");
+                graph.Facts.Add(new SinglePointOfFailureFact(nodeId, Severity.Critical));
+                findings.Add(new RuleFinding(code, area, Severity.Warning, $"published {i}", "explanation", null,
+                    [FindingElement.Node(nodeId)]));
+            }
+
+            return RuleResult.Applicable(findings);
         }
     }
 
-    private sealed class FactReadingRule(List<ArchitectureFact> seen) : IArchitectureRule
+    /// <summary>A consumer: reports one warning per fact it can see, so its output changes if the phases ever leak.</summary>
+    private sealed class FactConsumingRule(Area area, string code, List<ArchitectureFact> seen) : IArchitectureRule
     {
-        public string Code => "CONSUMER";
-        public Area Area => Area.Resilience;
+        public string Code => code;
+        public Area Area => area;
         public Severity DefaultSeverity => Severity.Warning;
         public RulePhase Phase => RulePhase.Consumer;
-        public string PassedMessage => "consumed";
-        public string PassedExplanation => "consumed";
+        public string PassedMessage => $"{code} passed.";
+        public string PassedExplanation => $"{code} was checked.";
 
         public RuleResult Evaluate(ArchitectureGraph graph)
         {
             seen.AddRange(graph.Facts);
-            return RuleResult.Applicable();
+
+            return RuleResult.Applicable(graph.Facts
+                .OfType<SinglePointOfFailureFact>()
+                .OrderBy(fact => fact.NodeId)
+                .Select(fact => new RuleFinding(code, area, Severity.Warning, $"consumed {fact.NodeId}", "explanation", null,
+                    [FindingElement.Node(fact.NodeId)]))
+                .ToList());
         }
+    }
+
+    private sealed class MisbehavingRule(bool applicable, bool matchingCode) : IArchitectureRule
+    {
+        public string Code => RuleCodes.Spof;
+        public Area Area => Area.Availability;
+        public Severity DefaultSeverity => Severity.Warning;
+        public RulePhase Phase => RulePhase.Producer;
+        public string PassedMessage => "passed";
+        public string PassedExplanation => "checked";
+
+        public RuleResult Evaluate(ArchitectureGraph graph) => new(applicable, [
+            new RuleFinding(
+                matchingCode ? Code : RuleCodes.Cycle,
+                Area,
+                Severity.Warning,
+                "message",
+                "explanation",
+                null,
+                [])
+        ]);
     }
 }

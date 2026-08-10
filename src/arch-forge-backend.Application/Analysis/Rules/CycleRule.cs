@@ -1,0 +1,126 @@
+using arch_forge_backend.Domain.Entities;
+
+namespace arch_forge_backend.Application.Analysis.Rules;
+
+/// <summary>
+/// V2 D4.x. A cycle goes to Coupling, not Resilience: a mutual dependency is coupling in its
+/// purest form. It is detected, never rejected on save (D3.4) - turning the most instructive
+/// pathology in architecture into a form error would forbid exactly what the product teaches.
+/// </summary>
+public class CycleRule : IArchitectureRule
+{
+    public string Code => RuleCodes.Cycle;
+    public Area Area => Area.Coupling;
+    public Severity DefaultSeverity => Severity.Warning;
+    public RulePhase Phase => RulePhase.Producer;
+
+    public string PassedMessage => "No hay dependencias circulares.";
+
+    public string PassedExplanation =>
+        "Se han seguido las dependencias entre componentes y ninguna vuelve sobre sus pasos: todas se pueden desplegar y arrancar en algún orden.";
+
+    public RuleResult Evaluate(ArchitectureGraph graph)
+    {
+        if (graph.Connections.Count == 0)
+            return RuleResult.NotApplicable;
+
+        var findings = new List<RuleFinding>();
+
+        foreach (var cycle in FindCycles(graph))
+        {
+            // A synchronous cycle is a deadlock waiting to happen; with a queue in between it is
+            // a debatable but workable pattern (D4.x).
+            var severity = cycle.All(edge => edge.Synchronous) ? Severity.Critical : Severity.Warning;
+
+            foreach (var edge in cycle)
+                graph.Facts.Add(new CyclicConnectionFact(edge.Id));
+
+            var names = cycle.Select(edge => graph.NodesById[edge.SourceNodeId].Name).ToList();
+
+            findings.Add(new RuleFinding(
+                Code,
+                Area,
+                severity,
+                $"Dependencia circular entre {cycle.Count} componentes: {string.Join(" → ", names)} → {names[0]}.",
+                "Ninguno de los componentes implicados puede desplegarse, arrancar ni recuperarse de forma independiente. Si el ciclo es síncrono, una caída en cualquiera de ellos bloquea a los demás.",
+                "Rompe el ciclo invirtiendo una de las dependencias o sustituyéndola por comunicación asíncrona vía cola.",
+                Interleave(cycle)));
+        }
+
+        return RuleResult.Applicable(findings);
+    }
+
+    // The walk, closing back on the node it started from (D2.2).
+    private static List<FindingElement> Interleave(IReadOnlyList<Connection> cycle)
+    {
+        var elements = new List<FindingElement> { FindingElement.Node(cycle[0].SourceNodeId) };
+
+        foreach (var edge in cycle)
+        {
+            elements.Add(FindingElement.Connection(edge.Id));
+            elements.Add(FindingElement.Node(edge.TargetNodeId));
+        }
+
+        return elements;
+    }
+
+    /// <summary>
+    /// DFS with a recursion stack: every edge that closes back onto the current path is a cycle.
+    /// Linear, and deterministic because nodes and edges are walked in id order - findings have to
+    /// come out in the same order on every run (D2.1, rule 4).
+    /// </summary>
+    private static List<List<Connection>> FindCycles(ArchitectureGraph graph)
+    {
+        var cycles = new List<List<Connection>>();
+        var reported = new HashSet<string>();
+        var visited = new HashSet<Guid>();
+        var path = new List<Connection>();
+        var onPath = new HashSet<Guid>();
+
+        foreach (var node in graph.Nodes.OrderBy(n => n.Id))
+            Walk(node.Id);
+
+        return cycles;
+
+        void Walk(Guid nodeId)
+        {
+            if (!visited.Add(nodeId))
+                return;
+
+            onPath.Add(nodeId);
+
+            foreach (var edge in graph.OutgoingBySource[nodeId].OrderBy(c => c.TargetNodeId).ThenBy(c => c.Id))
+            {
+                if (onPath.Contains(edge.TargetNodeId))
+                {
+                    var cycle = path.SkipWhile(e => e.SourceNodeId != edge.TargetNodeId).Append(edge).ToList();
+                    if (cycle[0].SourceNodeId == edge.TargetNodeId)
+                        Record(cycle);
+
+                    continue;
+                }
+
+                path.Add(edge);
+                Walk(edge.TargetNodeId);
+                path.RemoveAt(path.Count - 1);
+            }
+
+            onPath.Remove(nodeId);
+        }
+
+        void Record(List<Connection> cycle)
+        {
+            // Canonical form: always start at the lowest id of the cycle. Without it the same
+            // cycle would produce as many findings as it has nodes, and the order of findings
+            // would stop being deterministic (D4.x).
+            var start = cycle.Select((edge, index) => (edge.SourceNodeId, index))
+                .OrderBy(entry => entry.SourceNodeId)
+                .First().index;
+
+            var canonical = cycle.Skip(start).Concat(cycle.Take(start)).ToList();
+
+            if (reported.Add(string.Join("|", canonical.Select(e => e.Id))))
+                cycles.Add(canonical);
+        }
+    }
+}
