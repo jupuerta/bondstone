@@ -6,5 +6,9 @@ public enum NodeType
     Database,
     Service,
     Queue,
-    Cache
+    Cache,
+    // V2 D3.2: a node type earns its place only if some rule looks at it. LoadBalancer is how
+    // redundancy becomes explicit for SPOF; Gateway is what lets a finding name the gateway.
+    Gateway,
+    LoadBalancer
 }

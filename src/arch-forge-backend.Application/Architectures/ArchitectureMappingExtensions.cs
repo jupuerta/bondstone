@@ -34,8 +34,7 @@ public static class ArchitectureMappingExtensions
         TargetNodeId = connection.TargetNodeId,
         Protocol = connection.Protocol,
         Synchronous = connection.Synchronous,
-        TimeoutSeconds = connection.TimeoutSeconds,
-        Retries = connection.Retries
+        Configuration = ParseConfiguration(connection.Configuration)
     };
 
     // Configuration is stored as jsonb but surfaced to the client as a JSON object, not as an

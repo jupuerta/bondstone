@@ -11,26 +11,7 @@ public class SyncDependencyChainRuleTests
     private readonly SyncDependencyChainRule _rule = new();
 
     [Fact]
-    public void Evaluate_ThreeSynchronousHops_FlagsChainStart()
-    {
-        var a = NewNode("A");
-        var b = NewNode("B");
-        var c = NewNode("C");
-        var d = NewNode("D");
-
-        var graph = new ArchitectureGraph(
-            [a, b, c, d],
-            [Connect(a, b, synchronous: true), Connect(b, c, synchronous: true), Connect(c, d, synchronous: true)]);
-
-        var findings = _rule.Evaluate(graph).ToList();
-
-        var finding = Assert.Single(findings);
-        Assert.Equal("SYNC_CHAIN", finding.Code);
-        Assert.Equal(a.Id, finding.NodeId);
-    }
-
-    [Fact]
-    public void Evaluate_ThreeComponentChain_Flags()
+    public void Evaluate_ThreeComponentChain_FlagsChainStartAsWarning()
     {
         // ArchForge_decisiones_arquitectura_V1_1.md §3.1: API -> Orders -> Payments is length 3.
         var api = NewNode("API");
@@ -41,41 +22,73 @@ public class SyncDependencyChainRuleTests
             [api, orders, payments],
             [Connect(api, orders, synchronous: true), Connect(orders, payments, synchronous: true)]);
 
-        var finding = Assert.Single(_rule.Evaluate(graph).ToList());
+        var finding = Assert.Single(_rule.Evaluate(graph).Findings);
 
-        Assert.Equal(api.Id, finding.NodeId);
+        Assert.Equal(RuleCodes.SyncChain, finding.Code);
+        Assert.Equal(Area.Resilience, finding.Area);
+        Assert.Equal(Severity.Warning, finding.Severity);
         Assert.Contains("3 componentes", finding.Message);
     }
 
     [Fact]
-    public void Evaluate_ChainWithSeveralHops_ReportsOnlyTheStartingNode()
+    public void Evaluate_FiveComponentChain_EscalatesToCritical()
+    {
+        // D4.2: the cut at 5 is the literal example of §8.1 of the ideas document.
+        var nodes = Enumerable.Range(0, 5).Select(i => NewNode($"N{i}")).ToList();
+        var edges = nodes.Zip(nodes.Skip(1), (from, to) => Connect(from, to, synchronous: true)).ToList();
+
+        var graph = new ArchitectureGraph(nodes, edges);
+
+        var finding = Assert.Single(_rule.Evaluate(graph).Findings);
+
+        Assert.Equal(Severity.Critical, finding.Severity);
+        Assert.Contains("5 componentes", finding.Message);
+    }
+
+    [Fact]
+    public void Evaluate_ChainWithSeveralHops_ReportsOnlyTheStartingNodeAndInterleavesTheWalk()
     {
         var a = NewNode("A");
         var b = NewNode("B");
         var c = NewNode("C");
         var d = NewNode("D");
 
-        var graph = new ArchitectureGraph(
-            [a, b, c, d],
-            [Connect(a, b, synchronous: true), Connect(b, c, synchronous: true), Connect(c, d, synchronous: true)]);
+        var ab = Connect(a, b, synchronous: true);
+        var bc = Connect(b, c, synchronous: true);
+        var cd = Connect(c, d, synchronous: true);
 
-        var finding = Assert.Single(_rule.Evaluate(graph).ToList());
+        var graph = new ArchitectureGraph([a, b, c, d], [ab, bc, cd]);
 
-        Assert.Equal(a.Id, finding.NodeId);
+        var finding = Assert.Single(_rule.Evaluate(graph).Findings);
+
         Assert.Contains("4 componentes", finding.Message);
+
+        // D2.2: node, edge, node, edge... so the canvas highlights by iterating.
+        Assert.Equal(
+            [
+                FindingElement.Node(a.Id),
+                FindingElement.Connection(ab.Id),
+                FindingElement.Node(b.Id),
+                FindingElement.Connection(bc.Id),
+                FindingElement.Node(c.Id),
+                FindingElement.Connection(cd.Id),
+                FindingElement.Node(d.Id)
+            ],
+            finding.Elements);
     }
 
     [Fact]
-    public void Evaluate_ShortChain_DoesNotFlag()
+    public void Evaluate_ShortChain_IsApplicableAndFindsNothing()
     {
         var a = NewNode("A");
         var b = NewNode("B");
 
         var graph = new ArchitectureGraph([a, b], [Connect(a, b, synchronous: true)]);
 
-        var findings = _rule.Evaluate(graph).ToList();
+        var result = _rule.Evaluate(graph);
 
-        Assert.Empty(findings);
+        Assert.True(result.IsApplicable);
+        Assert.Empty(result.Findings);
     }
 
     [Fact]
@@ -90,9 +103,18 @@ public class SyncDependencyChainRuleTests
             [a, b, c, d],
             [Connect(a, b, synchronous: true), Connect(b, c, synchronous: false), Connect(c, d, synchronous: true)]);
 
-        var findings = _rule.Evaluate(graph).ToList();
+        Assert.Empty(_rule.Evaluate(graph).Findings);
+    }
 
-        Assert.Empty(findings);
+    [Fact]
+    public void Evaluate_NoSynchronousEdge_IsNotApplicable()
+    {
+        var a = NewNode("A");
+        var b = NewNode("B");
+
+        var graph = new ArchitectureGraph([a, b], [Connect(a, b, synchronous: false)]);
+
+        Assert.False(_rule.Evaluate(graph).IsApplicable);
     }
 
     private static Node NewNode(string name) => new()

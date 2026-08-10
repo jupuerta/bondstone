@@ -66,6 +66,141 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
         var findings = analysis!["findings"]!.AsArray();
         Assert.Contains(findings, f => f!["code"]!.GetValue<string>() == "SYNC_CHAIN");
         Assert.True(analysis["score"]!.GetValue<int>() is >= 0 and <= 100);
+
+        // V2 D2.1: the six areas always travel, in enum order; what varies is their state.
+        Assert.Equal("v2", analysis["scoringVersion"]!.GetValue<string>());
+        Assert.Equal(
+            ["Availability", "Resilience", "Coupling", "Scalability", "Security", "Observability"],
+            analysis["areas"]!.AsArray().Select(a => a!["area"]!.GetValue<string>()));
+        Assert.Equal("NoRules", analysis["areas"]!.AsArray()
+            .Single(a => a!["area"]!.GetValue<string>() == "Security")!["state"]!.GetValue<string>());
+        Assert.NotNull(analysis["summary"]);
+    }
+
+    [Fact]
+    public async Task Put_ConnectionConfiguration_RoundTripsAsJsonObject()
+    {
+        // V2 D3.1: resilience moved into the edge's jsonb, so it has to survive the round trip
+        // the same way a node's configuration does.
+        var (id, shareToken) = await CreateArchitectureAsync("Resilient edge");
+        var apiNodeId = Guid.NewGuid();
+        var databaseNodeId = Guid.NewGuid();
+
+        var response = await _client.PutAsJsonAsync($"/api/architectures/{id}", new
+        {
+            name = "Resilient edge",
+            version = 1,
+            nodes = new object[]
+            {
+                new { id = apiNodeId, type = "Api", name = "Api", position = new { x = 0, y = 0 } },
+                new { id = databaseNodeId, type = "Database", name = "Db", position = new { x = 200, y = 0 } }
+            },
+            connections = new object[]
+            {
+                new
+                {
+                    id = Guid.NewGuid(),
+                    sourceNodeId = apiNodeId,
+                    targetNodeId = databaseNodeId,
+                    protocol = "Sql",
+                    synchronous = true,
+                    configuration = new { timeoutSeconds = 5, retries = 2, circuitBreaker = true, fallback = false, bulkhead = false }
+                }
+            }
+        });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var reloaded = await _client.GetFromJsonAsync<JsonObject>($"/api/architectures/{shareToken}");
+        var configuration = reloaded!["connections"]!.AsArray().Single()!["configuration"]!;
+
+        Assert.Equal(5, configuration["timeoutSeconds"]!.GetValue<int>());
+        Assert.Equal(2, configuration["retries"]!.GetValue<int>());
+        Assert.True(configuration["circuitBreaker"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public async Task Put_ConnectionWithoutConfiguration_RoundTripsAsEmptyObject()
+    {
+        var (id, shareToken) = await CreateArchitectureAsync("Bare edge");
+        var apiNodeId = Guid.NewGuid();
+        var databaseNodeId = Guid.NewGuid();
+
+        var response = await _client.PutAsJsonAsync($"/api/architectures/{id}", new
+        {
+            name = "Bare edge",
+            version = 1,
+            nodes = new object[]
+            {
+                new { id = apiNodeId, type = "Api", name = "Api", position = new { x = 0, y = 0 } },
+                new { id = databaseNodeId, type = "Database", name = "Db", position = new { x = 200, y = 0 } }
+            },
+            connections = new object[]
+            {
+                new { id = Guid.NewGuid(), sourceNodeId = apiNodeId, targetNodeId = databaseNodeId, protocol = "Sql", synchronous = true }
+            }
+        });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var reloaded = await _client.GetFromJsonAsync<JsonObject>($"/api/architectures/{shareToken}");
+
+        Assert.Empty(reloaded!["connections"]!.AsArray().Single()!["configuration"]!.AsObject());
+    }
+
+    [Fact]
+    public async Task Put_SelfLoop_ReturnsBadRequest()
+    {
+        // V2 D3.4: structural corruption, rejected on save. Cycles of length >= 2 are not.
+        var (id, _) = await CreateArchitectureAsync("Self loop");
+        var nodeId = Guid.NewGuid();
+
+        var response = await _client.PutAsJsonAsync($"/api/architectures/{id}", new
+        {
+            name = "Self loop",
+            version = 1,
+            nodes = new object[]
+            {
+                new { id = nodeId, type = "Service", name = "Orders", position = new { x = 0, y = 0 } }
+            },
+            connections = new object[]
+            {
+                new { id = Guid.NewGuid(), sourceNodeId = nodeId, targetNodeId = nodeId, protocol = "Http", synchronous = true }
+            }
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Put_GatewayAndLoadBalancerNodes_RoundTrip()
+    {
+        // V2 D3.2: the two new types persist as text in the NodeType enum, no data migration.
+        var (id, shareToken) = await CreateArchitectureAsync("Edge tier");
+
+        var response = await _client.PutAsJsonAsync($"/api/architectures/{id}", new
+        {
+            name = "Edge tier",
+            version = 1,
+            nodes = new object[]
+            {
+                new { id = Guid.NewGuid(), type = "Gateway", name = "Gateway", position = new { x = 0, y = 0 } },
+                new
+                {
+                    id = Guid.NewGuid(),
+                    type = "LoadBalancer",
+                    name = "LB",
+                    position = new { x = 200, y = 0 },
+                    configuration = new { algorithm = "round-robin", healthCheck = true, instances = 2 }
+                }
+            },
+            connections = Array.Empty<object>()
+        });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var reloaded = await _client.GetFromJsonAsync<JsonObject>($"/api/architectures/{shareToken}");
+
+        Assert.Equal(
+            ["Gateway", "LoadBalancer"],
+            reloaded!["nodes"]!.AsArray().Select(n => n!["type"]!.GetValue<string>()).Order());
     }
 
     [Fact]

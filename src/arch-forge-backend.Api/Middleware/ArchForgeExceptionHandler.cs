@@ -19,9 +19,9 @@ public class ArchForgeExceptionHandler : IExceptionHandler
                 }, cancellationToken);
                 return true;
 
-            case InvalidNodeConfigurationException invalidConfig:
+            case InvalidNodeConfigurationException or InvalidConnectionConfigurationException:
                 httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await httpContext.Response.WriteAsJsonAsync(new { message = invalidConfig.Message }, cancellationToken);
+                await httpContext.Response.WriteAsJsonAsync(new { message = exception.Message }, cancellationToken);
                 return true;
 
             case ValidationException validation:

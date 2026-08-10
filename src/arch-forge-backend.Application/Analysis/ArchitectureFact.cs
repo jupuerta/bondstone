@@ -1,5 +1,14 @@
 namespace arch_forge_backend.Application.Analysis;
 
-public abstract record ArchitectureFact(Guid NodeId);
+/// <summary>
+/// What a producer rule leaves behind for a consumer rule (V2 D5.1). The base record carries no
+/// NodeId any more: two of the three V2 facts are about edges, not nodes.
+/// </summary>
+public abstract record ArchitectureFact;
 
-public sealed record SinglePointOfFailureFact(Guid NodeId) : ArchitectureFact(NodeId);
+/// <summary>Carries the severity because MISSING_RESILIENCE only escalates on a Critical SPOF (D4.4).</summary>
+public sealed record SinglePointOfFailureFact(Guid NodeId, Severity Severity) : ArchitectureFact;
+
+public sealed record CyclicConnectionFact(Guid ConnectionId) : ArchitectureFact;
+
+public sealed record RetryAmplificationFact(Guid ConnectionId) : ArchitectureFact;

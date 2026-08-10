@@ -24,7 +24,9 @@ public class UpdateArchitectureCommandHandlerTests
             new NodeConfigurationProvider<DatabaseConfiguration>(NodeType.Database),
             new NodeConfigurationProvider<ServiceConfiguration>(NodeType.Service),
             new NodeConfigurationProvider<QueueConfiguration>(NodeType.Queue),
-            new NodeConfigurationProvider<CacheConfiguration>(NodeType.Cache)
+            new NodeConfigurationProvider<CacheConfiguration>(NodeType.Cache),
+            new NodeConfigurationProvider<GatewayConfiguration>(NodeType.Gateway),
+            new NodeConfigurationProvider<LoadBalancerConfiguration>(NodeType.LoadBalancer)
         ]);
 
         _handler = new UpdateArchitectureCommandHandler(_repository, registry, new UpdateArchitectureCommandValidator());
@@ -219,6 +221,154 @@ public class UpdateArchitectureCommandHandlerTests
         Assert.Equal("""{"durable":true,"deadLetterQueue":false,"maxRetries":3}""",
             (await _repository.GetByIdAsync(architecture.Id))!.Nodes[0].Configuration);
     }
+
+    [Fact]
+    public async Task Handle_ConnectionResilienceConfiguration_IsPersistedAsGiven()
+    {
+        // V2 D3.1: timeoutSeconds and retries live inside the edge's jsonb, next to the three
+        // mechanisms that used to have nowhere to go.
+        var architecture = await SeedArchitecture();
+        var api = Node(NodeType.Api, "Api");
+        var database = Node(NodeType.Database, "Db");
+        const string resilience = """{"timeoutSeconds":5,"retries":2,"circuitBreaker":true,"fallback":false,"bulkhead":false}""";
+
+        var command = new UpdateArchitectureCommand
+        {
+            Id = architecture.Id,
+            Name = "Renamed",
+            Version = architecture.Version,
+            Nodes = [api, database],
+            Connections = [Connect(api, database, Json(resilience))]
+        };
+
+        var result = await _handler.Handle(command);
+
+        Assert.NotNull(result);
+        Assert.Equal(resilience, (await _repository.GetByIdAsync(architecture.Id))!.Connections[0].Configuration);
+    }
+
+    [Fact]
+    public async Task Handle_ConnectionWithoutConfiguration_IsStoredAsEmptyObject()
+    {
+        var architecture = await SeedArchitecture();
+        var api = Node(NodeType.Api, "Api");
+        var database = Node(NodeType.Database, "Db");
+
+        await _handler.Handle(new UpdateArchitectureCommand
+        {
+            Id = architecture.Id,
+            Name = "Renamed",
+            Version = architecture.Version,
+            Nodes = [api, database],
+            Connections = [Connect(api, database)]
+        });
+
+        Assert.Equal("{}", (await _repository.GetByIdAsync(architecture.Id))!.Connections[0].Configuration);
+    }
+
+    [Fact]
+    public async Task Handle_ConnectionConfigurationThatDoesNotMatchSchema_Throws()
+    {
+        var architecture = await SeedArchitecture();
+        var api = Node(NodeType.Api, "Api");
+        var database = Node(NodeType.Database, "Db");
+
+        var command = new UpdateArchitectureCommand
+        {
+            Id = architecture.Id,
+            Name = "Renamed",
+            Version = architecture.Version,
+            Nodes = [api, database],
+            Connections = [Connect(api, database, Json("""{"timeoutSeconds":"not-a-number"}"""))]
+        };
+
+        await Assert.ThrowsAsync<InvalidConnectionConfigurationException>(() => _handler.Handle(command));
+    }
+
+    [Fact]
+    public async Task Handle_NonPositiveTimeout_Throws()
+    {
+        var architecture = await SeedArchitecture();
+        var api = Node(NodeType.Api, "Api");
+        var database = Node(NodeType.Database, "Db");
+
+        var command = new UpdateArchitectureCommand
+        {
+            Id = architecture.Id,
+            Name = "Renamed",
+            Version = architecture.Version,
+            Nodes = [api, database],
+            Connections = [Connect(api, database, Json("""{"timeoutSeconds":0}"""))]
+        };
+
+        await Assert.ThrowsAsync<InvalidConnectionConfigurationException>(() => _handler.Handle(command));
+    }
+
+    [Fact]
+    public async Task Handle_SelfLoop_IsRejected()
+    {
+        // V2 D3.4: a self-loop corrupts the graph, so it is rejected on save. A cycle between two
+        // or more nodes is not - that one the analyzer has an opinion about.
+        var architecture = await SeedArchitecture();
+        var service = Node(NodeType.Service, "Orders");
+
+        var command = new UpdateArchitectureCommand
+        {
+            Id = architecture.Id,
+            Name = "Renamed",
+            Version = architecture.Version,
+            Nodes = [service],
+            Connections = [Connect(service, service)]
+        };
+
+        await Assert.ThrowsAsync<ValidationException>(() => _handler.Handle(command));
+    }
+
+    [Fact]
+    public async Task Handle_CycleBetweenTwoNodes_IsAccepted()
+    {
+        var architecture = await SeedArchitecture();
+        var orders = Node(NodeType.Service, "Orders");
+        var payments = Node(NodeType.Service, "Payments");
+
+        var result = await _handler.Handle(new UpdateArchitectureCommand
+        {
+            Id = architecture.Id,
+            Name = "Renamed",
+            Version = architecture.Version,
+            Nodes = [orders, payments],
+            Connections = [Connect(orders, payments), Connect(payments, orders)]
+        });
+
+        Assert.NotNull(result);
+    }
+
+    [Fact]
+    public async Task Handle_GatewayAndLoadBalancerNodes_AreAccepted()
+    {
+        var architecture = await SeedArchitecture();
+
+        var result = await _handler.Handle(new UpdateArchitectureCommand
+        {
+            Id = architecture.Id,
+            Name = "Renamed",
+            Version = architecture.Version,
+            Nodes = [Node(NodeType.Gateway, "Gateway"), Node(NodeType.LoadBalancer, "LB")]
+        });
+
+        Assert.NotNull(result);
+        Assert.Equal(2, (await _repository.GetByIdAsync(architecture.Id))!.Nodes.Count);
+    }
+
+    private static ConnectionDto Connect(NodeDto source, NodeDto target, JsonElement? configuration = null) => new()
+    {
+        Id = Guid.NewGuid(),
+        SourceNodeId = source.Id,
+        TargetNodeId = target.Id,
+        Protocol = ProtocolType.Http,
+        Synchronous = true,
+        Configuration = configuration
+    };
 
     private static NodeDto Node(NodeType type, string name, double x = 0, double y = 0, Guid? id = null) => new()
     {

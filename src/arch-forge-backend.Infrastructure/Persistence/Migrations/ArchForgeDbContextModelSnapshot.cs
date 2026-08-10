@@ -67,13 +67,16 @@ namespace arch_forge_backend.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ArchitectureId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Configuration")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasDefaultValueSql("'{}'::jsonb");
+
                     b.Property<string>("Protocol")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
-
-                    b.Property<int?>("Retries")
-                        .HasColumnType("integer");
 
                     b.Property<Guid>("SourceNodeId")
                         .HasColumnType("uuid");
@@ -83,9 +86,6 @@ namespace arch_forge_backend.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("TargetNodeId")
                         .HasColumnType("uuid");
-
-                    b.Property<int?>("TimeoutSeconds")
-                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 

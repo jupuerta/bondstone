@@ -37,12 +37,11 @@ public class ArchitectureDefaultsTests
     }
 
     [Fact]
-    public void NewConnection_HasNoTimeoutOrRetries()
+    public void NewConnection_HasEmptyJsonObjectConfiguration()
     {
-        // Both are nullable in the model: "not specified" is distinct from "specified as 0".
-        var connection = new Connection();
-
-        Assert.Null(connection.TimeoutSeconds);
-        Assert.Null(connection.Retries);
+        // V2 D3.1: resilience lives inside a jsonb object, symmetric to the node's, so an edge
+        // with nothing configured carries {} rather than NULL.
+        Assert.Equal("{}", new Connection().Configuration);
+        Assert.Equal("{}", Connection.EmptyConfiguration);
     }
 }

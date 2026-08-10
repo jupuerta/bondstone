@@ -3,6 +3,7 @@ using arch_forge_backend.Application.Architectures.DTOs;
 using arch_forge_backend.Application.Common.Exceptions;
 using arch_forge_backend.Application.Common.Interfaces;
 using arch_forge_backend.Application.Configuration;
+using arch_forge_backend.Application.Configuration.Schemas;
 using arch_forge_backend.Domain.Entities;
 using FluentValidation;
 
@@ -39,8 +40,13 @@ public class UpdateArchitectureCommandValidator : AbstractValidator<UpdateArchit
         {
             connection.RuleFor(c => c.Id).NotEmpty().WithMessage("Each connection must carry a client-generated id.");
             connection.RuleFor(c => c.Protocol).IsInEnum();
-            connection.RuleFor(c => c.TimeoutSeconds).GreaterThan(0).When(c => c.TimeoutSeconds.HasValue);
-            connection.RuleFor(c => c.Retries).GreaterThanOrEqualTo(0).When(c => c.Retries.HasValue);
+
+            // V2 D3.4: a self-loop represents no real architecture and would falsify every
+            // traversal, so it is structural corruption rather than something to have an opinion
+            // about. Cycles of length >= 2, by contrast, are analyzed, not rejected.
+            connection.RuleFor(c => c.TargetNodeId)
+                .NotEqual(c => c.SourceNodeId)
+                .WithMessage("A connection cannot point at its own source node.");
         });
 
         RuleFor(c => c.Connections)
@@ -67,6 +73,11 @@ public class UpdateArchitectureCommandValidator : AbstractValidator<UpdateArchit
 
 public class UpdateArchitectureCommandHandler
 {
+    private static readonly JsonSerializerOptions ResilienceSerializerOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
     private readonly IArchitectureRepository _repository;
     private readonly NodeConfigurationRegistry _configurationRegistry;
     private readonly IValidator<UpdateArchitectureCommand> _validator;
@@ -93,6 +104,7 @@ public class UpdateArchitectureCommandHandler
             throw new ArchitectureConcurrencyConflictException(architecture.Version);
 
         ValidateNodeConfigurations(command.Nodes);
+        ValidateConnectionConfigurations(command.Connections);
 
         var nodes = command.Nodes.Select(n => new Node
         {
@@ -113,8 +125,7 @@ public class UpdateArchitectureCommandHandler
             TargetNodeId = c.TargetNodeId,
             Protocol = c.Protocol,
             Synchronous = c.Synchronous,
-            TimeoutSeconds = c.TimeoutSeconds,
-            Retries = c.Retries
+            Configuration = ToStoredConfiguration(c.Configuration)
         }).ToList();
 
         architecture.Name = command.Name;
@@ -132,6 +143,41 @@ public class UpdateArchitectureCommandHandler
         configuration is { } value && value.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined)
             ? value.GetRawText()
             : Node.EmptyConfiguration;
+
+    // An edge has a single schema regardless of protocol (V2 D3.1), so it is deserialized
+    // directly instead of going through the node registry. Validation happens on save, as it
+    // already does for nodes.
+    private static void ValidateConnectionConfigurations(List<ConnectionDto> connections)
+    {
+        foreach (var connection in connections)
+        {
+            if (connection.Configuration is not { } configuration)
+                continue;
+
+            if (configuration.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+                continue;
+
+            if (configuration.ValueKind != JsonValueKind.Object)
+                throw new InvalidConnectionConfigurationException(connection.Id, "configuration must be a JSON object.");
+
+            ResilienceConfiguration resilience;
+            try
+            {
+                resilience = JsonSerializer.Deserialize<ResilienceConfiguration>(
+                    configuration.GetRawText(), ResilienceSerializerOptions)!;
+            }
+            catch (JsonException ex)
+            {
+                throw new InvalidConnectionConfigurationException(connection.Id, ex.Message);
+            }
+
+            if (resilience.TimeoutSeconds is <= 0)
+                throw new InvalidConnectionConfigurationException(connection.Id, "timeoutSeconds must be greater than 0.");
+
+            if (resilience.Retries is < 0)
+                throw new InvalidConnectionConfigurationException(connection.Id, "retries must be 0 or greater.");
+        }
+    }
 
     private void ValidateNodeConfigurations(List<NodeDto> nodes)
     {
