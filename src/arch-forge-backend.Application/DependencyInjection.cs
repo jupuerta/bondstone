@@ -4,6 +4,7 @@ using arch_forge_backend.Application.Architectures.Commands;
 using arch_forge_backend.Application.Architectures.Queries;
 using arch_forge_backend.Application.Configuration;
 using arch_forge_backend.Application.Configuration.Schemas;
+using arch_forge_backend.Application.Simulation;
 using arch_forge_backend.Domain.Enums;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,6 +27,11 @@ public static class DependencyInjection
         services.AddScoped<IArchitectureRule, MissingCacheRule>();          // Consumer
         services.AddScoped<ArchitectureAnalyzer>();
 
+        // V3 D5.1: next to the analyzer and not inside it. Not a list of registered pieces either -
+        // mechanisms compose over the same edge in a fixed order, with the timeout as the gate to
+        // all the others, and a pipeline would have to encode that order in its registration order.
+        services.AddScoped<SimulationEngine>();
+
         services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<ApiConfiguration>(NodeType.Api));
         services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<DatabaseConfiguration>(NodeType.Database));
         services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<ServiceConfiguration>(NodeType.Service));
@@ -42,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<UpdateArchitectureCommandHandler>();
         services.AddScoped<GetArchitectureByShareTokenQueryHandler>();
         services.AddScoped<AnalyzeArchitectureQueryHandler>();
+        services.AddScoped<SimulateArchitectureQueryHandler>();
 
         return services;
     }

@@ -19,7 +19,8 @@ public class ArchForgeExceptionHandler : IExceptionHandler
                 }, cancellationToken);
                 return true;
 
-            case InvalidNodeConfigurationException or InvalidConnectionConfigurationException:
+            case InvalidNodeConfigurationException or InvalidConnectionConfigurationException
+                or InvalidSimulationScenarioException:
                 httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
                 await httpContext.Response.WriteAsJsonAsync(new { message = exception.Message }, cancellationToken);
                 return true;

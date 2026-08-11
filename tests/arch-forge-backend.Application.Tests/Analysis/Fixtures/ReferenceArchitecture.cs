@@ -23,6 +23,33 @@ public static class ReferenceArchitecture
 
     public static AnalysisResult Analyze(string fixtureName)
     {
+        // Registered in the same order as Program.cs, and deliberately not in execution order.
+        var analyzer = new ArchitectureAnalyzer([
+            new SpofRule(),
+            new CycleRule(),
+            new RetryAmplificationRule(),
+            new SyncDependencyChainRule(),
+            new MissingResilienceRule(),
+            new HighCouplingRule(),
+            new MissingCacheRule()
+        ]);
+
+        return analyzer.Analyze(Graph(fixtureName));
+    }
+
+    /// <summary>
+    /// The same four fixtures with no rule run over them, which is what the simulator gets (V3
+    /// D5.2): <c>Facts</c> is the producer-to-consumer channel between rules, and a simulation that
+    /// read from it would change its answer depending on which rules happen to be registered.
+    /// </summary>
+    public static ArchitectureGraph Graph(string fixtureName)
+    {
+        var (nodes, connections) = Load(fixtureName);
+        return new ArchitectureGraph(nodes, connections);
+    }
+
+    public static (List<Node> Nodes, List<Connection> Connections) Load(string fixtureName)
+    {
         var path = Path.Combine(AppContext.BaseDirectory, "Analysis", "Fixtures", "Architectures", $"{fixtureName}.json");
         var fixture = JsonSerializer.Deserialize<Fixture>(File.ReadAllText(path), Options)
                       ?? throw new InvalidOperationException($"Fixture '{fixtureName}' could not be read.");
@@ -45,19 +72,16 @@ public static class ReferenceArchitecture
             Configuration = Raw(c.Configuration)
         }).ToList();
 
-        // Registered in the same order as Program.cs, and deliberately not in execution order.
-        var analyzer = new ArchitectureAnalyzer([
-            new SpofRule(),
-            new CycleRule(),
-            new RetryAmplificationRule(),
-            new SyncDependencyChainRule(),
-            new MissingResilienceRule(),
-            new HighCouplingRule(),
-            new MissingCacheRule()
-        ]);
-
-        return analyzer.Analyze(new ArchitectureGraph(nodes, connections));
+        return (nodes, connections);
     }
+
+    public static Guid NodeId(this ArchitectureGraph graph, string name) =>
+        graph.Nodes.Single(n => n.Name == name).Id;
+
+    public static Guid EdgeId(this ArchitectureGraph graph, string source, string target) =>
+        graph.Connections.Single(c =>
+            graph.NodesById[c.SourceNodeId].Name == source &&
+            graph.NodesById[c.TargetNodeId].Name == target).Id;
 
     public static int? ScoreOf(this AnalysisResult result, Area area) =>
         result.Areas.Single(a => a.Area == area).Score;

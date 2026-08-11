@@ -169,7 +169,7 @@ public class UpdateArchitectureCommandHandlerTests
     {
         var architecture = await SeedArchitecture();
         var node = Node(NodeType.Queue, "Orders queue");
-        node.Configuration = Json("""{"durable":"not-a-boolean"}""");
+        node.Configuration = Json("""{"maxRetries":"not-a-number"}""");
 
         var command = new UpdateArchitectureCommand
         {
@@ -205,7 +205,7 @@ public class UpdateArchitectureCommandHandlerTests
     {
         var architecture = await SeedArchitecture();
         var node = Node(NodeType.Queue, "Orders queue");
-        node.Configuration = Json("""{"durable":true,"deadLetterQueue":false,"maxRetries":3}""");
+        node.Configuration = Json("""{"maxRetries":3}""");
 
         var command = new UpdateArchitectureCommand
         {
@@ -218,8 +218,34 @@ public class UpdateArchitectureCommandHandlerTests
         var result = await _handler.Handle(command);
 
         Assert.NotNull(result);
-        Assert.Equal("""{"durable":true,"deadLetterQueue":false,"maxRetries":3}""",
+        Assert.Equal("""{"maxRetries":3}""",
             (await _repository.GetByIdAsync(architecture.Id))!.Nodes[0].Configuration);
+    }
+
+    [Fact]
+    public async Task Handle_ConfigurationWithFieldsRetiredInV3_IsStoredUntouched()
+    {
+        // V3 plan técnico §4, and the whole reason the 16 fields cost no migration: the schema is
+        // permissive with unknown properties (NodeConfigurationProvider, no UnmappedMemberHandling
+        // .Disallow) and ToStoredConfiguration keeps the JSON exactly as it arrived. A row written
+        // before V3 keeps durable and deadLetterQueue, nobody reads them, and nothing breaks.
+        var architecture = await SeedArchitecture();
+        var node = Node(NodeType.Queue, "Orders queue");
+        const string legacy = """{"durable":true,"deadLetterQueue":false,"maxRetries":3}""";
+        node.Configuration = Json(legacy);
+
+        var command = new UpdateArchitectureCommand
+        {
+            Id = architecture.Id,
+            Name = "Renamed",
+            Version = architecture.Version,
+            Nodes = [node]
+        };
+
+        var result = await _handler.Handle(command);
+
+        Assert.NotNull(result);
+        Assert.Equal(legacy, (await _repository.GetByIdAsync(architecture.Id))!.Nodes[0].Configuration);
     }
 
     [Fact]
@@ -230,7 +256,7 @@ public class UpdateArchitectureCommandHandlerTests
         var architecture = await SeedArchitecture();
         var api = Node(NodeType.Api, "Api");
         var database = Node(NodeType.Database, "Db");
-        const string resilience = """{"timeoutSeconds":5,"retries":2,"circuitBreaker":true,"fallback":false,"bulkhead":false}""";
+        const string resilience = """{"timeoutSeconds":5,"retries":2,"circuitBreaker":true,"fallback":false}""";
 
         var command = new UpdateArchitectureCommand
         {

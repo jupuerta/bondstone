@@ -12,6 +12,6 @@ public class ConnectionDto
     public bool Synchronous { get; set; }
 
     // V2 D3.1, breaking change: timeoutSeconds and retries move inside this object, alongside
-    // circuitBreaker, fallback and bulkhead.
+    // circuitBreaker and fallback. V3 D4.6 drops bulkhead - old rows keep the key, nobody reads it.
     public JsonElement? Configuration { get; set; }
 }

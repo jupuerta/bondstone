@@ -104,7 +104,7 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
                     targetNodeId = databaseNodeId,
                     protocol = "Sql",
                     synchronous = true,
-                    configuration = new { timeoutSeconds = 5, retries = 2, circuitBreaker = true, fallback = false, bulkhead = false }
+                    configuration = new { timeoutSeconds = 5, retries = 2, circuitBreaker = true, fallback = false }
                 }
             }
         });
@@ -264,6 +264,8 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
                     type = "Queue",
                     name = "Orders queue",
                     position = new { x = 10, y = 20 },
+                    // durable and deadLetterQueue were retired in V3 D3.5; they still round-trip
+                    // untouched, which is why retiring 16 fields cost no migration (§4).
                     configuration = new { durable = true, deadLetterQueue = false, maxRetries = 3 }
                 }
             },
@@ -319,7 +321,7 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
                     type = "Queue",
                     name = "Orders queue",
                     position = new { x = 0, y = 0 },
-                    configuration = new { durable = "not-a-boolean" }
+                    configuration = new { maxRetries = "not-a-number" }
                 }
             },
             connections = Array.Empty<object>()
