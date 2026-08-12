@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using arch_forge_backend.Application.Analysis;
 
 namespace arch_forge_backend.Application.Simulation;
@@ -14,5 +15,11 @@ namespace arch_forge_backend.Application.Simulation;
 /// <param name="Value">Milliseconds for <see cref="FaultKinds.Latency"/>; null for the rest.</param>
 public sealed record Fault(ElementType Target, Guid Id, string Kind, int? Value = null)
 {
+    /// <summary>
+    /// Convenience for the engine, which keys its indexes by element. Kept off the wire: a fault
+    /// comes back in <c>discardedFaults</c>, and shipping a third field that only restates the two
+    /// above would be a contract the client has to ignore.
+    /// </summary>
+    [JsonIgnore]
     public FindingElement Element => new(Target, Id);
 }

@@ -19,6 +19,10 @@ public class FakeArchitectureRepository : IArchitectureRepository
         return Task.CompletedTask;
     }
 
+    // The real one leans on the database cascade; here dropping the entry drops the graph with it,
+    // because the nodes and connections hang off the Architecture object.
+    public void Remove(Architecture architecture) => _store.Remove(architecture.Id);
+
     public Task ReplaceGraphAsync(
         Architecture architecture,
         IReadOnlyCollection<Node> nodes,

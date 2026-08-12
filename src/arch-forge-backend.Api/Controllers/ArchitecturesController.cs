@@ -12,6 +12,7 @@ public class ArchitecturesController : ControllerBase
     private readonly CreateArchitectureCommandHandler _createHandler;
     private readonly UpdateArchitectureCommandHandler _updateHandler;
     private readonly GetArchitectureByShareTokenQueryHandler _getHandler;
+    private readonly DeleteArchitectureCommandHandler _deleteHandler;
     private readonly AnalyzeArchitectureQueryHandler _analyzeHandler;
     private readonly SimulateArchitectureQueryHandler _simulateHandler;
 
@@ -19,12 +20,14 @@ public class ArchitecturesController : ControllerBase
         CreateArchitectureCommandHandler createHandler,
         UpdateArchitectureCommandHandler updateHandler,
         GetArchitectureByShareTokenQueryHandler getHandler,
+        DeleteArchitectureCommandHandler deleteHandler,
         AnalyzeArchitectureQueryHandler analyzeHandler,
         SimulateArchitectureQueryHandler simulateHandler)
     {
         _createHandler = createHandler;
         _updateHandler = updateHandler;
         _getHandler = getHandler;
+        _deleteHandler = deleteHandler;
         _analyzeHandler = analyzeHandler;
         _simulateHandler = simulateHandler;
     }
@@ -52,6 +55,21 @@ public class ArchitecturesController : ControllerBase
     }
     // 400 (validation / invalid Configuration) and 409 (version conflict) are mapped
     // by ArchForgeExceptionHandler from exceptions thrown in the handler.
+
+    /// <summary>
+    /// Deletes the architecture and its whole graph. By id like the other writes, and with no
+    /// version: a delete has nothing to merge, so the 409 the PUT carries would only force the
+    /// caller to read an architecture in order to throw it away (see the handler).
+    ///
+    /// 204 when it is gone, 404 when there was nothing to delete - which on an irreversible
+    /// operation with no history is information, not pedantry.
+    /// </summary>
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var deleted = await _deleteHandler.Handle(new DeleteArchitectureCommand { Id = id }, cancellationToken);
+        return deleted ? NoContent() : NotFound();
+    }
 
     [HttpPost("{id:guid}/analyze")]
     public async Task<IActionResult> Analyze(Guid id, CancellationToken cancellationToken)

@@ -29,6 +29,12 @@ public class ArchitectureRepository : IArchitectureRepository
     public async Task AddAsync(Architecture architecture, CancellationToken cancellationToken = default) =>
         await _context.Architectures.AddAsync(architecture, cancellationToken);
 
+    // The cascade on Architecture -> Nodes -> Connections does the rest, in one statement and one
+    // transaction. Removing the children here as well would issue deletes for rows the database is
+    // about to remove anyway, and would make the code look as if the cascade were not trusted.
+    public void Remove(Architecture architecture) =>
+        _context.Architectures.Remove(architecture);
+
     public async Task ReplaceGraphAsync(
         Architecture architecture,
         IReadOnlyCollection<Node> nodes,
