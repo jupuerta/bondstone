@@ -2,6 +2,7 @@ using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Application.Architectures.Commands;
 using arch_forge_backend.Application.Architectures.Queries;
+using arch_forge_backend.Application.Challenges;
 using arch_forge_backend.Application.Configuration;
 using arch_forge_backend.Application.Configuration.Schemas;
 using arch_forge_backend.Application.Simulation;
@@ -32,6 +33,11 @@ public static class DependencyInjection
         // all the others, and a pipeline would have to encode that order in its registration order.
         services.AddScoped<SimulationEngine>();
 
+        // V4 D1.5: loaded and validated once, at startup. A malformed definition stops the
+        // application from starting, which is where a content mistake belongs - not in front of
+        // somebody trying to pass a challenge that cannot be passed.
+        services.AddSingleton<ChallengeCatalog>();
+
         services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<ApiConfiguration>(NodeType.Api));
         services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<DatabaseConfiguration>(NodeType.Database));
         services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<ServiceConfiguration>(NodeType.Service));
@@ -50,6 +56,9 @@ public static class DependencyInjection
         services.AddScoped<GetArchitectureByShareTokenQueryHandler>();
         services.AddScoped<AnalyzeArchitectureQueryHandler>();
         services.AddScoped<SimulateArchitectureQueryHandler>();
+        services.AddScoped<ForkArchitectureCommandHandler>();
+        services.AddScoped<StartChallengeCommandHandler>();
+        services.AddScoped<EvaluateChallengeQueryHandler>();
 
         return services;
     }

@@ -15,6 +15,7 @@ public class ArchitecturesController : ControllerBase
     private readonly DeleteArchitectureCommandHandler _deleteHandler;
     private readonly AnalyzeArchitectureQueryHandler _analyzeHandler;
     private readonly SimulateArchitectureQueryHandler _simulateHandler;
+    private readonly ForkArchitectureCommandHandler _forkHandler;
 
     public ArchitecturesController(
         CreateArchitectureCommandHandler createHandler,
@@ -22,7 +23,8 @@ public class ArchitecturesController : ControllerBase
         GetArchitectureByShareTokenQueryHandler getHandler,
         DeleteArchitectureCommandHandler deleteHandler,
         AnalyzeArchitectureQueryHandler analyzeHandler,
-        SimulateArchitectureQueryHandler simulateHandler)
+        SimulateArchitectureQueryHandler simulateHandler,
+        ForkArchitectureCommandHandler forkHandler)
     {
         _createHandler = createHandler;
         _updateHandler = updateHandler;
@@ -30,6 +32,7 @@ public class ArchitecturesController : ControllerBase
         _deleteHandler = deleteHandler;
         _analyzeHandler = analyzeHandler;
         _simulateHandler = simulateHandler;
+        _forkHandler = forkHandler;
     }
 
     [HttpPost]
@@ -69,6 +72,19 @@ public class ArchitecturesController : ControllerBase
     {
         var deleted = await _deleteHandler.Handle(new DeleteArchitectureCommand { Id = id }, cancellationToken);
         return deleted ? NoContent() : NotFound();
+    }
+
+    /// <summary>
+    /// V4 D2.3. Copies the architecture into a new one with its own share token, so opening a link
+    /// somebody shared and playing with it stops meaning editing theirs (§11).
+    /// </summary>
+    [HttpPost("{id:guid}/fork")]
+    public async Task<IActionResult> Fork(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _forkHandler.Handle(new ForkArchitectureCommand { Id = id }, cancellationToken);
+        return result is null
+            ? NotFound()
+            : CreatedAtAction(nameof(GetByShareToken), new { shareToken = result.ShareToken }, result);
     }
 
     [HttpPost("{id:guid}/analyze")]

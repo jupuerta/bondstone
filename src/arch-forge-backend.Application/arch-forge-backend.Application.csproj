@@ -9,6 +9,13 @@
     <PackageReference Include="FluentValidation" Version="11.11.0" />
   </ItemGroup>
 
+
+  <ItemGroup>
+    <!-- V4 D1.5: challenge definitions and their blueprints travel inside the assembly. A file
+         that is missing at runtime is not a state ChallengeCatalog should be able to reach. -->
+    <EmbeddedResource Include="Challenges\Definitions\*.json" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>arch_forge_backend.Application</RootNamespace>
