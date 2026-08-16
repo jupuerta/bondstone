@@ -29,6 +29,7 @@ public static class RequirementEvaluator
             RequirementKinds.MaxFanOut => MaxFanOut(requirement, context),
             RequirementKinds.AllEdgesTo => AllEdgesTo(requirement, context),
             RequirementKinds.PathExists => PathExists(requirement, context),
+            RequirementKinds.DeclaresLoad => DeclaresLoad(requirement, context),
             RequirementKinds.NoFinding => NoFinding(requirement, context),
             RequirementKinds.HasFinding => HasFinding(requirement, context),
             RequirementKinds.NoSeverity => NoSeverity(requirement, context),
@@ -147,6 +148,27 @@ public static class RequirementEvaluator
             $"No hay ningún camino desde un {requirement.FromType} hasta un {requirement.ToType}.");
     }
 
+    /// <summary>
+    /// V4 VS4. Traffic is a property of the architecture (DT.1), so the user can edit it - and
+    /// "everything under 80 % at 300 rps" would otherwise be solved by declaring 1 rps. It is the
+    /// same shape of anti-cheese as pointing at components by name: the challenge checks that the
+    /// question is still being asked.
+    /// </summary>
+    private static ChallengeRequirementResult DeclaresLoad(ChallengeRequirement requirement, EvaluationContext context)
+    {
+        var declared = context.Graph.RootNodes.Sum(node => NodeSettings.DeclaredRps(node));
+
+        if (declared >= requirement.Min!.Value)
+            return ChallengeRequirementResult.Pass(requirement);
+
+        return ChallengeRequirementResult.Fail(
+            requirement,
+            declared <= 0
+                ? $"Ningún punto de entrada declara tráfico, y el reto se plantea sobre {requirement.Min} rps."
+                : $"Los puntos de entrada declaran {declared:0} rps y el reto se plantea sobre {requirement.Min}.",
+            context.Graph.RootNodes.Select(n => FindingElement.Node(n.Id)).ToList());
+    }
+
     // ---- Analítica ---------------------------------------------------------
 
     /// <summary>
@@ -254,6 +276,9 @@ public static class RequirementEvaluator
         RequirementMetrics.NominalLatencyMs => metrics.NominalLatencyMs,
         RequirementMetrics.FaultedLatencyMs => metrics.FaultedLatencyMs,
         RequirementMetrics.RequestAmplification => metrics.RequestAmplification,
+        RequirementMetrics.RequestsAffected => metrics.RequestsAffected,
+        RequirementMetrics.BacklogRps => metrics.BacklogRps,
+        RequirementMetrics.LoadAmplification => metrics.LoadAmplification,
         _ => null
     };
 
@@ -286,12 +311,15 @@ public static class RequirementEvaluator
         RequirementMetrics.NominalLatencyMs => "Latencia sin fallos",
         RequirementMetrics.FaultedLatencyMs => "Latencia bajo el fallo",
         RequirementMetrics.RequestAmplification => "Amplificación de peticiones",
+        RequirementMetrics.RequestsAffected => "Peticiones perdidas",
+        RequirementMetrics.BacklogRps => "Trabajo acumulándose en las colas",
+        RequirementMetrics.LoadAmplification => "Amplificación de carga",
         _ => metric
     };
 
     private static string Format(string metric, decimal value) => metric switch
     {
-        RequirementMetrics.BlastRadius => $"{value * 100:0.#} %",
+        RequirementMetrics.BlastRadius or RequirementMetrics.RequestsAffected => $"{value * 100:0.#} %",
         RequirementMetrics.NominalLatencyMs or RequirementMetrics.FaultedLatencyMs => $"{value:0} ms",
         RequirementMetrics.RequestAmplification => $"×{value:0.##}",
         _ => $"{value:0.##}"

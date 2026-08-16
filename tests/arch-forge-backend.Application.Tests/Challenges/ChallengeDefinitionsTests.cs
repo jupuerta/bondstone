@@ -1,3 +1,4 @@
+using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Challenges;
 using Xunit;
 
@@ -61,6 +62,25 @@ public class ChallengeDefinitionsTests
         Assert.All(
             result.Requirements.Concat(result.OptionalGoals).Where(r => !r.Met),
             requirement => Assert.False(string.IsNullOrWhiteSpace(requirement.Detail)));
+    }
+
+    /// <summary>
+    /// D3.5, closing the loop: what the endpoint hands to whoever passes is the very architecture
+    /// this suite verifies on every build. Nobody is ever shown a "reference solution" that does not
+    /// solve the thing.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Slugs))]
+    public void The_solution_handed_over_when_you_pass_is_the_one_that_passes(string slug)
+    {
+        var solution = ChallengeHarness.Catalog.ReferenceSolutionOf(slug)!;
+        var handedOver = solution.Instantiate("whatever the endpoint names it");
+
+        var result = ChallengeHarness.Evaluate(
+            ChallengeHarness.Catalog.Find(slug)!,
+            () => new ArchitectureGraph(handedOver.Nodes, handedOver.Connections));
+
+        Assert.True(result.Passed);
     }
 
     [Theory]

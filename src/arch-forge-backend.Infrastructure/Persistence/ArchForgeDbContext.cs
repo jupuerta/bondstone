@@ -13,6 +13,9 @@ public class ArchForgeDbContext : DbContext
     public DbSet<Node> Nodes => Set<Node>();
     public DbSet<Connection> Connections => Set<Connection>();
 
+    /// <summary>V4 D5.4. The only table V4 adds, and the only place a verdict is stored.</summary>
+    public DbSet<ArchitectureSnapshot> ArchitectureSnapshots => Set<ArchitectureSnapshot>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ArchForgeDbContext).Assembly);

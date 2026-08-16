@@ -1,3 +1,4 @@
+using arch_forge_backend.Application.Analysis;
 using System.Text.Json;
 using arch_forge_backend.Application.Architectures.DTOs;
 using arch_forge_backend.Application.Common.Exceptions;
@@ -81,15 +82,53 @@ public class UpdateArchitectureCommandHandler
     private readonly IArchitectureRepository _repository;
     private readonly NodeConfigurationRegistry _configurationRegistry;
     private readonly IValidator<UpdateArchitectureCommand> _validator;
+    private readonly ArchitectureAnalyzer _analyzer;
 
     public UpdateArchitectureCommandHandler(
         IArchitectureRepository repository,
         NodeConfigurationRegistry configurationRegistry,
-        IValidator<UpdateArchitectureCommand> validator)
+        IValidator<UpdateArchitectureCommand> validator,
+        ArchitectureAnalyzer analyzer)
     {
         _repository = repository;
         _configurationRegistry = configurationRegistry;
         _validator = validator;
+        _analyzer = analyzer;
+    }
+
+    /// <summary>
+    /// V4 D5.4. On save and not on analysis: the live analysis fires on a debounce while you type,
+    /// so recording it there would fill the table with half-finished edits. <c>Version</c> already
+    /// identifies the graph without ambiguity and only moves when something reached the database.
+    ///
+    /// It never takes a save down with it. The architecture is already persisted by this point, and
+    /// a history entry is worth strictly less than the edit it describes.
+    /// </summary>
+    private async Task RecordSnapshot(
+        Architecture architecture,
+        IReadOnlyCollection<Node> nodes,
+        IReadOnlyCollection<Connection> connections,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var analysis = _analyzer.Analyze(new ArchitectureGraph(nodes.ToList(), connections.ToList()));
+
+            await _repository.RecordSnapshotAsync(new ArchitectureSnapshot
+            {
+                Id = Guid.NewGuid(),
+                ArchitectureId = architecture.Id,
+                Version = architecture.Version,
+                ScoringVersion = analysis.ScoringVersion,
+                Score = analysis.Score,
+                Summary = JsonSerializer.Serialize(analysis.Summary),
+                CreatedAt = architecture.UpdatedAt
+            }, cancellationToken);
+        }
+        catch (Exception)
+        {
+            // Deliberately swallowed, and the only place in the codebase that does this.
+        }
     }
 
     public async Task<UpdateArchitectureResult?> Handle(UpdateArchitectureCommand command, CancellationToken cancellationToken = default)
@@ -133,6 +172,7 @@ public class UpdateArchitectureCommandHandler
         architecture.UpdatedAt = DateTime.UtcNow;
 
         await _repository.ReplaceGraphAsync(architecture, nodes, connections, cancellationToken);
+        await RecordSnapshot(architecture, nodes, connections, cancellationToken);
 
         return new UpdateArchitectureResult { Version = architecture.Version, UpdatedAt = architecture.UpdatedAt };
     }

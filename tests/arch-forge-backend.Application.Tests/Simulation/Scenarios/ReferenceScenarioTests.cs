@@ -1,3 +1,5 @@
+using arch_forge_backend.Application.Analysis;
+using arch_forge_backend.Application.Tests.Analysis.Fixtures;
 using arch_forge_backend.Application.Simulation;
 using Xunit;
 
@@ -42,7 +44,15 @@ public class ReferenceScenarioTests
             EntryPointsTotal: 1,
             NominalLatencyMs: 27,
             FaultedLatencyMs: 5_005,
-            RequestAmplification: 1m), run.Metrics);
+            RequestAmplification: 1m,
+
+            // V4 DT.7 over a V3 scenario: nothing is declared, so the load axis contributes
+            // nothing - but the yield walk still has an answer, because a dead dependency with no
+            // alternative serves nothing. 100 %, and the culprit is the database.
+            RequestsAffected: 1m,
+            Bottleneck: FindingElement.Node(graph.NodeId("Db")),
+            BacklogRps: 0m,
+            LoadAmplification: 1m), run.Metrics);
     }
 
     // =========================================================================================
@@ -128,7 +138,17 @@ public class ReferenceScenarioTests
             EntryPointsTotal: 1,
             NominalLatencyMs: 39,
             FaultedLatencyMs: 17,             // failing fast is faster than working
-            RequestAmplification: 1m), run.Metrics);
+            RequestAmplification: 1m,
+
+            // **The pair that summarises the product.** 43 % of the components are tinted and
+            // *nobody outside notices*: the fallback on Cache → Db contains, so the entry point
+            // serves every request it gets. blastRadius and requestsAffected say different things
+            // and both are true - which is why V4 puts them side by side instead of replacing one
+            // with the other (DT.7).
+            RequestsAffected: 0m,
+            Bottleneck: null,
+            BacklogRps: 0m,
+            LoadAmplification: 1m), run.Metrics);
     }
 
     // =========================================================================================

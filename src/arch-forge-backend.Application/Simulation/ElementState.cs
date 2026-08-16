@@ -24,6 +24,16 @@ namespace arch_forge_backend.Application.Simulation;
 /// The round in which it reached its final state (D1.4). There is no time in the model; this is a
 /// counter the fixed point already had, and replaying it in order is the animation of D6.3.
 /// </param>
+/// <param name="Utilization">
+/// V4 DT.5. How full the component is - <c>1.5</c> is 150 % of its capacity - or null when it is an
+/// edge, or when nobody declared any traffic.
+///
+/// It travels because the number is the lesson: amber says "something is off", <c>600 %</c> says
+/// what and by how much, and after adding a cache it says <c>120 %</c> without the user having to
+/// read a panel to find out whether anything improved. Null rather than 0 on purpose - an
+/// architecture with no declared load has no utilisation, which is a different statement from
+/// being idle.
+/// </param>
 public sealed record ElementState(
     ElementType Type,
     Guid Id,
@@ -31,4 +41,5 @@ public sealed record ElementState(
     string Reason,
     string? Mechanism,
     FindingElement? CausedBy,
-    int PropagationStep);
+    int PropagationStep,
+    decimal? Utilization = null);

@@ -12,29 +12,36 @@ namespace arch_forge_backend.Application.Tests.Analysis.Fixtures;
 public class ReferenceArchitectureTests
 {
     [Fact]
-    public void MinimalApiDb_ScoresOneHundred()
+    public void MinimalApiDb_IsStillPerfectOnTheFourAreasV2Scored()
     {
-        // The fixture that proves a correct architecture scores 100. Without it, nothing stops the
-        // analyzer from drifting into scolding the smallest correct thing you can draw.
+        // The fixture that proves a correct architecture is not scolded. Without it, nothing stops
+        // the analyzer from drifting into telling off the smallest correct thing you can draw.
+        //
+        // **It no longer scores 100, and that is the point of V4.** The four areas V2 measured are
+        // still perfect; the three points it loses are an unauthenticated front door with a database
+        // behind it, and nothing watching. Both are true of these two boxes, and until V4 nobody
+        // was asking.
         var result = ReferenceArchitecture.Analyze("minimal-api-db");
 
-        Assert.Equal(100, result.Score);
         Assert.Equal(100, result.ScoreOf(Area.Availability));
         Assert.Equal(100, result.ScoreOf(Area.Resilience));
         Assert.Equal(100, result.ScoreOf(Area.Coupling));
         Assert.Equal(100, result.ScoreOf(Area.Scalability));
-        Assert.Equal(new AnalysisSummary(Critical: 0, Warning: 0, Passed: 6), result.Summary);
+
+        Assert.Equal(85, result.ScoreOf(Area.Security));        // UNAUTHENTICATED_ENTRY, critical
+        Assert.Equal(95, result.ScoreOf(Area.Observability));   // NO_OBSERVABILITY, warning
+        Assert.Equal(97, result.Score);                         // (100·4 + 85 + 95) / 6
     }
 
     [Fact]
-    public void MinimalApiDb_LeavesTheTwoAreasWithoutRulesOutOfTheAverage()
+    public void MinimalApiDb_ScoresTheSixAreas()
     {
-        // A 100 in Security nobody checked is the decorative number D1.2 exists to avoid.
+        // V2 left Security and Observability travelling in the contract with a dash on them, and V3
+        // pushed them twice. D5.2 pays that: **the six areas score for the first time**, and no area
+        // is a 100 that nobody checked - which is the decorative number D1.2 exists to avoid.
         var result = ReferenceArchitecture.Analyze("minimal-api-db");
 
-        Assert.Equal(AreaState.NoRules, result.StateOf(Area.Security));
-        Assert.Equal(AreaState.NoRules, result.StateOf(Area.Observability));
-        Assert.Null(result.ScoreOf(Area.Security));
+        Assert.All(result.Areas, area => Assert.Equal(AreaState.Scored, area.State));
     }
 
     [Fact]
@@ -49,7 +56,7 @@ public class ReferenceArchitectureTests
     }
 
     [Fact]
-    public void GatewayMicroservices_ScoresEightyThree()
+    public void GatewayMicroservices_ScoresEightyFive()
     {
         // The most important fixture: a normal microservices architecture, neither exemplary nor a
         // disaster. (75 + 60 + 100 + 95) / 4 = 82.5 -> 83.
@@ -59,8 +66,18 @@ public class ReferenceArchitectureTests
         Assert.Equal(60, result.ScoreOf(Area.Resilience));
         Assert.Equal(100, result.ScoreOf(Area.Coupling));
         Assert.Equal(95, result.ScoreOf(Area.Scalability));
-        Assert.Equal(83, result.Score);
-        Assert.Equal(new AnalysisSummary(Critical: 5, Warning: 4, Passed: 2), result.Summary);
+        Assert.Equal(85, result.ScoreOf(Area.Security));
+        Assert.Equal(95, result.ScoreOf(Area.Observability));
+
+        // **83 in v2 and 85 in v4, and the architecture did not change.** Two areas that were not
+        // measured are now measured and only mildly penalised, so an unweighted average over six
+        // dilutes the 60 and the 75 it already had. Scores from two scoring versions are not
+        // comparable, which is what `scoringVersion` is for (V2 D1.5) and why a challenge may never
+        // assert on one (D1.4).
+        Assert.Equal(85, result.Score);
+        // V2 counted 5 · 4 · 2. V4 adds one critical (the unauthenticated gateway), one warning
+        // (nothing watching) and three passed checks - the rules that looked and found nothing.
+        Assert.Equal(new AnalysisSummary(Critical: 6, Warning: 5, Passed: 5), result.Summary);
     }
 
     [Fact]
@@ -88,16 +105,24 @@ public class ReferenceArchitectureTests
     }
 
     [Fact]
-    public void ResilientAsync_ScoresNinetySix()
+    public void ResilientAsync_ScoresNinetyTwo()
     {
         var result = ReferenceArchitecture.Analyze("resilient-async");
 
         Assert.Equal(90, result.ScoreOf(Area.Availability));
-        Assert.Equal(95, result.ScoreOf(Area.Resilience));
+
+        // 95 in v2. QUEUE_NO_DLQ fires here and nowhere else - it is the only fixture with a queue,
+        // and the field it reads came back in the same commit as the rule (D5.2).
+        Assert.Equal(90, result.ScoreOf(Area.Resilience));
+
         Assert.Equal(100, result.ScoreOf(Area.Coupling));
         Assert.Equal(100, result.ScoreOf(Area.Scalability));
-        Assert.Equal(96, result.Score);
-        Assert.Equal(new AnalysisSummary(Critical: 0, Warning: 4, Passed: 4), result.Summary);
+
+        // Both APIs sit behind the balancer with nothing in front that could authenticate, so both
+        // are public: 15 for the first and 7,5 for the second (D1.1's diminishing returns).
+        Assert.Equal(78, result.ScoreOf(Area.Security));
+        Assert.Equal(95, result.ScoreOf(Area.Observability));
+        Assert.Equal(92, result.Score);
     }
 
     [Fact]
@@ -128,7 +153,7 @@ public class ReferenceArchitectureTests
     }
 
     [Fact]
-    public void WorstCase_ScoresSixtyFive()
+    public void WorstCase_ScoresSeventyThree()
     {
         // The fixture that pins the caps down - MISSING_RESILIENCE fires six times and only costs
         // 45 - and the only one where the rounding of an area matters: without rounding
@@ -139,23 +164,37 @@ public class ReferenceArchitectureTests
         Assert.Equal(25, result.ScoreOf(Area.Resilience));
         Assert.Equal(70, result.ScoreOf(Area.Coupling));
         Assert.Equal(95, result.ScoreOf(Area.Scalability));
-        Assert.Equal(65, result.Score);
+        Assert.Equal(85, result.ScoreOf(Area.Security));
+        Assert.Equal(95, result.ScoreOf(Area.Observability));
+
+        // **65 in v2 and 73 in v4**, and it is the worst architecture in the suite that gains the
+        // most. Six areas averaged without weights means two freshly measured ones at 85 and 95
+        // pull a 25 upwards. Not a bug and not a calibration to fiddle with (D1.2 chose the plain
+        // average on purpose) - a reason why comparing two scoring versions is meaningless.
+        Assert.Equal(73, result.Score);
     }
 
     [Fact]
-    public void WorstCase_FiresAllSevenRules()
+    public void WorstCase_FiresEverySevenV2RulesPlusTheTwoV4FindsHere()
     {
         var result = ReferenceArchitecture.Analyze("worst-case");
 
         Assert.Equal(
             [
                 RuleCodes.Cycle, RuleCodes.HighCoupling, RuleCodes.MissingCache,
-                RuleCodes.MissingResilience, RuleCodes.RetryAmplification, RuleCodes.Spof,
-                RuleCodes.SyncChain
+                RuleCodes.MissingResilience, RuleCodes.NoObservability, RuleCodes.RetryAmplification,
+                RuleCodes.Spof, RuleCodes.SyncChain, RuleCodes.UnauthenticatedEntry
             ],
-            result.Findings.Select(f => f.Code).Distinct().Order());
+            result.Findings.Where(f => f.Severity != Severity.Good).Select(f => f.Code).Distinct().Order());
 
-        Assert.Equal(0, result.Summary.Passed);
+        // Three of the eight new rules looked here and found nothing - no orphans, no timeout
+        // shorter than its own call, no database hanging in the open - and saying so is what keeps
+        // a passed check a check (D1.4). The other three were not applicable: no queue, and no
+        // declared traffic for the two rules that need it.
+        //
+        // Before V4 this fixture had **zero** passed checks. Even the worst architecture in the
+        // suite does three things right; nobody was asking.
+        Assert.Equal(3, result.Summary.Passed);
     }
 
     [Fact]
@@ -173,10 +212,12 @@ public class ReferenceArchitectureTests
                 RuleCodes.MissingResilience, RuleCodes.MissingResilience,
                 RuleCodes.RetryAmplification, RuleCodes.SyncChain,
                 RuleCodes.Cycle, RuleCodes.HighCoupling,
+                RuleCodes.UnauthenticatedEntry,
                 // Warning: same walk through the areas.
-                RuleCodes.Spof, RuleCodes.MissingResilience, RuleCodes.MissingCache
+                RuleCodes.Spof, RuleCodes.MissingResilience, RuleCodes.MissingCache,
+                RuleCodes.NoObservability
             ],
-            result.Findings.Select(f => f.Code));
+            result.Findings.Where(f => f.Severity != Severity.Good).Select(f => f.Code));
     }
 
     [Fact]
@@ -199,7 +240,7 @@ public class ReferenceArchitectureTests
     {
         var result = ReferenceArchitecture.Analyze(fixture);
 
-        Assert.Equal("v2", result.ScoringVersion);
+        Assert.Equal("v4", result.ScoringVersion);
         Assert.Equal(Enum.GetValues<Area>(), result.Areas.Select(a => a.Area));
         Assert.All(result.Findings, finding =>
         {

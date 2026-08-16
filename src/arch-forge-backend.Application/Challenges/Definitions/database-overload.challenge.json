@@ -1,0 +1,40 @@
+{
+  "slug": "database-overload",
+  "title": "Tu base de datos ya no da abasto",
+  "story": "La tienda recibe 300 peticiones por segundo y cada una acaba consultando la misma base de datos. Aguanta 200. Está rechazando una de cada tres y las que sí sirve tardan medio segundo.\n\nNo puedes cambiar el tráfico que te llega. Reordena la arquitectura para que la base de datos deje de estar por encima de su capacidad.",
+  "difficulty": "intermediate",
+  "starter": "database-overload.starter.json",
+  "referenceSolution": "database-overload.solution.json",
+  "requirements": [
+    {
+      "kind": "declaresLoad",
+      "label": "La entrada sigue recibiendo 300 rps",
+      "min": 300
+    },
+    {
+      "kind": "containsNode",
+      "label": "La base de datos sigue estando",
+      "nodeType": "Database"
+    },
+    {
+      "kind": "noFinding",
+      "label": "Ningún componente pasa del 80 % de su capacidad",
+      "code": "UNDERSIZED_COMPONENT"
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "underScenario",
+      "label": "…y la tienda sigue respondiendo si la base de datos se cae",
+      "faults": [{ "node": "Db", "kind": "down" }],
+      "metric": "entryPointsAffected",
+      "operator": "eq",
+      "value": 0
+    }
+  ],
+  "hints": [
+    "Mira la utilización que sale en cada componente al entrar en modo Simulate: el número te dice cuál es el que no llega.",
+    "La base de datos no tiene por qué ver todas las peticiones. Lo que se ha pedido hace un momento se puede responder sin ella.",
+    "Una caché deja pasar solo lo que no acierta. Con un 80 % de aciertos, a la base de datos le llega una quinta parte."
+  ]
+}

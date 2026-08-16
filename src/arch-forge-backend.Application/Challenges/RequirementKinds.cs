@@ -39,6 +39,15 @@ public static class RequirementKinds
     /// <summary>Some node of <c>FromType</c> reaches some node of <c>ToType</c>.</summary>
     public const string PathExists = "pathExists";
 
+    /// <summary>
+    /// V4 VS4. The entry points still declare at least <c>Min</c> rps between them.
+    ///
+    /// <strong>Anti-cheese for every load challenge</strong>, and it had to exist the moment traffic
+    /// became a property of the architecture (DT.1): without it, "get everything under 80 % of its
+    /// capacity at 300 rps" is passed by typing 1 into the box.
+    /// </summary>
+    public const string DeclaresLoad = "declaresLoad";
+
     // ---- Analítica ---------------------------------------------------------
 
     /// <summary>The analyzer reports no finding with <c>Code</c>.</summary>
@@ -56,7 +65,7 @@ public static class RequirementKinds
     public const string UnderScenario = "underScenario";
 
     public static bool IsKnown(string kind) => kind is
-        ContainsNode or AbsentNode or MaxFanOut or AllEdgesTo or PathExists or
+        ContainsNode or AbsentNode or MaxFanOut or AllEdgesTo or PathExists or DeclaresLoad or
         NoFinding or HasFinding or NoSeverity or
         UnderScenario;
 }
@@ -95,9 +104,15 @@ public static class RequirementMetrics
     public const string FaultedLatencyMs = "faultedLatencyMs";
     public const string RequestAmplification = "requestAmplification";
 
+    // V4 VS2's axis, now askable from a challenge.
+    public const string RequestsAffected = "requestsAffected";
+    public const string BacklogRps = "backlogRps";
+    public const string LoadAmplification = "loadAmplification";
+
     public static bool IsKnown(string metric) => metric is
         ComponentsDown or ComponentsDegraded or BlastRadius or EntryPointsAffected or
-        NominalLatencyMs or FaultedLatencyMs or RequestAmplification;
+        NominalLatencyMs or FaultedLatencyMs or RequestAmplification or
+        RequestsAffected or BacklogRps or LoadAmplification;
 }
 
 public static class RequirementOperators

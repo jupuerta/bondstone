@@ -58,6 +58,43 @@ namespace arch_forge_backend.Infrastructure.Persistence.Migrations
                     b.ToTable("Architectures");
                 });
 
+            modelBuilder.Entity("arch_forge_backend.Domain.Entities.ArchitectureSnapshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ArchitectureId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("Score")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ScoringVersion")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasDefaultValueSql("'{}'::jsonb");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArchitectureId", "Version")
+                        .IsUnique();
+
+                    b.ToTable("ArchitectureSnapshots");
+                });
+
             modelBuilder.Entity("arch_forge_backend.Domain.Entities.Connection", b =>
                 {
                     b.Property<Guid>("Id")
@@ -134,6 +171,15 @@ namespace arch_forge_backend.Infrastructure.Persistence.Migrations
                     b.HasIndex("ArchitectureId");
 
                     b.ToTable("Nodes");
+                });
+
+            modelBuilder.Entity("arch_forge_backend.Domain.Entities.ArchitectureSnapshot", b =>
+                {
+                    b.HasOne("arch_forge_backend.Domain.Entities.Architecture", null)
+                        .WithMany()
+                        .HasForeignKey("ArchitectureId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("arch_forge_backend.Domain.Entities.Connection", b =>

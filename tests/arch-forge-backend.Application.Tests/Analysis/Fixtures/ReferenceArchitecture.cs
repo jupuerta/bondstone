@@ -31,7 +31,15 @@ public static class ReferenceArchitecture
             new SyncDependencyChainRule(),
             new MissingResilienceRule(),
             new HighCouplingRule(),
-            new MissingCacheRule()
+            new MissingCacheRule(),
+            new OrphanNodeRule(),
+            new QueueNoDlqRule(),
+            new TimeoutTooShortRule(),
+            new UndersizedComponentRule(),
+            new NoRateLimitRule(),
+            new ExposedDatabaseRule(),
+            new UnauthenticatedEntryRule(),
+            new NoObservabilityRule()
         ]);
 
         return analyzer.Analyze(Graph(fixtureName));

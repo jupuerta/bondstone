@@ -63,7 +63,11 @@ public sealed class ChallengeCatalog
     public ArchitectureBlueprint? StarterOf(string slug) =>
         _bySlug.TryGetValue(slug, out var loaded) ? loaded.Starter : null;
 
-    /// <summary>Only the tests read this: it is the regression net of D3.5, not a feature.</summary>
+    /// <summary>
+    /// The regression net of D3.5 - the tests evaluate it on every build - and, since it is handed
+    /// to whoever passes the challenge (<see cref="OpenChallengeSolutionCommandHandler"/>), the one
+    /// piece of content that is verified to work before anybody reads it.
+    /// </summary>
     public ArchitectureBlueprint? ReferenceSolutionOf(string slug) =>
         _bySlug.TryGetValue(slug, out var loaded) ? loaded.Solution : null;
 
@@ -144,8 +148,15 @@ public sealed class ChallengeCatalog
                 Require(requirement.Severity is not null, "needs a severity");
                 break;
 
+            case RequirementKinds.DeclaresLoad:
+                Require(requirement.Min is > 0, "needs a min above 0");
+                break;
+
             case RequirementKinds.UnderScenario:
-                Require(requirement.Faults is { Count: > 0 }, "needs at least one fault");
+                // An empty list is allowed and means the architecture as it stands, under its
+                // declared load: V3 D2.1 already settled that the empty scenario is a valid
+                // scenario, and a latency budget is asked without breaking anything.
+                Require(requirement.Faults is not null, "needs a list of faults, even an empty one");
                 Require(requirement.Metric is not null && RequirementMetrics.IsKnown(requirement.Metric),
                     "needs a known metric");
                 Require(requirement.Operator is not null && RequirementOperators.IsKnown(requirement.Operator),

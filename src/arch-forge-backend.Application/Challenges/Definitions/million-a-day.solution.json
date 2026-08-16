@@ -1,0 +1,24 @@
+{
+  "name": "million-a-day solution",
+  "nodes": [
+    {
+      "name": "Gateway", "type": "Gateway", "x": 0, "y": 200,
+      "configuration": { "requestsPerSecond": 116, "rateLimit": 200, "authentication": true }
+    },
+    { "name": "Api", "type": "Api", "x": 220, "y": 200 },
+    { "name": "Uploads", "type": "ObjectStorage", "x": 440, "y": 40 },
+    { "name": "Jobs", "type": "Queue", "x": 440, "y": 200, "configuration": { "deadLetterQueue": true } },
+    { "name": "Telemetry", "type": "Observability", "x": 220, "y": 360 },
+    { "name": "Worker", "type": "Worker", "x": 660, "y": 200 },
+    { "name": "Db", "type": "Database", "x": 880, "y": 120, "configuration": { "readReplicas": 1 } }
+  ],
+  "connections": [
+    { "from": "Gateway", "to": "Api", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 5, "fallback": true } },
+    { "from": "Api", "to": "Uploads", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 5, "fallback": true } },
+    { "from": "Api", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 5, "circuitBreaker": true, "fallback": true } },
+    { "from": "Api", "to": "Jobs", "protocol": "Amqp", "synchronous": false },
+    { "from": "Api", "to": "Telemetry", "protocol": "Http", "synchronous": false },
+    { "from": "Jobs", "to": "Worker", "protocol": "Amqp", "synchronous": false },
+    { "from": "Worker", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 5, "circuitBreaker": true, "fallback": true } }
+  ]
+}

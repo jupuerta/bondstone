@@ -49,6 +49,14 @@ public static class SimulationReasons
             ? "Una de sus instancias no responde; el health check desvía el tráfico al resto."
             : "Una de sus instancias no responde y sigue recibiendo tráfico: sin health check, la degradación no se detiene aquí.",
 
+        // V4 DT.5. The number is the message: "it rejects 43 %" is something you can act on,
+        // "it is saturated" is not.
+        EffectReason.Saturated =>
+            $"Está al {context.Utilization * 100:0} % de su capacidad: recibe {context.LoadRps:0} rps y aguanta {context.CapacityRps:0}. Cualquier pico lo tumba.",
+
+        EffectReason.Overloaded =>
+            $"Recibe {context.LoadRps:0} rps y aguanta {context.CapacityRps:0}: sirve {100m / context.Utilization:0} de cada 100 peticiones y rechaza el resto.",
+
         _ => "Funciona con normalidad."
     };
 
@@ -96,4 +104,7 @@ public sealed record ReasonContext(
     string Cause = "",
     int CallMs = 0,
     int TimeoutMs = 0,
-    bool Contained = false);
+    bool Contained = false,
+    decimal LoadRps = 0m,
+    decimal CapacityRps = 0m,
+    decimal Utilization = 0m);

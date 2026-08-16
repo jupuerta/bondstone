@@ -1,0 +1,43 @@
+{
+  "slug": "latency-budget",
+  "title": "800 ms es demasiado",
+  "story": "El catálogo tarda más de 800 ms en responder con el tráfico que tiene. El objetivo es bajar de 100 ms.\n\nNadie ha tocado el código y las máquinas son las que son: lo que tarda cada componente depende de lo cerca que esté de su capacidad, y la base de datos está en la ruta de todas las peticiones. No vale quitarla.",
+  "difficulty": "intermediate",
+  "starter": "latency-budget.starter.json",
+  "referenceSolution": "latency-budget.solution.json",
+  "requirements": [
+    {
+      "kind": "declaresLoad",
+      "label": "La entrada sigue recibiendo 300 rps",
+      "min": 300
+    },
+    {
+      "kind": "containsNode",
+      "label": "La base de datos sigue estando",
+      "nodeType": "Database"
+    },
+    {
+      "kind": "underScenario",
+      "label": "El catálogo responde en menos de 100 ms",
+      "faults": [],
+      "metric": "nominalLatencyMs",
+      "operator": "lt",
+      "value": 100
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "underScenario",
+      "label": "…y en menos de 75 ms",
+      "faults": [],
+      "metric": "nominalLatencyMs",
+      "operator": "lt",
+      "value": 75
+    }
+  ],
+  "hints": [
+    "Un componente al 100 % de su capacidad tarda veinte veces más que uno vacío. La latencia no la arreglan los milisegundos, la arregla el margen.",
+    "Dos cosas bajan la utilización de un componente: que le llegue menos, o que haya más de él.",
+    "La base de datos tiene que seguir estando, pero no tiene que estar en todas las peticiones."
+  ]
+}

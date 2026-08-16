@@ -41,7 +41,7 @@ public class ArchitectureAnalyzerTests
     public void Analyze_CarriesTheScoringVersion()
     {
         // D1.5: which model produced the number, so a stored result can still be read later.
-        Assert.Equal("v2", new ArchitectureAnalyzer([]).Analyze(EmptyGraph).ScoringVersion);
+        Assert.Equal("v4", new ArchitectureAnalyzer([]).Analyze(EmptyGraph).ScoringVersion);
     }
 
     [Fact]

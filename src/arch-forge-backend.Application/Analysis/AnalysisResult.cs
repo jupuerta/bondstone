@@ -12,5 +12,12 @@ public sealed record AnalysisResult(
     AnalysisSummary Summary,
     IReadOnlyList<RuleFinding> Findings)
 {
-    public const string CurrentScoringVersion = "v2";
+    /// <summary>
+    /// V4 D1.4. Bumped because the eight rules of D5.2 make Security and Observability score for
+    /// the first time, so <strong>every score of every architecture moves</strong> - and moves in
+    /// both directions, because an average over six areas dilutes a bad one. Two figures produced
+    /// by different scoring versions are not comparable, which is the whole reason this field
+    /// travels (V2 D1.5) and why a challenge may never assert on one (D1.4).
+    /// </summary>
+    public const string CurrentScoringVersion = "v4";
 }

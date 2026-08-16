@@ -16,6 +16,8 @@ public class ArchitecturesController : ControllerBase
     private readonly AnalyzeArchitectureQueryHandler _analyzeHandler;
     private readonly SimulateArchitectureQueryHandler _simulateHandler;
     private readonly ForkArchitectureCommandHandler _forkHandler;
+    private readonly GetArchitectureHistoryQueryHandler _historyHandler;
+    private readonly ExportArchitectureQueryHandler _exportHandler;
 
     public ArchitecturesController(
         CreateArchitectureCommandHandler createHandler,
@@ -24,7 +26,9 @@ public class ArchitecturesController : ControllerBase
         DeleteArchitectureCommandHandler deleteHandler,
         AnalyzeArchitectureQueryHandler analyzeHandler,
         SimulateArchitectureQueryHandler simulateHandler,
-        ForkArchitectureCommandHandler forkHandler)
+        ForkArchitectureCommandHandler forkHandler,
+        GetArchitectureHistoryQueryHandler historyHandler,
+        ExportArchitectureQueryHandler exportHandler)
     {
         _createHandler = createHandler;
         _updateHandler = updateHandler;
@@ -33,6 +37,8 @@ public class ArchitecturesController : ControllerBase
         _analyzeHandler = analyzeHandler;
         _simulateHandler = simulateHandler;
         _forkHandler = forkHandler;
+        _historyHandler = historyHandler;
+        _exportHandler = exportHandler;
     }
 
     [HttpPost]
@@ -85,6 +91,34 @@ public class ArchitecturesController : ControllerBase
         return result is null
             ? NotFound()
             : CreatedAtAction(nameof(GetByShareToken), new { shareToken = result.ShareToken }, result);
+    }
+
+    /// <summary>
+    /// V4 D5.4. What this architecture has scored, oldest first. Written on save (never on
+    /// analysis) and the only thing in V4 that persists a verdict - which is why every entry
+    /// carries the scoring version that produced it.
+    /// </summary>
+    [HttpGet("{id:guid}/history")]
+    public async Task<IActionResult> History(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _historyHandler.Handle(new GetArchitectureHistoryQuery { Id = id }, cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
+
+    /// <summary>
+    /// V5 D3.1. Fourth member of the family of /analyze, /simulate and /evaluate: reads the saved
+    /// architecture, computes a pure function, persists nothing.
+    ///
+    /// <strong>Content and not Ok.</strong> This is the first endpoint of the project that does not
+    /// return JSON, and <c>Ok(string)</c> would serialize the document between quotes with its line
+    /// breaks escaped - a failure that passes an integration test and is only visible on opening
+    /// the .md.
+    /// </summary>
+    [HttpPost("{id:guid}/export")]
+    public async Task<IActionResult> Export(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _exportHandler.Handle(new ExportArchitectureQuery { Id = id }, cancellationToken);
+        return result is null ? NotFound() : Content(result, "text/markdown; charset=utf-8");
     }
 
     [HttpPost("{id:guid}/analyze")]

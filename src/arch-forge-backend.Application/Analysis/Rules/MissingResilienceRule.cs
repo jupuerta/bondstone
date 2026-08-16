@@ -70,7 +70,21 @@ public class MissingResilienceRule : IArchitectureRule
                 $"La llamada de '{source}' a '{target}' no tiene protección frente a fallos.",
                 Explain(hasTimeout, exposedToSpof, target),
                 Suggest(hasTimeout, exposedToSpof),
-                [FindingElement.Connection(edge.Id)]));
+                [FindingElement.Connection(edge.Id)])
+            {
+                // V4 D5.6. There is nothing to decide here: without a timeout no mechanism of the
+                // edge can act at all (D4.2), and the alternative is what stops the fall. The
+                // timeout is set well above what the call costs so the fix does not create a
+                // TIMEOUT_TOO_SHORT of its own.
+                Fix = new AppliedFix(
+                    FixKinds.SetEdgeResilience,
+                    FindingElement.Connection(edge.Id),
+                    hasTimeout
+                        ? "Añadir una respuesta alternativa"
+                        : "Poner un timeout de 5 s y una respuesta alternativa",
+                    TimeoutSeconds: hasTimeout ? null : 5,
+                    Fallback: true)
+            });
         }
 
         return RuleResult.Applicable(findings);

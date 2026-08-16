@@ -27,5 +27,15 @@ public interface IArchitectureRepository
         IReadOnlyCollection<Connection> connections,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// V4 D5.4. Records what the architecture scored at this version, ignoring the write if that
+    /// version was already recorded - the autosave can retry, and a snapshot is a fact about a
+    /// version rather than about an attempt to save it.
+    /// </summary>
+    Task RecordSnapshotAsync(ArchitectureSnapshot snapshot, CancellationToken cancellationToken = default);
+
+    /// <summary>Oldest first, capped: the panel only needs where you started and where you are.</summary>
+    Task<IReadOnlyList<ArchitectureSnapshot>> GetSnapshotsAsync(Guid architectureId, int limit, CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -25,6 +25,25 @@ namespace arch_forge_backend.Application.Simulation;
 /// with everything Healthy and a ×12 next to it - that is not a contradiction, it is that
 /// amplification is a risk under load and this simulator does not model load.
 /// </param>
+/// <param name="RequestsAffected">
+/// V4 DT.7. The promise of §9 - <c>73% of requests affected</c> - paid two versions late, and
+/// better than it was written: it lives next to <see cref="BlastRadius"/> rather than replacing it,
+/// and the pair is the best summary of the product there has been. On <c>resilient-async</c> with
+/// the database down they read <strong>43 % and 0 %</strong> at the same time: half the components
+/// are tinted and the user notices nothing.
+///
+/// A <strong>bound</strong>, not a probability: the minimum served fraction along the call tree, so
+/// it can be redone by hand and it names a culprit. Optimistic on purpose - two components at 50 %
+/// in series give 50 %, not 25 % (plan técnico §5.4).
+/// </param>
+/// <param name="Bottleneck">Whatever set that minimum, so the panel can point at one component instead of tinting eight.</param>
+/// <param name="BacklogRps">DT.7. What piles up in the queues because their consumers cannot keep up. A rate needs no clock.</param>
+/// <param name="LoadAmplification">
+/// Requests arriving at the busiest component for each one coming in the front door.
+/// <strong>Not</strong> <see cref="RequestAmplification"/>, which is the worst path under a
+/// scenario: on <c>worst-case</c> they read ×12 and ×24 and both are true, which is exactly why
+/// they do not share a name.
+/// </param>
 public sealed record SimulationMetrics(
     int ComponentsDown,
     int ComponentsDegraded,
@@ -34,4 +53,8 @@ public sealed record SimulationMetrics(
     int EntryPointsTotal,
     int NominalLatencyMs,
     int? FaultedLatencyMs,
-    decimal RequestAmplification);
+    decimal RequestAmplification,
+    decimal RequestsAffected,
+    Analysis.FindingElement? Bottleneck,
+    decimal BacklogRps,
+    decimal LoadAmplification);

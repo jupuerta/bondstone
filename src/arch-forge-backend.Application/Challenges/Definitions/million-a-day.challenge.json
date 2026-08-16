@@ -1,0 +1,52 @@
+{
+  "slug": "million-a-day",
+  "title": "Un millón de peticiones al día",
+  "story": "Te piden una arquitectura para un millón de peticiones diarias, con API REST, PostgreSQL, autenticación, subida de ficheros y procesamiento en segundo plano.\n\nUn millón al día son 11,6 peticiones por segundo de media, que no es nada. Pero no llegan repartidas: el pico es diez veces la media, así que hay que dimensionar para 116 rps. Esa diferencia entre media y pico es la mitad del ejercicio.\n\nLa otra mitad la descubrirás al añadir lo que falta.",
+  "difficulty": "advanced",
+  "starter": "million-a-day.starter.json",
+  "referenceSolution": "million-a-day.solution.json",
+  "requirements": [
+    {
+      "kind": "declaresLoad",
+      "label": "La entrada está dimensionada para el pico: 116 rps",
+      "min": 116
+    },
+    {
+      "kind": "noFinding",
+      "label": "La puerta de entrada pide autenticación",
+      "code": "UNAUTHENTICATED_ENTRY"
+    },
+    {
+      "kind": "containsNode",
+      "label": "Hay dónde guardar los ficheros que suben",
+      "nodeType": "ObjectStorage"
+    },
+    {
+      "kind": "containsNode",
+      "label": "Hay procesamiento en segundo plano",
+      "nodeType": "Worker"
+    },
+    {
+      "kind": "noFinding",
+      "label": "Ningún componente pasa del 80 % de su capacidad en el pico",
+      "code": "UNDERSIZED_COMPONENT"
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "noFinding",
+      "label": "…y la entrada limita las peticiones que admite",
+      "code": "NO_RATE_LIMIT"
+    },
+    {
+      "kind": "noFinding",
+      "label": "…y hay algo mirando cuando falle",
+      "code": "NO_OBSERVABILITY"
+    }
+  ],
+  "hints": [
+    "Empieza por añadir lo que el enunciado pide y vuelve a evaluar. Lo interesante pasa después.",
+    "El trabajo en segundo plano también consulta la base de datos, así que sumarlo la pone por encima de lo que aguanta.",
+    "Una base de datos aguanta más si no es una sola: las réplicas de lectura multiplican su capacidad."
+  ]
+}

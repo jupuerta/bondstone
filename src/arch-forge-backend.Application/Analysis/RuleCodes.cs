@@ -15,4 +15,15 @@ public static class RuleCodes
     public const string HighCoupling = "HIGH_COUPLING";
     public const string Cycle = "CYCLE";
     public const string MissingCache = "MISSING_CACHE";
+
+    // V4 D5.2. The debt V2 wrote down and V3 pushed twice, plus the one the load axis earns.
+    // Security and Observability stop being two areas that travel in the contract with a dash.
+    public const string OrphanNode = "ORPHAN_NODE";
+    public const string QueueNoDlq = "QUEUE_NO_DLQ";
+    public const string TimeoutTooShort = "TIMEOUT_TOO_SHORT";
+    public const string UndersizedComponent = "UNDERSIZED_COMPONENT";
+    public const string NoRateLimit = "NO_RATE_LIMIT";
+    public const string ExposedDatabase = "EXPOSED_DATABASE";
+    public const string UnauthenticatedEntry = "UNAUTHENTICATED_ENTRY";
+    public const string NoObservability = "NO_OBSERVABILITY";
 }

@@ -27,6 +27,15 @@ public static class LatencyModel
     public const int Gateway = 5;
     public const int Service = 10;
     public const int Database = 20;
+    public const int Worker = 10;
+    public const int ObjectStorage = 15;
+
+    /// <summary>
+    /// V4 D5.3. Telemetry is emitted alongside the request, not in front of it: charging it to the
+    /// caller's path would make instrumenting an architecture look like slowing it down, which is
+    /// the opposite of the lesson.
+    /// </summary>
+    public const int Observability = 0;
 
     // Network hop, per protocol (ms).
     public const int Sql = 2;
@@ -49,6 +58,9 @@ public static class LatencyModel
         NodeType.Gateway => Gateway,
         NodeType.Service => Service,
         NodeType.Database => Database,
+        NodeType.Worker => Worker,
+        NodeType.ObjectStorage => ObjectStorage,
+        NodeType.Observability => Observability,
         _ => Service
     };
 

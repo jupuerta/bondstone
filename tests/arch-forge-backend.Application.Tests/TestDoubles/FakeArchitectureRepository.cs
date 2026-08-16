@@ -7,6 +7,9 @@ public class FakeArchitectureRepository : IArchitectureRepository
 {
     private readonly Dictionary<Guid, Architecture> _store = new();
 
+    /// <summary>Puts an architecture in the store without going through AddAsync.</summary>
+    public void Seed(Architecture architecture) => _store[architecture.Id] = architecture;
+
     public Task<Architecture?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         Task.FromResult(_store.GetValueOrDefault(id));
 
@@ -34,6 +37,21 @@ public class FakeArchitectureRepository : IArchitectureRepository
         _store[architecture.Id] = architecture;
         return Task.CompletedTask;
     }
+
+    /// <summary>V4 D5.4: recorded in memory so a handler test can assert what was written.</summary>
+    public List<ArchitectureSnapshot> Snapshots { get; } = [];
+
+    public Task RecordSnapshotAsync(ArchitectureSnapshot snapshot, CancellationToken cancellationToken = default)
+    {
+        if (!Snapshots.Any(s => s.ArchitectureId == snapshot.ArchitectureId && s.Version == snapshot.Version))
+            Snapshots.Add(snapshot);
+
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<ArchitectureSnapshot>> GetSnapshotsAsync(Guid architectureId, int limit, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<ArchitectureSnapshot>>(
+            Snapshots.Where(s => s.ArchitectureId == architectureId).OrderBy(s => s.Version).Take(limit).ToList());
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 }

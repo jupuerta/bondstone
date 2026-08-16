@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <Content Include="Analysis\Fixtures\Architectures\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Analysis\Fixtures\Architectures\*.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

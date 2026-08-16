@@ -31,14 +31,27 @@ public class SimulationEngine
         var (applicable, discarded) = scenario.Resolve(graph);
         var faults = new InjectedFaults(applicable);
 
-        // 1. What the architecture costs when nothing is broken. Measured before anything is
-        //    applied, because it is half of the comparison the panel shows.
-        var nominal = CallCost.Of(graph, CostInputs.Nominal);
+        // 0. V4 DT.1: the load axis, computed over the architecture and before any fault. It is a
+        //    property of what was drawn, not of the experiment - which is what lets the two axes
+        //    compose at the end by taking the worse of the two states, with neither knowing about
+        //    the other. With nothing declared every factor is 1 and the rest of this method is the
+        //    V3 pipeline, digit for digit.
+        var load = LoadModel.Of(graph);
+        var queueing = load.QueueingFactors;
+
+        // 1. What the architecture costs when nothing is broken - under its declared load, which is
+        //    the half of the comparison the panel shows.
+        var nominal = CallCost.Of(graph, CostInputs.Nominal with { QueueingFactors = queueing });
 
         // 2. Which calls end up costing more than their own timeout. Phase A needs that answer
         //    before it can compute a single state (D4.1), and it has to be measured over the work
         //    actually done - see AsExpiryProbe.
-        var probe = CallCost.Of(graph, faults.AsExpiryProbe());
+        //
+        //    This is where the two axes meet without EdgeEffect learning anything: a component at
+        //    1.725 % of its capacity makes its call cost 6,9 s, and 6,9 s against a 5 s timeout
+        //    expires. Saturation kills nobody directly (DT.5) and still takes down an architecture,
+        //    through the path V3 already built.
+        var probe = CallCost.Of(graph, faults.AsExpiryProbe() with { QueueingFactors = queueing });
 
         var elements = new PropagationState(graph, faults);
 
@@ -49,13 +62,20 @@ public class SimulationEngine
         if (applicable.HasDownFault)
             RunPhaseB(graph, faults, elements);
 
-        // 4. Now the states are final, the cost can be measured for real.
-        var faulted = CallCost.Of(graph, faults.AsCostInputs(elements.NodeStates()));
+        // 4. DT.5: saturation composes with propagation by taking the worse of the two, so the
+        //    lattice of V3 D1.3 never gains a fourth value and EdgeEffect keeps its table intact.
+        //    Capped at Degraded, always - a component at 150 % serves 67 % of what reaches it, and
+        //    calling that Down turns "it rejects a third" into "everything is red" (plan técnico
+        //    §2, corrección 1).
+        ApplySaturation(graph, load, elements);
+
+        // 5. Now the states are final, the cost can be measured for real.
+        var faulted = CallCost.Of(graph, faults.AsCostInputs(elements.NodeStates()) with { QueueingFactors = queueing });
 
         return new SimulationResult(
             SimulationResult.CurrentSimulationVersion,
-            elements.ToOrderedList(graph),
-            Measure(graph, faults, elements, nominal, faulted),
+            elements.ToOrderedList(graph, load),
+            Measure(graph, faults, elements, load, nominal, faulted),
             discarded);
     }
 
@@ -331,10 +351,50 @@ public class SimulationEngine
     // Metrics.
     // -------------------------------------------------------------------------------------------
 
+    /// <summary>
+    /// V4 DT.5. A component at or over 80 % of its capacity is <see cref="HealthState.Degraded"/>,
+    /// and <strong>never worse, however far over it goes</strong>.
+    ///
+    /// That ceiling is the first correction of plan técnico §2, and it is not a nicety: feeding a
+    /// saturation-induced <c>Down</c> into <see cref="EdgeEffect"/> turns <c>minimal-api-db</c> at
+    /// 300 rps from "the database rejects a third of the requests" into a wholly red architecture,
+    /// because the caller has no fallback and inherits it. What is rejected travels on the load
+    /// axis, where it can be measured, instead of on the state axis, where it can only tint.
+    ///
+    /// Runs after both phases so it composes rather than propagates: saturation says how a component
+    /// is doing, not what it does to whoever calls it.
+    /// </summary>
+    private static void ApplySaturation(ArchitectureGraph graph, LoadModel load, PropagationState elements)
+    {
+        if (load.IsIdle)
+            return;
+
+        foreach (var node in graph.Nodes.OrderBy(n => n.Id))
+        {
+            var utilization = load.UtilizationOf(node.Id);
+            if (utilization < CapacityModel.SaturationWarning)
+                continue;
+
+            elements.Raise(
+                FindingElement.Node(node.Id),
+                HealthState.Degraded,
+                0,
+                false,
+                null,
+                utilization > 1m ? EffectReason.Overloaded : EffectReason.Saturated,
+                null,
+                new ReasonContext(
+                    LoadRps: load.LoadOf(node.Id),
+                    CapacityRps: load.CapacityOf(node.Id),
+                    Utilization: utilization));
+        }
+    }
+
     private static SimulationMetrics Measure(
         ArchitectureGraph graph,
         InjectedFaults faults,
         PropagationState elements,
+        LoadModel load,
         CallCost nominal,
         CallCost faulted)
     {
@@ -351,6 +411,16 @@ public class SimulationEngine
         // path left to measure, which is a different thing from a path that costs zero.
         var live = graph.RootNodes.Where(n => !faults.IsDown(n.Id)).ToList();
 
+        // DT.7 and plan técnico §5.4: the *complete* yield - capacity, expiring calls and fault
+        // states - which is a different one from the capacity-only yield that fed the retry
+        // amplification inside LoadModel. Keeping them apart is what stops the circularity coming
+        // back through another door.
+        var yield = RequestYield.Of(graph, load, new YieldInputs(
+            states.Where(s => s.Value == HealthState.Down).Select(s => s.Key).ToHashSet(),
+            graph.Connections.Where(c => faulted.Of(c).Expires).Select(c => c.Id).ToHashSet()));
+
+        var (requestsAffected, bottleneck) = yield.Impact();
+
         return new SimulationMetrics(
             ComponentsDown: down,
             ComponentsDegraded: degraded,
@@ -360,7 +430,11 @@ public class SimulationEngine
             EntryPointsTotal: graph.RootNodes.Count,
             NominalLatencyMs: nominal.WorstFrom(graph.RootNodes) ?? 0,
             FaultedLatencyMs: live.Count == 0 ? null : faulted.WorstFrom(live),
-            RequestAmplification: faulted.WorstAmplificationFrom(live));
+            RequestAmplification: faulted.WorstAmplificationFrom(live),
+            RequestsAffected: requestsAffected,
+            Bottleneck: bottleneck,
+            BacklogRps: Math.Round(load.BacklogRps, 2),
+            LoadAmplification: load.LoadAmplification);
     }
 
     // -------------------------------------------------------------------------------------------

@@ -43,6 +43,25 @@ public sealed record CostInputs(
         new HashSet<Guid>());
 
     /// <summary>
+    /// V4 DT.6. What each component's processing time is multiplied by, because of how close it is
+    /// to its own capacity. <strong>An absent entry is 1</strong>, so an architecture with no
+    /// declared load costs exactly what it cost in V3 - which is what makes the five reference
+    /// scenarios survive the arrival of a whole new axis untouched.
+    /// </summary>
+    public IReadOnlyDictionary<Guid, decimal> QueueingFactors { get; init; } =
+        new Dictionary<Guid, decimal>();
+
+    public int ProcessingOf(Node node)
+    {
+        var factor = QueueingFactors.GetValueOrDefault(node.Id, 1m);
+        var basis = LatencyModel.Processing(node.Type);
+
+        return factor == 1m
+            ? basis
+            : (int)Math.Round(basis * factor, MidpointRounding.AwayFromZero);
+    }
+
+    /// <summary>
     /// Nodes with a <c>down</c> injected into them: genuinely gone, so they generate no work at
     /// all. Different from a node that is Down because its dependency fell - that one still runs
     /// and still hammers whatever it calls, which is what makes the ×12 of §8.5 real.
@@ -158,7 +177,7 @@ public sealed class CallCost
             return PathCost.Free;
 
         var node = _graph.NodesById[nodeId];
-        var latency = LatencyModel.Processing(node.Type) + _inputs.LatencyOf(FindingElement.Node(nodeId));
+        var latency = _inputs.ProcessingOf(node) + _inputs.LatencyOf(FindingElement.Node(nodeId));
         var worstEdge = 0;
         var amplification = 1m;
 

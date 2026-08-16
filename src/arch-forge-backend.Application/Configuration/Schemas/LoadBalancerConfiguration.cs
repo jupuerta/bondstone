@@ -1,8 +1,8 @@
 namespace arch_forge_backend.Application.Configuration.Schemas;
 
 /// <summary>
-/// V3 D3.5. Algorithm went because without traffic round-robin and least-connections are
-/// indistinguishable, and Instances because redundancy is topological (D3.4).
+/// V3 D3.5. Algorithm stays out: with a single load figure and no variance, round-robin and
+/// least-connections spread the same. It comes back the day there is variance, not before.
 /// </summary>
 public class LoadBalancerConfiguration
 {
@@ -12,4 +12,10 @@ public class LoadBalancerConfiguration
     /// the root. The one field of this schema that changes what you see on screen.
     /// </summary>
     public bool HealthCheck { get; set; }
+
+    /// <summary>
+    /// V4 DT.1. Here as well as on Api and Gateway because a balancer is an entry point too -
+    /// <c>resilient-async</c>, the fixture that demonstrates the whole product, is fronted by one.
+    /// </summary>
+    public int? RequestsPerSecond { get; set; }
 }

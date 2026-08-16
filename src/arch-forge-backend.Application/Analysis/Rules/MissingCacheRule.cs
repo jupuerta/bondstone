@@ -62,7 +62,17 @@ public class MissingCacheRule : IArchitectureRule
                 $"'{database.Name}' recibe consultas directas de {effective.Count} componentes sin ninguna caché ni réplica de lectura.",
                 "Toda la carga de lectura recae sobre la misma instancia, que se convierte en el límite de escalado del sistema entero.",
                 "Interpón una caché en las lecturas más frecuentes o configura réplicas de lectura en la base de datos.",
-                elements));
+                elements)
+            {
+                // V4 D5.6. Two ways out and only one of them is a local graph transformation, so
+                // that is the one with a button: everything that calls the database directly goes
+                // through a cache instead. Read replicas stay in the suggestion as text, because
+                // choosing between the two is the decision the user should be making.
+                Fix = new AppliedFix(
+                    FixKinds.InsertCache,
+                    FindingElement.Node(database.Id),
+                    $"Poner una caché delante de '{database.Name}'")
+            });
         }
 
         return RuleResult.Applicable(findings);

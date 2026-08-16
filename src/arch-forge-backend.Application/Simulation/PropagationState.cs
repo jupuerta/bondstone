@@ -118,7 +118,12 @@ public sealed class PropagationState
     /// Ordered by <c>(PropagationStep, Type, Id)</c>, so the list already reads as the order of
     /// propagation and the animation of D6.3 only has to replay it.
     /// </summary>
-    public IReadOnlyList<ElementState> ToOrderedList(ArchitectureGraph graph) => _records
+    /// <param name="load">
+    /// V4 DT.5. Stamps each node with how full it is. Passed in rather than read from the records
+    /// because utilisation is not something the fixed point produces - it is the other axis, and
+    /// only the elements the caller already computed it for can carry it.
+    /// </param>
+    public IReadOnlyList<ElementState> ToOrderedList(ArchitectureGraph graph, LoadModel? load = null) => _records
         .Select(entry => new ElementState(
             entry.Key.Type,
             entry.Key.Id,
@@ -128,7 +133,12 @@ public sealed class PropagationState
                 : SimulationReasons.ForConnection(entry.Value.Reason, entry.Value.Context),
             entry.Value.Mechanism,
             entry.Value.CausedBy,
-            entry.Value.Step))
+            entry.Value.Step,
+            // Null on edges and on an architecture nobody declared traffic for: no load, no
+            // utilisation, and a 0 would read as "idle" rather than "not measured".
+            load is null || load.IsIdle || entry.Key.Type != ElementType.Node
+                ? null
+                : Math.Round(load.UtilizationOf(entry.Key.Id), 2)))
         .OrderBy(s => s.PropagationStep)
         .ThenBy(s => s.Type)
         .ThenBy(s => s.Id)

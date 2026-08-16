@@ -26,6 +26,17 @@ public static class DependencyInjection
         services.AddScoped<IArchitectureRule, MissingResilienceRule>();     // Consumer
         services.AddScoped<IArchitectureRule, HighCouplingRule>();          // Consumer
         services.AddScoped<IArchitectureRule, MissingCacheRule>();          // Consumer
+
+        // V4 D5.2: the debt, saldada. The analyzer goes from 7 rules to 15, and Security and
+        // Observability stop being two areas that travel in the contract with a dash on them.
+        services.AddScoped<IArchitectureRule, OrphanNodeRule>();            // Consumer
+        services.AddScoped<IArchitectureRule, QueueNoDlqRule>();            // Consumer
+        services.AddScoped<IArchitectureRule, TimeoutTooShortRule>();       // Consumer
+        services.AddScoped<IArchitectureRule, UndersizedComponentRule>();   // Consumer
+        services.AddScoped<IArchitectureRule, NoRateLimitRule>();           // Consumer
+        services.AddScoped<IArchitectureRule, ExposedDatabaseRule>();       // Consumer
+        services.AddScoped<IArchitectureRule, UnauthenticatedEntryRule>();  // Consumer
+        services.AddScoped<IArchitectureRule, NoObservabilityRule>();       // Consumer
         services.AddScoped<ArchitectureAnalyzer>();
 
         // V3 D5.1: next to the analyzer and not inside it. Not a list of registered pieces either -
@@ -45,6 +56,9 @@ public static class DependencyInjection
         services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<CacheConfiguration>(NodeType.Cache));
         services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<GatewayConfiguration>(NodeType.Gateway));
         services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<LoadBalancerConfiguration>(NodeType.LoadBalancer));
+        services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<ObservabilityConfiguration>(NodeType.Observability));
+        services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<WorkerConfiguration>(NodeType.Worker));
+        services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<ObjectStorageConfiguration>(NodeType.ObjectStorage));
         services.AddSingleton<NodeConfigurationRegistry>();
 
         services.AddScoped<IValidator<CreateArchitectureCommand>, CreateArchitectureCommandValidator>();
@@ -56,9 +70,12 @@ public static class DependencyInjection
         services.AddScoped<GetArchitectureByShareTokenQueryHandler>();
         services.AddScoped<AnalyzeArchitectureQueryHandler>();
         services.AddScoped<SimulateArchitectureQueryHandler>();
+        services.AddScoped<ExportArchitectureQueryHandler>();
         services.AddScoped<ForkArchitectureCommandHandler>();
         services.AddScoped<StartChallengeCommandHandler>();
+        services.AddScoped<OpenChallengeSolutionCommandHandler>();
         services.AddScoped<EvaluateChallengeQueryHandler>();
+        services.AddScoped<GetArchitectureHistoryQueryHandler>();
 
         return services;
     }

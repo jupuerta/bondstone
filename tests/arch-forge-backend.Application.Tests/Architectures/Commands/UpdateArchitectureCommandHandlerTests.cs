@@ -2,6 +2,8 @@ using System.Text.Json;
 using arch_forge_backend.Application.Architectures.Commands;
 using arch_forge_backend.Application.Architectures.DTOs;
 using arch_forge_backend.Application.Common.Exceptions;
+using arch_forge_backend.Application.Analysis;
+using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Application.Configuration;
 using arch_forge_backend.Application.Configuration.Schemas;
 using arch_forge_backend.Application.Tests.TestDoubles;
@@ -29,7 +31,13 @@ public class UpdateArchitectureCommandHandlerTests
             new NodeConfigurationProvider<LoadBalancerConfiguration>(NodeType.LoadBalancer)
         ]);
 
-        _handler = new UpdateArchitectureCommandHandler(_repository, registry, new UpdateArchitectureCommandValidator());
+        // The real seven-plus-eight analyzer: V4 D5.4 records what the architecture scored on
+        // every save, so this handler now runs it.
+        _handler = new UpdateArchitectureCommandHandler(
+            _repository,
+            registry,
+            new UpdateArchitectureCommandValidator(),
+            new ArchitectureAnalyzer([new SpofRule(), new MissingResilienceRule(), new NoObservabilityRule()]));
     }
 
     [Fact]
@@ -420,5 +428,85 @@ public class UpdateArchitectureCommandHandlerTests
 
         await _repository.AddAsync(architecture);
         return architecture;
+    }
+
+    [Fact]
+    public async Task Handle_RecordsWhatTheArchitectureScoredAtThisVersion()
+    {
+        // V4 D5.4. On save and not on analysis: the live analysis fires on a debounce while you
+        // type, and recording there would fill the table with half-finished edits.
+        var architecture = Seed();
+
+        await _handler.Handle(Command(architecture, "Two boxes"));
+
+        var snapshot = Assert.Single(_repository.Snapshots);
+        Assert.Equal(architecture.Id, snapshot.ArchitectureId);
+        Assert.Equal(2, snapshot.Version);
+        Assert.Equal("v4", snapshot.ScoringVersion);
+    }
+
+    [Fact]
+    public async Task Handle_SavingTheSameVersionTwiceRecordsItOnce()
+    {
+        // The autosave can retry, and a snapshot is a fact about a version rather than about an
+        // attempt to save it - which is what the unique index on (architecture, version) enforces.
+        var architecture = Seed();
+
+        await _handler.Handle(Command(architecture, "Once"));
+        await _repository.RecordSnapshotAsync(new ArchitectureSnapshot
+        {
+            Id = Guid.NewGuid(),
+            ArchitectureId = architecture.Id,
+            Version = 2,
+            ScoringVersion = "v4",
+            CreatedAt = DateTime.UtcNow
+        });
+
+        Assert.Single(_repository.Snapshots);
+    }
+
+    private Architecture Seed()
+    {
+        var architecture = new Architecture
+        {
+            Id = Guid.NewGuid(),
+            Name = "Seed",
+            ShareToken = "tok",
+            Version = 1,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        _repository.Seed(architecture);
+        return architecture;
+    }
+
+    private static UpdateArchitectureCommand Command(Architecture architecture, string name)
+    {
+        var api = Guid.NewGuid();
+        var db = Guid.NewGuid();
+
+        return new UpdateArchitectureCommand
+        {
+            Id = architecture.Id,
+            Name = name,
+            Version = architecture.Version,
+            Nodes =
+            [
+                new NodeDto { Id = api, Type = NodeType.Api, Name = "Api", Position = new PositionDto() },
+                new NodeDto { Id = db, Type = NodeType.Database, Name = "Db", Position = new PositionDto() }
+            ],
+            Connections =
+            [
+                new ConnectionDto
+                {
+                    Id = Guid.NewGuid(),
+                    SourceNodeId = api,
+                    TargetNodeId = db,
+                    Protocol = ProtocolType.Sql,
+                    Synchronous = true
+                }
+            ]
+        };
     }
 }

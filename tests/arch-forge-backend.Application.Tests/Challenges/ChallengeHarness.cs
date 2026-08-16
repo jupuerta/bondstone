@@ -33,6 +33,9 @@ public static class ChallengeHarness
         return Handler().Evaluate(definition, () => new ArchitectureGraph(architecture.Nodes, architecture.Connections));
     }
 
+    public static ChallengeResult Evaluate(ChallengeDefinition definition, Func<ArchitectureGraph> graph) =>
+        Handler().Evaluate(definition, graph);
+
     public static ArchitectureGraph Graph(ArchitectureBlueprint blueprint)
     {
         var architecture = blueprint.Instantiate("test");
@@ -54,9 +57,6 @@ public static class ChallengeHarness
 
     public static AnalysisResult Analyze(ArchitectureBlueprint blueprint) => Analyzer().Analyze(Graph(blueprint));
 
-    public static Guid NodeId(this ArchitectureGraph graph, string name) =>
-        graph.Nodes.Single(n => n.Name == name).Id;
-
     private static EvaluateChallengeQueryHandler Handler() =>
         new(new NullRepository(), Catalog, Analyzer(), new SimulationEngine());
 
@@ -68,7 +68,15 @@ public static class ChallengeHarness
         new SyncDependencyChainRule(),
         new MissingResilienceRule(),
         new HighCouplingRule(),
-        new MissingCacheRule()
+        new MissingCacheRule(),
+        new OrphanNodeRule(),
+        new QueueNoDlqRule(),
+        new TimeoutTooShortRule(),
+        new UndersizedComponentRule(),
+        new NoRateLimitRule(),
+        new ExposedDatabaseRule(),
+        new UnauthenticatedEntryRule(),
+        new NoObservabilityRule()
     ]);
 
     /// <summary>The handler's repository is only touched by <c>Handle</c>; these tests call <c>Evaluate</c>.</summary>
@@ -89,6 +97,11 @@ public static class ChallengeHarness
             IReadOnlyCollection<Node> nodes,
             IReadOnlyCollection<Connection> connections,
             CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    public Task RecordSnapshotAsync(ArchitectureSnapshot snapshot, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<IReadOnlyList<ArchitectureSnapshot>> GetSnapshotsAsync(Guid architectureId, int limit, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ArchitectureSnapshot>>([]);
 
         public Task SaveChangesAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
     }

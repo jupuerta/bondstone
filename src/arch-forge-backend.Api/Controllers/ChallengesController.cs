@@ -15,15 +15,18 @@ public class ChallengesController : ControllerBase
     private readonly ChallengeCatalog _catalog;
     private readonly StartChallengeCommandHandler _startHandler;
     private readonly EvaluateChallengeQueryHandler _evaluateHandler;
+    private readonly OpenChallengeSolutionCommandHandler _solutionHandler;
 
     public ChallengesController(
         ChallengeCatalog catalog,
         StartChallengeCommandHandler startHandler,
-        EvaluateChallengeQueryHandler evaluateHandler)
+        EvaluateChallengeQueryHandler evaluateHandler,
+        OpenChallengeSolutionCommandHandler solutionHandler)
     {
         _catalog = catalog;
         _startHandler = startHandler;
         _evaluateHandler = evaluateHandler;
+        _solutionHandler = solutionHandler;
     }
 
     [HttpGet]
@@ -63,6 +66,21 @@ public class ChallengesController : ControllerBase
         var query = new EvaluateChallengeQuery { Slug = slug, ArchitectureId = request.ArchitectureId };
         var result = await _evaluateHandler.Handle(query, cancellationToken);
         return result is null ? NotFound() : Ok(result);
+    }
+
+    /// <summary>
+    /// D3.5. Instantiates the reference solution as an architecture of its own and answers like
+    /// <c>/start</c> does, so the client opens it in another tab and the two sit side by side -
+    /// which is all "soluciones comparables" of §17 ever needed to be (D6.4).
+    ///
+    /// Not gated on having passed: there is no identity to gate it with (D2.1), and D3.6 already
+    /// decided that a user who goes looking for the answer is a user learning at their own pace.
+    /// </summary>
+    [HttpPost("{slug}/solution")]
+    public async Task<IActionResult> Solution(string slug, CancellationToken cancellationToken)
+    {
+        var result = await _solutionHandler.Handle(new OpenChallengeSolutionCommand { Slug = slug }, cancellationToken);
+        return result is null ? NotFound() : Created($"/api/architectures/{result.ShareToken}", result);
     }
 
     public class EvaluateRequest

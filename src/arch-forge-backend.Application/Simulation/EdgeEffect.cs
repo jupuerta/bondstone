@@ -36,7 +36,13 @@ public enum EffectReason
     DegradedDependency,
 
     /// <summary>One instance is not answering and the health check routes around it (D4.8).</summary>
-    InstanceDown
+    InstanceDown,
+
+    /// <summary>V4 DT.5: close enough to its capacity that any peak tips it over.</summary>
+    Saturated,
+
+    /// <summary>V4 DT.5: past its capacity, so it serves what it can and rejects the rest. Never worse than Degraded.</summary>
+    Overloaded
 }
 
 /// <summary>The three mechanisms that <em>contain</em>. The two that only bound - timeout and circuit breaker - never appear here (D2.2).</summary>

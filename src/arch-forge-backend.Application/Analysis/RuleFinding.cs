@@ -12,4 +12,13 @@ public sealed record RuleFinding(
     string Message,
     string Explanation,
     string? Suggestion,
-    IReadOnlyList<FindingElement> Elements);
+    IReadOnlyList<FindingElement> Elements)
+{
+    /// <summary>
+    /// V4 D5.6. The correction, when there is exactly one and it is local and unambiguous - null on
+    /// the ten rules whose fix is a decision rather than an edit. An optional property rather than a
+    /// constructor parameter so that a rule earns one by opting in, and the other fourteen do not
+    /// have to say `null`.
+    /// </summary>
+    public AppliedFix? Fix { get; init; }
+}

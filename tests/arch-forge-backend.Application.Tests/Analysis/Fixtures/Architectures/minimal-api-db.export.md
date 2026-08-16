@@ -1,0 +1,116 @@
+# minimal-api-db
+
+| | |
+|---|---|
+| Arquitectura | `8fK29x` · versión 1 |
+| Exportado | 2026-08-16 |
+| Motor de análisis | `scoringVersion: v4` |
+| Formato | `exportVersion: 1` |
+
+## Diagrama
+
+```mermaid
+flowchart LR
+  Api["Api: Api"]
+  Db["Database: Db"]
+
+  Api -->|Sql| Db
+```
+
+## Componentes
+
+| Nombre | Tipo | Configuración |
+|---|---|---|
+| Api | Api | — |
+| Db | Database | — |
+
+## Conexiones
+
+| Origen | Destino | Protocolo | Síncrona | Timeout | Reintentos | Circuit breaker | Fallback |
+|---|---|---|---|---|---|---|---|
+| Api | Db | Sql | sí | 5 s | — | no | no |
+
+## Análisis
+
+**Puntuación: 97 / 100** · 1 crítico · 1 aviso · 9 reglas superadas
+
+| Área | Puntuación |
+|---|---|
+| Availability | 100 |
+| Resilience | 100 |
+| Coupling | 100 |
+| Scalability | 100 |
+| Security | 85 |
+| Observability | 95 |
+
+### 🔴 UNAUTHENTICATED_ENTRY — Security
+
+**'Api' está expuesto sin autenticación.**
+
+Es una puerta de entrada desde fuera y detrás hay una base de datos, así que cualquiera que conozca la dirección llega a los datos.
+
+*Sugerencia:* Activa la autenticación en el punto de entrada, o pon delante un gateway que la haga.
+
+Elementos: `Api`
+
+### 🟡 NO_OBSERVABILITY — Observability
+
+**No hay nada observando la arquitectura.**
+
+Cuando algo falle no habrá dónde mirar: ni qué componente empezó, ni cuánto tardaba, ni cuántas peticiones se perdieron. El fallo se investiga con lo que se recuerde.
+
+*Sugerencia:* Añade un componente de observabilidad y conéctale lo que quieras poder mirar cuando algo vaya mal.
+
+### 🟢 SPOF — Availability
+
+**Ningún componente concentra el funcionamiento del sistema.**
+
+Se ha comprobado, componente a componente, qué dejaría de funcionar si cayera: ninguno se lleva por delante el resto del sistema.
+
+### 🟢 MISSING_RESILIENCE — Resilience
+
+**Las llamadas síncronas tienen protección frente a fallos.**
+
+Cada llamada síncrona tiene un timeout que la acota y, cuando el destino es crítico, una alternativa por la que salir si no responde.
+
+### 🟢 SYNC_CHAIN — Resilience
+
+**No hay cadenas síncronas largas.**
+
+Se han recorrido las llamadas síncronas y ninguna encadena suficientes componentes como para que las latencias se sumen.
+
+### 🟢 TIMEOUT_TOO_SHORT — Resilience
+
+**Los timeouts dan tiempo a que la llamada termine.**
+
+Cada timeout es mayor que lo que cuesta esa llamada con todo funcionando, así que solo salta cuando algo va mal de verdad.
+
+### 🟢 CYCLE — Coupling
+
+**No hay dependencias circulares.**
+
+Se han seguido las dependencias entre componentes y ninguna vuelve sobre sus pasos: todas se pueden desplegar y arrancar en algún orden.
+
+### 🟢 HIGH_COUPLING — Coupling
+
+**Ningún componente acumula demasiadas dependencias.**
+
+Se ha contado de cuántos componentes depende cada uno y ninguno necesita tantas piezas como para ser difícil de desplegar o probar por separado.
+
+### 🟢 ORPHAN_NODE — Coupling
+
+**Todos los componentes están conectados a algo.**
+
+Un componente sin llamadas entrantes ni salientes no participa en ningún flujo, así que ninguna otra regla puede decir nada sobre él.
+
+### 🟢 MISSING_CACHE — Scalability
+
+**Los accesos a base de datos están respaldados por caché o réplicas.**
+
+Se ha mirado quién consulta cada base de datos: ninguna recibe suficiente carga directa como para convertirse en el límite de escalado del sistema.
+
+### 🟢 EXPOSED_DATABASE — Security
+
+**Las bases de datos están detrás de algo.**
+
+Para llegar a los datos hay que pasar antes por una API o un gateway, que es donde se puede comprobar quién llama.

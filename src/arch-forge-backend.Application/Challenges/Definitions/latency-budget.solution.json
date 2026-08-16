@@ -1,0 +1,32 @@
+{
+  "name": "latency-budget solution",
+  "nodes": [
+    { "name": "Storefront", "type": "Api", "x": 0, "y": 120, "configuration": { "requestsPerSecond": 300, "instances": 2 } },
+    { "name": "Catalog", "type": "Service", "x": 220, "y": 120, "configuration": { "instances": 2 } },
+    { "name": "Cache", "type": "Cache", "x": 440, "y": 120, "configuration": { "hitRatio": 0.8 } },
+    { "name": "Db", "type": "Database", "x": 660, "y": 120 }
+  ],
+  "connections": [
+    {
+      "from": "Storefront",
+      "to": "Catalog",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": { "timeoutSeconds": 2 }
+    },
+    {
+      "from": "Catalog",
+      "to": "Cache",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": { "timeoutSeconds": 1, "fallback": true }
+    },
+    {
+      "from": "Cache",
+      "to": "Db",
+      "protocol": "Sql",
+      "synchronous": true,
+      "configuration": { "timeoutSeconds": 5, "circuitBreaker": true, "fallback": true }
+    }
+  ]
+}

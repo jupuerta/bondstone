@@ -68,12 +68,18 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
         Assert.True(analysis["score"]!.GetValue<int>() is >= 0 and <= 100);
 
         // V2 D2.1: the six areas always travel, in enum order; what varies is their state.
-        Assert.Equal("v2", analysis["scoringVersion"]!.GetValue<string>());
+        Assert.Equal("v4", analysis["scoringVersion"]!.GetValue<string>());
         Assert.Equal(
             ["Availability", "Resilience", "Coupling", "Scalability", "Security", "Observability"],
             analysis["areas"]!.AsArray().Select(a => a!["area"]!.GetValue<string>()));
-        Assert.Equal("NoRules", analysis["areas"]!.AsArray()
+        // V4 D5.2: Security stopped being an area nobody evaluates. On this two-node graph its three
+        // rules are all "not applicable" - no database behind the door, no declared traffic - which
+        // is a different sentence from "nobody is asking", and the panel paints them differently.
+        Assert.Equal("NotApplicable", analysis["areas"]!.AsArray()
             .Single(a => a!["area"]!.GetValue<string>() == "Security")!["state"]!.GetValue<string>());
+        Assert.DoesNotContain(
+            analysis["areas"]!.AsArray(),
+            a => a!["state"]!.GetValue<string>() == "NoRules");
         Assert.NotNull(analysis["summary"]);
     }
 
@@ -403,5 +409,70 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
         Assert.Equal(1, created!["version"]!.GetValue<int>());
 
         return (created["id"]!.GetValue<Guid>(), created["shareToken"]!.GetValue<string>());
+    }
+
+    /// <summary>
+    /// V4 D5.4, over the wire and over a real database - which is where the unique index on
+    /// (architecture, version) actually lives, and it is what makes recording on every save safe.
+    /// </summary>
+    [Fact]
+    public async Task History_RecordsOneEntryPerSavedVersion()
+    {
+        var created = await _client.PostAsJsonAsync("/api/architectures", new { name = "History" });
+        var architecture = (await created.Content.ReadFromJsonAsync<JsonObject>())!;
+        var id = architecture["id"]!.GetValue<string>();
+
+        var api = Guid.NewGuid();
+        var db = Guid.NewGuid();
+
+        object Snapshot(int version, bool withTimeout) => new
+        {
+            name = "History",
+            version,
+            nodes = new object[]
+            {
+                new { id = api, type = "Api", name = "Api", position = new { x = 0, y = 0 } },
+                new { id = db, type = "Database", name = "Db", position = new { x = 200, y = 0 } }
+            },
+            connections = new object[]
+            {
+                new
+                {
+                    id = Guid.NewGuid(),
+                    sourceNodeId = api,
+                    targetNodeId = db,
+                    protocol = "Sql",
+                    synchronous = true,
+                    configuration = withTimeout ? new { timeoutSeconds = 5 } : null
+                }
+            }
+        };
+
+        // Two saves: one without a timeout on the call, then one with. The second scores better,
+        // which is the `61 → 78` narrative the debt was written as.
+        await _client.PutAsJsonAsync($"/api/architectures/{id}", Snapshot(1, withTimeout: false));
+        await _client.PutAsJsonAsync($"/api/architectures/{id}", Snapshot(2, withTimeout: true));
+
+        var history = await _client.GetFromJsonAsync<JsonArray>($"/api/architectures/{id}/history");
+
+        Assert.NotNull(history);
+        Assert.Equal(2, history!.Count);
+
+        // Oldest first, one per version, each carrying the model that produced it.
+        Assert.Equal(2, history[0]!["version"]!.GetValue<int>());
+        Assert.Equal(3, history[1]!["version"]!.GetValue<int>());
+        Assert.All(history, entry => Assert.Equal("v4", entry!["scoringVersion"]!.GetValue<string>()));
+
+        // Adding the timeout silences MISSING_RESILIENCE, so Resilience recovers and the average
+        // with it: the number went up because the architecture got better.
+        Assert.True(history[1]!["score"]!.GetValue<int>() > history[0]!["score"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task History_OfSomethingThatDoesNotExist_Is404()
+    {
+        var response = await _client.GetAsync($"/api/architectures/{Guid.NewGuid()}/history");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 }

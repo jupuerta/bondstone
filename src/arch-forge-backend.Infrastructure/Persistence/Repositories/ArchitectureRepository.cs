@@ -64,6 +64,33 @@ public class ArchitectureRepository : IArchitectureRepository
         await transaction.CommitAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// V4 D5.4. Idempotent by the unique index on (architecture, version): the autosave may retry a
+    /// save, and a second snapshot of the same version would be the same fact recorded twice.
+    /// </summary>
+    public async Task RecordSnapshotAsync(ArchitectureSnapshot snapshot, CancellationToken cancellationToken = default)
+    {
+        var exists = await _context.ArchitectureSnapshots
+            .AnyAsync(s => s.ArchitectureId == snapshot.ArchitectureId && s.Version == snapshot.Version, cancellationToken);
+
+        if (exists)
+            return;
+
+        _context.ArchitectureSnapshots.Add(snapshot);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ArchitectureSnapshot>> GetSnapshotsAsync(
+        Guid architectureId,
+        int limit,
+        CancellationToken cancellationToken = default) =>
+        await _context.ArchitectureSnapshots
+            .Where(s => s.ArchitectureId == architectureId)
+            .OrderBy(s => s.Version)
+            .Take(limit)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         try

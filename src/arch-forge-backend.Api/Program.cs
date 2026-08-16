@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using arch_forge_backend.Api.Middleware;
 using arch_forge_backend.Application;
+using arch_forge_backend.Application.Challenges;
 using arch_forge_backend.Infrastructure;
 using arch_forge_backend.Infrastructure.Persistence;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -45,6 +46,12 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ArchForgeDbContext>();
     dbContext.Database.Migrate();
+
+    // V4 D1.5: loading the challenge catalogue is validating it. Resolved here rather than on the
+    // first request so a malformed definition - an unknown requirement kind, a metric outside the
+    // closed catalogue, a starter wiring an edge to a node nobody declared - stops the application
+    // instead of surfacing as a challenge that mysteriously cannot be passed.
+    scope.ServiceProvider.GetRequiredService<ChallengeCatalog>();
 }
 
 if (app.Environment.IsDevelopment())
