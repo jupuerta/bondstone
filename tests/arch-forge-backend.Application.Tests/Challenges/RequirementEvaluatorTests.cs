@@ -31,7 +31,7 @@ public class RequirementEvaluatorTests
 
         var two = Run(new ChallengeRequirement { Kind = RequirementKinds.ContainsNode, LabelKey = "x", NodeType = NodeType.Cache, Min = 2 }, blueprint);
         Assert.False(two.Met);
-        Assert.Contains("1", two.Detail.Es());
+        Assert.Equal("1", two.Detail.Arg("count"));
     }
 
     [Fact]
@@ -40,7 +40,7 @@ public class RequirementEvaluatorTests
         var result = Run(new ChallengeRequirement { Kind = RequirementKinds.AbsentNode, LabelKey = "x", NodeType = NodeType.Database }, ApiCacheDb());
 
         Assert.False(result.Met);
-        Assert.Contains("'Db'", result.Detail.Es());
+        Assert.Contains("Db", result.Detail.Arg("nodes"));
         Assert.Single(result.Elements);
     }
 
@@ -57,7 +57,7 @@ public class RequirementEvaluatorTests
 
         var tight = Run(new ChallengeRequirement { Kind = RequirementKinds.MaxFanOut, LabelKey = "x", Max = 2 }, blueprint);
         Assert.False(tight.Met);
-        Assert.Contains("'Api' llama directamente a 3", tight.Detail.Es());
+        Assert.Equal("challenge.requirement.maxFanOut.exceeded(count=3, max=2, node=Api)", tight.Detail.Describe());
     }
 
     [Fact]
@@ -90,7 +90,9 @@ public class RequirementEvaluatorTests
         }, blueprint);
 
         Assert.False(result.Met);
-        Assert.Contains("1 de las 2", result.Detail.Es());
+        Assert.Equal("challenge.requirement.allEdgesTo.some", result.Detail.Key());
+        Assert.Equal("1", result.Detail.Arg("count"));
+        Assert.Equal("2", result.Detail.Arg("total"));
         Assert.Single(result.Elements);
     }
 
@@ -161,7 +163,7 @@ public class RequirementEvaluatorTests
         }, ApiCacheDb());
 
         Assert.False(result.Met);
-        Assert.Contains("Payments", result.Detail.Es());
+        Assert.Equal("Payments", result.Detail.Arg("node"));
     }
 
     [Fact]
@@ -232,8 +234,8 @@ public class RequirementEvaluatorTests
         var awful = ChallengeHarness.Context(blueprint, With(null, AreaState.NoRules));
 
         Assert.Equal(
-            requirements.Select(r => (r.Kind, RequirementEvaluator.Evaluate(r, perfect).Met, RequirementEvaluator.Evaluate(r, perfect).Detail.Es())),
-            requirements.Select(r => (r.Kind, RequirementEvaluator.Evaluate(r, awful).Met, RequirementEvaluator.Evaluate(r, awful).Detail.Es())));
+            requirements.Select(r => (r.Kind, RequirementEvaluator.Evaluate(r, perfect).Met, RequirementEvaluator.Evaluate(r, perfect).Detail.Describe())),
+            requirements.Select(r => (r.Kind, RequirementEvaluator.Evaluate(r, awful).Met, RequirementEvaluator.Evaluate(r, awful).Detail.Describe())));
     }
 }
 

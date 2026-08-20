@@ -22,7 +22,7 @@ public class HighCouplingRuleTests
         Assert.Equal(RuleCodes.HighCoupling, finding.Code);
         Assert.Equal(Area.Coupling, finding.Area);
         Assert.Equal(Severity.Warning, finding.Severity);
-        Assert.Equal("'Orders' depende de 4 componentes distintos.", finding.Message.Es());
+        Assert.Equal("finding.HIGH_COUPLING.fanOut.message(count=4, node=Orders)", finding.Message.Describe());
     }
 
     [Fact]

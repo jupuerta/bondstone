@@ -53,9 +53,8 @@ public class RetryAmplificationRuleTests
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
         Assert.Equal(Severity.Critical, finding.Severity);
-        Assert.Equal(
-            "Los reintentos se multiplican a lo largo de la cadena Gateway → Orders → Shipping: hasta 12 peticiones por cada una original.",
-            finding.Message.Es());
+        Assert.Equal("finding.RETRY_AMPLIFICATION.chain.message(factor=12, walk=Gateway → Orders → Shipping)",
+            finding.Message.Describe());
         Assert.Equal(
             ["Gateway", "Gateway->Orders", "Orders", "Orders->Shipping", "Shipping"],
             _builder.Names(finding.Elements));
@@ -99,8 +98,8 @@ public class RetryAmplificationRuleTests
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
-        Assert.Contains("cadena Gateway → Orders → Shipping:", finding.Message.Es());
-        Assert.Contains("hasta 12 peticiones", finding.Message.Es());
+        Assert.Equal("finding.RETRY_AMPLIFICATION.chain.message(factor=12, walk=Gateway → Orders → Shipping)",
+            finding.Message.Describe());
     }
 
     [Fact]

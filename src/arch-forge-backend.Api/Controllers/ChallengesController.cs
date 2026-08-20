@@ -1,5 +1,4 @@
 using arch_forge_backend.Application.Challenges;
-using arch_forge_backend.Application.Localization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace arch_forge_backend.Api.Controllers;
@@ -17,20 +16,17 @@ public class ChallengesController : ControllerBase
     private readonly StartChallengeCommandHandler _startHandler;
     private readonly EvaluateChallengeQueryHandler _evaluateHandler;
     private readonly OpenChallengeSolutionCommandHandler _solutionHandler;
-    private readonly TextCatalog _text;
 
     public ChallengesController(
         ChallengeCatalog catalog,
         StartChallengeCommandHandler startHandler,
         EvaluateChallengeQueryHandler evaluateHandler,
-        OpenChallengeSolutionCommandHandler solutionHandler,
-        TextCatalog text)
+        OpenChallengeSolutionCommandHandler solutionHandler)
     {
         _catalog = catalog;
         _startHandler = startHandler;
         _evaluateHandler = evaluateHandler;
         _solutionHandler = solutionHandler;
-        _text = text;
     }
 
     [HttpGet]
@@ -50,9 +46,9 @@ public class ChallengesController : ControllerBase
     /// client can hand it straight to <c>/a/{token}</c>.
     /// </summary>
     [HttpPost("{slug}/start")]
-    public async Task<IActionResult> Start(string slug, CancellationToken cancellationToken)
+    public async Task<IActionResult> Start(string slug, [FromBody] NameRequest? request, CancellationToken cancellationToken)
     {
-        var result = await _startHandler.Handle(new StartChallengeCommand { Slug = slug, Locale = _text.Negotiate(Request.Headers.AcceptLanguage) }, cancellationToken);
+        var result = await _startHandler.Handle(new StartChallengeCommand { Slug = slug, Name = request?.Name }, cancellationToken);
         return result is null ? NotFound() : Created($"/api/architectures/{result.ShareToken}", result);
     }
 
@@ -81,14 +77,26 @@ public class ChallengesController : ControllerBase
     /// decided that a user who goes looking for the answer is a user learning at their own pace.
     /// </summary>
     [HttpPost("{slug}/solution")]
-    public async Task<IActionResult> Solution(string slug, CancellationToken cancellationToken)
+    public async Task<IActionResult> Solution(string slug, [FromBody] NameRequest? request, CancellationToken cancellationToken)
     {
-        var result = await _solutionHandler.Handle(new OpenChallengeSolutionCommand { Slug = slug, Locale = _text.Negotiate(Request.Headers.AcceptLanguage) }, cancellationToken);
+        var result = await _solutionHandler.Handle(new OpenChallengeSolutionCommand { Slug = slug, Name = request?.Name }, cancellationToken);
         return result is null ? NotFound() : Created($"/api/architectures/{result.ShareToken}", result);
     }
 
     public class EvaluateRequest
     {
         public Guid ArchitectureId { get; set; }
+    }
+
+    /// <summary>
+    /// V7 D2.1. What to call the architecture this creates.
+    ///
+    /// It travels in the body because it is <strong>text</strong>, and after V7 the backend holds
+    /// none: the client renders the challenge's title from its own catalogue and sends the words it
+    /// just put on screen. Optional — an old client, or a call made by hand, gets the slug.
+    /// </summary>
+    public class NameRequest
+    {
+        public string? Name { get; set; }
     }
 }

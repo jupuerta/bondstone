@@ -4,15 +4,21 @@ namespace arch_forge_backend.Application.Localization;
 /// V7 D1.1. A piece of user-facing text as <strong>data</strong>: which sentence, and the values
 /// that go inside it. Nothing here is in any language.
 ///
+/// <strong>This is the only thing left in this assembly that has anything to do with text</strong>,
+/// and it contains none. D2.1 moved every word to the client — the catalogue, the exporter, the
+/// challenge names — so what the backend produces is a key and a bag of values, and the words that
+/// wrap them are somebody else's problem by design.
+///
 /// <strong>Named arguments, never positional.</strong> <c>"'{node}' depende de {count}
 /// componentes"</c> puts the subject first in Spanish and the English keeps the same order, but
 /// nothing guarantees the next language does - a list of two values indexed by position would be
 /// a bet on word order that breaks the first time somebody translates into German.
 ///
-/// <strong>Numbers travel raw.</strong> <see cref="Args"/> carries <c>8052</c>, not <c>"8 s"</c>,
-/// and the catalogue's placeholder says how to render it (<c>{callMs:duration}</c>). Formatting a
-/// number on this side would put a Spanish thousands separator inside an English sentence, which
-/// is the failure that makes half-done localization look worse than none.
+/// <strong>Numbers travel raw.</strong> <see cref="Args"/> carries <c>8052</c>, not <c>"8 s"</c>:
+/// the client's placeholder says how to render it (<c>{callMs:duration}</c>). Formatting a number
+/// on this side would put a Spanish thousands separator inside an English sentence, which is the
+/// failure that makes half-done localization look worse than none — and this side does not know
+/// which language it is even talking to.
 ///
 /// Node names are user data: they travel as arguments and are never translated.
 /// </summary>

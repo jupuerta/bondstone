@@ -103,7 +103,7 @@ public class SimulationEngineTests
         var result = Simulate(graph, new Fault(ElementType.Node, graph.NodeId("Gateway"), FaultKinds.Down));
 
         var unreachable = result.States
-            .Where(s => s.Type == ElementType.Node && s.Reason.Es().StartsWith("No le llega tráfico"))
+            .Where(s => s.Type == ElementType.Node && s.Reason.Key() == "sim.node.unreachable")
             .Select(s => s.Id)
             .ToHashSet();
 
@@ -217,10 +217,10 @@ public class SimulationEngineTests
 
         Assert.Equal(HealthState.Degraded, StateOf(result, builder, "Api").State);
         Assert.Equal("queue", StateOf(result, builder, "Api").Mechanism);
-        Assert.Contains("sigue atendiendo peticiones", StateOf(result, builder, "Api").Reason.Es());
+        Assert.Equal("sim.node.queueDown", StateOf(result, builder, "Api").Reason.Key());
 
         Assert.Equal(HealthState.Degraded, StateOf(result, builder, "Worker").State);
-        Assert.Contains("No le llega trabajo", StateOf(result, builder, "Worker").Reason.Es());
+        Assert.Equal("sim.node.noWork", StateOf(result, builder, "Worker").Reason.Key());
     }
 
     [Fact]
@@ -318,7 +318,7 @@ public class SimulationEngineTests
 
         Assert.Equal(HealthState.Down, StateOf(result, builder, "Api").State);
         Assert.Equal(HealthState.Down, StateOf(result, builder, "Db").State);
-        Assert.Contains("No le llega tráfico", StateOf(result, builder, "Db").Reason.Es());
+        Assert.Equal("sim.node.unreachable", StateOf(result, builder, "Db").Reason.Key());
     }
 
     [Fact]

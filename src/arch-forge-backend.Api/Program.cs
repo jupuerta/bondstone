@@ -2,7 +2,6 @@ using System.Text.Json.Serialization;
 using arch_forge_backend.Api.Middleware;
 using arch_forge_backend.Application;
 using arch_forge_backend.Application.Challenges;
-using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Infrastructure;
 using arch_forge_backend.Infrastructure.Persistence;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -53,11 +52,6 @@ using (var scope = app.Services.CreateScope())
     // closed catalogue, a starter wiring an edge to a node nobody declared - stops the application
     // instead of surfacing as a challenge that mysteriously cannot be passed.
     scope.ServiceProvider.GetRequiredService<ChallengeCatalog>();
-
-    // V7 D1.2: and the text catalogue, for the same reason. A locale file that fails to parse, or
-    // a build that shipped without the default one, is a deploy mistake - and the moment to find
-    // out is now, not the first time somebody exports a document.
-    scope.ServiceProvider.GetRequiredService<TextCatalog>();
 }
 
 if (app.Environment.IsDevelopment())

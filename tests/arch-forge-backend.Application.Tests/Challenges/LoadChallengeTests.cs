@@ -51,7 +51,7 @@ public class DatabaseOverloadTests
         Assert.False(result.Passed);
         var declared = Assert.Single(result.Requirements, r => r.Kind == RequirementKinds.DeclaresLoad);
         Assert.False(declared.Met);
-        Assert.Contains("300", declared.Detail.Es());
+        Assert.Equal("300", declared.Detail.Arg("min"));
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public class DatabaseOverloadTests
         // point of failure. Two different problems, and the reference solution answers both.
         var result = ChallengeHarness.Evaluate(Slug, ChallengeHarness.Catalog.ReferenceSolutionOf(Slug)!);
 
-        Assert.All(result.OptionalGoals, goal => Assert.True(goal.Met, goal.Detail.Es()));
+        Assert.All(result.OptionalGoals, goal => Assert.True(goal.Met, goal.Detail.Describe()));
     }
 
     internal static LoadFigures Figures(ArchitectureBlueprint blueprint) => LoadFigures.Of(blueprint);
@@ -189,7 +189,7 @@ public class MillionADayTests
         Assert.True(result.Passed);
 
         // And both extras: a rate limit at the door and something watching (D5.2's new rules).
-        Assert.All(result.OptionalGoals, goal => Assert.True(goal.Met, goal.Detail.Es()));
+        Assert.All(result.OptionalGoals, goal => Assert.True(goal.Met, goal.Detail.Describe()));
     }
 
     private static ArchitectureBlueprint WithoutReadReplicas(ArchitectureBlueprint blueprint) => new()

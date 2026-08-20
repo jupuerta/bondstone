@@ -88,7 +88,7 @@ public class AppliedFixTests
         // goes through a cache", which has one answer, rather than "cache this particular call",
         // which would be picking one of two arbitrarily.
         Assert.Equal(ElementType.Node, fix.Element.Type);
-        Assert.Contains("'Db'", fix.Label.Es());
+        Assert.Equal("fix.MISSING_CACHE.insert(node=Db)", fix.Label.Describe());
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public class AppliedFixTests
         var fix = Assert.Single(new OrphanNodeRule().Evaluate(graph).Findings).Fix;
 
         Assert.Equal(FixKinds.RemoveNode, fix!.Kind);
-        Assert.Contains("Leftover", fix.Label.Es());
+        Assert.Equal("fix.ORPHAN_NODE.remove(node=Leftover)", fix.Label.Describe());
     }
 
     /// <summary>

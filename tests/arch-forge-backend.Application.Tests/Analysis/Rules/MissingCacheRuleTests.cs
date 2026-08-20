@@ -26,9 +26,7 @@ public class MissingCacheRuleTests
         Assert.Equal(RuleCodes.MissingCache, finding.Code);
         Assert.Equal(Area.Scalability, finding.Area);
         Assert.Equal(Severity.Warning, finding.Severity);
-        Assert.Equal(
-            "'Db' recibe consultas directas de 3 componentes sin ninguna caché ni réplica de lectura.",
-            finding.Message.Es());
+        Assert.Equal("finding.MISSING_CACHE.direct.message(count=3, node=Db)", finding.Message.Describe());
     }
 
     [Fact]

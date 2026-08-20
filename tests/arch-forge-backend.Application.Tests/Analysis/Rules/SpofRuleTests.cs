@@ -26,7 +26,7 @@ public class SpofRuleTests
         Assert.Equal(RuleCodes.Spof, finding.Code);
         Assert.Equal(Area.Availability, finding.Area);
         Assert.Equal(Severity.Critical, finding.Severity);
-        Assert.Contains("3 componentes dependen de él", finding.Message.Es());
+        Assert.Equal("finding.SPOF.shared.message(count=3, node=Db)", finding.Message.Describe());
         Assert.Equal(_builder.NodeElement("Db"), Assert.Single(finding.Elements));
     }
 
@@ -71,7 +71,8 @@ public class SpofRuleTests
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
         Assert.Equal(Severity.Critical, finding.Severity);
-        Assert.Contains("3 componentes quedan inalcanzables", finding.Message.Es());
+        Assert.Equal("finding.SPOF.unreachable.message", finding.Message.Key());
+        Assert.Equal("3", finding.Message.Arg("count"));
         Assert.Equal(_builder.NodeElement("Gateway"), Assert.Single(finding.Elements));
     }
 
@@ -121,7 +122,7 @@ public class SpofRuleTests
 
         var orders = Assert.Single(findings, f => f.Elements.Contains(_builder.NodeElement("Orders")));
         Assert.Equal(Severity.Critical, orders.Severity);
-        Assert.Contains("inalcanzables", orders.Message.Es());
+        Assert.Equal("finding.SPOF.unreachable.message", orders.Message.Key());
     }
 
     [Fact]

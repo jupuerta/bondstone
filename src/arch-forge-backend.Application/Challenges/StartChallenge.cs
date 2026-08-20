@@ -2,19 +2,24 @@ using arch_forge_backend.Application.Architectures;
 using arch_forge_backend.Application.Architectures.DTOs;
 using arch_forge_backend.Application.Common.Interfaces;
 
-using arch_forge_backend.Application.Localization;
-
 namespace arch_forge_backend.Application.Challenges;
 
 public class StartChallengeCommand
 {
     public string Slug { get; set; } = string.Empty;
     /// <summary>
-    /// V7 D1.2. The language the new architecture is named in, from <c>Accept-Language</c>. It is a
-    /// property of the write and not of the reader: the name is persisted once and everybody who
-    /// opens the link afterwards sees the same one.
+    /// V7 D2.1. The name for the new architecture, <strong>written by the client</strong>.
+    ///
+    /// It used to be the challenge's title rendered here, which is why the backend kept a catalogue
+    /// of titles after everything else had become a key. But this is a persisted, user-editable
+    /// column shared with hand-made architectures: a row saying <c>challenge.payments-friday.title</c>
+    /// is a name nobody can read, and a row in a language chosen by a header is a name that lies to
+    /// the next person who opens the link. The client knows the title it just showed, so it sends it.
+    ///
+    /// Empty falls back to the slug rather than to nothing: a nameless architecture is worse than an
+    /// unlovely one, and this is the only value that cannot be recomputed later.
     /// </summary>
-    public string Locale { get; set; } = TextCatalog.DefaultLocale;
+    public string? Name { get; set; }
 
 }
 
@@ -31,14 +36,16 @@ public class StartChallengeCommandHandler
 {
     private readonly IArchitectureRepository _repository;
     private readonly ChallengeCatalog _catalog;
-    private readonly TextCatalog _text;
 
-    public StartChallengeCommandHandler(IArchitectureRepository repository, ChallengeCatalog catalog, TextCatalog text)
+    public StartChallengeCommandHandler(IArchitectureRepository repository, ChallengeCatalog catalog)
     {
         _repository = repository;
         _catalog = catalog;
-        _text = text;
     }
+
+    /// <summary>The client's name, or the slug when it sent none. Never empty.</summary>
+    internal static string NameOr(string? name, string slug) =>
+        string.IsNullOrWhiteSpace(name) ? slug : name.Trim();
 
     public async Task<ArchitectureDto?> Handle(StartChallengeCommand command, CancellationToken cancellationToken = default)
     {
@@ -52,7 +59,7 @@ public class StartChallengeCommandHandler
         // language at the moment it is created rather than kept as a key: a row in the database
         // that says `challenge.payments-friday.title` is a name nobody can read. This is why the
         // backend catalogue holds challenge titles even though it renders no other challenge prose.
-        var architecture = starter.Instantiate(_text.Render(definition.TitleKey, command.Locale));
+        var architecture = starter.Instantiate(NameOr(command.Name, definition.Slug));
 
         await _repository.AddAsync(architecture, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);

@@ -136,11 +136,17 @@ public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
     {
         // D3.5 and D6.4: not a picture - an architecture with its own token, so it opens in the
         // editor next to the attempt and can be analysed, simulated and taken apart.
-        var response = await _client.PostAsync("/api/challenges/payments-friday/solution", null);
+        // V7 D2.1: the name travels in the body, because the backend holds no text. Named so it
+        // cannot be mistaken for the attempt it is being compared against — two tabs of the same
+        // editor with the same title would be a trap.
+        var response = await _client.PostAsJsonAsync(
+            "/api/challenges/payments-friday/solution",
+            new { name = "Los viernes — solución de referencia" });
+
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
         var solution = (await response.Content.ReadFromJsonAsync<JsonObject>())!;
-        Assert.Contains("referencia", solution["name"]!.GetValue<string>());
+        Assert.Equal("Los viernes — solución de referencia", solution["name"]!.GetValue<string>());
 
         var evaluated = await _client.PostAsJsonAsync(
             "/api/challenges/payments-friday/evaluate",
@@ -170,5 +176,30 @@ public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
         return (await response.Content.ReadFromJsonAsync<JsonObject>())!;
+    }
+
+    /// <summary>
+    /// V7 D2.1. The name is the client's, and a call that sends none still gets a readable one —
+    /// the slug — rather than an empty column or a catalogue key nobody can read.
+    /// </summary>
+    [Fact]
+    public async Task Starting_without_a_name_falls_back_to_the_slug()
+    {
+        var response = await _client.PostAsync("/api/challenges/payments-friday/start", null);
+        var started = (await response.Content.ReadFromJsonAsync<JsonObject>())!;
+
+        Assert.Equal("payments-friday", started["name"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task Starting_with_a_name_uses_it()
+    {
+        var response = await _client.PostAsJsonAsync(
+            "/api/challenges/payments-friday/start",
+            new { name = "Tu servicio de pagos se cae todos los viernes" });
+
+        var started = (await response.Content.ReadFromJsonAsync<JsonObject>())!;
+
+        Assert.Equal("Tu servicio de pagos se cae todos los viernes", started["name"]!.GetValue<string>());
     }
 }

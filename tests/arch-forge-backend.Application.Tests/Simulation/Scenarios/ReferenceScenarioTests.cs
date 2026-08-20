@@ -28,14 +28,14 @@ public class ReferenceScenarioTests
         // indefinite wait into five seconds.
         Assert.Equal(HealthState.Down, run.Node("Db").State);
         Assert.Equal(0, run.Node("Db").PropagationStep);
-        Assert.Equal(TestText.Es(LocalizedText.Of("sim.node.injected")), run.Node("Db").Reason.Es());
+        Assert.Equal("sim.node.injected", run.Node("Db").Reason.Key());
 
         Assert.Equal(HealthState.Down, run.Edge("Api", "Db").State);
         Assert.Equal(1, run.Edge("Api", "Db").PropagationStep);
 
         Assert.Equal(HealthState.Down, run.Node("Api").State);
         Assert.Equal(1, run.Node("Api").PropagationStep);
-        Assert.Contains("no tiene alternativa", run.Node("Api").Reason.Es());
+        Assert.Equal("sim.node.unprotected(target=Db)", run.Node("Api").Reason.Describe());
 
         Assert.Equal(new SimulationMetrics(
             ComponentsDown: 2,
@@ -206,7 +206,7 @@ public class ReferenceScenarioTests
         foreach (var name in new[] { "Orders", "Payments", "Inventory", "Shipping", "Notifications", "Users", "Billing", "Search", "Db" })
         {
             Assert.Equal("Gateway", run.NameOf(run.Node(name).CausedBy!));
-            Assert.Contains("No le llega tráfico", run.Node(name).Reason.Es());
+            Assert.Equal("sim.node.unreachable", run.Node(name).Reason.Key());
         }
 
         Assert.Null(run.Node("Gateway").CausedBy);
@@ -268,7 +268,9 @@ public class ReferenceScenarioTests
         var run = ReferenceScenario.Run("worst-case", ReferenceScenario.EdgeLatency(graph, "Orders", "Shipping", 8_000));
 
         // "La llamada a 'Shipping' tarda 8 s y el timeout es de 5 s: expira siempre…"
-        Assert.Contains("tarda 8 s", run.Node("Orders").Reason.Es());
-        Assert.Contains("timeout es de 5 s", run.Node("Orders").Reason.Es());
+        // The two durations travel in milliseconds; turning 8 052 into "8 s" is the client's job now.
+        Assert.Equal("sim.node.timeoutExceeded", run.Node("Orders").Reason.Key());
+        Assert.Equal("8052", run.Node("Orders").Reason.Arg("callMs"));
+        Assert.Equal("5000", run.Node("Orders").Reason.Arg("timeoutMs"));
     }
 }

@@ -26,7 +26,7 @@ public class MissingResilienceRuleTests
         Assert.Equal(RuleCodes.MissingResilience, finding.Code);
         Assert.Equal(Area.Resilience, finding.Area);
         Assert.Equal(Severity.Warning, finding.Severity);
-        Assert.Equal("La llamada de 'Orders' a 'Db' no tiene protección frente a fallos.", finding.Message.Es());
+        Assert.Equal("finding.MISSING_RESILIENCE.unprotected.message(source=Orders, target=Db)", finding.Message.Describe());
         Assert.Equal(_builder.EdgeElement("Orders", "Db"), Assert.Single(finding.Elements));
     }
 
@@ -72,7 +72,8 @@ public class MissingResilienceRuleTests
         var finding = Assert.Single(_rule.Evaluate(graph).Findings);
 
         Assert.Equal(Severity.Critical, finding.Severity);
-        Assert.Contains("'Db' es un punto único de fallo", finding.Explanation.Es());
+        // Only the SPOF half applies: this edge has a timeout, so there is nothing to say about one.
+        Assert.Equal("finding.MISSING_RESILIENCE.exposedToSpof.explanation(target=Db)", finding.Explanation.Describe());
     }
 
     [Fact]
@@ -121,9 +122,10 @@ public class MissingResilienceRuleTests
         var finding = Assert.Single(_rule.Evaluate(graph).Findings);
 
         Assert.Equal(Severity.Critical, finding.Severity);
-        Assert.Contains("Sin timeout", finding.Explanation.Es());
-        Assert.Contains("punto único de fallo", finding.Explanation.Es());
-        Assert.Contains("Configura un timeout", finding.Suggestion.Es());
+        // Both reasons apply, and that is one key rather than two fragments joined (V7 D1.1).
+        Assert.Equal("finding.MISSING_RESILIENCE.noTimeoutAndSpof.explanation", finding.Explanation.Key());
+        Assert.Equal("Db", finding.Explanation.Arg("target"));
+        Assert.Equal("finding.MISSING_RESILIENCE.noTimeoutAndSpof.suggestion", finding.Suggestion.Key());
     }
 
     [Fact]

@@ -26,7 +26,7 @@ public class SyncDependencyChainRuleTests
         Assert.Equal(RuleCodes.SyncChain, finding.Code);
         Assert.Equal(Area.Resilience, finding.Area);
         Assert.Equal(Severity.Warning, finding.Severity);
-        Assert.Equal("'API' inicia una cadena de dependencias síncronas de 3 componentes.", finding.Message.Es());
+        Assert.Equal("finding.SYNC_CHAIN.long.message(count=3, node=API)", finding.Message.Describe());
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public class SyncDependencyChainRuleTests
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
         Assert.Equal(Severity.Critical, finding.Severity);
-        Assert.Contains("5 componentes", finding.Message.Es());
+        Assert.Equal("5", finding.Message.Arg("count"));
     }
 
     [Fact]
@@ -50,8 +50,7 @@ public class SyncDependencyChainRuleTests
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
-        Assert.Contains("'A' inicia", finding.Message.Es());
-        Assert.Contains("4 componentes", finding.Message.Es());
+        Assert.Equal("finding.SYNC_CHAIN.long.message(count=4, node=A)", finding.Message.Describe());
     }
 
     [Fact]
@@ -141,7 +140,7 @@ public class SyncDependencyChainRuleTests
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
         Assert.Equal(Severity.Critical, finding.Severity);
-        Assert.Contains("49 componentes", finding.Message.Es());
+        Assert.Equal("49", finding.Message.Arg("count"));
     }
 
     [Fact]

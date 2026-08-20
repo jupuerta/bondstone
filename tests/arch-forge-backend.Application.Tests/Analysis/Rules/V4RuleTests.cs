@@ -28,7 +28,7 @@ public class OrphanNodeRuleTests
 
         Assert.True(result.IsApplicable);
         var finding = Assert.Single(result.Findings);
-        Assert.Contains("'Leftover'", finding.Message.Es());
+        Assert.Equal("finding.ORPHAN_NODE.disconnected.message(node=Leftover)", finding.Message.Describe());
     }
 
     [Fact]
@@ -50,7 +50,7 @@ public class QueueNoDlqRuleTests
         var result = new QueueNoDlqRule().Evaluate(graph);
 
         Assert.True(result.IsApplicable);
-        Assert.Contains("dead letter queue", Assert.Single(result.Findings).Message.Es());
+        Assert.Equal("finding.QUEUE_NO_DLQ.missing.message", Assert.Single(result.Findings).Message.Key());
     }
 
     [Fact]
@@ -93,7 +93,7 @@ public class TimeoutTooShortRuleTests
 
         var finding = Assert.Single(new TimeoutTooShortRule().Evaluate(loaded).Findings);
         Assert.Equal(Severity.Critical, finding.Severity);
-        Assert.Contains("más corto que la propia llamada", finding.Message.Es());
+        Assert.Equal("finding.TIMEOUT_TOO_SHORT.expires.message", finding.Message.Key());
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public class TimeoutTooShortRuleTests
         // wrote CallCost for. The suggestion quotes that figure back.
         var finding = Assert.Single(new TimeoutTooShortRule().Evaluate(ApiAndDb(1_200)).Findings);
 
-        Assert.Contains("Sube el timeout", finding.Suggestion.Es());
+        Assert.Equal("finding.TIMEOUT_TOO_SHORT.expires.suggestion", finding.Suggestion.Key());
     }
 
     private static ArchitectureGraph ApiAndDb(int rps) => new GraphBuilder()
@@ -162,9 +162,10 @@ public class UndersizedComponentRuleTests
     {
         var finding = Assert.Single(new UndersizedComponentRule().Evaluate(Loaded(300)).Findings);
 
-        Assert.Contains("300", finding.Explanation.Es());
-        Assert.Contains("200", finding.Explanation.Es());
-        Assert.Contains("caché", finding.Suggestion.Es());   // it is a database, so that is the advice
+        // The two numbers that let you fix it travel raw; the sentence around them is the client's.
+        Assert.Equal("300", finding.Explanation.Arg("loadRps"));
+        Assert.Equal("200", finding.Explanation.Arg("capacityRps"));
+        Assert.Equal("finding.UNDERSIZED_COMPONENT.suggestion.database", finding.Suggestion.Key());
     }
 
     private static ArchitectureGraph Loaded(int rps) => new GraphBuilder()
@@ -182,7 +183,7 @@ public class SecurityRuleTests
         var finding = Assert.Single(new UnauthenticatedEntryRule().Evaluate(ApiAndDb("{}")).Findings);
 
         Assert.Equal(Severity.Critical, finding.Severity);
-        Assert.Contains("'Api'", finding.Message.Es());
+        Assert.Equal("Api", finding.Message.Arg("node"));
     }
 
     [Fact]
@@ -236,7 +237,7 @@ public class SecurityRuleTests
         var finding = Assert.Single(new ExposedDatabaseRule().Evaluate(graph).Findings);
 
         Assert.Equal(Severity.Critical, finding.Severity);
-        Assert.Contains("sin pasar por ninguna API", finding.Message.Es());
+        Assert.Equal("finding.EXPOSED_DATABASE.reachable.message", finding.Message.Key());
     }
 
     [Fact]
@@ -281,7 +282,7 @@ public class NoObservabilityRuleTests
     {
         var finding = Assert.Single(new NoObservabilityRule().Evaluate(Base().Build()).Findings);
 
-        Assert.Contains("No hay nada observando", finding.Message.Es());
+        Assert.Equal("finding.NO_OBSERVABILITY.absent.message", finding.Message.Key());
     }
 
     [Fact]
@@ -303,7 +304,7 @@ public class NoObservabilityRuleTests
         var graph = Base().Node("Telemetry", NodeType.Observability).Build();
         var finding = Assert.Single(new NoObservabilityRule().Evaluate(graph).Findings);
 
-        Assert.Contains("no está conectado", finding.Message.Es());
+        Assert.Equal("finding.NO_OBSERVABILITY.orphan.message", finding.Message.Key());
     }
 
     private static GraphBuilder Base() => new GraphBuilder()

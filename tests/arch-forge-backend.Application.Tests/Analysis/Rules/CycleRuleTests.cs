@@ -27,9 +27,8 @@ public class CycleRuleTests
         Assert.Equal(RuleCodes.Cycle, finding.Code);
         Assert.Equal(Area.Coupling, finding.Area);
         Assert.Equal(Severity.Critical, finding.Severity);
-        Assert.Equal(
-            "Dependencia circular entre 3 componentes: Orders → Payments → Inventory → Orders.",
-            finding.Message.Es());
+        Assert.Equal("finding.CYCLE.detected.message(count=3, walk=Orders → Payments → Inventory → Orders)",
+            finding.Message.Describe());
     }
 
     [Fact]
@@ -56,7 +55,7 @@ public class CycleRuleTests
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
-        Assert.Contains("2 componentes", finding.Message.Es());
+        Assert.Equal("2", finding.Message.Arg("count"));
     }
 
     [Fact]
@@ -72,7 +71,7 @@ public class CycleRuleTests
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
-        Assert.Equal("Dependencia circular entre 3 componentes: A → B → C → A.", finding.Message.Es());
+        Assert.Equal("finding.CYCLE.detected.message(count=3, walk=A → B → C → A)", finding.Message.Describe());
     }
 
     [Fact]

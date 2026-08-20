@@ -35,7 +35,7 @@ public class LoadReferenceScenarioTests
         // is dead" (plan técnico §2).
         Assert.Equal(HealthState.Degraded, run.Node("Db").State);
         Assert.Equal(HealthState.Healthy, run.Node("Api").State);
-        Assert.Contains("rechaza", run.Node("Db").Reason.Es());
+        Assert.Equal("sim.node.overloaded", run.Node("Db").Reason.Key());
 
         // Api 5 × 2,5 = 13 · Db 20 × 30 = 600 · 13 + Sql 2 + 600.
         // Without any declared load this same fixture costs 27 ms, and V3's scenario still says so.
@@ -151,7 +151,7 @@ public class LoadReferenceScenarioTests
         // killed nobody directly and eight components are down.
         Assert.Equal(8, run.Metrics.ComponentsDown);
         Assert.Equal(["Db", "Search"], run.NodesIn(HealthState.Degraded));
-        Assert.Contains("expira", run.Node("Orders").Reason.Es());
+        Assert.Equal("sim.node.timeoutExceeded", run.Node("Orders").Reason.Key());
 
         // Orders → Shipping expires: 5 s × 4 = 20.000. Gateway → Orders expires: 5 s × 3 = 15.000.
         Assert.Equal(15_006, run.Metrics.NominalLatencyMs);
