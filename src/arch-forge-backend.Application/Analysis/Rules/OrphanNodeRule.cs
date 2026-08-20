@@ -1,3 +1,5 @@
+using arch_forge_backend.Application.Localization;
+
 namespace arch_forge_backend.Application.Analysis.Rules;
 
 /// <summary>
@@ -13,9 +15,8 @@ public class OrphanNodeRule : IArchitectureRule
     public Severity DefaultSeverity => Severity.Warning;
     public RulePhase Phase => RulePhase.Consumer;
 
-    public string PassedMessage => "Todos los componentes están conectados a algo.";
-    public string PassedExplanation =>
-        "Un componente sin llamadas entrantes ni salientes no participa en ningún flujo, así que ninguna otra regla puede decir nada sobre él.";
+    public LocalizedText PassedMessage => LocalizedText.Of("finding.ORPHAN_NODE.passed.message");
+    public LocalizedText PassedExplanation => LocalizedText.Of("finding.ORPHAN_NODE.passed.explanation");
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
@@ -32,9 +33,9 @@ public class OrphanNodeRule : IArchitectureRule
                 Code,
                 Area,
                 DefaultSeverity,
-                $"'{node.Name}' no está conectado a nada.",
-                "No recibe llamadas ni hace ninguna, así que no forma parte de ningún flujo de la arquitectura.",
-                "Conéctalo con lo que deba llamarlo o lo que deba llamar, o bórralo si sobra.",
+                LocalizedText.Of("finding.ORPHAN_NODE.disconnected.message", ("node", node.Name)),
+                LocalizedText.Of("finding.ORPHAN_NODE.disconnected.explanation"),
+                LocalizedText.Of("finding.ORPHAN_NODE.disconnected.suggestion"),
                 [FindingElement.Node(node.Id)])
             {
                 // D5.6. Only one of the two ways out is automatable: *deleting* it is unambiguous,
@@ -43,7 +44,7 @@ public class OrphanNodeRule : IArchitectureRule
                 Fix = new AppliedFix(
                     FixKinds.RemoveNode,
                     FindingElement.Node(node.Id),
-                    $"Borrar '{node.Name}'")
+                    LocalizedText.Of("fix.ORPHAN_NODE.remove", ("node", node.Name)))
             })
             .ToList();
 

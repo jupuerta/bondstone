@@ -1,3 +1,5 @@
+using arch_forge_backend.Application.Localization;
+
 namespace arch_forge_backend.Application.Analysis.Rules;
 
 /// <summary>
@@ -15,10 +17,9 @@ public class HighCouplingRule : IArchitectureRule
     public Severity DefaultSeverity => Severity.Warning;
     public RulePhase Phase => RulePhase.Consumer;
 
-    public string PassedMessage => "Ningún componente acumula demasiadas dependencias.";
+    public LocalizedText PassedMessage => LocalizedText.Of("finding.HIGH_COUPLING.passed.message");
 
-    public string PassedExplanation =>
-        "Se ha contado de cuántos componentes depende cada uno y ninguno necesita tantas piezas como para ser difícil de desplegar o probar por separado.";
+    public LocalizedText PassedExplanation => LocalizedText.Of("finding.HIGH_COUPLING.passed.explanation");
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
@@ -53,9 +54,11 @@ public class HighCouplingRule : IArchitectureRule
                 Code,
                 Area,
                 severity,
-                $"'{node.Name}' depende de {dependencies} componentes distintos.",
-                "Un componente que necesita tantas piezas para funcionar es difícil de desplegar, probar y razonar de forma aislada, y su disponibilidad es el producto de la de todos ellos.",
-                "Revisa si algunas de esas responsabilidades pertenecen al propio componente, o si parte de las llamadas puede pasar a eventos asíncronos.",
+                LocalizedText.Of("finding.HIGH_COUPLING.fanOut.message",
+                    ("node", node.Name),
+                    ("count", dependencies)),
+                LocalizedText.Of("finding.HIGH_COUPLING.fanOut.explanation"),
+                LocalizedText.Of("finding.HIGH_COUPLING.fanOut.suggestion"),
                 elements));
         }
 

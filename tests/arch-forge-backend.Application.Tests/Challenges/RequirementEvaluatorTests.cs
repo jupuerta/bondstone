@@ -1,3 +1,5 @@
+using arch_forge_backend.Application.Tests.TestDoubles;
+using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Challenges;
 using arch_forge_backend.Domain.Enums;
@@ -24,21 +26,21 @@ public class RequirementEvaluatorTests
     {
         var blueprint = ApiCacheDb();
 
-        Assert.True(Run(new ChallengeRequirement { Kind = RequirementKinds.ContainsNode, Label = "x", NodeType = NodeType.Cache }, blueprint).Met);
-        Assert.False(Run(new ChallengeRequirement { Kind = RequirementKinds.ContainsNode, Label = "x", NodeType = NodeType.Queue }, blueprint).Met);
+        Assert.True(Run(new ChallengeRequirement { Kind = RequirementKinds.ContainsNode, LabelKey = "x", NodeType = NodeType.Cache }, blueprint).Met);
+        Assert.False(Run(new ChallengeRequirement { Kind = RequirementKinds.ContainsNode, LabelKey = "x", NodeType = NodeType.Queue }, blueprint).Met);
 
-        var two = Run(new ChallengeRequirement { Kind = RequirementKinds.ContainsNode, Label = "x", NodeType = NodeType.Cache, Min = 2 }, blueprint);
+        var two = Run(new ChallengeRequirement { Kind = RequirementKinds.ContainsNode, LabelKey = "x", NodeType = NodeType.Cache, Min = 2 }, blueprint);
         Assert.False(two.Met);
-        Assert.Contains("1", two.Detail);
+        Assert.Contains("1", two.Detail.Es());
     }
 
     [Fact]
     public void AbsentNode_points_at_what_is_still_there()
     {
-        var result = Run(new ChallengeRequirement { Kind = RequirementKinds.AbsentNode, Label = "x", NodeType = NodeType.Database }, ApiCacheDb());
+        var result = Run(new ChallengeRequirement { Kind = RequirementKinds.AbsentNode, LabelKey = "x", NodeType = NodeType.Database }, ApiCacheDb());
 
         Assert.False(result.Met);
-        Assert.Contains("'Db'", result.Detail);
+        Assert.Contains("'Db'", result.Detail.Es());
         Assert.Single(result.Elements);
     }
 
@@ -51,11 +53,11 @@ public class RequirementEvaluatorTests
              ("Api", "B", ProtocolType.Http, true, "{}"),
              ("Api", "C", ProtocolType.Http, true, "{}")]);
 
-        Assert.True(Run(new ChallengeRequirement { Kind = RequirementKinds.MaxFanOut, Label = "x", Max = 3 }, blueprint).Met);
+        Assert.True(Run(new ChallengeRequirement { Kind = RequirementKinds.MaxFanOut, LabelKey = "x", Max = 3 }, blueprint).Met);
 
-        var tight = Run(new ChallengeRequirement { Kind = RequirementKinds.MaxFanOut, Label = "x", Max = 2 }, blueprint);
+        var tight = Run(new ChallengeRequirement { Kind = RequirementKinds.MaxFanOut, LabelKey = "x", Max = 2 }, blueprint);
         Assert.False(tight.Met);
-        Assert.Contains("'Api' llama directamente a 3", tight.Detail);
+        Assert.Contains("'Api' llama directamente a 3", tight.Detail.Es());
     }
 
     [Fact]
@@ -70,7 +72,7 @@ public class RequirementEvaluatorTests
 
         Assert.True(Run(new ChallengeRequirement
         {
-            Kind = RequirementKinds.AllEdgesTo, Label = "x", NodeType = NodeType.Queue, Mechanism = RequirementMechanisms.Timeout
+            Kind = RequirementKinds.AllEdgesTo, LabelKey = "x", NodeType = NodeType.Queue, Mechanism = RequirementMechanisms.Timeout
         }, blueprint).Met);
     }
 
@@ -84,11 +86,11 @@ public class RequirementEvaluatorTests
 
         var result = Run(new ChallengeRequirement
         {
-            Kind = RequirementKinds.AllEdgesTo, Label = "x", NodeType = NodeType.Service, Mechanism = RequirementMechanisms.Timeout
+            Kind = RequirementKinds.AllEdgesTo, LabelKey = "x", NodeType = NodeType.Service, Mechanism = RequirementMechanisms.Timeout
         }, blueprint);
 
         Assert.False(result.Met);
-        Assert.Contains("1 de las 2", result.Detail);
+        Assert.Contains("1 de las 2", result.Detail.Es());
         Assert.Single(result.Elements);
     }
 
@@ -97,10 +99,10 @@ public class RequirementEvaluatorTests
     {
         var blueprint = ApiCacheDb();
 
-        Assert.True(Run(new ChallengeRequirement { Kind = RequirementKinds.PathExists, Label = "x", FromType = NodeType.Api, ToType = NodeType.Database }, blueprint).Met);
+        Assert.True(Run(new ChallengeRequirement { Kind = RequirementKinds.PathExists, LabelKey = "x", FromType = NodeType.Api, ToType = NodeType.Database }, blueprint).Met);
 
         // The other way round there is no path: source depends on target, never the reverse (D3.3 of V2).
-        Assert.False(Run(new ChallengeRequirement { Kind = RequirementKinds.PathExists, Label = "x", FromType = NodeType.Database, ToType = NodeType.Api }, blueprint).Met);
+        Assert.False(Run(new ChallengeRequirement { Kind = RequirementKinds.PathExists, LabelKey = "x", FromType = NodeType.Database, ToType = NodeType.Api }, blueprint).Met);
     }
 
     /// <summary>
@@ -116,10 +118,10 @@ public class RequirementEvaluatorTests
             100,
             [],
             new AnalysisSummary(0, 0, 1),
-            [new RuleFinding(RuleCodes.Spof, Area.Availability, Severity.Good, "Todo bien.", "Porque sí.", null, [])]);
+            [new RuleFinding(RuleCodes.Spof, Area.Availability, Severity.Good, LocalizedText.Of("Todo bien."), LocalizedText.Of("Porque sí."), null, [])]);
 
         var result = RequirementEvaluator.Evaluate(
-            new ChallengeRequirement { Kind = RequirementKinds.NoFinding, Label = "x", Code = RuleCodes.Spof },
+            new ChallengeRequirement { Kind = RequirementKinds.NoFinding, LabelKey = "x", Code = RuleCodes.Spof },
             ChallengeHarness.Context(ApiCacheDb(), analysis));
 
         Assert.True(result.Met);
@@ -133,16 +135,16 @@ public class RequirementEvaluatorTests
             40,
             [],
             new AnalysisSummary(1, 0, 0),
-            [new RuleFinding(RuleCodes.Spof, Area.Availability, Severity.Critical, "Hay un SPOF.", "Por esto.", "Haz esto.", [])]);
+            [new RuleFinding(RuleCodes.Spof, Area.Availability, Severity.Critical, LocalizedText.Of("Hay un SPOF."), LocalizedText.Of("Por esto."), LocalizedText.Of("Haz esto."), [])]);
 
         var context = ChallengeHarness.Context(ApiCacheDb(), analysis);
 
         // Asking for "no warnings" while a critical slipped past would be a checklist that lies.
         Assert.False(RequirementEvaluator.Evaluate(
-            new ChallengeRequirement { Kind = RequirementKinds.NoSeverity, Label = "x", Severity = Severity.Warning }, context).Met);
+            new ChallengeRequirement { Kind = RequirementKinds.NoSeverity, LabelKey = "x", Severity = Severity.Warning }, context).Met);
 
         Assert.False(RequirementEvaluator.Evaluate(
-            new ChallengeRequirement { Kind = RequirementKinds.NoSeverity, Label = "x", Severity = Severity.Critical }, context).Met);
+            new ChallengeRequirement { Kind = RequirementKinds.NoSeverity, LabelKey = "x", Severity = Severity.Critical }, context).Met);
     }
 
     [Fact]
@@ -151,7 +153,7 @@ public class RequirementEvaluatorTests
         var result = Run(new ChallengeRequirement
         {
             Kind = RequirementKinds.UnderScenario,
-            Label = "x",
+            LabelKey = "x",
             Faults = [new ScenarioFault("Payments", "down")],
             Metric = RequirementMetrics.EntryPointsAffected,
             Operator = RequirementOperators.Equal,
@@ -159,7 +161,7 @@ public class RequirementEvaluatorTests
         }, ApiCacheDb());
 
         Assert.False(result.Met);
-        Assert.Contains("Payments", result.Detail);
+        Assert.Contains("Payments", result.Detail.Es());
     }
 
     [Fact]
@@ -172,7 +174,7 @@ public class RequirementEvaluatorTests
         ChallengeRequirement Over(string metric) => new()
         {
             Kind = RequirementKinds.UnderScenario,
-            Label = metric,
+            LabelKey = metric,
             Faults = [new ScenarioFault("Db", "down")],
             Metric = metric,
             Operator = RequirementOperators.GreaterOrEqual,
@@ -197,7 +199,7 @@ public class RequirementEvaluatorTests
     {
         var findings = new List<RuleFinding>
         {
-            new(RuleCodes.MissingCache, Area.Scalability, Severity.Warning, "Falta una caché.", "Por esto.", "Haz esto.", [])
+            new(RuleCodes.MissingCache, Area.Scalability, Severity.Warning, LocalizedText.Of("Falta una caché."), LocalizedText.Of("Por esto."), LocalizedText.Of("Haz esto."), [])
         };
 
         AnalysisResult With(int? score, AreaState state) => new(
@@ -210,17 +212,17 @@ public class RequirementEvaluatorTests
         var blueprint = ApiCacheDb();
         var requirements = new[]
         {
-            new ChallengeRequirement { Kind = RequirementKinds.ContainsNode, Label = "a", NodeType = NodeType.Cache },
-            new ChallengeRequirement { Kind = RequirementKinds.AbsentNode, Label = "b", NodeType = NodeType.Queue },
-            new ChallengeRequirement { Kind = RequirementKinds.MaxFanOut, Label = "c", Max = 1 },
-            new ChallengeRequirement { Kind = RequirementKinds.AllEdgesTo, Label = "d", NodeType = NodeType.Database, Mechanism = RequirementMechanisms.Timeout },
-            new ChallengeRequirement { Kind = RequirementKinds.PathExists, Label = "e", FromType = NodeType.Api, ToType = NodeType.Database },
-            new ChallengeRequirement { Kind = RequirementKinds.NoFinding, Label = "f", Code = RuleCodes.MissingCache },
-            new ChallengeRequirement { Kind = RequirementKinds.HasFinding, Label = "g", Code = RuleCodes.MissingCache },
-            new ChallengeRequirement { Kind = RequirementKinds.NoSeverity, Label = "h", Severity = Severity.Warning },
+            new ChallengeRequirement { Kind = RequirementKinds.ContainsNode, LabelKey = "a", NodeType = NodeType.Cache },
+            new ChallengeRequirement { Kind = RequirementKinds.AbsentNode, LabelKey = "b", NodeType = NodeType.Queue },
+            new ChallengeRequirement { Kind = RequirementKinds.MaxFanOut, LabelKey = "c", Max = 1 },
+            new ChallengeRequirement { Kind = RequirementKinds.AllEdgesTo, LabelKey = "d", NodeType = NodeType.Database, Mechanism = RequirementMechanisms.Timeout },
+            new ChallengeRequirement { Kind = RequirementKinds.PathExists, LabelKey = "e", FromType = NodeType.Api, ToType = NodeType.Database },
+            new ChallengeRequirement { Kind = RequirementKinds.NoFinding, LabelKey = "f", Code = RuleCodes.MissingCache },
+            new ChallengeRequirement { Kind = RequirementKinds.HasFinding, LabelKey = "g", Code = RuleCodes.MissingCache },
+            new ChallengeRequirement { Kind = RequirementKinds.NoSeverity, LabelKey = "h", Severity = Severity.Warning },
             new ChallengeRequirement
             {
-                Kind = RequirementKinds.UnderScenario, Label = "i",
+                Kind = RequirementKinds.UnderScenario, LabelKey = "i",
                 Faults = [new ScenarioFault("Db", "down")],
                 Metric = RequirementMetrics.ComponentsDown, Operator = RequirementOperators.LessOrEqual, Value = 1
             }
@@ -230,8 +232,8 @@ public class RequirementEvaluatorTests
         var awful = ChallengeHarness.Context(blueprint, With(null, AreaState.NoRules));
 
         Assert.Equal(
-            requirements.Select(r => (r.Kind, RequirementEvaluator.Evaluate(r, perfect).Met, RequirementEvaluator.Evaluate(r, perfect).Detail)),
-            requirements.Select(r => (r.Kind, RequirementEvaluator.Evaluate(r, awful).Met, RequirementEvaluator.Evaluate(r, awful).Detail)));
+            requirements.Select(r => (r.Kind, RequirementEvaluator.Evaluate(r, perfect).Met, RequirementEvaluator.Evaluate(r, perfect).Detail.Es())),
+            requirements.Select(r => (r.Kind, RequirementEvaluator.Evaluate(r, awful).Met, RequirementEvaluator.Evaluate(r, awful).Detail.Es())));
     }
 }
 

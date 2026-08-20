@@ -1,3 +1,5 @@
+using arch_forge_backend.Application.Localization;
+
 namespace arch_forge_backend.Application.Analysis.Rules;
 
 /// <summary>
@@ -9,15 +11,20 @@ namespace arch_forge_backend.Application.Analysis.Rules;
 /// </summary>
 public class MissingResilienceRule : IArchitectureRule
 {
+    /// <summary>
+    /// What the one-click fix sets, and the number the button says out loud. A constant because the
+    /// label and the transformation have to agree - two literals drift the first time one is tuned.
+    /// </summary>
+    private const int FixTimeoutSeconds = 5;
+
     public string Code => RuleCodes.MissingResilience;
     public Area Area => Area.Resilience;
     public Severity DefaultSeverity => Severity.Warning;
     public RulePhase Phase => RulePhase.Consumer;
 
-    public string PassedMessage => "Las llamadas síncronas tienen protección frente a fallos.";
+    public LocalizedText PassedMessage => LocalizedText.Of("finding.MISSING_RESILIENCE.passed.message");
 
-    public string PassedExplanation =>
-        "Cada llamada síncrona tiene un timeout que la acota y, cuando el destino es crítico, una alternativa por la que salir si no responde.";
+    public LocalizedText PassedExplanation => LocalizedText.Of("finding.MISSING_RESILIENCE.passed.explanation");
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
@@ -62,14 +69,17 @@ public class MissingResilienceRule : IArchitectureRule
             var severity = exposedToSpof ? Severity.Critical : Severity.Warning;
             var source = graph.NodesById[edge.SourceNodeId].Name;
             var target = graph.NodesById[edge.TargetNodeId].Name;
+            var variant = Variant(hasTimeout, exposedToSpof);
 
             findings.Add(new RuleFinding(
                 Code,
                 Area,
                 severity,
-                $"La llamada de '{source}' a '{target}' no tiene protección frente a fallos.",
-                Explain(hasTimeout, exposedToSpof, target),
-                Suggest(hasTimeout, exposedToSpof),
+                LocalizedText.Of("finding.MISSING_RESILIENCE.unprotected.message",
+                    ("source", source),
+                    ("target", target)),
+                LocalizedText.Of($"finding.MISSING_RESILIENCE.{variant}.explanation", ("target", target)),
+                LocalizedText.Of($"finding.MISSING_RESILIENCE.{variant}.suggestion"),
                 [FindingElement.Connection(edge.Id)])
             {
                 // V4 D5.6. There is nothing to decide here: without a timeout no mechanism of the
@@ -80,9 +90,9 @@ public class MissingResilienceRule : IArchitectureRule
                     FixKinds.SetEdgeResilience,
                     FindingElement.Connection(edge.Id),
                     hasTimeout
-                        ? "Añadir una respuesta alternativa"
-                        : "Poner un timeout de 5 s y una respuesta alternativa",
-                    TimeoutSeconds: hasTimeout ? null : 5,
+                        ? LocalizedText.Of("fix.MISSING_RESILIENCE.addFallback")
+                        : LocalizedText.Of("fix.MISSING_RESILIENCE.timeoutAndFallback", ("seconds", FixTimeoutSeconds)),
+                    TimeoutSeconds: hasTimeout ? null : FixTimeoutSeconds,
                     Fallback: true)
             });
         }
@@ -90,28 +100,22 @@ public class MissingResilienceRule : IArchitectureRule
         return RuleResult.Applicable(findings);
     }
 
-    // The three texts of §6.1 say what happens, why it matters and what to do - so the "why" has
-    // to name the reason that actually applies to this edge, not the union of both.
-    private static string Explain(bool hasTimeout, bool exposedToSpof, string target)
+    /// <summary>
+    /// Which of the three situations this edge is in. The three texts of §6.1 say what happens, why
+    /// it matters and what to do, so the "why" has to name the reason that actually applies here,
+    /// not the union of both.
+    ///
+    /// <strong>Three named cases and not two flags joined with a space.</strong> Until V7 the
+    /// explanation was <c>string.Join(" ", reasons)</c> over two fragments, the second of which
+    /// opened with <em>"Y como…"</em> - a connector that in English does not go in that position,
+    /// and in some languages does not exist as a separate word at all. Composing a sentence out of
+    /// pieces reads fine in the language it was written in and comes apart in the next one, so the
+    /// combination is chosen here and the whole sentence lives in the catalogue (D1.1).
+    /// </summary>
+    private static string Variant(bool hasTimeout, bool exposedToSpof) => (hasTimeout, exposedToSpof) switch
     {
-        var reasons = new List<string>();
-
-        if (!hasTimeout)
-            reasons.Add("Sin timeout, una respuesta lenta retiene recursos indefinidamente.");
-
-        if (exposedToSpof)
-            reasons.Add($"Y como '{target}' es un punto único de fallo, su caída se propaga directamente hacia atrás.");
-
-        return string.Join(" ", reasons);
-    }
-
-    private static string Suggest(bool hasTimeout, bool exposedToSpof)
-    {
-        if (!hasTimeout && exposedToSpof)
-            return "Configura un timeout acorde a la operación y añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.";
-
-        return hasTimeout
-            ? "Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste."
-            : "Configura un timeout acorde a la operación.";
-    }
+        (false, true) => "noTimeoutAndSpof",
+        (true, _) => "exposedToSpof",
+        _ => "noTimeout"
+    };
 }

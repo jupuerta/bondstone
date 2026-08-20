@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using arch_forge_backend.Application.Analysis;
+using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Simulation;
 using arch_forge_backend.Domain.Entities;
 
@@ -16,6 +17,12 @@ namespace arch_forge_backend.Application.Export;
 /// text, no state and nothing injected. The timestamp arrives <em>as a parameter</em> and is never
 /// read from <c>DateTime.UtcNow</c> - otherwise the golden files of D3.3 would be impossible,
 /// because the header would change on every run.
+///
+/// <strong>V7 D1.2. The language is an input too</strong>, and for the same reason: this is the one
+/// place in the product that still renders prose on the server, because a Markdown file cannot
+/// resolve a key on its own. Everything the analyzer and the simulator hand it is a
+/// <see cref="LocalizedText"/>; the <see cref="Localizer"/> is what turns the whole document -
+/// findings, reasons and its own headings alike - into one language rather than two.
 /// </summary>
 public static class MarkdownExporter
 {
@@ -23,6 +30,7 @@ public static class MarkdownExporter
         Architecture architecture,
         AnalysisResult analysis,
         DateTime exportedAtUtc,
+        Localizer text,
         SimulationResult? simulation = null,
         SimulationScenario? scenario = null)
     {
@@ -38,8 +46,8 @@ public static class MarkdownExporter
         var namesById = nodes.ToDictionary(n => n.Id, n => n.Name);
 
         var connections = architecture.Connections
-            .OrderBy(c => NameOf(namesById, c.SourceNodeId), StringComparer.Ordinal)
-            .ThenBy(c => NameOf(namesById, c.TargetNodeId), StringComparer.Ordinal)
+            .OrderBy(c => NameOf(namesById, c.SourceNodeId, text), StringComparer.Ordinal)
+            .ThenBy(c => NameOf(namesById, c.TargetNodeId, text), StringComparer.Ordinal)
             .ThenBy(c => c.Id)
             .ToList();
 
@@ -49,29 +57,36 @@ public static class MarkdownExporter
             .Where(s => s.Type == ElementType.Node)
             .ToDictionary(s => s.Id, s => s.State);
 
-        Header(builder, architecture, analysis, exportedAtUtc);
-        Diagram(builder, nodes, connections, health);
-        Components(builder, nodes);
-        Connections(builder, connections, namesById);
-        Analysis(builder, analysis, namesById, connections);
-        Simulation(builder, simulation, scenario, namesById, connections);
-        Prompt(builder);
+        Header(builder, architecture, analysis, exportedAtUtc, text);
+        Diagram(builder, nodes, connections, health, text);
+        Components(builder, nodes, text);
+        Connections(builder, connections, namesById, text);
+        Analysis(builder, analysis, namesById, connections, text);
+        Simulation(builder, simulation, scenario, namesById, connections, text);
+        Prompt(builder, text);
 
         return builder.ToString().TrimEnd() + "\n";
     }
 
     // ---- Header -----------------------------------------------------------
 
-    private static void Header(StringBuilder builder, Architecture architecture, AnalysisResult analysis, DateTime exportedAtUtc)
+    private static void Header(
+        StringBuilder builder,
+        Architecture architecture,
+        AnalysisResult analysis,
+        DateTime exportedAtUtc,
+        Localizer text)
     {
         builder.AppendLine($"# {architecture.Name}");
         builder.AppendLine();
         builder.AppendLine("| | |");
         builder.AppendLine("|---|---|");
-        builder.AppendLine($"| Arquitectura | `{MarkdownEscape.TableCell(architecture.ShareToken)}` · versión {architecture.Version} |");
-        builder.AppendLine($"| Exportado | {exportedAtUtc:yyyy-MM-dd} |");
-        builder.AppendLine($"| Motor de análisis | `scoringVersion: {MarkdownEscape.TableCell(analysis.ScoringVersion)}` |");
-        builder.AppendLine($"| Formato | `exportVersion: {ExportVersion.Current}` |");
+        builder.AppendLine(
+            $"| {text.Of("export.header.architecture")} " +
+            $"| `{MarkdownEscape.TableCell(architecture.ShareToken)}` · {text.Of("export.header.version", ("version", architecture.Version))} |");
+        builder.AppendLine($"| {text.Of("export.header.exported")} | {exportedAtUtc:yyyy-MM-dd} |");
+        builder.AppendLine($"| {text.Of("export.header.engine")} | `scoringVersion: {MarkdownEscape.TableCell(analysis.ScoringVersion)}` |");
+        builder.AppendLine($"| {text.Of("export.header.format")} | `exportVersion: {ExportVersion.Current}` |");
         builder.AppendLine();
     }
 
@@ -81,14 +96,15 @@ public static class MarkdownExporter
         StringBuilder builder,
         IReadOnlyList<Node> nodes,
         IReadOnlyList<Connection> connections,
-        IReadOnlyDictionary<Guid, HealthState>? health)
+        IReadOnlyDictionary<Guid, HealthState>? health,
+        Localizer text)
     {
-        builder.AppendLine("## Diagrama");
+        builder.AppendLine($"## {text.Of("export.section.diagram")}");
         builder.AppendLine();
 
         if (nodes.Count == 0)
         {
-            builder.AppendLine("La arquitectura no tiene ningún componente todavía.");
+            builder.AppendLine(text.Of("export.diagram.empty"));
             builder.AppendLine();
             return;
         }
@@ -99,19 +115,22 @@ public static class MarkdownExporter
 
     // ---- Components -------------------------------------------------------
 
-    private static void Components(StringBuilder builder, IReadOnlyList<Node> nodes)
+    private static void Components(StringBuilder builder, IReadOnlyList<Node> nodes, Localizer text)
     {
-        builder.AppendLine("## Componentes");
+        builder.AppendLine($"## {text.Of("export.section.components")}");
         builder.AppendLine();
 
         if (nodes.Count == 0)
         {
-            builder.AppendLine("Ninguno.");
+            builder.AppendLine(text.Of("export.components.none"));
             builder.AppendLine();
             return;
         }
 
-        builder.AppendLine("| Nombre | Tipo | Configuración |");
+        builder.AppendLine(
+            $"| {text.Of("export.column.name")} " +
+            $"| {text.Of("export.column.type")} " +
+            $"| {text.Of("export.column.configuration")} |");
         builder.AppendLine("|---|---|---|");
 
         foreach (var node in nodes)
@@ -127,7 +146,11 @@ public static class MarkdownExporter
 
     // ---- Connections ------------------------------------------------------
 
-    private static void Connections(StringBuilder builder, IReadOnlyList<Connection> connections, IReadOnlyDictionary<Guid, string> namesById)
+    private static void Connections(
+        StringBuilder builder,
+        IReadOnlyList<Connection> connections,
+        IReadOnlyDictionary<Guid, string> namesById,
+        Localizer text)
     {
         // §6.1: the section disappears when there is none, rather than emitting a header with
         // nothing under it. That is the state of a freshly created architecture, which together
@@ -135,24 +158,35 @@ public static class MarkdownExporter
         if (connections.Count == 0)
             return;
 
-        builder.AppendLine("## Conexiones");
+        builder.AppendLine($"## {text.Of("export.section.connections")}");
         builder.AppendLine();
-        builder.AppendLine("| Origen | Destino | Protocolo | Síncrona | Timeout | Reintentos | Circuit breaker | Fallback |");
+        builder.AppendLine(
+            $"| {text.Of("export.column.source")} " +
+            $"| {text.Of("export.column.target")} " +
+            $"| {text.Of("export.column.protocol")} " +
+            $"| {text.Of("export.column.synchronous")} " +
+            $"| {text.Of("export.column.timeout")} " +
+            $"| {text.Of("export.column.retries")} " +
+            $"| {text.Of("export.column.circuitBreaker")} " +
+            $"| {text.Of("export.column.fallback")} |");
         builder.AppendLine("|---|---|---|---|---|---|---|---|");
+
+        var yes = text.Of("export.yes");
+        var no = text.Of("export.no");
 
         foreach (var connection in connections)
         {
             var resilience = Resilience(connection.Configuration);
 
             builder.AppendLine(
-                $"| {MarkdownEscape.TableCell(NameOf(namesById, connection.SourceNodeId))} " +
-                $"| {MarkdownEscape.TableCell(NameOf(namesById, connection.TargetNodeId))} " +
+                $"| {MarkdownEscape.TableCell(NameOf(namesById, connection.SourceNodeId, text))} " +
+                $"| {MarkdownEscape.TableCell(NameOf(namesById, connection.TargetNodeId, text))} " +
                 $"| {connection.Protocol} " +
-                $"| {(connection.Synchronous ? "sí" : "no")} " +
-                $"| {(resilience.TimeoutSeconds is { } t ? $"{t} s" : "—")} " +
-                $"| {(resilience.Retries is { } r ? r.ToString(CultureInfo.InvariantCulture) : "—")} " +
-                $"| {(resilience.CircuitBreaker ? "sí" : "no")} " +
-                $"| {(resilience.Fallback ? "sí" : "no")} |");
+                $"| {(connection.Synchronous ? yes : no)} " +
+                $"| {(resilience.TimeoutSeconds is { } t ? text.Of("export.seconds", ("seconds", t)) : Dash)} " +
+                $"| {(resilience.Retries is { } r ? r.ToString(CultureInfo.InvariantCulture) : Dash)} " +
+                $"| {(resilience.CircuitBreaker ? yes : no)} " +
+                $"| {(resilience.Fallback ? yes : no)} |");
         }
 
         builder.AppendLine();
@@ -164,39 +198,43 @@ public static class MarkdownExporter
         StringBuilder builder,
         AnalysisResult analysis,
         IReadOnlyDictionary<Guid, string> namesById,
-        IReadOnlyList<Connection> connections)
+        IReadOnlyList<Connection> connections,
+        Localizer text)
     {
-        builder.AppendLine("## Análisis");
+        builder.AppendLine($"## {text.Of("export.section.analysis")}");
         builder.AppendLine();
 
         // Ajuste 3. Score is int? and is null when no area is scorable - "an empty architecture is
         // not a 100" (V2 D1.2). It is said in words rather than printed as a figure.
         if (analysis.Score is { } score)
         {
-            builder.AppendLine(
-                $"**Puntuación: {score} / 100** · " +
-                $"{Count(analysis.Summary.Critical, "crítico", "críticos")} · " +
-                $"{Count(analysis.Summary.Warning, "aviso", "avisos")} · " +
-                $"{Count(analysis.Summary.Passed, "regla superada", "reglas superadas")}");
+            // The three counts are nested keys, not three calls to a Count() helper that took a
+            // singular and a plural: "1 crítico" and "2 críticos" is a rule of Spanish, and the
+            // next language picks its own form from its own entry (V7 D1.2).
+            builder.AppendLine(text.Of("export.analysis.score",
+                ("score", score),
+                ("criticals", LocalizedText.Of("export.analysis.criticals", ("count", analysis.Summary.Critical))),
+                ("warnings", LocalizedText.Of("export.analysis.warnings", ("count", analysis.Summary.Warning))),
+                ("passed", LocalizedText.Of("export.analysis.passed", ("count", analysis.Summary.Passed)))));
         }
         else
         {
-            builder.AppendLine("**Sin puntuación: ninguna área es evaluable todavía.**");
+            builder.AppendLine(text.Of("export.analysis.noScore"));
         }
 
         builder.AppendLine();
-        builder.AppendLine("| Área | Puntuación |");
+        builder.AppendLine($"| {text.Of("export.column.area")} | {text.Of("export.column.score")} |");
         builder.AppendLine("|---|---|");
 
         // The declaration order of Area is contract (V2 D2.1), so `areas` is emitted in it.
         foreach (var area in analysis.Areas)
-            builder.AppendLine($"| {area.Area} | {AreaScoreText(area)} |");
+            builder.AppendLine($"| {area.Area} | {AreaScoreText(area, text)} |");
 
         builder.AppendLine();
 
         if (analysis.Findings.Count == 0)
         {
-            builder.AppendLine("Ninguna regla ha encontrado nada que señalar.");
+            builder.AppendLine(text.Of("export.analysis.nothing"));
             builder.AppendLine();
             return;
         }
@@ -207,25 +245,26 @@ public static class MarkdownExporter
         {
             builder.AppendLine($"### {SeverityMark(finding.Severity)} {finding.Code} — {finding.Area}");
             builder.AppendLine();
-            builder.AppendLine($"**{finding.Message}**");
+            builder.AppendLine($"**{text.Of(finding.Message)}**");
 
-            if (!string.IsNullOrWhiteSpace(finding.Explanation))
+            var explanation = text.Of(finding.Explanation);
+            if (!string.IsNullOrWhiteSpace(explanation))
             {
                 builder.AppendLine();
-                builder.AppendLine(finding.Explanation);
+                builder.AppendLine(explanation);
             }
 
-            if (!string.IsNullOrWhiteSpace(finding.Suggestion))
+            if (finding.Suggestion is { } suggestion)
             {
                 builder.AppendLine();
-                builder.AppendLine($"*Sugerencia:* {finding.Suggestion}");
+                builder.AppendLine($"{text.Of("export.analysis.suggestion")} {text.Of(suggestion)}");
             }
 
-            var elements = Elements(finding, namesById, connectionsById);
+            var elements = Elements(finding, namesById, connectionsById, text);
             if (elements.Length > 0)
             {
                 builder.AppendLine();
-                builder.AppendLine($"Elementos: {elements}");
+                builder.AppendLine($"{text.Of("export.analysis.elements")} {elements}");
             }
 
             builder.AppendLine();
@@ -248,11 +287,11 @@ public static class MarkdownExporter
     /// explain themselves, and a number here would age exactly the way V4 aged the analyzer when it
     /// went from seven rules to fifteen.
     /// </summary>
-    private static void Prompt(StringBuilder builder)
+    private static void Prompt(StringBuilder builder, Localizer text)
     {
         builder.AppendLine("---");
         builder.AppendLine();
-        builder.AppendLine("## Petición para la IA");
+        builder.AppendLine($"## {text.Of("export.section.prompt")}");
         builder.AppendLine();
         builder.AppendLine(PromptText.Value);
     }
@@ -283,7 +322,8 @@ public static class MarkdownExporter
         SimulationResult? simulation,
         SimulationScenario? scenario,
         IReadOnlyDictionary<Guid, string> namesById,
-        IReadOnlyList<Connection> connections)
+        IReadOnlyList<Connection> connections,
+        Localizer text)
     {
         if (simulation is null)
             return;
@@ -291,20 +331,20 @@ public static class MarkdownExporter
         var connectionsById = connections.ToDictionary(c => c.Id);
         var faults = scenario?.Canonical().Faults ?? [];
 
-        builder.AppendLine("## Simulación");
+        builder.AppendLine($"## {text.Of("export.section.simulation")}");
         builder.AppendLine();
 
         if (faults.Count == 0)
         {
-            builder.AppendLine("**Sin fallos inyectados**: así se comporta la arquitectura en reposo.");
+            builder.AppendLine(text.Of("export.simulation.noFaults"));
         }
         else
         {
-            builder.AppendLine("**Escenario:**");
+            builder.AppendLine(text.Of("export.simulation.scenario"));
             builder.AppendLine();
 
             foreach (var fault in faults)
-                builder.AppendLine($"- {FaultText(fault, namesById, connectionsById)}");
+                builder.AppendLine($"- {FaultText(fault, namesById, connectionsById, text)}");
         }
 
         builder.AppendLine();
@@ -313,24 +353,22 @@ public static class MarkdownExporter
         // announced rather than dropped in silence (V3 D3.6). The document says so too.
         if (simulation.DiscardedFaults.Count > 0)
         {
-            builder.AppendLine(
-                $"> {Count(simulation.DiscardedFaults.Count, "fallo apuntaba", "fallos apuntaban")} " +
-                "a elementos que ya no están en la arquitectura y no se han aplicado.");
+            builder.AppendLine($"> {text.Of("export.simulation.discarded", ("count", simulation.DiscardedFaults.Count))}");
             builder.AppendLine();
         }
 
-        Metrics(builder, simulation.Metrics, namesById, connectionsById);
+        Metrics(builder, simulation.Metrics, namesById, connectionsById, text);
 
         var affected = simulation.States.Where(s => s.State != HealthState.Healthy).ToList();
 
         if (affected.Count == 0)
         {
-            builder.AppendLine("Ningún componente se ve afectado: la arquitectura absorbe el escenario entera.");
+            builder.AppendLine(text.Of("export.simulation.unaffected"));
             builder.AppendLine();
             return;
         }
 
-        builder.AppendLine("### Qué le pasa a cada componente");
+        builder.AppendLine($"### {text.Of("export.simulation.perComponent")}");
         builder.AppendLine();
 
         // States arrive ordered by (PropagationStep, Type, Id), so the list already reads as the
@@ -338,17 +376,17 @@ public static class MarkdownExporter
         foreach (var state in affected)
         {
             var name = state.Type == ElementType.Node
-                ? NameOf(namesById, state.Id)
+                ? NameOf(namesById, state.Id, text)
                 : connectionsById.TryGetValue(state.Id, out var edge)
-                    ? $"{NameOf(namesById, edge.SourceNodeId)} → {NameOf(namesById, edge.TargetNodeId)}"
-                    : "(desconocido)";
+                    ? $"{NameOf(namesById, edge.SourceNodeId, text)} → {NameOf(namesById, edge.TargetNodeId, text)}"
+                    : text.Of("export.unknown");
 
-            builder.AppendLine($"**{StateMark(state.State)} `{name}`** — {state.Reason}");
+            builder.AppendLine($"**{StateMark(state.State)} `{name}`** — {text.Of(state.Reason)}");
 
             // The most valuable pixel of V3: the learning does not happen in the red, it happens
             // where somebody decided it would stop breaking.
             if (!string.IsNullOrWhiteSpace(state.Mechanism))
-                builder.AppendLine($"  · contenido por `{state.Mechanism}`");
+                builder.AppendLine($"  · {text.Of("export.simulation.containedBy")} `{state.Mechanism}`");
 
             builder.AppendLine();
         }
@@ -356,7 +394,7 @@ public static class MarkdownExporter
         var healthy = simulation.States.Count - affected.Count;
         if (healthy > 0)
         {
-            builder.AppendLine($"El resto ({Count(healthy, "elemento", "elementos")}) sigue funcionando con normalidad.");
+            builder.AppendLine(text.Of("export.simulation.rest", ("count", healthy)));
             builder.AppendLine();
         }
     }
@@ -365,62 +403,69 @@ public static class MarkdownExporter
         StringBuilder builder,
         SimulationMetrics metrics,
         IReadOnlyDictionary<Guid, string> namesById,
-        IReadOnlyDictionary<Guid, Connection> connectionsById)
+        IReadOnlyDictionary<Guid, Connection> connectionsById,
+        Localizer text)
     {
-        builder.AppendLine("| Métrica | Valor |");
+        builder.AppendLine($"| {text.Of("export.column.metric")} | {text.Of("export.column.value")} |");
         builder.AppendLine("|---|---|");
-        builder.AppendLine($"| Componentes caídos | {metrics.ComponentsDown} de {metrics.ComponentsTotal} |");
-        builder.AppendLine($"| Componentes degradados | {metrics.ComponentsDegraded} de {metrics.ComponentsTotal} |");
-        builder.AppendLine($"| Radio de impacto | {Percent(metrics.BlastRadius)} |");
-        builder.AppendLine($"| Puntos de entrada afectados | {metrics.EntryPointsAffected} de {metrics.EntryPointsTotal} |");
-        builder.AppendLine($"| Latencia nominal | {metrics.NominalLatencyMs} ms |");
+
+        Row("componentsDown", text.Of("export.metric.outOf", ("value", metrics.ComponentsDown), ("total", metrics.ComponentsTotal)));
+        Row("componentsDegraded", text.Of("export.metric.outOf", ("value", metrics.ComponentsDegraded), ("total", metrics.ComponentsTotal)));
+        Row("blastRadius", text.Of("export.metric.percent", ("value", metrics.BlastRadius)));
+        Row("entryPointsAffected", text.Of("export.metric.outOf", ("value", metrics.EntryPointsAffected), ("total", metrics.EntryPointsTotal)));
+        Row("nominalLatency", text.Of("export.metric.milliseconds", ("value", metrics.NominalLatencyMs)));
 
         // Null rather than 0: no entry point left standing means there is no path to measure, and a
         // 0 would read as "instant" (V3 plan técnico §2).
-        builder.AppendLine(metrics.FaultedLatencyMs is { } faulted
-            ? $"| Latencia con el escenario | {faulted} ms |"
-            : "| Latencia con el escenario | sin ruta que medir |");
+        Row("faultedLatency", metrics.FaultedLatencyMs is { } faulted
+            ? text.Of("export.metric.milliseconds", ("value", faulted))
+            : text.Of("export.metric.noRoute"));
 
-        builder.AppendLine($"| Peticiones afectadas | como mucho {Percent(metrics.RequestsAffected)} |");
+        Row("requestsAffected", text.Of("export.metric.atMost", ("value", metrics.RequestsAffected)));
 
         // The bound travels with its culprit so the document can point at one component instead of
         // tinting eight (V4 DT.7).
         if (metrics.Bottleneck is { } bottleneck)
-            builder.AppendLine($"| Cuello de botella | `{ElementName(bottleneck, namesById, connectionsById)}` |");
+            Row("bottleneck", $"`{ElementName(bottleneck, namesById, connectionsById, text)}`");
 
-        builder.AppendLine($"| Amplificación de peticiones | ×{metrics.RequestAmplification:0.##} |");
-        builder.AppendLine($"| Amplificación de carga | ×{metrics.LoadAmplification:0.##} |");
-        builder.AppendLine($"| Encolado pendiente | {metrics.BacklogRps:0.##} rps |");
+        Row("requestAmplification", text.Of("export.metric.times", ("value", metrics.RequestAmplification)));
+        Row("loadAmplification", text.Of("export.metric.times", ("value", metrics.LoadAmplification)));
+        Row("backlog", text.Of("export.metric.rps", ("value", metrics.BacklogRps)));
         builder.AppendLine();
+
+        void Row(string metric, string value) =>
+            builder.AppendLine($"| {text.Of($"export.metric.{metric}")} | {value} |");
     }
 
     private static string FaultText(
         Fault fault,
         IReadOnlyDictionary<Guid, string> namesById,
-        IReadOnlyDictionary<Guid, Connection> connectionsById)
+        IReadOnlyDictionary<Guid, Connection> connectionsById,
+        Localizer text)
     {
-        var name = ElementName(new FindingElement(fault.Target, fault.Id), namesById, connectionsById);
+        var name = ElementName(new FindingElement(fault.Target, fault.Id), namesById, connectionsById, text);
 
         return fault.Kind switch
         {
-            FaultKinds.Down => $"`{name}` caído",
-            FaultKinds.Degraded => $"`{name}` degradado",
-            FaultKinds.Latency => $"`{name}` con {fault.Value} ms de latencia añadida",
-            _ => $"`{name}`: {fault.Kind}"
+            FaultKinds.Down => text.Of("export.fault.down", ("name", name)),
+            FaultKinds.Degraded => text.Of("export.fault.degraded", ("name", name)),
+            FaultKinds.Latency => text.Of("export.fault.latency", ("name", name), ("ms", fault.Value ?? 0)),
+            _ => text.Of("export.fault.other", ("name", name), ("kind", fault.Kind))
         };
     }
 
     private static string ElementName(
         FindingElement element,
         IReadOnlyDictionary<Guid, string> namesById,
-        IReadOnlyDictionary<Guid, Connection> connectionsById)
+        IReadOnlyDictionary<Guid, Connection> connectionsById,
+        Localizer text)
     {
         if (element.Type == ElementType.Node)
-            return NameOf(namesById, element.Id);
+            return NameOf(namesById, element.Id, text);
 
         return connectionsById.TryGetValue(element.Id, out var connection)
-            ? $"{NameOf(namesById, connection.SourceNodeId)} → {NameOf(namesById, connection.TargetNodeId)}"
-            : "(desconocido)";
+            ? $"{NameOf(namesById, connection.SourceNodeId, text)} → {NameOf(namesById, connection.TargetNodeId, text)}"
+            : text.Of("export.unknown");
     }
 
     private static string StateMark(HealthState state) => state switch
@@ -429,9 +474,6 @@ public static class MarkdownExporter
         HealthState.Degraded => "🟡",
         _ => "🟢"
     };
-
-    private static string Percent(decimal fraction) =>
-        $"{fraction * 100:0.#} %";
 
     /// <summary>
     /// Ajuste 2. <c>AreaScore.Score</c> is nullable and <c>AreaState</c> has three values. Printing
@@ -442,17 +484,19 @@ public static class MarkdownExporter
     /// than treated as impossible: it is a state of the contract, and a document that breaks or lies
     /// in front of a valid state is worse than one that writes it.
     /// </summary>
-    private static string AreaScoreText(AreaScore area) => area.State switch
+    private static string AreaScoreText(AreaScore area, Localizer text) => area.State switch
     {
-        AreaState.Scored => area.Score?.ToString(CultureInfo.InvariantCulture) ?? "—",
-        AreaState.NotApplicable => "sin reglas aplicables",
-        AreaState.NoRules => "sin reglas",
-        _ => "—"
+        AreaState.Scored => area.Score?.ToString(CultureInfo.InvariantCulture) ?? Dash,
+        AreaState.NotApplicable => text.Of("export.area.notApplicable"),
+        AreaState.NoRules => text.Of("export.area.noRules"),
+        _ => Dash
     };
 
-    /// <summary>The document is read by a person too (D1.1), and "1 críticos" is written by a machine.</summary>
-    private static string Count(int value, string singular, string plural) =>
-        $"{value} {(value == 1 ? singular : plural)}";
+    /// <summary>
+    /// The em dash for an absent value. Not a catalogue entry: it is punctuation, and a key for it
+    /// would be a translator being asked to decide something that is not language.
+    /// </summary>
+    private const string Dash = "—";
 
     private static string SeverityMark(Severity severity) => severity switch
     {
@@ -469,7 +513,8 @@ public static class MarkdownExporter
     private static string Elements(
         RuleFinding finding,
         IReadOnlyDictionary<Guid, string> namesById,
-        IReadOnlyDictionary<Guid, Connection> connectionsById)
+        IReadOnlyDictionary<Guid, Connection> connectionsById,
+        Localizer text)
     {
         var parts = new List<string>();
 
@@ -482,7 +527,7 @@ public static class MarkdownExporter
                     break;
 
                 case ElementType.Connection when connectionsById.TryGetValue(element.Id, out var connection):
-                    parts.Add($"`{NameOf(namesById, connection.SourceNodeId)} → {NameOf(namesById, connection.TargetNodeId)}`");
+                    parts.Add($"`{NameOf(namesById, connection.SourceNodeId, text)} → {NameOf(namesById, connection.TargetNodeId, text)}`");
                     break;
             }
         }
@@ -492,8 +537,8 @@ public static class MarkdownExporter
 
     // ---- Shared -----------------------------------------------------------
 
-    private static string NameOf(IReadOnlyDictionary<Guid, string> namesById, Guid id) =>
-        namesById.TryGetValue(id, out var name) ? name : "(desconocido)";
+    private static string NameOf(IReadOnlyDictionary<Guid, string> namesById, Guid id, Localizer text) =>
+        namesById.TryGetValue(id, out var name) ? name : text.Of("export.unknown");
 
     /// <summary>
     /// The node's configuration, read generically rather than through

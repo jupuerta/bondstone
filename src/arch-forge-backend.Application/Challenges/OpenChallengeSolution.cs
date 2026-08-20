@@ -2,11 +2,20 @@ using arch_forge_backend.Application.Architectures;
 using arch_forge_backend.Application.Architectures.DTOs;
 using arch_forge_backend.Application.Common.Interfaces;
 
+using arch_forge_backend.Application.Localization;
+
 namespace arch_forge_backend.Application.Challenges;
 
 public class OpenChallengeSolutionCommand
 {
     public string Slug { get; set; } = string.Empty;
+    /// <summary>
+    /// V7 D1.2. The language the new architecture is named in, from <c>Accept-Language</c>. It is a
+    /// property of the write and not of the reader: the name is persisted once and everybody who
+    /// opens the link afterwards sees the same one.
+    /// </summary>
+    public string Locale { get; set; } = TextCatalog.DefaultLocale;
+
 }
 
 /// <summary>
@@ -30,11 +39,13 @@ public class OpenChallengeSolutionCommandHandler
 {
     private readonly IArchitectureRepository _repository;
     private readonly ChallengeCatalog _catalog;
+    private readonly TextCatalog _text;
 
-    public OpenChallengeSolutionCommandHandler(IArchitectureRepository repository, ChallengeCatalog catalog)
+    public OpenChallengeSolutionCommandHandler(IArchitectureRepository repository, ChallengeCatalog catalog, TextCatalog text)
     {
         _repository = repository;
         _catalog = catalog;
+        _text = text;
     }
 
     public async Task<ArchitectureDto?> Handle(OpenChallengeSolutionCommand command, CancellationToken cancellationToken = default)
@@ -47,7 +58,10 @@ public class OpenChallengeSolutionCommandHandler
 
         // Named so it cannot be mistaken for the attempt it is being compared against - two tabs of
         // the same editor with the same title would be a trap.
-        var architecture = solution.Instantiate($"{definition.Title} — solución de referencia");
+        var architecture = solution.Instantiate(_text.Render(
+            LocalizedText.Of("challenge.referenceSolutionName",
+                ("title", LocalizedText.Of(definition.TitleKey))),
+            command.Locale));
 
         await _repository.AddAsync(architecture, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);

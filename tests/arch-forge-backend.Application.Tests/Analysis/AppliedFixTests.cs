@@ -1,6 +1,7 @@
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Application.Tests.Analysis.Rules.Support;
+using arch_forge_backend.Application.Tests.TestDoubles;
 using arch_forge_backend.Domain.Enums;
 using Xunit;
 
@@ -87,7 +88,7 @@ public class AppliedFixTests
         // goes through a cache", which has one answer, rather than "cache this particular call",
         // which would be picking one of two arbitrarily.
         Assert.Equal(ElementType.Node, fix.Element.Type);
-        Assert.Contains("'Db'", fix.Label);
+        Assert.Contains("'Db'", fix.Label.Es());
     }
 
     [Fact]
@@ -103,7 +104,7 @@ public class AppliedFixTests
         var fix = Assert.Single(new OrphanNodeRule().Evaluate(graph).Findings).Fix;
 
         Assert.Equal(FixKinds.RemoveNode, fix!.Kind);
-        Assert.Contains("Leftover", fix.Label);
+        Assert.Contains("Leftover", fix.Label.Es());
     }
 
     /// <summary>

@@ -1,3 +1,5 @@
+using arch_forge_backend.Application.Tests.TestDoubles;
+using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Application.Tests.Analysis.Rules.Support;
@@ -27,7 +29,7 @@ public class CycleRuleTests
         Assert.Equal(Severity.Critical, finding.Severity);
         Assert.Equal(
             "Dependencia circular entre 3 componentes: Orders → Payments → Inventory → Orders.",
-            finding.Message);
+            finding.Message.Es());
     }
 
     [Fact]
@@ -54,7 +56,7 @@ public class CycleRuleTests
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
-        Assert.Contains("2 componentes", finding.Message);
+        Assert.Contains("2 componentes", finding.Message.Es());
     }
 
     [Fact]
@@ -70,7 +72,7 @@ public class CycleRuleTests
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
-        Assert.Equal("Dependencia circular entre 3 componentes: A → B → C → A.", finding.Message);
+        Assert.Equal("Dependencia circular entre 3 componentes: A → B → C → A.", finding.Message.Es());
     }
 
     [Fact]

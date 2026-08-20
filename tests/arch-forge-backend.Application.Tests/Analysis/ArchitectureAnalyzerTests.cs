@@ -1,5 +1,7 @@
+using arch_forge_backend.Application.Tests.TestDoubles;
 using System.Text;
 using arch_forge_backend.Application.Analysis;
+using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Domain.Entities;
 using arch_forge_backend.Domain.Enums;
@@ -209,7 +211,7 @@ public class ArchitectureAnalyzerTests
             new BackwardsNodeRule(Area.Availability, RuleCodes.Spof, Severity.Critical)
         ]).Analyze(graph);
 
-        Assert.Equal(["Api", "Db", "Zeta"], result.Findings.Select(f => f.Message));
+        Assert.Equal(["Api", "Db", "Zeta"], result.Findings.Select(f => f.Message.Key));
     }
 
     [Fact]
@@ -223,7 +225,7 @@ public class ArchitectureAnalyzerTests
             StubRule.WithMessages(Area.Availability, RuleCodes.Spof, Severity.Critical, "first", "second", "third")
         ]).Analyze(EmptyGraph);
 
-        Assert.Equal(["first", "second", "third"], result.Findings.Select(f => f.Message));
+        Assert.Equal(["first", "second", "third"], result.Findings.Select(f => f.Message.Key));
     }
 
     [Fact]
@@ -275,7 +277,7 @@ public class ArchitectureAnalyzerTests
         foreach (var finding in result.Findings)
         {
             var elements = string.Join(",", finding.Elements.Select(e => $"{e.Type}:{e.Id}"));
-            rendered.AppendLine($"finding {finding.Severity} {finding.Area} {finding.Code} '{finding.Message}' [{elements}]");
+            rendered.AppendLine($"finding {finding.Severity} {finding.Area} {finding.Code} '{finding.Message.Key}' [{elements}]");
         }
 
         return rendered.ToString();
@@ -300,13 +302,13 @@ public class ArchitectureAnalyzerTests
         public Area Area => area;
         public Severity DefaultSeverity => severity;
         public RulePhase Phase => RulePhase.Consumer;
-        public string PassedMessage => $"{code} passed.";
-        public string PassedExplanation => $"{code} was checked.";
+        public LocalizedText PassedMessage => LocalizedText.Of($"{code} passed.");
+        public LocalizedText PassedExplanation => LocalizedText.Of($"{code} was checked.");
 
         public RuleResult Evaluate(ArchitectureGraph graph) => RuleResult.Applicable(graph.Nodes
             .Reverse()
             .Select(node => new RuleFinding(
-                code, area, severity, node.Name, "explanation", "suggestion", [FindingElement.Node(node.Id)]))
+                code, area, severity, LocalizedText.Of(node.Name), LocalizedText.Of("explanation"), LocalizedText.Of("suggestion"), [FindingElement.Node(node.Id)]))
             .ToList());
     }
 
@@ -337,8 +339,8 @@ public class ArchitectureAnalyzerTests
         public Area Area { get; }
         public Severity DefaultSeverity => Severity.Warning;
         public RulePhase Phase => RulePhase.Consumer;
-        public string PassedMessage => $"{Code} passed.";
-        public string PassedExplanation => $"{Code} was checked.";
+        public LocalizedText PassedMessage => LocalizedText.Of($"{Code} passed.");
+        public LocalizedText PassedExplanation => LocalizedText.Of($"{Code} was checked.");
 
         public RuleResult Evaluate(ArchitectureGraph graph)
         {
@@ -346,7 +348,7 @@ public class ArchitectureAnalyzerTests
                 return RuleResult.NotApplicable;
 
             return RuleResult.Applicable(_findings
-                .Select(f => new RuleFinding(Code, Area, f.Severity, f.Message, "explanation", "suggestion", []))
+                .Select(f => new RuleFinding(Code, Area, f.Severity, LocalizedText.Of(f.Message), LocalizedText.Of("explanation"), LocalizedText.Of("suggestion"), []))
                 .ToList());
         }
 
@@ -367,8 +369,8 @@ public class ArchitectureAnalyzerTests
         public Area Area => area;
         public Severity DefaultSeverity => Severity.Warning;
         public RulePhase Phase => RulePhase.Producer;
-        public string PassedMessage => $"{code} passed.";
-        public string PassedExplanation => $"{code} was checked.";
+        public LocalizedText PassedMessage => LocalizedText.Of($"{code} passed.");
+        public LocalizedText PassedExplanation => LocalizedText.Of($"{code} was checked.");
 
         public RuleResult Evaluate(ArchitectureGraph graph)
         {
@@ -379,7 +381,7 @@ public class ArchitectureAnalyzerTests
                 // Deterministic ids: two runs must produce byte-identical results.
                 var nodeId = new Guid($"00000000-0000-0000-0000-{i:000000000000}");
                 graph.Facts.Add(new SinglePointOfFailureFact(nodeId, Severity.Critical));
-                findings.Add(new RuleFinding(code, area, Severity.Warning, $"published {i}", "explanation", null,
+                findings.Add(new RuleFinding(code, area, Severity.Warning, LocalizedText.Of($"published {i}"), LocalizedText.Of("explanation"), null,
                     [FindingElement.Node(nodeId)]));
             }
 
@@ -394,8 +396,8 @@ public class ArchitectureAnalyzerTests
         public Area Area => area;
         public Severity DefaultSeverity => Severity.Warning;
         public RulePhase Phase => RulePhase.Consumer;
-        public string PassedMessage => $"{code} passed.";
-        public string PassedExplanation => $"{code} was checked.";
+        public LocalizedText PassedMessage => LocalizedText.Of($"{code} passed.");
+        public LocalizedText PassedExplanation => LocalizedText.Of($"{code} was checked.");
 
         public RuleResult Evaluate(ArchitectureGraph graph)
         {
@@ -404,7 +406,7 @@ public class ArchitectureAnalyzerTests
             return RuleResult.Applicable(graph.Facts
                 .OfType<SinglePointOfFailureFact>()
                 .OrderBy(fact => fact.NodeId)
-                .Select(fact => new RuleFinding(code, area, Severity.Warning, $"consumed {fact.NodeId}", "explanation", null,
+                .Select(fact => new RuleFinding(code, area, Severity.Warning, LocalizedText.Of($"consumed {fact.NodeId}"), LocalizedText.Of("explanation"), null,
                     [FindingElement.Node(fact.NodeId)]))
                 .ToList());
         }
@@ -416,16 +418,16 @@ public class ArchitectureAnalyzerTests
         public Area Area => Area.Availability;
         public Severity DefaultSeverity => Severity.Warning;
         public RulePhase Phase => RulePhase.Producer;
-        public string PassedMessage => "passed";
-        public string PassedExplanation => "checked";
+        public LocalizedText PassedMessage => LocalizedText.Of($"passed");
+        public LocalizedText PassedExplanation => LocalizedText.Of($"checked");
 
         public RuleResult Evaluate(ArchitectureGraph graph) => new(applicable, [
             new RuleFinding(
                 matchingCode ? Code : RuleCodes.Cycle,
                 Area,
                 Severity.Warning,
-                "message",
-                "explanation",
+                LocalizedText.Of("message"),
+                LocalizedText.Of("explanation"),
                 null,
                 [])
         ]);

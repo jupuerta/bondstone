@@ -3,6 +3,7 @@ using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Application.Architectures.Commands;
 using arch_forge_backend.Application.Architectures.Queries;
 using arch_forge_backend.Application.Challenges;
+using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Configuration;
 using arch_forge_backend.Application.Configuration.Schemas;
 using arch_forge_backend.Application.Simulation;
@@ -48,6 +49,11 @@ public static class DependencyInjection
         // application from starting, which is where a content mistake belongs - not in front of
         // somebody trying to pass a challenge that cannot be passed.
         services.AddSingleton<ChallengeCatalog>();
+
+        // V7 D1.2: same criterion, same lifetime. The catalogue is immutable once read and its
+        // only consumers are the exporter and the two challenge commands that have to write a
+        // real name into the database.
+        services.AddSingleton<TextCatalog>();
 
         services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<ApiConfiguration>(NodeType.Api));
         services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<DatabaseConfiguration>(NodeType.Database));

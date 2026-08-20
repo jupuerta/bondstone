@@ -85,7 +85,7 @@ Elementos: `Gateway`
 
 **La llamada de 'Orders' a 'Db' no tiene protección frente a fallos.**
 
-Y como 'Db' es un punto único de fallo, su caída se propaga directamente hacia atrás.
+Como 'Db' es un punto único de fallo, su caída se propaga directamente hacia atrás.
 
 *Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
 
@@ -95,7 +95,7 @@ Elementos: `Orders → Db`
 
 **La llamada de 'Payments' a 'Db' no tiene protección frente a fallos.**
 
-Y como 'Db' es un punto único de fallo, su caída se propaga directamente hacia atrás.
+Como 'Db' es un punto único de fallo, su caída se propaga directamente hacia atrás.
 
 *Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
 
@@ -105,7 +105,7 @@ Elementos: `Payments → Db`
 
 **La llamada de 'Users' a 'Db' no tiene protección frente a fallos.**
 
-Y como 'Db' es un punto único de fallo, su caída se propaga directamente hacia atrás.
+Como 'Db' es un punto único de fallo, su caída se propaga directamente hacia atrás.
 
 *Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
 

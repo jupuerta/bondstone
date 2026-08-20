@@ -1,3 +1,4 @@
+using arch_forge_backend.Application.Tests.TestDoubles;
 using System.Text.RegularExpressions;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Export;
@@ -18,7 +19,7 @@ public class MarkdownExporterTests
         // figure with no meaning in six months - and this document is meant to live outside the app.
         var architecture = Architecture(name: "Orders Platform", shareToken: "8fK29x", version: 7);
 
-        var document = MarkdownExporter.Compose(architecture, Analyze(architecture), ExportedAt);
+        var document = MarkdownExporter.Compose(architecture, Analyze(architecture), ExportedAt, TestText.Spanish);
 
         Assert.Contains("# Orders Platform", document);
         Assert.Contains("`8fK29x` · versión 7", document);
@@ -59,8 +60,8 @@ public class MarkdownExporterTests
             connections: [edges[2], edges[0], edges[1]]);
 
         Assert.Equal(
-            MarkdownExporter.Compose(straight, Analyze(straight), ExportedAt),
-            MarkdownExporter.Compose(shuffled, Analyze(shuffled), ExportedAt));
+            MarkdownExporter.Compose(straight, Analyze(straight), ExportedAt, TestText.Spanish),
+            MarkdownExporter.Compose(shuffled, Analyze(shuffled), ExportedAt, TestText.Spanish));
     }
 
     [Fact]
@@ -72,8 +73,8 @@ public class MarkdownExporterTests
         var other = Architecture(nodes: [Node("Api", NodeType.Api, "{\"authentication\":true,\"instances\":2}")]);
 
         Assert.Equal(
-            MarkdownExporter.Compose(one, Analyze(one), ExportedAt),
-            MarkdownExporter.Compose(other, Analyze(other), ExportedAt));
+            MarkdownExporter.Compose(one, Analyze(one), ExportedAt, TestText.Spanish),
+            MarkdownExporter.Compose(other, Analyze(other), ExportedAt, TestText.Spanish));
     }
 
     // ---- Ajustes 2 y 3: the empty architecture -----------------------------
@@ -84,7 +85,7 @@ public class MarkdownExporterTests
         // The first button anybody presses. Ajustes 2 and 3 both land here.
         var empty = Architecture(name: "Nueva arquitectura");
 
-        var document = MarkdownExporter.Compose(empty, Analyze(empty), ExportedAt);
+        var document = MarkdownExporter.Compose(empty, Analyze(empty), ExportedAt, TestText.Spanish);
 
         Assert.Contains("# Nueva arquitectura", document);
         Assert.Contains("**Sin puntuación: ninguna área es evaluable todavía.**", document);
@@ -100,7 +101,7 @@ public class MarkdownExporterTests
         var architecture = Architecture(nodes: [Node("Api", NodeType.Api)]);
         var analysis = Analyze(architecture);
 
-        var document = MarkdownExporter.Compose(architecture, analysis, ExportedAt);
+        var document = MarkdownExporter.Compose(architecture, analysis, ExportedAt, TestText.Spanish);
 
         foreach (var area in analysis.Areas.Where(a => a.State == AreaState.NotApplicable))
             Assert.Contains($"| {area.Area} | sin reglas aplicables |", document);
@@ -115,7 +116,7 @@ public class MarkdownExporterTests
         // Already contract since V2 D2.1; the document inherits it rather than inventing an order.
         var architecture = ThreeTier();
 
-        var document = MarkdownExporter.Compose(architecture, Analyze(architecture), ExportedAt);
+        var document = MarkdownExporter.Compose(architecture, Analyze(architecture), ExportedAt, TestText.Spanish);
 
         var positions = Enum.GetValues<Area>().Select(a => document.IndexOf($"| {a} |", StringComparison.Ordinal)).ToList();
 
@@ -132,7 +133,7 @@ public class MarkdownExporterTests
         var db = Node("Db", NodeType.Database);
         var architecture = Architecture(nodes: [awkward, db], connections: [Connection(awkward, db, ProtocolType.Sql)]);
 
-        var document = MarkdownExporter.Compose(architecture, Analyze(architecture), ExportedAt);
+        var document = MarkdownExporter.Compose(architecture, Analyze(architecture), ExportedAt, TestText.Spanish);
 
         // Every row of the components table has exactly the three cells its header declares, and
         // the escaped pipe of the name does not count as a separator.
@@ -150,7 +151,7 @@ public class MarkdownExporterTests
         // A golden file would not catch this on its own if the fixture's Guids happen to be stable.
         var architecture = ThreeTier();
 
-        var document = MarkdownExporter.Compose(architecture, Analyze(architecture), ExportedAt);
+        var document = MarkdownExporter.Compose(architecture, Analyze(architecture), ExportedAt, TestText.Spanish);
 
         Assert.DoesNotMatch(new Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"), document);
     }
@@ -160,7 +161,7 @@ public class MarkdownExporterTests
     {
         var architecture = ThreeTier();
         var analysis = Analyze(architecture);
-        var document = MarkdownExporter.Compose(architecture, analysis, ExportedAt);
+        var document = MarkdownExporter.Compose(architecture, analysis, ExportedAt, TestText.Spanish);
 
         Assert.NotEmpty(analysis.Findings);
 

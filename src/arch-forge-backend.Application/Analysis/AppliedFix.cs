@@ -1,3 +1,5 @@
+using arch_forge_backend.Application.Localization;
+
 namespace arch_forge_backend.Application.Analysis;
 
 /// <summary>
@@ -14,11 +16,15 @@ namespace arch_forge_backend.Application.Analysis;
 /// the autosave persists it like any other.
 /// </summary>
 /// <param name="Element">What to change. Always one of the finding's own elements.</param>
-/// <param name="Label">The button's text. Says what will happen, with its numbers.</param>
+/// <param name="Label">
+/// The button's text. Says what will happen, with its numbers - which is why it is a
+/// <see cref="LocalizedText"/> and not a key on its own: "Subir el timeout a 8 s" carries a value
+/// the rule computed (V7 D1.1).
+/// </param>
 public sealed record AppliedFix(
     string Kind,
     FindingElement Element,
-    string Label,
+    LocalizedText Label,
     int? TimeoutSeconds = null,
     bool? CircuitBreaker = null,
     bool? Fallback = null,

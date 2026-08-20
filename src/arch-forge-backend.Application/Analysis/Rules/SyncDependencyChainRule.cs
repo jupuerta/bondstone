@@ -1,5 +1,7 @@
 using arch_forge_backend.Domain.Entities;
 
+using arch_forge_backend.Application.Localization;
+
 namespace arch_forge_backend.Application.Analysis.Rules;
 
 /// <summary>
@@ -18,10 +20,9 @@ public class SyncDependencyChainRule : IArchitectureRule
     public Severity DefaultSeverity => Severity.Warning;
     public RulePhase Phase => RulePhase.Consumer;
 
-    public string PassedMessage => "No hay cadenas síncronas largas.";
+    public LocalizedText PassedMessage => LocalizedText.Of("finding.SYNC_CHAIN.passed.message");
 
-    public string PassedExplanation =>
-        "Se han recorrido las llamadas síncronas y ninguna encadena suficientes componentes como para que las latencias se sumen.";
+    public LocalizedText PassedExplanation => LocalizedText.Of("finding.SYNC_CHAIN.passed.explanation");
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
@@ -59,9 +60,11 @@ public class SyncDependencyChainRule : IArchitectureRule
                 Code,
                 Area,
                 severity,
-                $"'{node.Name}' inicia una cadena de dependencias síncronas de {components} componentes.",
-                "La petición no termina hasta que responde el último eslabón: las latencias se suman y basta con que uno falle para que fallen todos.",
-                "Corta la cadena introduciendo una cola en el punto donde la operación deje de necesitar respuesta inmediata.",
+                LocalizedText.Of("finding.SYNC_CHAIN.long.message",
+                    ("node", node.Name),
+                    ("count", components)),
+                LocalizedText.Of("finding.SYNC_CHAIN.long.explanation"),
+                LocalizedText.Of("finding.SYNC_CHAIN.long.suggestion"),
                 Interleave(node.Id, path)));
         }
 

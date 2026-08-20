@@ -1,6 +1,8 @@
 using arch_forge_backend.Application.Simulation;
 using arch_forge_backend.Domain.Enums;
 
+using arch_forge_backend.Application.Localization;
+
 namespace arch_forge_backend.Application.Analysis.Rules;
 
 /// <summary>
@@ -19,9 +21,8 @@ public class NoRateLimitRule : IArchitectureRule
     public Severity DefaultSeverity => Severity.Warning;
     public RulePhase Phase => RulePhase.Consumer;
 
-    public string PassedMessage => "La entrada tiene un límite de peticiones.";
-    public string PassedExplanation =>
-        "El gateway rechaza en la puerta lo que pase del límite, en vez de dejar que se acumule sobre lo que hay detrás.";
+    public LocalizedText PassedMessage => LocalizedText.Of("finding.NO_RATE_LIMIT.passed.message");
+    public LocalizedText PassedExplanation => LocalizedText.Of("finding.NO_RATE_LIMIT.passed.explanation");
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
@@ -39,9 +40,9 @@ public class NoRateLimitRule : IArchitectureRule
                 Code,
                 Area,
                 DefaultSeverity,
-                $"'{gateway.Name}' no limita las peticiones que admite.",
-                "Todo lo que llegue entra, así que un pico —o alguien empujando a propósito— se propaga entero hacia dentro y lo paga el componente más frágil.",
-                "Pon un límite de peticiones acorde a lo que aguanta lo que tienes detrás: lo que sobra se rechaza en la puerta, que es donde es barato.",
+                LocalizedText.Of("finding.NO_RATE_LIMIT.unlimited.message", ("node", gateway.Name)),
+                LocalizedText.Of("finding.NO_RATE_LIMIT.unlimited.explanation"),
+                LocalizedText.Of("finding.NO_RATE_LIMIT.unlimited.suggestion"),
                 [FindingElement.Node(gateway.Id)]))
             .ToList();
 

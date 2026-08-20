@@ -1,5 +1,7 @@
 using arch_forge_backend.Domain.Enums;
 
+using arch_forge_backend.Application.Localization;
+
 namespace arch_forge_backend.Application.Analysis.Rules;
 
 /// <summary>
@@ -18,9 +20,8 @@ public class NoObservabilityRule : IArchitectureRule
     public Severity DefaultSeverity => Severity.Warning;
     public RulePhase Phase => RulePhase.Consumer;
 
-    public string PassedMessage => "La arquitectura está instrumentada.";
-    public string PassedExplanation =>
-        "Hay un componente de observabilidad conectado, así que cuando algo falle habrá dónde mirar.";
+    public LocalizedText PassedMessage => LocalizedText.Of("finding.NO_OBSERVABILITY.passed.message");
+    public LocalizedText PassedExplanation => LocalizedText.Of("finding.NO_OBSERVABILITY.passed.explanation");
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
@@ -43,11 +44,14 @@ public class NoObservabilityRule : IArchitectureRule
             Code,
             Area,
             DefaultSeverity,
-            hasOrphan
-                ? "El componente de observabilidad no está conectado a nada."
-                : "No hay nada observando la arquitectura.",
-            "Cuando algo falle no habrá dónde mirar: ni qué componente empezó, ni cuánto tardaba, ni cuántas peticiones se perdieron. El fallo se investiga con lo que se recuerde.",
-            "Añade un componente de observabilidad y conéctale lo que quieras poder mirar cuando algo vaya mal.",
+            // Two keys and not one with a flag in it: the two sentences say different things -
+            // one is "you wired nothing to it", the other "there is nothing" - and which of them
+            // applies is the rule's decision, not the translator's (V7 D1.1).
+            LocalizedText.Of(hasOrphan
+                ? "finding.NO_OBSERVABILITY.orphan.message"
+                : "finding.NO_OBSERVABILITY.absent.message"),
+            LocalizedText.Of("finding.NO_OBSERVABILITY.explanation"),
+            LocalizedText.Of("finding.NO_OBSERVABILITY.suggestion"),
             connected.Concat(graph.Nodes.Where(n => n.Type == NodeType.Observability))
                 .Select(n => FindingElement.Node(n.Id))
                 .ToList()));

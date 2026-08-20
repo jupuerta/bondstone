@@ -1,3 +1,4 @@
+using arch_forge_backend.Application.Tests.TestDoubles;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Export;
 using arch_forge_backend.Application.Simulation;
@@ -69,8 +70,8 @@ public class MarkdownExporterPromptTests
         var simulation = new SimulationEngine().Run(graph, SimulationScenario.Empty);
 
         Assert.Equal(
-            Request(MarkdownExporter.Compose(architecture, analysis, ExportedAt)),
-            Request(MarkdownExporter.Compose(architecture, analysis, ExportedAt, simulation, SimulationScenario.Empty)));
+            Request(MarkdownExporter.Compose(architecture, analysis, ExportedAt, TestText.Spanish)),
+            Request(MarkdownExporter.Compose(architecture, analysis, ExportedAt, TestText.Spanish, simulation, SimulationScenario.Empty)));
     }
 
     private static string Composed()
@@ -79,7 +80,7 @@ public class MarkdownExporterPromptTests
         var db = Node("Db", NodeType.Database);
         var architecture = Architecture(nodes: [api, db], connections: [Connection(api, db, ProtocolType.Sql)]);
 
-        return MarkdownExporter.Compose(architecture, Analyze(architecture), ExportedAt);
+        return MarkdownExporter.Compose(architecture, Analyze(architecture), ExportedAt, TestText.Spanish);
     }
 
     private static string Request(string document) =>

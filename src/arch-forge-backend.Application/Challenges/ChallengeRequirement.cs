@@ -17,8 +17,13 @@ public sealed class ChallengeRequirement
 {
     public string Kind { get; set; } = string.Empty;
 
-    /// <summary>What the user reads in the checklist. Written per challenge, never generated.</summary>
-    public string Label { get; set; } = string.Empty;
+    /// <summary>
+    /// The catalogue key of what the user reads in the checklist. Written per challenge, never
+    /// generated - and a key rather than a sentence since V7 D1.1, because a challenge's prose is
+    /// the one kind of text the backend never renders: no export carries it, so it lives only in
+    /// the client's catalogue and the definition just points at it.
+    /// </summary>
+    public string LabelKey { get; set; } = string.Empty;
 
     // ---- Estructural -------------------------------------------------------
 

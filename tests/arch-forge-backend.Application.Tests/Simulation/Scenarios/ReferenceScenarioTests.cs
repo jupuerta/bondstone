@@ -1,3 +1,5 @@
+using arch_forge_backend.Application.Tests.TestDoubles;
+using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Tests.Analysis.Fixtures;
 using arch_forge_backend.Application.Simulation;
@@ -26,14 +28,14 @@ public class ReferenceScenarioTests
         // indefinite wait into five seconds.
         Assert.Equal(HealthState.Down, run.Node("Db").State);
         Assert.Equal(0, run.Node("Db").PropagationStep);
-        Assert.Equal(SimulationReasons.InjectedFault, run.Node("Db").Reason);
+        Assert.Equal(TestText.Es(LocalizedText.Of("sim.node.injected")), run.Node("Db").Reason.Es());
 
         Assert.Equal(HealthState.Down, run.Edge("Api", "Db").State);
         Assert.Equal(1, run.Edge("Api", "Db").PropagationStep);
 
         Assert.Equal(HealthState.Down, run.Node("Api").State);
         Assert.Equal(1, run.Node("Api").PropagationStep);
-        Assert.Contains("no tiene alternativa", run.Node("Api").Reason);
+        Assert.Contains("no tiene alternativa", run.Node("Api").Reason.Es());
 
         Assert.Equal(new SimulationMetrics(
             ComponentsDown: 2,
@@ -204,7 +206,7 @@ public class ReferenceScenarioTests
         foreach (var name in new[] { "Orders", "Payments", "Inventory", "Shipping", "Notifications", "Users", "Billing", "Search", "Db" })
         {
             Assert.Equal("Gateway", run.NameOf(run.Node(name).CausedBy!));
-            Assert.Contains("No le llega tráfico", run.Node(name).Reason);
+            Assert.Contains("No le llega tráfico", run.Node(name).Reason.Es());
         }
 
         Assert.Null(run.Node("Gateway").CausedBy);
@@ -266,7 +268,7 @@ public class ReferenceScenarioTests
         var run = ReferenceScenario.Run("worst-case", ReferenceScenario.EdgeLatency(graph, "Orders", "Shipping", 8_000));
 
         // "La llamada a 'Shipping' tarda 8 s y el timeout es de 5 s: expira siempre…"
-        Assert.Contains("tarda 8 s", run.Node("Orders").Reason);
-        Assert.Contains("timeout es de 5 s", run.Node("Orders").Reason);
+        Assert.Contains("tarda 8 s", run.Node("Orders").Reason.Es());
+        Assert.Contains("timeout es de 5 s", run.Node("Orders").Reason.Es());
     }
 }

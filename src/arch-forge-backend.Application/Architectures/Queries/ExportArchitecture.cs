@@ -1,6 +1,7 @@
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Common.Interfaces;
 using arch_forge_backend.Application.Export;
+using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Simulation;
 
 namespace arch_forge_backend.Application.Architectures.Queries;
@@ -32,6 +33,14 @@ public class ExportArchitectureQuery
     /// the screen shows on entering Simulate before choosing anything (V3 D2.1).
     /// </summary>
     public SimulationScenario? Scenario { get; set; }
+
+    /// <summary>
+    /// V7 D1.2. Which language to write the document in, negotiated from <c>Accept-Language</c> at
+    /// the controller. Defaults to the catalogue's own default rather than being nullable all the
+    /// way down: every document is in some language, and there is no such thing as an export with
+    /// none.
+    /// </summary>
+    public string Locale { get; set; } = TextCatalog.DefaultLocale;
 }
 
 public class ExportArchitectureQueryHandler
@@ -39,15 +48,18 @@ public class ExportArchitectureQueryHandler
     private readonly IArchitectureRepository _repository;
     private readonly ArchitectureAnalyzer _analyzer;
     private readonly SimulationEngine _engine;
+    private readonly TextCatalog _catalog;
 
     public ExportArchitectureQueryHandler(
         IArchitectureRepository repository,
         ArchitectureAnalyzer analyzer,
-        SimulationEngine engine)
+        SimulationEngine engine,
+        TextCatalog catalog)
     {
         _repository = repository;
         _analyzer = analyzer;
         _engine = engine;
+        _catalog = catalog;
     }
 
     public async Task<string?> Handle(ExportArchitectureQuery query, CancellationToken cancellationToken = default)
@@ -69,6 +81,7 @@ public class ExportArchitectureQueryHandler
             architecture,
             analysis,
             query.ExportedAtUtc ?? DateTime.UtcNow,
+            new Localizer(_catalog, query.Locale),
             simulation,
             query.Scenario);
     }

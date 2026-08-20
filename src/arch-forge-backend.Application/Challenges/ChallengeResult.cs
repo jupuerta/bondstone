@@ -1,4 +1,5 @@
 using arch_forge_backend.Application.Analysis;
+using arch_forge_backend.Application.Localization;
 
 namespace arch_forge_backend.Application.Challenges;
 
@@ -9,6 +10,11 @@ namespace arch_forge_backend.Application.Challenges;
 /// <param name="Detail">
 /// Why not, with the real number in it. Null when the requirement is met - there is nothing to
 /// explain about something that works.
+///
+/// V7 D1.1: a key and its arguments, and some of those arguments are themselves a
+/// <see cref="LocalizedText"/> - a failed <c>noFinding</c> quotes the finding's own sentence, and
+/// quoting it means resolving it in the same language as the sentence around it, not pasting in
+/// prose somebody else already rendered.
 /// </param>
 /// <param name="Elements">
 /// What to look at. Same flat shape as <see cref="RuleFinding.Elements"/> (V2 D2.2), so the canvas
@@ -17,19 +23,19 @@ namespace arch_forge_backend.Application.Challenges;
 /// </param>
 public sealed record ChallengeRequirementResult(
     string Kind,
-    string Label,
+    LocalizedText Label,
     bool Met,
-    string? Detail,
+    LocalizedText? Detail,
     IReadOnlyList<FindingElement> Elements)
 {
     public static ChallengeRequirementResult Pass(ChallengeRequirement requirement) =>
-        new(requirement.Kind, requirement.Label, true, null, []);
+        new(requirement.Kind, LocalizedText.Of(requirement.LabelKey), true, null, []);
 
     public static ChallengeRequirementResult Fail(
         ChallengeRequirement requirement,
-        string detail,
+        LocalizedText detail,
         IReadOnlyList<FindingElement>? elements = null) =>
-        new(requirement.Kind, requirement.Label, false, detail, elements ?? []);
+        new(requirement.Kind, LocalizedText.Of(requirement.LabelKey), false, detail, elements ?? []);
 }
 
 /// <summary>

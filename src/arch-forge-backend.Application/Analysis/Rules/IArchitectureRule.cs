@@ -1,3 +1,5 @@
+using arch_forge_backend.Application.Localization;
+
 namespace arch_forge_backend.Application.Analysis.Rules;
 
 /// <summary>
@@ -12,10 +14,10 @@ public interface IArchitectureRule
     RulePhase Phase { get; }
 
     /// <summary>Text of the Good finding the analyzer synthesizes when the rule applies and finds nothing (D1.4).</summary>
-    string PassedMessage { get; }
+    LocalizedText PassedMessage { get; }
 
     /// <summary>What was checked. Mandatory on every finding, Good included (D2.1, rule 2).</summary>
-    string PassedExplanation { get; }
+    LocalizedText PassedExplanation { get; }
 
     RuleResult Evaluate(ArchitectureGraph graph);
 }

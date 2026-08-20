@@ -1,5 +1,7 @@
 using arch_forge_backend.Application.Simulation;
 
+using arch_forge_backend.Application.Localization;
+
 namespace arch_forge_backend.Application.Analysis.Rules;
 
 /// <summary>
@@ -22,9 +24,8 @@ public class TimeoutTooShortRule : IArchitectureRule
     public Severity DefaultSeverity => Severity.Critical;
     public RulePhase Phase => RulePhase.Consumer;
 
-    public string PassedMessage => "Los timeouts dan tiempo a que la llamada termine.";
-    public string PassedExplanation =>
-        "Cada timeout es mayor que lo que cuesta esa llamada con todo funcionando, así que solo salta cuando algo va mal de verdad.";
+    public LocalizedText PassedMessage => LocalizedText.Of("finding.TIMEOUT_TOO_SHORT.passed.message");
+    public LocalizedText PassedExplanation => LocalizedText.Of("finding.TIMEOUT_TOO_SHORT.passed.explanation");
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
@@ -66,9 +67,14 @@ public class TimeoutTooShortRule : IArchitectureRule
                 Code,
                 Area,
                 DefaultSeverity,
-                $"El timeout de la llamada de '{source}' a '{target}' es más corto que la propia llamada.",
-                $"Cuesta {Duration(callMs)} con todo funcionando y el timeout es de {Duration(timeoutMs)}: expira siempre, así que '{target}' se comporta como si estuviera caído de forma permanente.",
-                $"Sube el timeout por encima de {Duration(callMs)}, o acorta la llamada quitando saltos de en medio.",
+                LocalizedText.Of("finding.TIMEOUT_TOO_SHORT.expires.message",
+                    ("source", source),
+                    ("target", target)),
+                LocalizedText.Of("finding.TIMEOUT_TOO_SHORT.expires.explanation",
+                    ("target", target),
+                    ("callMs", callMs),
+                    ("timeoutMs", timeoutMs)),
+                LocalizedText.Of("finding.TIMEOUT_TOO_SHORT.expires.suggestion", ("callMs", callMs)),
                 [FindingElement.Connection(edge.Id)])
             {
                 // D5.6: raising it is unambiguous. *Shortening the call* is the other fix and it is
@@ -76,7 +82,7 @@ public class TimeoutTooShortRule : IArchitectureRule
                 Fix = new AppliedFix(
                     FixKinds.SetEdgeResilience,
                     FindingElement.Connection(edge.Id),
-                    $"Subir el timeout a {suggested} s",
+                    LocalizedText.Of("fix.TIMEOUT_TOO_SHORT.raise", ("seconds", suggested)),
                     TimeoutSeconds: suggested)
             });
         }
@@ -84,5 +90,4 @@ public class TimeoutTooShortRule : IArchitectureRule
         return RuleResult.Applicable(findings);
     }
 
-    private static string Duration(int ms) => ms >= 1_000 ? $"{ms / 1_000m:0.##} s" : $"{ms} ms";
 }

@@ -1,6 +1,8 @@
 using arch_forge_backend.Domain.Entities;
 using arch_forge_backend.Domain.Enums;
 
+using arch_forge_backend.Application.Localization;
+
 namespace arch_forge_backend.Application.Analysis.Rules;
 
 /// <summary>
@@ -20,10 +22,9 @@ public class SpofRule : IArchitectureRule
     public Severity DefaultSeverity => Severity.Critical;
     public RulePhase Phase => RulePhase.Producer;
 
-    public string PassedMessage => "Ningún componente concentra el funcionamiento del sistema.";
+    public LocalizedText PassedMessage => LocalizedText.Of("finding.SPOF.passed.message");
 
-    public string PassedExplanation =>
-        "Se ha comprobado, componente a componente, qué dejaría de funcionar si cayera: ninguno se lleva por delante el resto del sistema.";
+    public LocalizedText PassedExplanation => LocalizedText.Of("finding.SPOF.passed.explanation");
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
@@ -54,7 +55,9 @@ public class SpofRule : IArchitectureRule
             if (unreachable >= UnreachableMin)
             {
                 findings.Add(Report(graph, node, Severity.Critical,
-                    $"'{node.Name}' es un punto único de fallo: {unreachable} componentes quedan inalcanzables si deja de funcionar."));
+                    LocalizedText.Of("finding.SPOF.unreachable.message",
+                        ("node", node.Name),
+                        ("count", unreachable))));
                 continue;
             }
 
@@ -65,7 +68,9 @@ public class SpofRule : IArchitectureRule
             var severity = dependents >= SharedDependencyCritical ? Severity.Critical : Severity.Warning;
 
             findings.Add(Report(graph, node, severity,
-                $"'{node.Name}' es un punto único de fallo: {dependents} componentes dependen de él sin redundancia."));
+                LocalizedText.Of("finding.SPOF.shared.message",
+                    ("node", node.Name),
+                    ("count", dependents))));
         }
 
         return RuleResult.Applicable(findings);
@@ -73,7 +78,7 @@ public class SpofRule : IArchitectureRule
 
     // One finding per node, with the highest severity it earns. MISSING_RESILIENCE only escalates
     // towards a Critical one, so the severity travels inside the fact too (D5.1).
-    private RuleFinding Report(ArchitectureGraph graph, Node node, Severity severity, string message)
+    private RuleFinding Report(ArchitectureGraph graph, Node node, Severity severity, LocalizedText message)
     {
         graph.Facts.Add(new SinglePointOfFailureFact(node.Id, severity));
 
@@ -82,8 +87,11 @@ public class SpofRule : IArchitectureRule
             Area,
             severity,
             message,
-            "No existe ningún componente equivalente que pueda asumir su trabajo. Cualquier incidencia en él afecta a todo lo que hay detrás.",
-            "Añade un LoadBalancer con al menos dos instancias equivalentes, o replica el componente para que sus consumidores tengan alternativa.",
+            // The two patterns say different things and share what they mean and what to do about
+            // it, so the explanation and the suggestion hang off the code rather than off either
+            // variant (V7 D1.1).
+            LocalizedText.Of("finding.SPOF.explanation"),
+            LocalizedText.Of("finding.SPOF.suggestion"),
             [FindingElement.Node(node.Id)]);
     }
 

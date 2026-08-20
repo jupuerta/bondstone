@@ -1,44 +1,54 @@
 {
   "slug": "payments-friday",
-  "title": "Tu servicio de pagos se cae todos los viernes",
-  "story": "Cada viernes por la tarde, cuando llega el pico de pedidos, el proveedor de pagos deja de responder durante unos minutos. No puedes arreglar el proveedor. Lo que sí puedes es hacer que tu tienda siga funcionando mientras tanto: que un cliente pueda navegar y pedir aunque el cobro tenga que esperar.\n\nRompe la arquitectura desde el modo Simulate, mira quién cae contigo, y arréglala.",
+  "titleKey": "challenge.payments-friday.title",
+  "storyKey": "challenge.payments-friday.story",
   "difficulty": "intermediate",
   "starter": "payments-friday.starter.json",
   "referenceSolution": "payments-friday.solution.json",
   "requirements": [
     {
       "kind": "underScenario",
-      "label": "La tienda sigue respondiendo con 'Payments' caído",
-      "faults": [{ "node": "Payments", "kind": "down" }],
+      "labelKey": "challenge.payments-friday.requirement.1",
+      "faults": [
+        {
+          "node": "Payments",
+          "kind": "down"
+        }
+      ],
       "metric": "entryPointsAffected",
       "operator": "eq",
       "value": 0
     },
     {
       "kind": "allEdgesTo",
-      "label": "Toda llamada síncrona a un servicio tiene timeout",
+      "labelKey": "challenge.payments-friday.requirement.2",
       "nodeType": "Service",
       "mechanism": "timeout"
     },
     {
       "kind": "noFinding",
-      "label": "No queda ninguna llamada sin protección",
+      "labelKey": "challenge.payments-friday.requirement.3",
       "code": "MISSING_RESILIENCE"
     }
   ],
   "optionalGoals": [
     {
       "kind": "underScenario",
-      "label": "…y aguanta también que se caiga la base de datos",
-      "faults": [{ "node": "Db", "kind": "down" }],
+      "labelKey": "challenge.payments-friday.goal.1",
+      "faults": [
+        {
+          "node": "Db",
+          "kind": "down"
+        }
+      ],
       "metric": "entryPointsAffected",
       "operator": "eq",
       "value": 0
     }
   ],
-  "hints": [
-    "Sin timeout no actúa ningún otro mecanismo: la llamada no falla, simplemente no vuelve. Empieza por ahí.",
-    "Un timeout acota la espera, pero no salva a nadie por sí solo. Lo que contiene un fallo es tener una alternativa cuando el destino no responde.",
-    "Si la operación no necesita respuesta inmediata, la otra salida es no esperarla: una llamada asíncrona nunca propaga una caída hacia atrás."
+  "hintKeys": [
+    "challenge.payments-friday.hint.1",
+    "challenge.payments-friday.hint.2",
+    "challenge.payments-friday.hint.3"
   ]
 }

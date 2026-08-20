@@ -1,3 +1,5 @@
+using arch_forge_backend.Application.Tests.TestDoubles;
+using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Application.Tests.Analysis.Rules.Support;
@@ -26,7 +28,7 @@ public class MissingCacheRuleTests
         Assert.Equal(Severity.Warning, finding.Severity);
         Assert.Equal(
             "'Db' recibe consultas directas de 3 componentes sin ninguna caché ni réplica de lectura.",
-            finding.Message);
+            finding.Message.Es());
     }
 
     [Fact]

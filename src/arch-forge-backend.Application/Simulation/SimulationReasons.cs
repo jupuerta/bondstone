@@ -1,3 +1,5 @@
+using arch_forge_backend.Application.Localization;
+
 namespace arch_forge_backend.Application.Simulation;
 
 /// <summary>
@@ -9,91 +11,105 @@ namespace arch_forge_backend.Application.Simulation;
 /// They live apart from <see cref="EdgeEffect"/> so that the semantics stays testable without
 /// names: the pure function returns an <see cref="EffectReason"/>, and this turns it into a
 /// sentence about actual components.
+///
+/// <strong>V7 D1.4. This file barely changed, and that is the point.</strong> The simulator has
+/// carried the shape localization needs since V3 - an <see cref="EffectReason"/> saying <em>which</em>
+/// sentence and a <see cref="ReasonContext"/> carrying <em>what goes in it</em> - and was rendering
+/// it to Spanish one step too early. So the switch now returns the key and the arguments instead of
+/// the prose, and the arguments it already had needed no rethinking. The analysis rules had to be
+/// taken apart for this; the simulator only had to stop at the step before.
 /// </summary>
 public static class SimulationReasons
 {
-    public const string InjectedFault = "Fallo inyectado en este componente.";
-
-    public static string ForNode(EffectReason reason, ReasonContext context) => reason switch
+    public static LocalizedText ForNode(EffectReason reason, ReasonContext context) => reason switch
     {
-        EffectReason.Injected => InjectedFault,
+        EffectReason.Injected => LocalizedText.Of("sim.node.injected"),
 
         EffectReason.Unreachable =>
-            $"No le llega tráfico: '{context.Cause}' era su vía de entrada.",
+            LocalizedText.Of("sim.node.unreachable", ("cause", context.Cause)),
 
         // D4.7: a consumer with no work is alive and idle, not dead. Telling the two apart is part
         // of what the simulator teaches.
         EffectReason.NoWork =>
-            "No le llega trabajo porque la cola no está disponible.",
+            LocalizedText.Of("sim.node.noWork"),
 
         EffectReason.Unprotected =>
-            $"Su llamada a '{context.Target}' no tiene alternativa cuando '{context.Target}' no responde.",
+            LocalizedText.Of("sim.node.unprotected", ("target", context.Target)),
 
         // D4.2: the box that was ticked does nothing here, and saying so is the whole lesson.
         EffectReason.NoTimeout =>
-            $"Su llamada a '{context.Target}' no tiene timeout: espera indefinidamente y ni el reintento ni el fallback llegan a ejecutarse.",
+            LocalizedText.Of("sim.node.noTimeout", ("target", context.Target)),
 
         EffectReason.TimeoutExceeded =>
-            $"La llamada a '{context.Target}' tarda {Duration(context.CallMs)} y el timeout es de {Duration(context.TimeoutMs)}: expira siempre, como si '{context.Target}' estuviera caído.",
+            LocalizedText.Of("sim.node.timeoutExceeded",
+                ("target", context.Target),
+                ("callMs", context.CallMs),
+                ("timeoutMs", context.TimeoutMs)),
 
         EffectReason.Contained =>
-            $"'{context.Target}' no responde, pero la respuesta alternativa mantiene el servicio en pie. Sigue funcionando, con menos.",
+            LocalizedText.Of("sim.node.contained", ("target", context.Target)),
 
         EffectReason.QueueDown =>
-            "El trabajo no se encola, pero sigue atendiendo peticiones.",
+            LocalizedText.Of("sim.node.queueDown"),
 
         EffectReason.DegradedDependency =>
-            $"'{context.Target}' responde peor y su llamada arrastra la degradación.",
+            LocalizedText.Of("sim.node.degradedDependency", ("target", context.Target)),
 
-        EffectReason.InstanceDown => context.Contained
-            ? "Una de sus instancias no responde; el health check desvía el tráfico al resto."
-            : "Una de sus instancias no responde y sigue recibiendo tráfico: sin health check, la degradación no se detiene aquí.",
+        EffectReason.InstanceDown => LocalizedText.Of(context.Contained
+            ? "sim.node.instanceDown.contained"
+            : "sim.node.instanceDown.spreading"),
 
         // V4 DT.5. The number is the message: "it rejects 43 %" is something you can act on,
         // "it is saturated" is not.
         EffectReason.Saturated =>
-            $"Está al {context.Utilization * 100:0} % de su capacidad: recibe {context.LoadRps:0} rps y aguanta {context.CapacityRps:0}. Cualquier pico lo tumba.",
+            LocalizedText.Of("sim.node.saturated",
+                ("utilization", context.Utilization),
+                ("loadRps", context.LoadRps),
+                ("capacityRps", context.CapacityRps)),
 
         EffectReason.Overloaded =>
-            $"Recibe {context.LoadRps:0} rps y aguanta {context.CapacityRps:0}: sirve {100m / context.Utilization:0} de cada 100 peticiones y rechaza el resto.",
+            LocalizedText.Of("sim.node.overloaded",
+                ("loadRps", context.LoadRps),
+                ("capacityRps", context.CapacityRps),
+                // Served out of a hundred, worked out here rather than in the template: a
+                // catalogue that can divide is a catalogue that can be wrong in one language only.
+                ("served", context.Utilization == 0m ? 100m : 100m / context.Utilization)),
 
-        _ => "Funciona con normalidad."
+        _ => LocalizedText.Of("sim.node.healthy")
     };
 
     /// <summary>
     /// The same events told from the call's side rather than the caller's. An edge that says
     /// "su llamada" would be talking about itself in the third person.
     /// </summary>
-    public static string ForConnection(EffectReason reason, ReasonContext context) => reason switch
+    public static LocalizedText ForConnection(EffectReason reason, ReasonContext context) => reason switch
     {
-        EffectReason.Injected => "Fallo inyectado en esta llamada: el destino sigue vivo, pero no se llega.",
+        EffectReason.Injected => LocalizedText.Of("sim.edge.injected"),
 
-        EffectReason.Unreachable => $"No se llega a hacer: a quien la origina no le llega tráfico desde '{context.Cause}'.",
+        EffectReason.Unreachable => LocalizedText.Of("sim.edge.unreachable", ("cause", context.Cause)),
 
-        EffectReason.Unprotected => $"'{context.Target}' no responde y la llamada no tiene alternativa.",
+        EffectReason.Unprotected => LocalizedText.Of("sim.edge.unprotected", ("target", context.Target)),
 
         EffectReason.NoTimeout =>
-            $"'{context.Target}' no responde y la llamada no tiene timeout: espera {Duration(LatencyModel.UnboundedWait)} sin rendirse.",
+            LocalizedText.Of("sim.edge.noTimeout",
+                ("target", context.Target),
+                ("waitMs", LatencyModel.UnboundedWait)),
 
         EffectReason.TimeoutExceeded =>
-            $"Tarda {Duration(context.CallMs)} contra un timeout de {Duration(context.TimeoutMs)}: expira siempre.",
+            LocalizedText.Of("sim.edge.timeoutExceeded",
+                ("callMs", context.CallMs),
+                ("timeoutMs", context.TimeoutMs)),
 
-        EffectReason.Contained => $"'{context.Target}' no responde y contesta la alternativa.",
+        EffectReason.Contained => LocalizedText.Of("sim.edge.contained", ("target", context.Target)),
 
-        EffectReason.QueueDown => "El mensaje no llega a encolarse.",
+        EffectReason.QueueDown => LocalizedText.Of("sim.edge.queueDown"),
 
-        EffectReason.DegradedDependency => $"'{context.Target}' responde peor.",
+        EffectReason.DegradedDependency => LocalizedText.Of("sim.edge.degradedDependency", ("target", context.Target)),
 
-        EffectReason.InstanceDown => "La instancia a la que reparte no responde.",
+        EffectReason.InstanceDown => LocalizedText.Of("sim.edge.instanceDown"),
 
-        _ => "La llamada responde con normalidad."
+        _ => LocalizedText.Of("sim.edge.healthy")
     };
-
-    /// <summary>
-    /// Whole seconds once past a second: the model's whole point is that healthy lives in tens of
-    /// milliseconds and broken jumps to seconds, and "8 s" carries that better than "8 052 ms".
-    /// </summary>
-    private static string Duration(int ms) => ms >= 1_000 ? $"{ms / 1_000} s" : $"{ms} ms";
 }
 
 /// <param name="Target">The name of the dependency the call points at.</param>

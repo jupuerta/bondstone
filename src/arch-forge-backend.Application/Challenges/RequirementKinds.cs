@@ -136,13 +136,7 @@ public static class RequirementOperators
         _ => false
     };
 
-    public static string Describe(string op) => op switch
-    {
-        LessThan => "menor que",
-        LessOrEqual => "como mucho",
-        Equal => "exactamente",
-        GreaterOrEqual => "al menos",
-        GreaterThan => "mayor que",
-        _ => op
-    };
+    // Describe() used to turn an operator into "como mucho". It is `operator.lte` in the
+    // catalogue now: the comparison is data, and the words for it belong wherever the sentence
+    // that contains them is resolved (V7 D1.1).
 }

@@ -1,3 +1,5 @@
+using arch_forge_backend.Application.Tests.TestDoubles;
+using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Application.Tests.Analysis.Rules.Support;
@@ -53,7 +55,7 @@ public class RetryAmplificationRuleTests
         Assert.Equal(Severity.Critical, finding.Severity);
         Assert.Equal(
             "Los reintentos se multiplican a lo largo de la cadena Gateway → Orders → Shipping: hasta 12 peticiones por cada una original.",
-            finding.Message);
+            finding.Message.Es());
         Assert.Equal(
             ["Gateway", "Gateway->Orders", "Orders", "Orders->Shipping", "Shipping"],
             _builder.Names(finding.Elements));
@@ -97,8 +99,8 @@ public class RetryAmplificationRuleTests
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
-        Assert.Contains("cadena Gateway → Orders → Shipping:", finding.Message);
-        Assert.Contains("hasta 12 peticiones", finding.Message);
+        Assert.Contains("cadena Gateway → Orders → Shipping:", finding.Message.Es());
+        Assert.Contains("hasta 12 peticiones", finding.Message.Es());
     }
 
     [Fact]

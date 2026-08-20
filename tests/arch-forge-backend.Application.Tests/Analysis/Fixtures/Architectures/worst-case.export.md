@@ -119,7 +119,7 @@ Elementos: `Gateway`
 
 **La llamada de 'Billing' a 'Db' no tiene protección frente a fallos.**
 
-Y como 'Db' es un punto único de fallo, su caída se propaga directamente hacia atrás.
+Como 'Db' es un punto único de fallo, su caída se propaga directamente hacia atrás.
 
 *Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
 
@@ -129,7 +129,7 @@ Elementos: `Billing → Db`
 
 **La llamada de 'Inventory' a 'Orders' no tiene protección frente a fallos.**
 
-Y como 'Orders' es un punto único de fallo, su caída se propaga directamente hacia atrás.
+Como 'Orders' es un punto único de fallo, su caída se propaga directamente hacia atrás.
 
 *Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
 
@@ -139,7 +139,7 @@ Elementos: `Inventory → Orders`
 
 **La llamada de 'Notifications' a 'Db' no tiene protección frente a fallos.**
 
-Y como 'Db' es un punto único de fallo, su caída se propaga directamente hacia atrás.
+Como 'Db' es un punto único de fallo, su caída se propaga directamente hacia atrás.
 
 *Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
 
@@ -149,7 +149,7 @@ Elementos: `Notifications → Db`
 
 **La llamada de 'Orders' a 'Db' no tiene protección frente a fallos.**
 
-Y como 'Db' es un punto único de fallo, su caída se propaga directamente hacia atrás.
+Como 'Db' es un punto único de fallo, su caída se propaga directamente hacia atrás.
 
 *Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
 
@@ -159,7 +159,7 @@ Elementos: `Orders → Db`
 
 **La llamada de 'Users' a 'Db' no tiene protección frente a fallos.**
 
-Y como 'Db' es un punto único de fallo, su caída se propaga directamente hacia atrás.
+Como 'Db' es un punto único de fallo, su caída se propaga directamente hacia atrás.
 
 *Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
 

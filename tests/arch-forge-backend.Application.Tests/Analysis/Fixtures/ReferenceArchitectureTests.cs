@@ -1,3 +1,5 @@
+using arch_forge_backend.Application.Tests.TestDoubles;
+using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using Xunit;
 
@@ -89,7 +91,7 @@ public class ReferenceArchitectureTests
         Assert.Contains(result.Findings, f =>
             f.Code == RuleCodes.Spof &&
             f.Severity == Severity.Critical &&
-            f.Message == "'Gateway' es un punto único de fallo: 4 componentes quedan inalcanzables si deja de funcionar.");
+            f.Message.Es() == "'Gateway' es un punto único de fallo: 4 componentes quedan inalcanzables si deja de funcionar.");
     }
 
     [Fact]
@@ -100,8 +102,8 @@ public class ReferenceArchitectureTests
         var result = ReferenceArchitecture.Analyze("gateway-microservices");
         var spofs = result.Findings.Where(f => f.Code == RuleCodes.Spof).ToList();
 
-        Assert.Contains(spofs, f => f.Severity == Severity.Critical && f.Message.Contains("'Db'"));
-        Assert.Contains(spofs, f => f.Severity == Severity.Warning && f.Message.Contains("'Payments'"));
+        Assert.Contains(spofs, f => f.Severity == Severity.Critical && f.Message.Es().Contains("'Db'"));
+        Assert.Contains(spofs, f => f.Severity == Severity.Warning && f.Message.Es().Contains("'Payments'"));
     }
 
     [Fact]
@@ -132,7 +134,7 @@ public class ReferenceArchitectureTests
         // SPOF and the balancer becomes the SPOF.
         var result = ReferenceArchitecture.Analyze("resilient-async");
 
-        Assert.DoesNotContain(result.Findings, f => f.Code == RuleCodes.Spof && f.Message.Contains("'LB'"));
+        Assert.DoesNotContain(result.Findings, f => f.Code == RuleCodes.Spof && f.Message.Es().Contains("'LB'"));
     }
 
     [Fact]
@@ -287,8 +289,8 @@ public class ReferenceArchitectureTests
         {
             // D2.1, rule 2: an explanation is mandatory on every finding, a suggestion is null
             // exactly on the Good ones.
-            Assert.False(string.IsNullOrWhiteSpace(finding.Message));
-            Assert.False(string.IsNullOrWhiteSpace(finding.Explanation));
+            Assert.False(string.IsNullOrWhiteSpace(finding.Message.Es()));
+            Assert.False(string.IsNullOrWhiteSpace(finding.Explanation.Es()));
             Assert.Equal(finding.Severity == Severity.Good, finding.Suggestion is null);
             Assert.NotNull(finding.Elements);
         });
@@ -309,7 +311,7 @@ public class ReferenceArchitectureTests
 
         lines.AddRange(result.Areas.Select(a => $"area {a.Area} {a.State} {a.Score}"));
         lines.AddRange(result.Findings.Select(f =>
-            $"{f.Severity} {f.Area} {f.Code} | {f.Message} | " +
+            $"{f.Severity} {f.Area} {f.Code} | {f.Message.Es()} | " +
             string.Join(",", f.Elements.Select(e => $"{e.Type}:{e.Id}"))));
 
         return string.Join("\n", lines);

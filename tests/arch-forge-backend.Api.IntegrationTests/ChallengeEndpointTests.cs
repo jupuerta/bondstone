@@ -41,8 +41,13 @@ public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
 
         Assert.NotNull(body);
         Assert.NotEmpty(body!["requirements"]!.AsArray());
+        // V7 D1.1: a label is a catalogue key. The prose behind it lives in the client's
+        // catalogue - the backend renders no challenge text - so what travels here is the pointer.
         Assert.All(body["requirements"]!.AsArray(), requirement =>
-            Assert.False(string.IsNullOrWhiteSpace(requirement!["label"]!.GetValue<string>())));
+            Assert.StartsWith("challenge.payments-friday.", requirement!["label"]!["key"]!.GetValue<string>()));
+
+        Assert.Equal("challenge.payments-friday.title", body["title"]!["key"]!.GetValue<string>());
+        Assert.Equal("challenge.payments-friday.story", body["story"]!["key"]!.GetValue<string>());
 
         // And the reference solution is not reachable by guessing a path (D3.5).
         Assert.Null(body["referenceSolution"]);
@@ -80,7 +85,7 @@ public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
         var unmet = body["requirements"]!.AsArray().Where(r => !r!["met"]!.GetValue<bool>()).ToList();
         Assert.NotEmpty(unmet);
         Assert.All(unmet, requirement =>
-            Assert.False(string.IsNullOrWhiteSpace(requirement!["detail"]!.GetValue<string>())));
+            Assert.False(string.IsNullOrWhiteSpace(requirement!["detail"]!["key"]!.GetValue<string>())));
     }
 
     [Fact]

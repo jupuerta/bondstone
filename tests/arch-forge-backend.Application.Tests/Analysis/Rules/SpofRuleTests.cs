@@ -1,3 +1,5 @@
+using arch_forge_backend.Application.Tests.TestDoubles;
+using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Application.Tests.Analysis.Rules.Support;
@@ -24,7 +26,7 @@ public class SpofRuleTests
         Assert.Equal(RuleCodes.Spof, finding.Code);
         Assert.Equal(Area.Availability, finding.Area);
         Assert.Equal(Severity.Critical, finding.Severity);
-        Assert.Contains("3 componentes dependen de él", finding.Message);
+        Assert.Contains("3 componentes dependen de él", finding.Message.Es());
         Assert.Equal(_builder.NodeElement("Db"), Assert.Single(finding.Elements));
     }
 
@@ -69,7 +71,7 @@ public class SpofRuleTests
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
         Assert.Equal(Severity.Critical, finding.Severity);
-        Assert.Contains("3 componentes quedan inalcanzables", finding.Message);
+        Assert.Contains("3 componentes quedan inalcanzables", finding.Message.Es());
         Assert.Equal(_builder.NodeElement("Gateway"), Assert.Single(finding.Elements));
     }
 
@@ -119,7 +121,7 @@ public class SpofRuleTests
 
         var orders = Assert.Single(findings, f => f.Elements.Contains(_builder.NodeElement("Orders")));
         Assert.Equal(Severity.Critical, orders.Severity);
-        Assert.Contains("inalcanzables", orders.Message);
+        Assert.Contains("inalcanzables", orders.Message.Es());
     }
 
     [Fact]

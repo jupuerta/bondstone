@@ -1,3 +1,5 @@
+using arch_forge_backend.Application.Tests.TestDoubles;
+using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Application.Tests.Analysis.Rules.Support;
@@ -24,7 +26,7 @@ public class MissingResilienceRuleTests
         Assert.Equal(RuleCodes.MissingResilience, finding.Code);
         Assert.Equal(Area.Resilience, finding.Area);
         Assert.Equal(Severity.Warning, finding.Severity);
-        Assert.Equal("La llamada de 'Orders' a 'Db' no tiene protección frente a fallos.", finding.Message);
+        Assert.Equal("La llamada de 'Orders' a 'Db' no tiene protección frente a fallos.", finding.Message.Es());
         Assert.Equal(_builder.EdgeElement("Orders", "Db"), Assert.Single(finding.Elements));
     }
 
@@ -70,7 +72,7 @@ public class MissingResilienceRuleTests
         var finding = Assert.Single(_rule.Evaluate(graph).Findings);
 
         Assert.Equal(Severity.Critical, finding.Severity);
-        Assert.Contains("'Db' es un punto único de fallo", finding.Explanation);
+        Assert.Contains("'Db' es un punto único de fallo", finding.Explanation.Es());
     }
 
     [Fact]
@@ -119,9 +121,9 @@ public class MissingResilienceRuleTests
         var finding = Assert.Single(_rule.Evaluate(graph).Findings);
 
         Assert.Equal(Severity.Critical, finding.Severity);
-        Assert.Contains("Sin timeout", finding.Explanation);
-        Assert.Contains("punto único de fallo", finding.Explanation);
-        Assert.Contains("Configura un timeout", finding.Suggestion);
+        Assert.Contains("Sin timeout", finding.Explanation.Es());
+        Assert.Contains("punto único de fallo", finding.Explanation.Es());
+        Assert.Contains("Configura un timeout", finding.Suggestion.Es());
     }
 
     [Fact]

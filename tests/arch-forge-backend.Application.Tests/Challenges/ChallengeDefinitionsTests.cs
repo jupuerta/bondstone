@@ -1,3 +1,5 @@
+using arch_forge_backend.Application.Tests.TestDoubles;
+using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Challenges;
 using Xunit;
@@ -40,7 +42,7 @@ public class ChallengeDefinitionsTests
         Assert.True(
             result.Passed,
             $"'{slug}' is not passed by its own reference solution: " +
-            string.Join(" · ", result.Requirements.Where(r => !r.Met).Select(r => $"{r.Label} — {r.Detail}")));
+            string.Join(" · ", result.Requirements.Where(r => !r.Met).Select(r => $"{r.Label} — {r.Detail.Es()}")));
     }
 
     [Theory]
@@ -61,7 +63,7 @@ public class ChallengeDefinitionsTests
         // D3.3: a bare ❌ is not the feature. Whatever is not met has to say why, with a number in it.
         Assert.All(
             result.Requirements.Concat(result.OptionalGoals).Where(r => !r.Met),
-            requirement => Assert.False(string.IsNullOrWhiteSpace(requirement.Detail)));
+            requirement => Assert.False(string.IsNullOrWhiteSpace(requirement.Detail.Es())));
     }
 
     /// <summary>
@@ -96,8 +98,8 @@ public class ChallengeDefinitionsTests
         var second = ChallengeHarness.Evaluate(slug, blueprint);
 
         Assert.Equal(
-            first.Requirements.Select(r => (r.Kind, r.Met, r.Detail)),
-            second.Requirements.Select(r => (r.Kind, r.Met, r.Detail)));
+            first.Requirements.Select(r => (r.Kind, r.Met, r.Detail.Es())),
+            second.Requirements.Select(r => (r.Kind, r.Met, r.Detail.Es())));
     }
 }
 
@@ -120,7 +122,7 @@ public class PaymentsFridayTests
         // Orders → Payments has no timeout, so no mechanism of that edge can act (V3 D4.2): Orders
         // waits forever, and Storefront - which does have a timeout but no alternative - goes with
         // it. One entry point, and it is affected.
-        Assert.Contains("1", survives.Detail);
+        Assert.Contains("1", survives.Detail.Es());
         Assert.NotEmpty(survives.Elements);
     }
 
@@ -131,11 +133,11 @@ public class PaymentsFridayTests
         var timeouts = result.Requirements[1];
 
         Assert.False(timeouts.Met);
-        Assert.Contains("timeout", timeouts.Detail);
+        Assert.Contains("timeout", timeouts.Detail.Es());
 
         // Exactly one of the two calls into a Service is unprotected, and the message says which.
-        Assert.Contains("Orders", timeouts.Detail);
-        Assert.Contains("Payments", timeouts.Detail);
+        Assert.Contains("Orders", timeouts.Detail.Es());
+        Assert.Contains("Payments", timeouts.Detail.Es());
         Assert.Single(timeouts.Elements);
     }
 
@@ -168,6 +170,6 @@ public class PaymentsFridayTests
 
         Assert.False(result.Passed);
         Assert.False(survives.Met);
-        Assert.Contains("Payments", survives.Detail);
+        Assert.Contains("Payments", survives.Detail.Es());
     }
 }

@@ -1,3 +1,5 @@
+using arch_forge_backend.Application.Localization;
+
 namespace arch_forge_backend.Application.Challenges;
 
 /// <summary>
@@ -7,8 +9,8 @@ namespace arch_forge_backend.Application.Challenges;
 /// </summary>
 public sealed record ChallengeSummaryDto(
     string Slug,
-    string Title,
-    string Story,
+    LocalizedText Title,
+    LocalizedText Story,
     string Difficulty,
     int RequirementCount);
 
@@ -19,33 +21,33 @@ public sealed record ChallengeSummaryDto(
 /// </summary>
 public sealed record ChallengeDetailDto(
     string Slug,
-    string Title,
-    string Story,
+    LocalizedText Title,
+    LocalizedText Story,
     string Difficulty,
     IReadOnlyList<ChallengeRequirementDto> Requirements,
     IReadOnlyList<ChallengeRequirementDto> OptionalGoals,
-    IReadOnlyList<string> Hints);
+    IReadOnlyList<LocalizedText> Hints);
 
-public sealed record ChallengeRequirementDto(string Kind, string Label);
+public sealed record ChallengeRequirementDto(string Kind, LocalizedText Label);
 
 public static class ChallengeMappingExtensions
 {
     public static ChallengeSummaryDto ToSummaryDto(this ChallengeDefinition definition) => new(
         definition.Slug,
-        definition.Title,
-        definition.Story,
+        LocalizedText.Of(definition.TitleKey),
+        LocalizedText.Of(definition.StoryKey),
         definition.Difficulty,
         definition.Requirements.Count);
 
     public static ChallengeDetailDto ToDetailDto(this ChallengeDefinition definition) => new(
         definition.Slug,
-        definition.Title,
-        definition.Story,
+        LocalizedText.Of(definition.TitleKey),
+        LocalizedText.Of(definition.StoryKey),
         definition.Difficulty,
         definition.Requirements.Select(Map).ToList(),
         definition.OptionalGoals.Select(Map).ToList(),
-        definition.Hints);
+        definition.HintKeys.Select(LocalizedText.Of).ToList());
 
     private static ChallengeRequirementDto Map(ChallengeRequirement requirement) =>
-        new(requirement.Kind, requirement.Label);
+        new(requirement.Kind, LocalizedText.Of(requirement.LabelKey));
 }

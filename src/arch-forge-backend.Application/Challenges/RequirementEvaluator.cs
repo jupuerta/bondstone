@@ -1,5 +1,6 @@
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Configuration.Schemas;
+using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Simulation;
 using arch_forge_backend.Domain.Entities;
 
@@ -38,7 +39,8 @@ public static class RequirementEvaluator
             // Unreachable: the catalogue refuses to load an unknown kind (D1.5). Answering "not
             // met" rather than throwing keeps one malformed requirement from taking down the
             // evaluation of the other four.
-            _ => ChallengeRequirementResult.Fail(requirement, $"'{requirement.Kind}' no es un requisito reconocido.")
+            _ => ChallengeRequirementResult.Fail(requirement,
+                LocalizedText.Of("challenge.requirement.unknownKind", ("kind", requirement.Kind)))
         };
 
     // ---- Estructural -------------------------------------------------------
@@ -52,8 +54,11 @@ public static class RequirementEvaluator
             return ChallengeRequirementResult.Pass(requirement);
 
         return ChallengeRequirementResult.Fail(requirement, min == 1
-            ? $"Tu arquitectura no tiene ningún componente de tipo {requirement.NodeType}."
-            : $"Tienes {found.Count} de tipo {requirement.NodeType} y hacen falta {min}.");
+            ? LocalizedText.Of("challenge.requirement.containsNode.none", ("nodeType", requirement.NodeType!))
+            : LocalizedText.Of("challenge.requirement.containsNode.tooFew",
+                ("nodeType", requirement.NodeType!),
+                ("count", found.Count),
+                ("min", min)));
     }
 
     private static ChallengeRequirementResult AbsentNode(ChallengeRequirement requirement, EvaluationContext context)
@@ -65,7 +70,10 @@ public static class RequirementEvaluator
 
         return ChallengeRequirementResult.Fail(
             requirement,
-            $"Sigue habiendo {Count(found.Count, "componente", "componentes")} de tipo {requirement.NodeType}: {Names(found)}.",
+            LocalizedText.Of("challenge.requirement.absentNode.present",
+                ("nodeType", requirement.NodeType!),
+                ("count", found.Count),
+                ("nodes", Names(found))),
             found.Select(n => FindingElement.Node(n.Id)).ToList());
     }
 
@@ -86,7 +94,10 @@ public static class RequirementEvaluator
         var worst = offenders[0];
         return ChallengeRequirementResult.Fail(
             requirement,
-            $"'{worst.Node.Name}' llama directamente a {worst.FanOut} componentes; el límite de este reto es {max}.",
+            LocalizedText.Of("challenge.requirement.maxFanOut.exceeded",
+                ("node", worst.Node.Name),
+                ("count", worst.FanOut),
+                ("max", max)),
             offenders.Select(x => FindingElement.Node(x.Node.Id)).ToList());
     }
 
@@ -111,10 +122,22 @@ public static class RequirementEvaluator
         if (offenders.Count == 0)
             return ChallengeRequirementResult.Pass(requirement);
 
-        var mechanism = MechanismName(requirement.Mechanism!);
+        // The mechanism's name is a nested key rather than a word pasted in: "respuesta
+        // alternativa" is "fallback" in English, and a sentence that interpolates an already
+        // translated fragment can only ever be right in the language it was written in.
+        var mechanism = LocalizedText.Of($"mechanism.{requirement.Mechanism!}");
+
         var detail = offenders.Count == edges.Count
-            ? $"Ninguna de las {edges.Count} llamadas a un {requirement.NodeType} tiene {mechanism}."
-            : $"{offenders.Count} de las {edges.Count} llamadas a un {requirement.NodeType} no tienen {mechanism}: {Calls(offenders, context.Graph)}.";
+            ? LocalizedText.Of("challenge.requirement.allEdgesTo.none",
+                ("nodeType", requirement.NodeType!),
+                ("count", edges.Count),
+                ("mechanism", mechanism))
+            : LocalizedText.Of("challenge.requirement.allEdgesTo.some",
+                ("nodeType", requirement.NodeType!),
+                ("count", offenders.Count),
+                ("total", edges.Count),
+                ("mechanism", mechanism),
+                ("calls", Calls(offenders, context.Graph)));
 
         return ChallengeRequirementResult.Fail(
             requirement,
@@ -145,7 +168,9 @@ public static class RequirementEvaluator
 
         return ChallengeRequirementResult.Fail(
             requirement,
-            $"No hay ningún camino desde un {requirement.FromType} hasta un {requirement.ToType}.");
+            LocalizedText.Of("challenge.requirement.pathExists.none",
+                ("fromType", requirement.FromType!),
+                ("toType", requirement.ToType!)));
     }
 
     /// <summary>
@@ -164,8 +189,10 @@ public static class RequirementEvaluator
         return ChallengeRequirementResult.Fail(
             requirement,
             declared <= 0
-                ? $"Ningún punto de entrada declara tráfico, y el reto se plantea sobre {requirement.Min} rps."
-                : $"Los puntos de entrada declaran {declared:0} rps y el reto se plantea sobre {requirement.Min}.",
+                ? LocalizedText.Of("challenge.requirement.declaresLoad.none", ("min", requirement.Min!.Value))
+                : LocalizedText.Of("challenge.requirement.declaresLoad.tooLittle",
+                    ("declared", declared),
+                    ("min", requirement.Min!.Value)),
             context.Graph.RootNodes.Select(n => FindingElement.Node(n.Id)).ToList());
     }
 
@@ -193,14 +220,18 @@ public static class RequirementEvaluator
         // words would be the same sentence twice in the same panel.
         return ChallengeRequirementResult.Fail(
             requirement,
-            found.Count == 1 ? found[0].Message : $"{found.Count} avisos siguen abiertos. {found[0].Message}",
+            found.Count == 1
+                ? found[0].Message
+                : LocalizedText.Of("challenge.requirement.noFinding.several",
+                    ("count", found.Count),
+                    ("finding", found[0].Message)),
             found.SelectMany(f => f.Elements).Distinct().ToList());
     }
 
     private static ChallengeRequirementResult HasFinding(ChallengeRequirement requirement, EvaluationContext context) =>
         Problems(context, requirement.Code!).Count > 0
             ? ChallengeRequirementResult.Pass(requirement)
-            : ChallengeRequirementResult.Fail(requirement, "El analizador no detecta esa situación en tu arquitectura.");
+            : ChallengeRequirementResult.Fail(requirement, LocalizedText.Of("challenge.requirement.hasFinding.absent"));
 
     /// <summary>
     /// <c>Severity</c> <em>or worse</em>: asking for "no warnings" while a critical slipped past
@@ -217,7 +248,10 @@ public static class RequirementEvaluator
 
         return ChallengeRequirementResult.Fail(
             requirement,
-            $"Quedan {Count(found.Count, "aviso", "avisos")} de nivel {requirement.Severity} o superior. {found[0].Message}",
+            LocalizedText.Of("challenge.requirement.noSeverity.remaining",
+                ("count", found.Count),
+                ("severity", requirement.Severity!),
+                ("finding", found[0].Message)),
             found.SelectMany(f => f.Elements).Distinct().ToList());
     }
 
@@ -228,7 +262,7 @@ public static class RequirementEvaluator
         if (!context.TryResolve(requirement.Faults!, out var scenario, out var missing))
             return ChallengeRequirementResult.Fail(
                 requirement,
-                $"No hay ningún componente llamado '{missing}' en tu arquitectura, así que este escenario no se puede plantear.");
+                LocalizedText.Of("challenge.requirement.underScenario.missingNode", ("node", missing!)));
 
         var simulation = context.Simulate(scenario);
 
@@ -240,14 +274,14 @@ public static class RequirementEvaluator
         if (simulation.DiscardedFaults.Count > 0)
             return ChallengeRequirementResult.Fail(
                 requirement,
-                "Este escenario no se ha podido plantear sobre tu arquitectura: alguno de los componentes que menciona ya no está.");
+                LocalizedText.Of("challenge.requirement.underScenario.discarded"));
 
         var actual = Read(simulation.Metrics, requirement.Metric!);
 
         if (actual is null)
             return ChallengeRequirementResult.Fail(
                 requirement,
-                "No queda ningún punto de entrada en pie, así que no hay latencia que medir.",
+                LocalizedText.Of("challenge.requirement.underScenario.noLatency"),
                 Affected(simulation));
 
         if (RequirementOperators.Compare(actual.Value, requirement.Operator!, requirement.Value!.Value))
@@ -255,8 +289,11 @@ public static class RequirementEvaluator
 
         return ChallengeRequirementResult.Fail(
             requirement,
-            $"{MetricName(requirement.Metric!)}: {Format(requirement.Metric!, actual.Value)}, " +
-            $"y el reto pide {RequirementOperators.Describe(requirement.Operator!)} {Format(requirement.Metric!, requirement.Value!.Value)}.",
+            LocalizedText.Of("challenge.requirement.underScenario.metric",
+                ("metric", LocalizedText.Of($"metric.{requirement.Metric!}")),
+                ("actual", Format(requirement.Metric!, actual.Value)),
+                ("operator", LocalizedText.Of($"operator.{requirement.Operator!}")),
+                ("expected", Format(requirement.Metric!, requirement.Value!.Value))),
             Affected(simulation));
     }
 
@@ -293,40 +330,17 @@ public static class RequirementEvaluator
         _ => false
     };
 
-    private static string MechanismName(string mechanism) => mechanism switch
-    {
-        RequirementMechanisms.Timeout => "timeout",
-        RequirementMechanisms.Retries => "reintentos",
-        RequirementMechanisms.CircuitBreaker => "circuit breaker",
-        RequirementMechanisms.Fallback => "respuesta alternativa",
-        _ => mechanism
-    };
+    // MechanismName and MetricName used to live here, turning a catalogue value into a Spanish
+    // word. They are now keys - `mechanism.timeout`, `metric.blastRadius` - resolved wherever the
+    // sentence around them is resolved, which is the only place that knows the language.
 
-    private static string MetricName(string metric) => metric switch
-    {
-        RequirementMetrics.ComponentsDown => "Componentes caídos",
-        RequirementMetrics.ComponentsDegraded => "Componentes degradados",
-        RequirementMetrics.BlastRadius => "Alcance del fallo",
-        RequirementMetrics.EntryPointsAffected => "Puntos de entrada afectados",
-        RequirementMetrics.NominalLatencyMs => "Latencia sin fallos",
-        RequirementMetrics.FaultedLatencyMs => "Latencia bajo el fallo",
-        RequirementMetrics.RequestAmplification => "Amplificación de peticiones",
-        RequirementMetrics.RequestsAffected => "Peticiones perdidas",
-        RequirementMetrics.BacklogRps => "Trabajo acumulándose en las colas",
-        RequirementMetrics.LoadAmplification => "Amplificación de carga",
-        _ => metric
-    };
-
-    private static string Format(string metric, decimal value) => metric switch
-    {
-        RequirementMetrics.BlastRadius or RequirementMetrics.RequestsAffected => $"{value * 100:0.#} %",
-        RequirementMetrics.NominalLatencyMs or RequirementMetrics.FaultedLatencyMs => $"{value:0} ms",
-        RequirementMetrics.RequestAmplification => $"×{value:0.##}",
-        _ => $"{value:0.##}"
-    };
-
-    private static string Count(int count, string singular, string plural) =>
-        count == 1 ? $"1 {singular}" : $"{count} {plural}";
+    /// <summary>
+    /// A metric's value with its unit. Each metric owns a second key - <c>metric.blastRadius.value</c>
+    /// - holding the shape of its own figure, because the unit is part of the sentence and a
+    /// percentage does not read the same in every language as <c>43.5%</c>.
+    /// </summary>
+    private static LocalizedText Format(string metric, decimal value) =>
+        LocalizedText.Of($"metric.{metric}.value", ("value", value));
 
     private static string Names(IEnumerable<Node> nodes) =>
         string.Join(", ", nodes.Select(n => $"'{n.Name}'"));

@@ -1,5 +1,7 @@
 using arch_forge_backend.Domain.Entities;
 
+using arch_forge_backend.Application.Localization;
+
 namespace arch_forge_backend.Application.Analysis.Rules;
 
 /// <summary>
@@ -14,10 +16,9 @@ public class CycleRule : IArchitectureRule
     public Severity DefaultSeverity => Severity.Warning;
     public RulePhase Phase => RulePhase.Producer;
 
-    public string PassedMessage => "No hay dependencias circulares.";
+    public LocalizedText PassedMessage => LocalizedText.Of("finding.CYCLE.passed.message");
 
-    public string PassedExplanation =>
-        "Se han seguido las dependencias entre componentes y ninguna vuelve sobre sus pasos: todas se pueden desplegar y arrancar en algún orden.";
+    public LocalizedText PassedExplanation => LocalizedText.Of("finding.CYCLE.passed.explanation");
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
@@ -41,9 +42,14 @@ public class CycleRule : IArchitectureRule
                 Code,
                 Area,
                 severity,
-                $"Dependencia circular entre {cycle.Count} componentes: {string.Join(" → ", names)} → {names[0]}.",
-                "Ninguno de los componentes implicados puede desplegarse, arrancar ni recuperarse de forma independiente. Si el ciclo es síncrono, una caída en cualquiera de ellos bloquea a los demás.",
-                "Rompe el ciclo invirtiendo una de las dependencias o sustituyéndola por comunicación asíncrona vía cola.",
+                // The walk is not translatable text: it is the names the user typed, joined by an
+                // arrow, and it travels as one argument rather than a list so the catalogue does
+                // not have to know how to join anything (V7 D1.1).
+                LocalizedText.Of("finding.CYCLE.detected.message",
+                    ("count", cycle.Count),
+                    ("walk", string.Join(" → ", names) + $" → {names[0]}")),
+                LocalizedText.Of("finding.CYCLE.detected.explanation"),
+                LocalizedText.Of("finding.CYCLE.detected.suggestion"),
                 Interleave(cycle)));
         }
 

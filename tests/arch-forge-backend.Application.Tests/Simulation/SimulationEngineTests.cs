@@ -1,3 +1,5 @@
+using arch_forge_backend.Application.Tests.TestDoubles;
+using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Application.Simulation;
@@ -101,7 +103,7 @@ public class SimulationEngineTests
         var result = Simulate(graph, new Fault(ElementType.Node, graph.NodeId("Gateway"), FaultKinds.Down));
 
         var unreachable = result.States
-            .Where(s => s.Type == ElementType.Node && s.Reason.StartsWith("No le llega tráfico"))
+            .Where(s => s.Type == ElementType.Node && s.Reason.Es().StartsWith("No le llega tráfico"))
             .Select(s => s.Id)
             .ToHashSet();
 
@@ -215,10 +217,10 @@ public class SimulationEngineTests
 
         Assert.Equal(HealthState.Degraded, StateOf(result, builder, "Api").State);
         Assert.Equal("queue", StateOf(result, builder, "Api").Mechanism);
-        Assert.Contains("sigue atendiendo peticiones", StateOf(result, builder, "Api").Reason);
+        Assert.Contains("sigue atendiendo peticiones", StateOf(result, builder, "Api").Reason.Es());
 
         Assert.Equal(HealthState.Degraded, StateOf(result, builder, "Worker").State);
-        Assert.Contains("No le llega trabajo", StateOf(result, builder, "Worker").Reason);
+        Assert.Contains("No le llega trabajo", StateOf(result, builder, "Worker").Reason.Es());
     }
 
     [Fact]
@@ -316,7 +318,7 @@ public class SimulationEngineTests
 
         Assert.Equal(HealthState.Down, StateOf(result, builder, "Api").State);
         Assert.Equal(HealthState.Down, StateOf(result, builder, "Db").State);
-        Assert.Contains("No le llega tráfico", StateOf(result, builder, "Db").Reason);
+        Assert.Contains("No le llega tráfico", StateOf(result, builder, "Db").Reason.Es());
     }
 
     [Fact]

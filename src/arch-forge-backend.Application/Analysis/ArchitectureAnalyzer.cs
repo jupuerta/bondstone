@@ -95,8 +95,9 @@ public class ArchitectureAnalyzer
     // code - leave the findings of one rule tied with each other, and until V6 that tie was
     // resolved by the stability of OrderBy, which means by the order the rule emitted them in,
     // which means by the order the graph arrived in. Now it is resolved by where the element the
-    // finding talks about sits in the canonical order of the graph: three SPOFs read
-    // Cache, Db, Queue, the same order the export lists the components in.
+    // finding talks about sits in the canonical order of the graph: the three SPOFs of
+    // resilient-async read Db, Queue, Cache - by type first, which is the order the export lists
+    // the components in, not alphabetical by name.
     private static IReadOnlyList<RuleFinding> Order(
         IEnumerable<RuleFinding> findings,
         IReadOnlyDictionary<Guid, int> positions) => findings

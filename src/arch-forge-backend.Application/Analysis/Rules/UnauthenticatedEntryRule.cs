@@ -1,6 +1,8 @@
 using arch_forge_backend.Application.Simulation;
 using arch_forge_backend.Domain.Enums;
 
+using arch_forge_backend.Application.Localization;
+
 namespace arch_forge_backend.Application.Analysis.Rules;
 
 /// <summary>
@@ -20,9 +22,8 @@ public class UnauthenticatedEntryRule : IArchitectureRule
     public Severity DefaultSeverity => Severity.Critical;
     public RulePhase Phase => RulePhase.Consumer;
 
-    public string PassedMessage => "Las puertas de entrada piden autenticación.";
-    public string PassedExplanation =>
-        "Quien llega desde fuera tiene que identificarse antes de que la petición alcance nada que guarde datos.";
+    public LocalizedText PassedMessage => LocalizedText.Of("finding.UNAUTHENTICATED_ENTRY.passed.message");
+    public LocalizedText PassedExplanation => LocalizedText.Of("finding.UNAUTHENTICATED_ENTRY.passed.explanation");
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
@@ -39,9 +40,9 @@ public class UnauthenticatedEntryRule : IArchitectureRule
                 Code,
                 Area,
                 DefaultSeverity,
-                $"'{node.Name}' está expuesto sin autenticación.",
-                "Es una puerta de entrada desde fuera y detrás hay una base de datos, así que cualquiera que conozca la dirección llega a los datos.",
-                "Activa la autenticación en el punto de entrada, o pon delante un gateway que la haga.",
+                LocalizedText.Of("finding.UNAUTHENTICATED_ENTRY.open.message", ("node", node.Name)),
+                LocalizedText.Of("finding.UNAUTHENTICATED_ENTRY.open.explanation"),
+                LocalizedText.Of("finding.UNAUTHENTICATED_ENTRY.open.suggestion"),
                 [FindingElement.Node(node.Id)]))
             .ToList();
 

@@ -1,3 +1,4 @@
+using arch_forge_backend.Application.Tests.TestDoubles;
 using System.Text.RegularExpressions;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Export;
@@ -45,7 +46,7 @@ public class ExportReferenceTests
         var document = MarkdownExporter.Compose(
             architecture,
             Analysis.Fixtures.ReferenceArchitecture.Analyze(fixtureName),
-            ExportedAt);
+            ExportedAt, TestText.Spanish);
 
         Assert.Equal(Reference(fixtureName), document, ignoreLineEndingDifferences: true);
     }
@@ -80,7 +81,7 @@ public class ExportReferenceTests
         var document = MarkdownExporter.Compose(
             architecture,
             Analysis.Fixtures.ReferenceArchitecture.Analyze("minimal-api-db"),
-            ExportedAt,
+            ExportedAt, TestText.Spanish,
             new SimulationEngine().Run(graph, scenario),
             scenario);
 

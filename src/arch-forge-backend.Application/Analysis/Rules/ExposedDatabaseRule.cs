@@ -1,5 +1,7 @@
 using arch_forge_backend.Domain.Enums;
 
+using arch_forge_backend.Application.Localization;
+
 namespace arch_forge_backend.Application.Analysis.Rules;
 
 /// <summary>
@@ -17,9 +19,8 @@ public class ExposedDatabaseRule : IArchitectureRule
     public Severity DefaultSeverity => Severity.Critical;
     public RulePhase Phase => RulePhase.Consumer;
 
-    public string PassedMessage => "Las bases de datos están detrás de algo.";
-    public string PassedExplanation =>
-        "Para llegar a los datos hay que pasar antes por una API o un gateway, que es donde se puede comprobar quién llama.";
+    public LocalizedText PassedMessage => LocalizedText.Of("finding.EXPOSED_DATABASE.passed.message");
+    public LocalizedText PassedExplanation => LocalizedText.Of("finding.EXPOSED_DATABASE.passed.explanation");
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
@@ -38,9 +39,9 @@ public class ExposedDatabaseRule : IArchitectureRule
                 Code,
                 Area,
                 DefaultSeverity,
-                $"Se llega a '{db.Name}' sin pasar por ninguna API.",
-                "El tráfico de fuera alcanza la base de datos directamente, así que no hay ningún sitio donde comprobar quién llama ni qué pide.",
-                "Pon una API o un gateway delante, y deja que solo él hable con la base de datos.",
+                LocalizedText.Of("finding.EXPOSED_DATABASE.reachable.message", ("node", db.Name)),
+                LocalizedText.Of("finding.EXPOSED_DATABASE.reachable.explanation"),
+                LocalizedText.Of("finding.EXPOSED_DATABASE.reachable.suggestion"),
                 [FindingElement.Node(db.Id)]))
             .ToList();
 

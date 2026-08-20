@@ -1,17 +1,25 @@
+using arch_forge_backend.Application.Localization;
+
 namespace arch_forge_backend.Application.Analysis;
 
 /// <summary>
 /// V2 D2.1. Three separate texts rather than one paragraph, because the panel lays them out
 /// differently (D2.3): <see cref="Message"/> is the headline, <see cref="Explanation"/> collapses,
 /// <see cref="Suggestion"/> gets its own treatment and is null on Good findings.
+///
+/// V7 D1.1. The three travel as <see cref="LocalizedText"/> - a catalogue key and its arguments -
+/// rather than as prose. <strong>The <see cref="Code"/> is not the key</strong>: one code has
+/// several sentences (<c>SPOF</c> says one thing when a component is unreachable behind it and
+/// another when three depend on it), so the keys are finer-grained than the codes and the code
+/// keeps doing what D2.4 gave it - grouping and styling.
 /// </summary>
 public sealed record RuleFinding(
     string Code,
     Area Area,
     Severity Severity,
-    string Message,
-    string Explanation,
-    string? Suggestion,
+    LocalizedText Message,
+    LocalizedText Explanation,
+    LocalizedText? Suggestion,
     IReadOnlyList<FindingElement> Elements)
 {
     /// <summary>

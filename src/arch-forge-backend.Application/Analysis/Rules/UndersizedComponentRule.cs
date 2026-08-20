@@ -1,5 +1,7 @@
 using arch_forge_backend.Application.Simulation;
 
+using arch_forge_backend.Application.Localization;
+
 namespace arch_forge_backend.Application.Analysis.Rules;
 
 /// <summary>
@@ -18,9 +20,8 @@ public class UndersizedComponentRule : IArchitectureRule
     public Severity DefaultSeverity => Severity.Warning;
     public RulePhase Phase => RulePhase.Consumer;
 
-    public string PassedMessage => "Ningún componente está cerca de su capacidad con la carga declarada.";
-    public string PassedExplanation =>
-        "Cada componente aguanta lo que le llega con margen, así que un pico no lo tumba.";
+    public LocalizedText PassedMessage => LocalizedText.Of("finding.UNDERSIZED_COMPONENT.passed.message");
+    public LocalizedText PassedExplanation => LocalizedText.Of("finding.UNDERSIZED_COMPONENT.passed.explanation");
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
@@ -44,13 +45,22 @@ public class UndersizedComponentRule : IArchitectureRule
                 Code,
                 Area,
                 overloaded ? Severity.Critical : Severity.Warning,
-                overloaded
-                    ? $"'{node.Name}' recibe más peticiones de las que aguanta."
-                    : $"'{node.Name}' está al límite de su capacidad.",
-                $"Le llegan {load.LoadOf(node.Id):0} rps y aguanta {load.CapacityOf(node.Id):0}, un {utilization * 100:0} % de su capacidad. " +
-                (overloaded
-                    ? "Lo que no cabe se rechaza, y lo que sí cabe espera más."
-                    : "Cualquier pico por encima de lo declarado lo tumba."),
+                LocalizedText.Of(overloaded
+                        ? "finding.UNDERSIZED_COMPONENT.overloaded.message"
+                        : "finding.UNDERSIZED_COMPONENT.atCapacity.message",
+                    ("node", node.Name)),
+
+                // Two whole sentences, not a shared prefix plus a tail. Concatenating fragments is
+                // the localization bug that survives review: the join reads fine in the language it
+                // was written in and falls apart in the next one, where the clause order moves
+                // (V7 D1.1). The numbers travel raw and the catalogue formats them.
+                LocalizedText.Of(overloaded
+                        ? "finding.UNDERSIZED_COMPONENT.overloaded.explanation"
+                        : "finding.UNDERSIZED_COMPONENT.atCapacity.explanation",
+                    ("loadRps", load.LoadOf(node.Id)),
+                    ("capacityRps", load.CapacityOf(node.Id)),
+                    ("utilization", utilization)),
+
                 Suggest(graph, node),
                 [FindingElement.Node(node.Id)]));
         }
@@ -58,14 +68,11 @@ public class UndersizedComponentRule : IArchitectureRule
         return RuleResult.Applicable(findings);
     }
 
-    private static string Suggest(ArchitectureGraph graph, Domain.Entities.Node node) => node.Type switch
+    private static LocalizedText Suggest(ArchitectureGraph graph, Domain.Entities.Node node) => LocalizedText.Of(node.Type switch
     {
-        Domain.Enums.NodeType.Database =>
-            "Pon una caché delante para que no le llegue todo, añade réplicas de lectura, o saca de la petición el trabajo que pueda esperar.",
-        Domain.Enums.NodeType.Queue =>
-            "Añade consumidores: la cola aguanta, lo que no da abasto es quien la vacía.",
-        _ when graph.IncomingByTarget[node.Id].Any(c => c.Synchronous) =>
-            "Súbele instancias, o reparte su trabajo entre varios componentes.",
-        _ => "Súbele instancias."
-    };
+        Domain.Enums.NodeType.Database => "finding.UNDERSIZED_COMPONENT.suggestion.database",
+        Domain.Enums.NodeType.Queue => "finding.UNDERSIZED_COMPONENT.suggestion.queue",
+        _ when graph.IncomingByTarget[node.Id].Any(c => c.Synchronous) => "finding.UNDERSIZED_COMPONENT.suggestion.shareWork",
+        _ => "finding.UNDERSIZED_COMPONENT.suggestion.addInstances"
+    });
 }

@@ -3,6 +3,8 @@ using arch_forge_backend.Application.Configuration.Schemas;
 using arch_forge_backend.Domain.Entities;
 using arch_forge_backend.Domain.Enums;
 
+using arch_forge_backend.Application.Localization;
+
 namespace arch_forge_backend.Application.Analysis.Rules;
 
 /// <summary>
@@ -25,10 +27,9 @@ public class MissingCacheRule : IArchitectureRule
     public Severity DefaultSeverity => Severity.Warning;
     public RulePhase Phase => RulePhase.Consumer;
 
-    public string PassedMessage => "Los accesos a base de datos están respaldados por caché o réplicas.";
+    public LocalizedText PassedMessage => LocalizedText.Of("finding.MISSING_CACHE.passed.message");
 
-    public string PassedExplanation =>
-        "Se ha mirado quién consulta cada base de datos: ninguna recibe suficiente carga directa como para convertirse en el límite de escalado del sistema.";
+    public LocalizedText PassedExplanation => LocalizedText.Of("finding.MISSING_CACHE.passed.explanation");
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
@@ -61,9 +62,11 @@ public class MissingCacheRule : IArchitectureRule
                 Code,
                 Area,
                 Severity.Warning,
-                $"'{database.Name}' recibe consultas directas de {effective.Count} componentes sin ninguna caché ni réplica de lectura.",
-                "Toda la carga de lectura recae sobre la misma instancia, que se convierte en el límite de escalado del sistema entero.",
-                "Interpón una caché en las lecturas más frecuentes o configura réplicas de lectura en la base de datos.",
+                LocalizedText.Of("finding.MISSING_CACHE.direct.message",
+                    ("node", database.Name),
+                    ("count", effective.Count)),
+                LocalizedText.Of("finding.MISSING_CACHE.direct.explanation"),
+                LocalizedText.Of("finding.MISSING_CACHE.direct.suggestion"),
                 elements)
             {
                 // V4 D5.6. Two ways out and only one of them is a local graph transformation, so
@@ -73,7 +76,7 @@ public class MissingCacheRule : IArchitectureRule
                 Fix = new AppliedFix(
                     FixKinds.InsertCache,
                     FindingElement.Node(database.Id),
-                    $"Poner una caché delante de '{database.Name}'")
+                    LocalizedText.Of("fix.MISSING_CACHE.insert", ("node", database.Name)))
             });
         }
 

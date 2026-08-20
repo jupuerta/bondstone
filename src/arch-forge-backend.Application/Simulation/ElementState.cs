@@ -1,4 +1,5 @@
 using arch_forge_backend.Application.Analysis;
+using arch_forge_backend.Application.Localization;
 
 namespace arch_forge_backend.Application.Simulation;
 
@@ -8,7 +9,11 @@ namespace arch_forge_backend.Application.Simulation;
 /// in the contract cannot be painted. It also turns the canvas's job into a lookup instead of a
 /// diff against the graph.
 /// </summary>
-/// <param name="Reason">What happened, in words. This is what the user reads when they click a red component.</param>
+/// <param name="Reason">
+/// What happened. This is what the user reads when they click a red component - and since V7 D1.1
+/// it travels as a key and its arguments rather than as a sentence, so the panel says it in the
+/// language the reader chose.
+/// </param>
 /// <param name="Mechanism">
 /// The name of the mechanism that <em>contained</em> - <c>fallback</c>, <c>queue</c>,
 /// <c>healthCheck</c> - or null. It is what lets the UI draw "Fallback activated" without deducing
@@ -38,7 +43,7 @@ public sealed record ElementState(
     ElementType Type,
     Guid Id,
     HealthState State,
-    string Reason,
+    LocalizedText Reason,
     string? Mechanism,
     FindingElement? CausedBy,
     int PropagationStep,

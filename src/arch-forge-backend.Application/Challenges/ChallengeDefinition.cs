@@ -13,10 +13,19 @@ public sealed class ChallengeDefinition
     /// <summary>Stable identity, and the URL: <c>/c/{slug}</c>.</summary>
     public string Slug { get; set; } = string.Empty;
 
-    public string Title { get; set; } = string.Empty;
+    /// <summary>
+    /// Catalogue key of the title. V7 D1.1: the definition points at prose, it does not hold it.
+    /// The slug is the identity and the key is derived from it by convention -
+    /// <c>challenge.payments-friday.title</c> - so a definition and its text cannot drift apart
+    /// without the catalogue test noticing.
+    /// </summary>
+    public string TitleKey { get; set; } = string.Empty;
 
-    /// <summary>The problem, told as a problem. Half of what makes §12 attractive is that these read like incidents.</summary>
-    public string Story { get; set; } = string.Empty;
+    /// <summary>
+    /// Catalogue key of the problem, told as a problem. Half of what makes §12 attractive is that
+    /// these read like incidents.
+    /// </summary>
+    public string StoryKey { get; set; } = string.Empty;
 
     public string Difficulty { get; set; } = string.Empty;
 
@@ -40,5 +49,6 @@ public sealed class ChallengeDefinition
     /// <summary>These do not block. They are what makes it worth coming back (D1.3).</summary>
     public List<ChallengeRequirement> OptionalGoals { get; set; } = [];
 
-    public List<string> Hints { get; set; } = [];
+    /// <summary>Catalogue keys, in the order they are handed out.</summary>
+    public List<string> HintKeys { get; set; } = [];
 }

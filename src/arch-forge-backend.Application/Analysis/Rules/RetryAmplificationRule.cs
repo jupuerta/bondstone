@@ -1,5 +1,7 @@
 using arch_forge_backend.Domain.Entities;
 
+using arch_forge_backend.Application.Localization;
+
 namespace arch_forge_backend.Application.Analysis.Rules;
 
 /// <summary>
@@ -9,21 +11,19 @@ namespace arch_forge_backend.Application.Analysis.Rules;
 /// </summary>
 public class RetryAmplificationRule : IArchitectureRule
 {
-    private const string Explanation =
-        "Cuando un servicio empieza a fallar, los reintentos de cada salto se multiplican entre sí y aumentan la carga justo sobre el componente que ya está en apuros.";
-
-    private const string Suggestion =
-        "Reintenta solo en el salto más cercano al fallo, añade espera creciente entre intentos y limita los reintentos en los tramos intermedios.";
+    // The two shapes - a whole chain, or one unbounded call - differ in what they report and
+    // agree on what it means and what to do, so these two hang off the code (V7 D1.1).
+    private static readonly LocalizedText Explanation = LocalizedText.Of("finding.RETRY_AMPLIFICATION.explanation");
+    private static readonly LocalizedText Suggestion = LocalizedText.Of("finding.RETRY_AMPLIFICATION.suggestion");
 
     public string Code => RuleCodes.RetryAmplification;
     public Area Area => Area.Resilience;
     public Severity DefaultSeverity => Severity.Warning;
     public RulePhase Phase => RulePhase.Producer;
 
-    public string PassedMessage => "Los reintentos configurados no se amplifican en cadena.";
+    public LocalizedText PassedMessage => LocalizedText.Of("finding.RETRY_AMPLIFICATION.passed.message");
 
-    public string PassedExplanation =>
-        "Se han multiplicado los reintentos a lo largo de cada cadena síncrona y ninguna llega a generar una avalancha de peticiones.";
+    public LocalizedText PassedExplanation => LocalizedText.Of("finding.RETRY_AMPLIFICATION.passed.explanation");
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
@@ -38,7 +38,9 @@ public class RetryAmplificationRule : IArchitectureRule
         foreach (var chain in FindAmplifiedChains(graph, synchronous))
         {
             findings.Add(Report(graph, chain, Severity.Critical,
-                $"Los reintentos se multiplican a lo largo de la cadena {Walk(graph, chain)}: hasta {Factor(graph, chain)} peticiones por cada una original."));
+                LocalizedText.Of("finding.RETRY_AMPLIFICATION.chain.message",
+                    ("walk", Walk(graph, chain)),
+                    ("factor", Factor(graph, chain)))));
         }
 
         var alreadyReported = findings.SelectMany(f => f.Elements)
@@ -56,13 +58,16 @@ public class RetryAmplificationRule : IArchitectureRule
                 continue;
 
             findings.Add(Report(graph, [edge], Severity.Warning,
-                $"La llamada de '{graph.NodesById[edge.SourceNodeId].Name}' a '{graph.NodesById[edge.TargetNodeId].Name}' reintenta {resilience.Retries} veces sin timeout que las acote."));
+                LocalizedText.Of("finding.RETRY_AMPLIFICATION.unbounded.message",
+                    ("source", graph.NodesById[edge.SourceNodeId].Name),
+                    ("target", graph.NodesById[edge.TargetNodeId].Name),
+                    ("retries", resilience.Retries!.Value))));
         }
 
         return RuleResult.Applicable(findings);
     }
 
-    private RuleFinding Report(ArchitectureGraph graph, IReadOnlyList<Connection> edges, Severity severity, string message)
+    private RuleFinding Report(ArchitectureGraph graph, IReadOnlyList<Connection> edges, Severity severity, LocalizedText message)
     {
         // MISSING_RESILIENCE stays quiet about these edges: saying "you are missing a timeout"
         // twice under two different codes is exactly the noise D4.5 exists to avoid.

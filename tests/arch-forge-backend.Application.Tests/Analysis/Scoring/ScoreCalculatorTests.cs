@@ -1,3 +1,4 @@
+using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Scoring;
 using Xunit;
@@ -143,7 +144,7 @@ public class ScoreCalculatorTests
 
     private static RuleOutcome Outcome(Area area, string code, params Severity[] severities) =>
         new(area, code, IsApplicable: true, severities
-            .Select(severity => new RuleFinding(code, area, severity, "message", "explanation", null, []))
+            .Select(severity => new RuleFinding(code, area, severity, LocalizedText.Of("message"), LocalizedText.Of("explanation"), null, []))
             .ToList());
 
     private static AreaScore AreaOf(ScoreResult result, Area area) => result.Areas.Single(a => a.Area == area);

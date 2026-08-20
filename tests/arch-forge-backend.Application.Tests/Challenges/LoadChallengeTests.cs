@@ -1,3 +1,5 @@
+using arch_forge_backend.Application.Tests.TestDoubles;
+using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Challenges;
 using arch_forge_backend.Application.Simulation;
@@ -49,7 +51,7 @@ public class DatabaseOverloadTests
         Assert.False(result.Passed);
         var declared = Assert.Single(result.Requirements, r => r.Kind == RequirementKinds.DeclaresLoad);
         Assert.False(declared.Met);
-        Assert.Contains("300", declared.Detail);
+        Assert.Contains("300", declared.Detail.Es());
     }
 
     [Fact]
@@ -59,7 +61,7 @@ public class DatabaseOverloadTests
         // point of failure. Two different problems, and the reference solution answers both.
         var result = ChallengeHarness.Evaluate(Slug, ChallengeHarness.Catalog.ReferenceSolutionOf(Slug)!);
 
-        Assert.All(result.OptionalGoals, goal => Assert.True(goal.Met, goal.Detail));
+        Assert.All(result.OptionalGoals, goal => Assert.True(goal.Met, goal.Detail.Es()));
     }
 
     internal static LoadFigures Figures(ArchitectureBlueprint blueprint) => LoadFigures.Of(blueprint);
@@ -146,7 +148,10 @@ public class MillionADayTests
         // Three of the five: no authentication, nowhere to put files, nothing running in the
         // background. At 116 rps nothing is short yet - that comes later, and it is the point.
         Assert.Equal(3, result.Requirements.Count(r => !r.Met));
-        Assert.True(Assert.Single(result.Requirements, r => r.Label.Contains("capacidad")).Met);
+        // V7 D1.1: a requirement is picked out by its key, not by a word in its label. The label's
+        // prose lives in the client's catalogue - the backend never renders challenge text - so
+        // matching on "capacidad" would be matching on something this side no longer has.
+        Assert.True(Capacity(result).Met);
     }
 
     [Fact]
@@ -164,8 +169,12 @@ public class MillionADayTests
 
         var result = ChallengeHarness.Evaluate(Slug, honest);
         Assert.False(result.Passed);
-        Assert.False(Assert.Single(result.Requirements, r => r.Label.Contains("capacidad")).Met);
+        Assert.False(Capacity(result).Met);
     }
+
+    /// <summary>The "no component goes over 80 % of its capacity at peak" requirement.</summary>
+    private static ChallengeRequirementResult Capacity(ChallengeResult result) =>
+        Assert.Single(result.Requirements, r => r.Label.Key == $"challenge.{Slug}.requirement.5");
 
     [Fact]
     public void One_read_replica_is_what_closes_it()
@@ -180,7 +189,7 @@ public class MillionADayTests
         Assert.True(result.Passed);
 
         // And both extras: a rate limit at the door and something watching (D5.2's new rules).
-        Assert.All(result.OptionalGoals, goal => Assert.True(goal.Met, goal.Detail));
+        Assert.All(result.OptionalGoals, goal => Assert.True(goal.Met, goal.Detail.Es()));
     }
 
     private static ArchitectureBlueprint WithoutReadReplicas(ArchitectureBlueprint blueprint) => new()

@@ -1,6 +1,8 @@
 using arch_forge_backend.Application.Simulation;
 using arch_forge_backend.Domain.Enums;
 
+using arch_forge_backend.Application.Localization;
+
 namespace arch_forge_backend.Application.Analysis.Rules;
 
 /// <summary>
@@ -20,9 +22,8 @@ public class QueueNoDlqRule : IArchitectureRule
     public Severity DefaultSeverity => Severity.Warning;
     public RulePhase Phase => RulePhase.Consumer;
 
-    public string PassedMessage => "Las colas tienen dónde dejar lo que no se puede procesar.";
-    public string PassedExplanation =>
-        "Un mensaje que falla repetidamente acaba en la dead letter queue en vez de perderse, y ahí se puede mirar.";
+    public LocalizedText PassedMessage => LocalizedText.Of("finding.QUEUE_NO_DLQ.passed.message");
+    public LocalizedText PassedExplanation => LocalizedText.Of("finding.QUEUE_NO_DLQ.passed.explanation");
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
@@ -37,9 +38,9 @@ public class QueueNoDlqRule : IArchitectureRule
                 Code,
                 Area,
                 DefaultSeverity,
-                $"'{queue.Name}' no tiene dead letter queue.",
-                "Un mensaje que no se puede procesar se reintenta, vuelve a fallar y desaparece sin dejar rastro. Nadie se entera de lo que se ha perdido.",
-                "Activa la dead letter queue para que lo que falla quede en algún sitio donde se pueda revisar.",
+                LocalizedText.Of("finding.QUEUE_NO_DLQ.missing.message", ("node", queue.Name)),
+                LocalizedText.Of("finding.QUEUE_NO_DLQ.missing.explanation"),
+                LocalizedText.Of("finding.QUEUE_NO_DLQ.missing.suggestion"),
                 [FindingElement.Node(queue.Id)])
             {
                 // D5.6, the plainest fix there is: it is one checkbox and there is no version of
@@ -47,7 +48,7 @@ public class QueueNoDlqRule : IArchitectureRule
                 Fix = new AppliedFix(
                     FixKinds.SetNodeFlag,
                     FindingElement.Node(queue.Id),
-                    "Activar la dead letter queue",
+                    LocalizedText.Of("fix.QUEUE_NO_DLQ.enable"),
                     ConfigurationKey: "deadLetterQueue",
                     ConfigurationValue: true)
             })

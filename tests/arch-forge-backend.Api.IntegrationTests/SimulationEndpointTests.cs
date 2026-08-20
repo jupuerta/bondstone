@@ -47,7 +47,11 @@ public class SimulationEndpointTests : IClassFixture<PostgresApiFactory>
             .Single(s => s!["type"]!.GetValue<string>() == "Node" && s["id"]!.GetValue<Guid>() == api);
 
         Assert.Equal("Down", apiState!["state"]!.GetValue<string>());
-        Assert.Contains("no tiene alternativa", apiState["reason"]!.GetValue<string>());
+        // V7 D1.1: the reason travels as a key and its arguments, not as a sentence. Asserting on
+        // the key is asserting on the contract; the Spanish it used to check lived in a string the
+        // panel no longer receives.
+        Assert.Equal("sim.node.unprotected", apiState["reason"]!["key"]!.GetValue<string>());
+        Assert.Equal("Db", apiState["reason"]!["args"]!["target"]!.GetValue<string>());
         Assert.Equal("Connection", apiState["causedBy"]!["type"]!.GetValue<string>());
     }
 

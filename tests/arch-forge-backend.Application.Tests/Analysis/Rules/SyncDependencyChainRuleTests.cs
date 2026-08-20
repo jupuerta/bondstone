@@ -1,3 +1,5 @@
+using arch_forge_backend.Application.Tests.TestDoubles;
+using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Application.Tests.Analysis.Rules.Support;
@@ -24,7 +26,7 @@ public class SyncDependencyChainRuleTests
         Assert.Equal(RuleCodes.SyncChain, finding.Code);
         Assert.Equal(Area.Resilience, finding.Area);
         Assert.Equal(Severity.Warning, finding.Severity);
-        Assert.Equal("'API' inicia una cadena de dependencias síncronas de 3 componentes.", finding.Message);
+        Assert.Equal("'API' inicia una cadena de dependencias síncronas de 3 componentes.", finding.Message.Es());
     }
 
     [Fact]
@@ -37,7 +39,7 @@ public class SyncDependencyChainRuleTests
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
         Assert.Equal(Severity.Critical, finding.Severity);
-        Assert.Contains("5 componentes", finding.Message);
+        Assert.Contains("5 componentes", finding.Message.Es());
     }
 
     [Fact]
@@ -48,8 +50,8 @@ public class SyncDependencyChainRuleTests
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
-        Assert.Contains("'A' inicia", finding.Message);
-        Assert.Contains("4 componentes", finding.Message);
+        Assert.Contains("'A' inicia", finding.Message.Es());
+        Assert.Contains("4 componentes", finding.Message.Es());
     }
 
     [Fact]
@@ -139,7 +141,7 @@ public class SyncDependencyChainRuleTests
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
         Assert.Equal(Severity.Critical, finding.Severity);
-        Assert.Contains("49 componentes", finding.Message);
+        Assert.Contains("49 componentes", finding.Message.Es());
     }
 
     [Fact]

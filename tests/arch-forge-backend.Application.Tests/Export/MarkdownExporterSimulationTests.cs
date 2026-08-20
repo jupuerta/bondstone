@@ -1,3 +1,4 @@
+using arch_forge_backend.Application.Tests.TestDoubles;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Export;
 using arch_forge_backend.Application.Simulation;
@@ -15,7 +16,7 @@ public class MarkdownExporterSimulationTests
     {
         var architecture = Simple();
 
-        var document = MarkdownExporter.Compose(architecture, Analyze(architecture), ExportedAt);
+        var document = MarkdownExporter.Compose(architecture, Analyze(architecture), ExportedAt, TestText.Spanish);
 
         Assert.DoesNotContain("## Simulación", document);
         Assert.DoesNotContain("classDef", document);
@@ -30,7 +31,7 @@ public class MarkdownExporterSimulationTests
         var architecture = Simple();
         var analysis = Analyze(architecture);
 
-        var without = MarkdownExporter.Compose(architecture, analysis, ExportedAt);
+        var without = MarkdownExporter.Compose(architecture, analysis, ExportedAt, TestText.Spanish);
         var empty = Simulated(architecture, analysis, SimulationScenario.Empty);
 
         Assert.NotEqual(without, empty);
@@ -60,7 +61,7 @@ public class MarkdownExporterSimulationTests
         var analysis = Analyze(architecture);
         var db = architecture.Nodes.Single(n => n.Type == NodeType.Database);
 
-        var design = MarkdownExporter.Compose(architecture, analysis, ExportedAt);
+        var design = MarkdownExporter.Compose(architecture, analysis, ExportedAt, TestText.Spanish);
         var simulate = Simulated(architecture, analysis, new SimulationScenario([
             new Fault(ElementType.Node, db.Id, FaultKinds.Down)
         ]));
@@ -116,7 +117,7 @@ public class MarkdownExporterSimulationTests
     private static string Simulated(Domain.Entities.Architecture architecture, AnalysisResult analysis, SimulationScenario scenario)
     {
         var graph = new ArchitectureGraph(architecture.Nodes, architecture.Connections);
-        return MarkdownExporter.Compose(architecture, analysis, ExportedAt, new SimulationEngine().Run(graph, scenario), scenario);
+        return MarkdownExporter.Compose(architecture, analysis, ExportedAt, TestText.Spanish, new SimulationEngine().Run(graph, scenario), scenario);
     }
 
     private static Domain.Entities.Architecture Simple()

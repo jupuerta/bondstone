@@ -1,4 +1,5 @@
 using arch_forge_backend.Application.Challenges;
+using arch_forge_backend.Application.Localization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace arch_forge_backend.Api.Controllers;
@@ -16,17 +17,20 @@ public class ChallengesController : ControllerBase
     private readonly StartChallengeCommandHandler _startHandler;
     private readonly EvaluateChallengeQueryHandler _evaluateHandler;
     private readonly OpenChallengeSolutionCommandHandler _solutionHandler;
+    private readonly TextCatalog _text;
 
     public ChallengesController(
         ChallengeCatalog catalog,
         StartChallengeCommandHandler startHandler,
         EvaluateChallengeQueryHandler evaluateHandler,
-        OpenChallengeSolutionCommandHandler solutionHandler)
+        OpenChallengeSolutionCommandHandler solutionHandler,
+        TextCatalog text)
     {
         _catalog = catalog;
         _startHandler = startHandler;
         _evaluateHandler = evaluateHandler;
         _solutionHandler = solutionHandler;
+        _text = text;
     }
 
     [HttpGet]
@@ -48,7 +52,7 @@ public class ChallengesController : ControllerBase
     [HttpPost("{slug}/start")]
     public async Task<IActionResult> Start(string slug, CancellationToken cancellationToken)
     {
-        var result = await _startHandler.Handle(new StartChallengeCommand { Slug = slug }, cancellationToken);
+        var result = await _startHandler.Handle(new StartChallengeCommand { Slug = slug, Locale = _text.Negotiate(Request.Headers.AcceptLanguage) }, cancellationToken);
         return result is null ? NotFound() : Created($"/api/architectures/{result.ShareToken}", result);
     }
 
@@ -79,7 +83,7 @@ public class ChallengesController : ControllerBase
     [HttpPost("{slug}/solution")]
     public async Task<IActionResult> Solution(string slug, CancellationToken cancellationToken)
     {
-        var result = await _solutionHandler.Handle(new OpenChallengeSolutionCommand { Slug = slug }, cancellationToken);
+        var result = await _solutionHandler.Handle(new OpenChallengeSolutionCommand { Slug = slug, Locale = _text.Negotiate(Request.Headers.AcceptLanguage) }, cancellationToken);
         return result is null ? NotFound() : Created($"/api/architectures/{result.ShareToken}", result);
     }
 

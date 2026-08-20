@@ -115,7 +115,7 @@ public sealed class ChallengeCatalog
         }
 
         Require(RequirementKinds.IsKnown(requirement.Kind), "is not a known kind");
-        Require(!string.IsNullOrWhiteSpace(requirement.Label), "has no label");
+        Require(!string.IsNullOrWhiteSpace(requirement.LabelKey), "has no label key");
 
         switch (requirement.Kind)
         {

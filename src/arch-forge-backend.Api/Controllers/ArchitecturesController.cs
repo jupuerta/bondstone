@@ -1,5 +1,6 @@
 using arch_forge_backend.Application.Architectures.Commands;
 using arch_forge_backend.Application.Architectures.Queries;
+using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Simulation;
 using Microsoft.AspNetCore.Mvc;
 
@@ -18,6 +19,7 @@ public class ArchitecturesController : ControllerBase
     private readonly ForkArchitectureCommandHandler _forkHandler;
     private readonly GetArchitectureHistoryQueryHandler _historyHandler;
     private readonly ExportArchitectureQueryHandler _exportHandler;
+    private readonly TextCatalog _text;
 
     public ArchitecturesController(
         CreateArchitectureCommandHandler createHandler,
@@ -28,7 +30,8 @@ public class ArchitecturesController : ControllerBase
         SimulateArchitectureQueryHandler simulateHandler,
         ForkArchitectureCommandHandler forkHandler,
         GetArchitectureHistoryQueryHandler historyHandler,
-        ExportArchitectureQueryHandler exportHandler)
+        ExportArchitectureQueryHandler exportHandler,
+        TextCatalog text)
     {
         _createHandler = createHandler;
         _updateHandler = updateHandler;
@@ -39,6 +42,7 @@ public class ArchitecturesController : ControllerBase
         _forkHandler = forkHandler;
         _historyHandler = historyHandler;
         _exportHandler = exportHandler;
+        _text = text;
     }
 
     [HttpPost]
@@ -114,6 +118,12 @@ public class ArchitecturesController : ControllerBase
     /// breaks escaped - a failure that passes an integration test and is only visible on opening
     /// the .md.
     ///
+    /// <strong>V7 D1.2. The language comes from <c>Accept-Language</c></strong> and not from a
+    /// query parameter, because it is a property of who is reading and not of what is being asked
+    /// for - the same reason it is a header in the first place. An unknown or absent language gets
+    /// the catalogue's default rather than a 400: a document in the wrong language is useful, and
+    /// a refused export is not.
+    ///
     /// <strong>No body and an empty scenario are not the same thing.</strong> Without a body the
     /// document carries no simulation section; with <c>faults: []</c> it carries one with
     /// everything green, which is what the screen shows on entering Simulate before choosing
@@ -126,7 +136,8 @@ public class ArchitecturesController : ControllerBase
         var query = new ExportArchitectureQuery
         {
             Id = id,
-            Scenario = request is null ? null : new SimulationScenario(request.Faults ?? [])
+            Scenario = request is null ? null : new SimulationScenario(request.Faults ?? []),
+            Locale = _text.Negotiate(Request.Headers.AcceptLanguage)
         };
 
         var result = await _exportHandler.Handle(query, cancellationToken);

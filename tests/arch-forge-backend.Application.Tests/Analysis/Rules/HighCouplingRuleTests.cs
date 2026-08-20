@@ -1,3 +1,5 @@
+using arch_forge_backend.Application.Tests.TestDoubles;
+using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Application.Tests.Analysis.Rules.Support;
@@ -20,7 +22,7 @@ public class HighCouplingRuleTests
         Assert.Equal(RuleCodes.HighCoupling, finding.Code);
         Assert.Equal(Area.Coupling, finding.Area);
         Assert.Equal(Severity.Warning, finding.Severity);
-        Assert.Equal("'Orders' depende de 4 componentes distintos.", finding.Message);
+        Assert.Equal("'Orders' depende de 4 componentes distintos.", finding.Message.Es());
     }
 
     [Fact]
