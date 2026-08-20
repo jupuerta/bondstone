@@ -19,21 +19,52 @@ public class ArchitectureGraph
 
     public ArchitectureGraph(IReadOnlyList<Node> nodes, IReadOnlyList<Connection> connections)
     {
-        Nodes = nodes;
-        Connections = connections;
-
         NodesById = nodes.ToDictionary(n => n.Id);
-        OutgoingBySource = connections.ToLookup(c => c.SourceNodeId);
-        IncomingByTarget = connections.ToLookup(c => c.TargetNodeId);
+
+        // V6 D1.1. The two lists every rule iterates are ordered here, once. EF Core guarantees no
+        // order without an OrderBy and the repository does not apply one, so before this the same
+        // graph could arrive in two different orders and the rules would emit their findings in
+        // two different orders - which the analyzer's tie-break then preserved (V5 §12).
+        //
+        // The order is the one the export already composes its tables in (V5 §6.2): grouped by
+        // type and alphabetical inside it, which is how an inventory is read. Id breaks the tie
+        // because two components can share a name.
+        Nodes = nodes
+            .OrderBy(n => n.Type)
+            .ThenBy(n => n.Name, StringComparer.Ordinal)
+            .ThenBy(n => n.Id)
+            .ToList();
+
+        Connections = connections
+            .OrderBy(c => NameOf(c.SourceNodeId), StringComparer.Ordinal)
+            .ThenBy(c => NameOf(c.TargetNodeId), StringComparer.Ordinal)
+            .ThenBy(c => c.Id)
+            .ToList();
+
+        // Built from the ordered lists, not from the arguments: a lookup enumerates each group in
+        // insertion order, so a rule walking IncomingByTarget would otherwise inherit exactly the
+        // order this constructor has just removed.
+        OutgoingBySource = Connections.ToLookup(c => c.SourceNodeId);
+        IncomingByTarget = Connections.ToLookup(c => c.TargetNodeId);
 
         // The invariant is "source depends on target" (D3.3), so a node nobody points at is where
         // traffic enters. SPOF's pattern B needs this, and having it here stops each rule from
         // redefining it its own way.
-        var nodesWithDependents = connections.Select(c => c.TargetNodeId).ToHashSet();
-        RootNodes = nodes.Where(n => !nodesWithDependents.Contains(n.Id)).ToList();
+        var nodesWithDependents = Connections.Select(c => c.TargetNodeId).ToHashSet();
+        RootNodes = Nodes.Where(n => !nodesWithDependents.Contains(n.Id)).ToList();
     }
 
+    /// <summary>
+    /// The components, ordered by <c>(Type, Name, Id)</c>. <strong>The order is contract</strong>
+    /// (V6 D1.1): it is what makes the analysis of a graph independent of the order it was read
+    /// from the database in.
+    /// </summary>
     public IReadOnlyList<Node> Nodes { get; }
+
+    /// <summary>
+    /// The edges, ordered by source name, then target name, then <c>Id</c> - so they read
+    /// following the flow. Contract, for the same reason as <see cref="Nodes"/>.
+    /// </summary>
     public IReadOnlyList<Connection> Connections { get; }
 
     public IReadOnlyDictionary<Guid, Node> NodesById { get; }
@@ -65,6 +96,14 @@ public class ArchitectureGraph
         _resilienceByConnection[connection.Id] = resilience;
         return resilience;
     }
+
+    /// <summary>
+    /// The name an edge hangs from, for ordering. An edge pointing at a node that is not in the
+    /// list sorts under the empty name instead of throwing: ordering is not the place to discover
+    /// a broken graph.
+    /// </summary>
+    private string NameOf(Guid nodeId) =>
+        NodesById.GetValueOrDefault(nodeId)?.Name ?? string.Empty;
 
     private static ResilienceConfiguration Deserialize(string? configuration)
     {

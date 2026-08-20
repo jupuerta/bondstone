@@ -87,13 +87,13 @@ flowchart LR
 
 ### 🔴 SPOF — Availability
 
-**'Gateway' es un punto único de fallo: 9 componentes quedan inalcanzables si deja de funcionar.**
+**'Db' es un punto único de fallo: 4 componentes dependen de él sin redundancia.**
 
 No existe ningún componente equivalente que pueda asumir su trabajo. Cualquier incidencia en él afecta a todo lo que hay detrás.
 
 *Sugerencia:* Añade un LoadBalancer con al menos dos instancias equivalentes, o replica el componente para que sus consumidores tengan alternativa.
 
-Elementos: `Gateway`
+Elementos: `Db`
 
 ### 🔴 SPOF — Availability
 
@@ -107,23 +107,23 @@ Elementos: `Orders`
 
 ### 🔴 SPOF — Availability
 
-**'Db' es un punto único de fallo: 4 componentes dependen de él sin redundancia.**
+**'Gateway' es un punto único de fallo: 9 componentes quedan inalcanzables si deja de funcionar.**
 
 No existe ningún componente equivalente que pueda asumir su trabajo. Cualquier incidencia en él afecta a todo lo que hay detrás.
 
 *Sugerencia:* Añade un LoadBalancer con al menos dos instancias equivalentes, o replica el componente para que sus consumidores tengan alternativa.
 
-Elementos: `Db`
+Elementos: `Gateway`
 
 ### 🔴 MISSING_RESILIENCE — Resilience
 
-**La llamada de 'Orders' a 'Db' no tiene protección frente a fallos.**
+**La llamada de 'Billing' a 'Db' no tiene protección frente a fallos.**
 
 Y como 'Db' es un punto único de fallo, su caída se propaga directamente hacia atrás.
 
 *Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
 
-Elementos: `Orders → Db`
+Elementos: `Billing → Db`
 
 ### 🔴 MISSING_RESILIENCE — Resilience
 
@@ -147,6 +147,16 @@ Elementos: `Notifications → Db`
 
 ### 🔴 MISSING_RESILIENCE — Resilience
 
+**La llamada de 'Orders' a 'Db' no tiene protección frente a fallos.**
+
+Y como 'Db' es un punto único de fallo, su caída se propaga directamente hacia atrás.
+
+*Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
+
+Elementos: `Orders → Db`
+
+### 🔴 MISSING_RESILIENCE — Resilience
+
 **La llamada de 'Users' a 'Db' no tiene protección frente a fallos.**
 
 Y como 'Db' es un punto único de fallo, su caída se propaga directamente hacia atrás.
@@ -154,16 +164,6 @@ Y como 'Db' es un punto único de fallo, su caída se propaga directamente hacia
 *Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
 
 Elementos: `Users → Db`
-
-### 🔴 MISSING_RESILIENCE — Resilience
-
-**La llamada de 'Billing' a 'Db' no tiene protección frente a fallos.**
-
-Y como 'Db' es un punto único de fallo, su caída se propaga directamente hacia atrás.
-
-*Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
-
-Elementos: `Billing → Db`
 
 ### 🔴 RETRY_AMPLIFICATION — Resilience
 
@@ -203,7 +203,7 @@ Un componente que necesita tantas piezas para funcionar es difícil de desplegar
 
 *Sugerencia:* Revisa si algunas de esas responsabilidades pertenecen al propio componente, o si parte de las llamadas puede pasar a eventos asíncronos.
 
-Elementos: `Orders`, `Orders → Payments`, `Orders → Shipping`, `Orders → Notifications`, `Orders → Users`, `Orders → Billing`, `Orders → Search`, `Orders → Db`
+Elementos: `Orders`, `Orders → Billing`, `Orders → Db`, `Orders → Notifications`, `Orders → Payments`, `Orders → Search`, `Orders → Shipping`, `Orders → Users`
 
 ### 🔴 UNAUTHENTICATED_ENTRY — Security
 
@@ -243,7 +243,7 @@ Toda la carga de lectura recae sobre la misma instancia, que se convierte en el 
 
 *Sugerencia:* Interpón una caché en las lecturas más frecuentes o configura réplicas de lectura en la base de datos.
 
-Elementos: `Db`, `Orders → Db`, `Notifications → Db`, `Users → Db`, `Billing → Db`
+Elementos: `Db`, `Billing → Db`, `Notifications → Db`, `Orders → Db`, `Users → Db`
 
 ### 🟡 NO_OBSERVABILITY — Observability
 
@@ -270,3 +270,20 @@ Un componente sin llamadas entrantes ni salientes no participa en ningún flujo,
 **Las bases de datos están detrás de algo.**
 
 Para llegar a los datos hay que pasar antes por una API o un gateway, que es donde se puede comprobar quién llama.
+
+---
+
+## Petición para la IA
+
+Eres un arquitecto de software senior. Arriba tienes una arquitectura, su diagrama y el
+resultado de un analizador determinista, con la simulación de un escenario si se ejecutó uno.
+
+Los hallazgos listados **ya son ciertos**: no hace falta que los redescubras ni que los pongas
+en duda. Lo que te pido es lo que el analizador no puede hacer:
+
+1. Ordénalos por lo que arreglarías primero, y explica por qué en ese orden.
+2. Señala lo que las reglas **no** ven: elección de tecnología, límites entre servicios,
+   nombres, o riesgos que no se deducen de la topología.
+3. Si algo del diseño te parece correcto aunque el analizador lo penalice, dilo y razónalo.
+
+Sé concreto y usa los nombres de los componentes.

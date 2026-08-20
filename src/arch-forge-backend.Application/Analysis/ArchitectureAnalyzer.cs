@@ -49,7 +49,7 @@ public class ArchitectureAnalyzer
             score.Score,
             score.Areas,
             summary,
-            Order(findings));
+            Order(findings, Positions(graph)));
     }
 
     private static RuleOutcome Evaluate(IArchitectureRule rule, ArchitectureGraph graph)
@@ -91,12 +91,46 @@ public class ArchitectureAnalyzer
         Suggestion: null,
         Elements: []);
 
-    // D2.1, rule 4. Without a deterministic order the reference-architecture tests would be
-    // unstable. OrderBy is stable, so findings a rule emitted together keep their relative order,
-    // which is the last tie-break the contract asks for.
-    private static IReadOnlyList<RuleFinding> Order(IEnumerable<RuleFinding> findings) => findings
+    // D2.1, rule 4, with the fourth tie-break V6 D1.1 adds. The first three - severity, area,
+    // code - leave the findings of one rule tied with each other, and until V6 that tie was
+    // resolved by the stability of OrderBy, which means by the order the rule emitted them in,
+    // which means by the order the graph arrived in. Now it is resolved by where the element the
+    // finding talks about sits in the canonical order of the graph: three SPOFs read
+    // Cache, Db, Queue, the same order the export lists the components in.
+    private static IReadOnlyList<RuleFinding> Order(
+        IEnumerable<RuleFinding> findings,
+        IReadOnlyDictionary<Guid, int> positions) => findings
         .OrderByDescending(f => f.Severity)
         .ThenBy(f => f.Area)
         .ThenBy(f => f.Code, StringComparer.Ordinal)
+        .ThenBy(f => PositionOf(f, positions))
         .ToList();
+
+    /// <summary>
+    /// Where each element sits in the graph: the nodes in their canonical order, then the edges in
+    /// theirs. One numbering for both, because a finding points at whichever it is about.
+    /// </summary>
+    private static IReadOnlyDictionary<Guid, int> Positions(ArchitectureGraph graph)
+    {
+        var positions = new Dictionary<Guid, int>(graph.Nodes.Count + graph.Connections.Count);
+
+        foreach (var node in graph.Nodes)
+            positions[node.Id] = positions.Count;
+
+        foreach (var connection in graph.Connections)
+            positions[connection.Id] = positions.Count;
+
+        return positions;
+    }
+
+    /// <summary>
+    /// The first element is the one the finding is about - the coupled node, the edge without a
+    /// timeout - and the rest is context it drags along, so it is the first that orders. A finding
+    /// with no elements sorts last: the only one is the Good of each rule, and there is exactly one
+    /// per code, so it never ties with anything.
+    /// </summary>
+    private static int PositionOf(RuleFinding finding, IReadOnlyDictionary<Guid, int> positions) =>
+        finding.Elements.Count > 0 && positions.TryGetValue(finding.Elements[0].Id, out var position)
+            ? position
+            : int.MaxValue;
 }

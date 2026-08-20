@@ -1,4 +1,7 @@
+using System.Text.RegularExpressions;
+using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Export;
+using arch_forge_backend.Application.Simulation;
 using arch_forge_backend.Domain.Entities;
 using Xunit;
 using static arch_forge_backend.Application.Tests.Export.ExportFixtures;
@@ -48,6 +51,43 @@ public class ExportReferenceTests
     }
 
     /// <summary>
+    /// VS2. The fifth reference: §8.1 of V3 - <c>minimal-api-db · node:Db:down</c>, the smallest
+    /// case - turned into a document. It freezes the simulation section and the Mermaid state
+    /// classes, and its figures are verifiable against
+    /// <c>ReferenceScenarioTests.MinimalApiDb_DbDown_TakesTheApiWithIt</c>, which was written two
+    /// versions before this one and asserts every one of them.
+    /// </summary>
+    [Fact]
+    public void The_simulated_document_matches_its_reference()
+    {
+        var (nodes, connections) = Analysis.Fixtures.ReferenceArchitecture.Load("minimal-api-db");
+        var graph = new ArchitectureGraph(nodes, connections);
+
+        var scenario = new SimulationScenario([
+            new Fault(ElementType.Node, nodes.Single(n => n.Name == "Db").Id, FaultKinds.Down)
+        ]);
+
+        var architecture = new Architecture
+        {
+            Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            Name = "minimal-api-db",
+            ShareToken = "8fK29x",
+            Version = 1,
+            Nodes = nodes,
+            Connections = connections
+        };
+
+        var document = MarkdownExporter.Compose(
+            architecture,
+            Analysis.Fixtures.ReferenceArchitecture.Analyze("minimal-api-db"),
+            ExportedAt,
+            new SimulationEngine().Run(graph, scenario),
+            scenario);
+
+        Assert.Equal(Reference("minimal-api-db.down"), document, ignoreLineEndingDifferences: true);
+    }
+
+    /// <summary>
     /// D2.6, and the same job "no predicate reads the score" did in V4: without this the decision is
     /// an intention. The export tells what the user built, never what they were asked to build - a
     /// button that hands the statement over would let a model solve the challenge outright.
@@ -64,8 +104,9 @@ public class ExportReferenceTests
         foreach (var slug in new[] { "payments-friday", "database-overload", "latency-budget", "million-a-day" })
             Assert.DoesNotContain(slug, document, StringComparison.OrdinalIgnoreCase);
 
-        Assert.DoesNotContain("challenge", document, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("reto", document, StringComparison.OrdinalIgnoreCase);
+        // Whole words, not substrings: "concreto" contains "reto", and a naive check turns this
+        // test into a trap for whoever next writes a sentence in the prompt.
+        Assert.DoesNotMatch(new Regex(@"\b(challenges?|retos?|enunciados?)\b", RegexOptions.IgnoreCase), document);
     }
 
     private static string Reference(string fixtureName) =>

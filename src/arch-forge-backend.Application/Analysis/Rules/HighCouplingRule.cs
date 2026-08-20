@@ -43,8 +43,11 @@ public class HighCouplingRule : IArchitectureRule
 
             // One finding per coupled node with all its edges inside, never one per dependency
             // (D4.5, granularity).
+            // The edges keep the order the graph hands them in - by source and target name (V6
+            // D1.1) - instead of being re-sorted by Id here. The list is read as a list of
+            // dependencies, and Id order reads as no order at all.
             List<FindingElement> elements = [FindingElement.Node(node.Id)];
-            elements.AddRange(edges.OrderBy(e => e.Id).Select(e => FindingElement.Connection(e.Id)));
+            elements.AddRange(edges.Select(e => FindingElement.Connection(e.Id)));
 
             findings.Add(new RuleFinding(
                 Code,

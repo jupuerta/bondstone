@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using arch_forge_backend.Application.Analysis;
+using arch_forge_backend.Application.Simulation;
 using arch_forge_backend.Domain.Entities;
 
 namespace arch_forge_backend.Application.Export;
@@ -21,7 +22,9 @@ public static class MarkdownExporter
     public static string Compose(
         Architecture architecture,
         AnalysisResult analysis,
-        DateTime exportedAtUtc)
+        DateTime exportedAtUtc,
+        SimulationResult? simulation = null,
+        SimulationScenario? scenario = null)
     {
         // Plan técnico §6.2, ajuste 1. Everything emitted as a list is ordered explicitly: the
         // repository does not guarantee an order, so without this the same graph could produce two
@@ -42,11 +45,17 @@ public static class MarkdownExporter
 
         var builder = new StringBuilder();
 
+        var health = simulation?.States
+            .Where(s => s.Type == ElementType.Node)
+            .ToDictionary(s => s.Id, s => s.State);
+
         Header(builder, architecture, analysis, exportedAtUtc);
-        Diagram(builder, nodes, connections);
+        Diagram(builder, nodes, connections, health);
         Components(builder, nodes);
         Connections(builder, connections, namesById);
         Analysis(builder, analysis, namesById, connections);
+        Simulation(builder, simulation, scenario, namesById, connections);
+        Prompt(builder);
 
         return builder.ToString().TrimEnd() + "\n";
     }
@@ -68,7 +77,11 @@ public static class MarkdownExporter
 
     // ---- Diagram ----------------------------------------------------------
 
-    private static void Diagram(StringBuilder builder, IReadOnlyList<Node> nodes, IReadOnlyList<Connection> connections)
+    private static void Diagram(
+        StringBuilder builder,
+        IReadOnlyList<Node> nodes,
+        IReadOnlyList<Connection> connections,
+        IReadOnlyDictionary<Guid, HealthState>? health)
     {
         builder.AppendLine("## Diagrama");
         builder.AppendLine();
@@ -80,7 +93,7 @@ public static class MarkdownExporter
             return;
         }
 
-        builder.AppendLine(MermaidEmitter.Emit(nodes, connections));
+        builder.AppendLine(MermaidEmitter.Emit(nodes, connections, health));
         builder.AppendLine();
     }
 
@@ -218,6 +231,207 @@ public static class MarkdownExporter
             builder.AppendLine();
         }
     }
+
+    // ---- Prompt -----------------------------------------------------------
+
+    /// <summary>
+    /// V5 D2.5. <strong>The only lever the product keeps over the quality of the review</strong>,
+    /// which is the acknowledged weak point of this direction: once the document leaves, what a
+    /// model answers is out of reach. A well-written request lowers the bar to zero - copy, paste,
+    /// send - and points the model at what the document already carries instead of letting it
+    /// improvise.
+    ///
+    /// It goes last, under a rule and with its own heading, so whoever takes the document to a pull
+    /// request deletes from the rule onwards and still has a report.
+    ///
+    /// <strong>It names no rule and no count of rules.</strong> D2.4 established that findings
+    /// explain themselves, and a number here would age exactly the way V4 aged the analyzer when it
+    /// went from seven rules to fifteen.
+    /// </summary>
+    private static void Prompt(StringBuilder builder)
+    {
+        builder.AppendLine("---");
+        builder.AppendLine();
+        builder.AppendLine("## Petición para la IA");
+        builder.AppendLine();
+        builder.AppendLine(PromptText.Value);
+    }
+
+    private static readonly Lazy<string> PromptText = new(() =>
+    {
+        const string resource = "arch_forge_backend.Application.Export.Prompt.md";
+
+        using var stream = typeof(MarkdownExporter).Assembly.GetManifestResourceStream(resource)
+            ?? throw new InvalidOperationException($"The embedded resource '{resource}' is missing.");
+
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd().Trim();
+    });
+
+    // ---- Simulation -------------------------------------------------------
+
+    /// <summary>
+    /// V5 VS2. Emitted only when the screen had a simulation - D2.1: <strong>the export reflects the
+    /// mode, it does not ask</strong>.
+    ///
+    /// An <em>empty</em> scenario is not the same as no scenario: it produces this section with
+    /// everything green, which is what the screen shows on entering Simulate before choosing
+    /// anything (V3 D2.1). That distinction is the one 5.1 of the plan draws at the endpoint.
+    /// </summary>
+    private static void Simulation(
+        StringBuilder builder,
+        SimulationResult? simulation,
+        SimulationScenario? scenario,
+        IReadOnlyDictionary<Guid, string> namesById,
+        IReadOnlyList<Connection> connections)
+    {
+        if (simulation is null)
+            return;
+
+        var connectionsById = connections.ToDictionary(c => c.Id);
+        var faults = scenario?.Canonical().Faults ?? [];
+
+        builder.AppendLine("## Simulación");
+        builder.AppendLine();
+
+        if (faults.Count == 0)
+        {
+            builder.AppendLine("**Sin fallos inyectados**: así se comporta la arquitectura en reposo.");
+        }
+        else
+        {
+            builder.AppendLine("**Escenario:**");
+            builder.AppendLine();
+
+            foreach (var fault in faults)
+                builder.AppendLine($"- {FaultText(fault, namesById, connectionsById)}");
+        }
+
+        builder.AppendLine();
+
+        // A link shared before the architecture was edited still opens, and the faults it lost are
+        // announced rather than dropped in silence (V3 D3.6). The document says so too.
+        if (simulation.DiscardedFaults.Count > 0)
+        {
+            builder.AppendLine(
+                $"> {Count(simulation.DiscardedFaults.Count, "fallo apuntaba", "fallos apuntaban")} " +
+                "a elementos que ya no están en la arquitectura y no se han aplicado.");
+            builder.AppendLine();
+        }
+
+        Metrics(builder, simulation.Metrics, namesById, connectionsById);
+
+        var affected = simulation.States.Where(s => s.State != HealthState.Healthy).ToList();
+
+        if (affected.Count == 0)
+        {
+            builder.AppendLine("Ningún componente se ve afectado: la arquitectura absorbe el escenario entera.");
+            builder.AppendLine();
+            return;
+        }
+
+        builder.AppendLine("### Qué le pasa a cada componente");
+        builder.AppendLine();
+
+        // States arrive ordered by (PropagationStep, Type, Id), so the list already reads as the
+        // order of propagation (V3 D5.6). It is not reordered: that order is the explanation.
+        foreach (var state in affected)
+        {
+            var name = state.Type == ElementType.Node
+                ? NameOf(namesById, state.Id)
+                : connectionsById.TryGetValue(state.Id, out var edge)
+                    ? $"{NameOf(namesById, edge.SourceNodeId)} → {NameOf(namesById, edge.TargetNodeId)}"
+                    : "(desconocido)";
+
+            builder.AppendLine($"**{StateMark(state.State)} `{name}`** — {state.Reason}");
+
+            // The most valuable pixel of V3: the learning does not happen in the red, it happens
+            // where somebody decided it would stop breaking.
+            if (!string.IsNullOrWhiteSpace(state.Mechanism))
+                builder.AppendLine($"  · contenido por `{state.Mechanism}`");
+
+            builder.AppendLine();
+        }
+
+        var healthy = simulation.States.Count - affected.Count;
+        if (healthy > 0)
+        {
+            builder.AppendLine($"El resto ({Count(healthy, "elemento", "elementos")}) sigue funcionando con normalidad.");
+            builder.AppendLine();
+        }
+    }
+
+    private static void Metrics(
+        StringBuilder builder,
+        SimulationMetrics metrics,
+        IReadOnlyDictionary<Guid, string> namesById,
+        IReadOnlyDictionary<Guid, Connection> connectionsById)
+    {
+        builder.AppendLine("| Métrica | Valor |");
+        builder.AppendLine("|---|---|");
+        builder.AppendLine($"| Componentes caídos | {metrics.ComponentsDown} de {metrics.ComponentsTotal} |");
+        builder.AppendLine($"| Componentes degradados | {metrics.ComponentsDegraded} de {metrics.ComponentsTotal} |");
+        builder.AppendLine($"| Radio de impacto | {Percent(metrics.BlastRadius)} |");
+        builder.AppendLine($"| Puntos de entrada afectados | {metrics.EntryPointsAffected} de {metrics.EntryPointsTotal} |");
+        builder.AppendLine($"| Latencia nominal | {metrics.NominalLatencyMs} ms |");
+
+        // Null rather than 0: no entry point left standing means there is no path to measure, and a
+        // 0 would read as "instant" (V3 plan técnico §2).
+        builder.AppendLine(metrics.FaultedLatencyMs is { } faulted
+            ? $"| Latencia con el escenario | {faulted} ms |"
+            : "| Latencia con el escenario | sin ruta que medir |");
+
+        builder.AppendLine($"| Peticiones afectadas | como mucho {Percent(metrics.RequestsAffected)} |");
+
+        // The bound travels with its culprit so the document can point at one component instead of
+        // tinting eight (V4 DT.7).
+        if (metrics.Bottleneck is { } bottleneck)
+            builder.AppendLine($"| Cuello de botella | `{ElementName(bottleneck, namesById, connectionsById)}` |");
+
+        builder.AppendLine($"| Amplificación de peticiones | ×{metrics.RequestAmplification:0.##} |");
+        builder.AppendLine($"| Amplificación de carga | ×{metrics.LoadAmplification:0.##} |");
+        builder.AppendLine($"| Encolado pendiente | {metrics.BacklogRps:0.##} rps |");
+        builder.AppendLine();
+    }
+
+    private static string FaultText(
+        Fault fault,
+        IReadOnlyDictionary<Guid, string> namesById,
+        IReadOnlyDictionary<Guid, Connection> connectionsById)
+    {
+        var name = ElementName(new FindingElement(fault.Target, fault.Id), namesById, connectionsById);
+
+        return fault.Kind switch
+        {
+            FaultKinds.Down => $"`{name}` caído",
+            FaultKinds.Degraded => $"`{name}` degradado",
+            FaultKinds.Latency => $"`{name}` con {fault.Value} ms de latencia añadida",
+            _ => $"`{name}`: {fault.Kind}"
+        };
+    }
+
+    private static string ElementName(
+        FindingElement element,
+        IReadOnlyDictionary<Guid, string> namesById,
+        IReadOnlyDictionary<Guid, Connection> connectionsById)
+    {
+        if (element.Type == ElementType.Node)
+            return NameOf(namesById, element.Id);
+
+        return connectionsById.TryGetValue(element.Id, out var connection)
+            ? $"{NameOf(namesById, connection.SourceNodeId)} → {NameOf(namesById, connection.TargetNodeId)}"
+            : "(desconocido)";
+    }
+
+    private static string StateMark(HealthState state) => state switch
+    {
+        HealthState.Down => "🔴",
+        HealthState.Degraded => "🟡",
+        _ => "🟢"
+    };
+
+    private static string Percent(decimal fraction) =>
+        $"{fraction * 100:0.#} %";
 
     /// <summary>
     /// Ajuste 2. <c>AreaScore.Score</c> is nullable and <c>AreaState</c> has three values. Printing

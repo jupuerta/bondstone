@@ -21,7 +21,13 @@ public static class ReferenceArchitecture
         Converters = { new JsonStringEnumConverter() }
     };
 
-    public static AnalysisResult Analyze(string fixtureName)
+    public static AnalysisResult Analyze(string fixtureName) => Analyze(Graph(fixtureName));
+
+    /// <summary>
+    /// The fifteen rules over a graph the caller built - which is how the shuffling test feeds the
+    /// same fixture in a different order (V6 D1.1).
+    /// </summary>
+    public static AnalysisResult Analyze(ArchitectureGraph graph)
     {
         // Registered in the same order as Program.cs, and deliberately not in execution order.
         var analyzer = new ArchitectureAnalyzer([
@@ -42,7 +48,7 @@ public static class ReferenceArchitecture
             new NoObservabilityRule()
         ]);
 
-        return analyzer.Analyze(Graph(fixtureName));
+        return analyzer.Analyze(graph);
     }
 
     /// <summary>

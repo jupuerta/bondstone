@@ -1,6 +1,7 @@
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Common.Interfaces;
 using arch_forge_backend.Application.Export;
+using arch_forge_backend.Application.Simulation;
 
 namespace arch_forge_backend.Application.Architectures.Queries;
 
@@ -24,17 +25,29 @@ public class ExportArchitectureQuery
     /// the precondition of D3.3. The handler supplies <c>UtcNow</c>; a test supplies a fixed date.
     /// </summary>
     public DateTime? ExportedAtUtc { get; set; }
+
+    /// <summary>
+    /// V5 VS2. Null and empty are <strong>not the same</strong>: null produces a document with no
+    /// simulation section, and an empty scenario produces one with everything green - which is what
+    /// the screen shows on entering Simulate before choosing anything (V3 D2.1).
+    /// </summary>
+    public SimulationScenario? Scenario { get; set; }
 }
 
 public class ExportArchitectureQueryHandler
 {
     private readonly IArchitectureRepository _repository;
     private readonly ArchitectureAnalyzer _analyzer;
+    private readonly SimulationEngine _engine;
 
-    public ExportArchitectureQueryHandler(IArchitectureRepository repository, ArchitectureAnalyzer analyzer)
+    public ExportArchitectureQueryHandler(
+        IArchitectureRepository repository,
+        ArchitectureAnalyzer analyzer,
+        SimulationEngine engine)
     {
         _repository = repository;
         _analyzer = analyzer;
+        _engine = engine;
     }
 
     public async Task<string?> Handle(ExportArchitectureQuery query, CancellationToken cancellationToken = default)
@@ -43,12 +56,20 @@ public class ExportArchitectureQueryHandler
         if (architecture is null)
             return null;
 
-        var graph = new ArchitectureGraph(architecture.Nodes, architecture.Connections);
-        var analysis = _analyzer.Analyze(graph);
+        var analysis = _analyzer.Analyze(new ArchitectureGraph(architecture.Nodes, architecture.Connections));
+
+        // A graph of its own for the simulation, with no rule run over it: `Facts` is the channel
+        // between rules, and a simulation reading from it would change its answer depending on
+        // which rules happen to be registered (V3 D5.2).
+        var simulation = query.Scenario is null
+            ? null
+            : _engine.Run(new ArchitectureGraph(architecture.Nodes, architecture.Connections), query.Scenario);
 
         return MarkdownExporter.Compose(
             architecture,
             analysis,
-            query.ExportedAtUtc ?? DateTime.UtcNow);
+            query.ExportedAtUtc ?? DateTime.UtcNow,
+            simulation,
+            query.Scenario);
     }
 }

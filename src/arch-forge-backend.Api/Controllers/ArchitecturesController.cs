@@ -113,11 +113,23 @@ public class ArchitecturesController : ControllerBase
     /// return JSON, and <c>Ok(string)</c> would serialize the document between quotes with its line
     /// breaks escaped - a failure that passes an integration test and is only visible on opening
     /// the .md.
+    ///
+    /// <strong>No body and an empty scenario are not the same thing.</strong> Without a body the
+    /// document carries no simulation section; with <c>faults: []</c> it carries one with
+    /// everything green, which is what the screen shows on entering Simulate before choosing
+    /// anything (V3 D2.1). The body is <see cref="SimulateRequest"/> itself - same body, same
+    /// meaning, no new type.
     /// </summary>
     [HttpPost("{id:guid}/export")]
-    public async Task<IActionResult> Export(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Export(Guid id, [FromBody] SimulateRequest? request, CancellationToken cancellationToken)
     {
-        var result = await _exportHandler.Handle(new ExportArchitectureQuery { Id = id }, cancellationToken);
+        var query = new ExportArchitectureQuery
+        {
+            Id = id,
+            Scenario = request is null ? null : new SimulationScenario(request.Faults ?? [])
+        };
+
+        var result = await _exportHandler.Handle(query, cancellationToken);
         return result is null ? NotFound() : Content(result, "text/markdown; charset=utf-8");
     }
 

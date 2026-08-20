@@ -1,4 +1,5 @@
 using System.Text;
+using arch_forge_backend.Application.Simulation;
 using arch_forge_backend.Domain.Entities;
 
 namespace arch_forge_backend.Application.Export;
@@ -17,7 +18,15 @@ public static class MermaidEmitter
 {
     /// <param name="nodes">Already ordered by §6.2.</param>
     /// <param name="connections">Already ordered by §6.2.</param>
-    public static string Emit(IReadOnlyList<Node> nodes, IReadOnlyList<Connection> connections)
+    /// <param name="states">
+    /// V5 VS2. The health of each node under a scenario, or null when the document carries no
+    /// simulation. Only nodes are tinted: an edge's state describes the call, and Mermaid has no
+    /// natural place to say it that a reader would not confuse with the target's own state.
+    /// </param>
+    public static string Emit(
+        IReadOnlyList<Node> nodes,
+        IReadOnlyList<Connection> connections,
+        IReadOnlyDictionary<Guid, HealthState>? states = null)
     {
         var identifiers = Identifiers(nodes);
         var builder = new StringBuilder();
@@ -50,8 +59,43 @@ public static class MermaidEmitter
             builder.AppendLine($"  {source} {arrow}|{connection.Protocol}| {target}");
         }
 
+        States(builder, nodes, identifiers, states);
+
         builder.Append("```");
         return builder.ToString();
+    }
+
+    /// <summary>
+    /// The class definitions are emitted <strong>only if one is used</strong>: a diagram without a
+    /// simulation carries not one line of styling.
+    /// </summary>
+    private static void States(
+        StringBuilder builder,
+        IReadOnlyList<Node> nodes,
+        IReadOnlyDictionary<Guid, string> identifiers,
+        IReadOnlyDictionary<Guid, HealthState>? states)
+    {
+        if (states is null)
+            return;
+
+        var tinted = nodes
+            .Where(n => states.TryGetValue(n.Id, out var state) && state != HealthState.Healthy)
+            .Select(n => (Identifier: identifiers[n.Id], State: states[n.Id]))
+            .ToList();
+
+        if (tinted.Count == 0)
+            return;
+
+        builder.AppendLine();
+
+        if (tinted.Any(t => t.State == HealthState.Down))
+            builder.AppendLine("  classDef down fill:#fee2e2,stroke:#dc2626,color:#7f1d1d");
+
+        if (tinted.Any(t => t.State == HealthState.Degraded))
+            builder.AppendLine("  classDef degraded fill:#fef3c7,stroke:#d97706,color:#78350f");
+
+        foreach (var (identifier, state) in tinted)
+            builder.AppendLine($"  class {identifier} {(state == HealthState.Down ? "down" : "degraded")}");
     }
 
     /// <summary>

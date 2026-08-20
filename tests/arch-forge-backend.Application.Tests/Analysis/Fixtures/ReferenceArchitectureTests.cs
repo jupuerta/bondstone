@@ -197,6 +197,47 @@ public class ReferenceArchitectureTests
         Assert.Equal(3, result.Summary.Passed);
     }
 
+    [Theory]
+    [InlineData("minimal-api-db")]
+    [InlineData("worst-case")]
+    [InlineData("resilient-async")]
+    [InlineData("gateway-microservices")]
+    public void ShufflingTheInput_DoesNotChangeTheAnalysis(string fixtureName)
+    {
+        // V6 D1.1, and the test this project went four versions without. The simulator declared
+        // this property in V3 and tested it; the analyzer never did, and it was not true: two
+        // identical requests could return the same findings in a different order, because the
+        // repository reads without an OrderBy and the tie-break preserved whatever came out.
+        //
+        // Reversing is enough and is worth more than a random shuffle: it is reproducible, and it
+        // is the worst case for an order that used to be inherited.
+        var (nodes, connections) = ReferenceArchitecture.Load(fixtureName);
+
+        var straight = ReferenceArchitecture.Analyze(new ArchitectureGraph(nodes, connections));
+        var reversed = ReferenceArchitecture.Analyze(new ArchitectureGraph(
+            [.. Enumerable.Reverse(nodes)],
+            [.. Enumerable.Reverse(connections)]));
+
+        Assert.Equal(Render(straight), Render(reversed));
+    }
+
+    [Fact]
+    public void WorstCase_BreaksTiesByTheOrderOfTheGraph()
+    {
+        // The fourth tie-break where it is worth reading: three SPOFs of the same severity, and
+        // the order is the one the export lists the components in - Db (Database) before Orders
+        // (Service) before Gateway (Gateway), by declaration order of NodeType and then by name.
+        var result = ReferenceArchitecture.Analyze("worst-case");
+
+        var graph = ReferenceArchitecture.Graph("worst-case");
+
+        Assert.Equal(
+            ["Db", "Orders", "Gateway", "Notifications"],
+            result.Findings
+                .Where(f => f.Code == RuleCodes.Spof)
+                .Select(f => graph.NodesById[f.Elements[0].Id].Name));
+    }
+
     [Fact]
     public void WorstCase_OrdersFindingsBySeverityThenAreaThenCode()
     {
@@ -251,5 +292,26 @@ public class ReferenceArchitectureTests
             Assert.Equal(finding.Severity == Severity.Good, finding.Suggestion is null);
             Assert.NotNull(finding.Elements);
         });
+    }
+
+    /// <summary>
+    /// The whole result as text, so the shuffling test compares everything at once instead of the
+    /// three fields somebody remembered to assert: score, areas, summary and every finding with the
+    /// elements it points at, in order.
+    /// </summary>
+    private static string Render(AnalysisResult result)
+    {
+        var lines = new List<string>
+        {
+            $"score={result.Score} version={result.ScoringVersion}",
+            $"summary={result.Summary.Critical}/{result.Summary.Warning}/{result.Summary.Passed}"
+        };
+
+        lines.AddRange(result.Areas.Select(a => $"area {a.Area} {a.State} {a.Score}"));
+        lines.AddRange(result.Findings.Select(f =>
+            $"{f.Severity} {f.Area} {f.Code} | {f.Message} | " +
+            string.Join(",", f.Elements.Select(e => $"{e.Type}:{e.Id}"))));
+
+        return string.Join("\n", lines);
     }
 }

@@ -52,8 +52,10 @@ public class MissingCacheRule : IArchitectureRule
             if (effective.Count < RuleThresholds.CacheMinConsumers)
                 continue;
 
+            // Same as HIGH_COUPLING: the consumers read in the graph's order (V6 D1.1), which is
+            // the one the document's connection table uses.
             List<FindingElement> elements = [FindingElement.Node(database.Id)];
-            elements.AddRange(effective.OrderBy(e => e.Id).Select(e => FindingElement.Connection(e.Id)));
+            elements.AddRange(effective.Select(e => FindingElement.Connection(e.Id)));
 
             findings.Add(new RuleFinding(
                 Code,

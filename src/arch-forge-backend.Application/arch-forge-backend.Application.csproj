@@ -14,6 +14,11 @@
     <!-- V4 D1.5: challenge definitions and their blueprints travel inside the assembly. A file
          that is missing at runtime is not a state ChallengeCatalog should be able to reach. -->
     <EmbeddedResource Include="Challenges\Definitions\*.json" />
+
+    <!-- V5 D2.5: the prompt is versioned content, not a constant in code - same criterion as the
+         challenge definitions. It travels inside the assembly for the same reason: a file that is
+         missing at runtime is not a state the exporter should be able to reach. -->
+    <EmbeddedResource Include="Export\Prompt.md" />
   </ItemGroup>
 
   <PropertyGroup>

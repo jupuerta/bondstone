@@ -63,16 +63,6 @@ flowchart LR
 
 ### 🔴 SPOF — Availability
 
-**'Gateway' es un punto único de fallo: 4 componentes quedan inalcanzables si deja de funcionar.**
-
-No existe ningún componente equivalente que pueda asumir su trabajo. Cualquier incidencia en él afecta a todo lo que hay detrás.
-
-*Sugerencia:* Añade un LoadBalancer con al menos dos instancias equivalentes, o replica el componente para que sus consumidores tengan alternativa.
-
-Elementos: `Gateway`
-
-### 🔴 SPOF — Availability
-
 **'Db' es un punto único de fallo: 3 componentes dependen de él sin redundancia.**
 
 No existe ningún componente equivalente que pueda asumir su trabajo. Cualquier incidencia en él afecta a todo lo que hay detrás.
@@ -81,15 +71,15 @@ No existe ningún componente equivalente que pueda asumir su trabajo. Cualquier 
 
 Elementos: `Db`
 
-### 🔴 MISSING_RESILIENCE — Resilience
+### 🔴 SPOF — Availability
 
-**La llamada de 'Users' a 'Db' no tiene protección frente a fallos.**
+**'Gateway' es un punto único de fallo: 4 componentes quedan inalcanzables si deja de funcionar.**
 
-Y como 'Db' es un punto único de fallo, su caída se propaga directamente hacia atrás.
+No existe ningún componente equivalente que pueda asumir su trabajo. Cualquier incidencia en él afecta a todo lo que hay detrás.
 
-*Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
+*Sugerencia:* Añade un LoadBalancer con al menos dos instancias equivalentes, o replica el componente para que sus consumidores tengan alternativa.
 
-Elementos: `Users → Db`
+Elementos: `Gateway`
 
 ### 🔴 MISSING_RESILIENCE — Resilience
 
@@ -110,6 +100,16 @@ Y como 'Db' es un punto único de fallo, su caída se propaga directamente hacia
 *Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
 
 Elementos: `Payments → Db`
+
+### 🔴 MISSING_RESILIENCE — Resilience
+
+**La llamada de 'Users' a 'Db' no tiene protección frente a fallos.**
+
+Y como 'Db' es un punto único de fallo, su caída se propaga directamente hacia atrás.
+
+*Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
+
+Elementos: `Users → Db`
 
 ### 🔴 UNAUTHENTICATED_ENTRY — Security
 
@@ -159,7 +159,7 @@ Toda la carga de lectura recae sobre la misma instancia, que se convierte en el 
 
 *Sugerencia:* Interpón una caché en las lecturas más frecuentes o configura réplicas de lectura en la base de datos.
 
-Elementos: `Db`, `Users → Db`, `Orders → Db`, `Payments → Db`
+Elementos: `Db`, `Orders → Db`, `Payments → Db`, `Users → Db`
 
 ### 🟡 NO_OBSERVABILITY — Observability
 
@@ -198,3 +198,20 @@ Un componente sin llamadas entrantes ni salientes no participa en ningún flujo,
 **Las bases de datos están detrás de algo.**
 
 Para llegar a los datos hay que pasar antes por una API o un gateway, que es donde se puede comprobar quién llama.
+
+---
+
+## Petición para la IA
+
+Eres un arquitecto de software senior. Arriba tienes una arquitectura, su diagrama y el
+resultado de un analizador determinista, con la simulación de un escenario si se ejecutó uno.
+
+Los hallazgos listados **ya son ciertos**: no hace falta que los redescubras ni que los pongas
+en duda. Lo que te pido es lo que el analizador no puede hacer:
+
+1. Ordénalos por lo que arreglarías primero, y explica por qué en ese orden.
+2. Señala lo que las reglas **no** ven: elección de tecnología, límites entre servicios,
+   nombres, o riesgos que no se deducen de la topología.
+3. Si algo del diseño te parece correcto aunque el analizador lo penalice, dilo y razónalo.
+
+Sé concreto y usa los nombres de los componentes.

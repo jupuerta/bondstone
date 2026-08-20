@@ -1,6 +1,8 @@
 using System.Text;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Rules;
+using arch_forge_backend.Domain.Entities;
+using arch_forge_backend.Domain.Enums;
 using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Analysis;
@@ -193,9 +195,30 @@ public class ArchitectureAnalyzerTests
     }
 
     [Fact]
-    public void Analyze_SeveralFindingsFromOneRule_KeepTheOrderItEmittedThem()
+    public void Analyze_FindingsTiedOnSeverityAreaAndCode_AreOrderedByTheGraph()
     {
-        // The last tie-break of D2.1, rule 4: at equal severity, area and code, emission order.
+        // V6 D1.1, the fourth tie-break. Until V6 the three keys of D2.1 left the findings of one
+        // rule tied, and the tie was broken by the order the rule emitted them in - which is the
+        // order the graph arrived in, which the database does not guarantee. Now the element the
+        // finding is about decides, so this rule reporting backwards still reads forwards.
+        var graph = new ArchitectureGraph(
+            [Node("Zeta", NodeType.Service), Node("Db", NodeType.Database), Node("Api", NodeType.Api)],
+            []);
+
+        var result = new ArchitectureAnalyzer([
+            new BackwardsNodeRule(Area.Availability, RuleCodes.Spof, Severity.Critical)
+        ]).Analyze(graph);
+
+        Assert.Equal(["Api", "Db", "Zeta"], result.Findings.Select(f => f.Message));
+    }
+
+    [Fact]
+    public void Analyze_SeveralFindingsPointingAtNothing_KeepTheOrderItEmittedThem()
+    {
+        // The tie-break of V6 D1.1 needs an element to sort by, and a finding without one sorts
+        // last. Only the Good of each rule has no elements and there is exactly one per code, so
+        // in the product nothing ever ties here - but the order still has to be stable rather than
+        // whatever OrderBy felt like.
         var result = new ArchitectureAnalyzer([
             StubRule.WithMessages(Area.Availability, RuleCodes.Spof, Severity.Critical, "first", "second", "third")
         ]).Analyze(EmptyGraph);
@@ -256,6 +279,35 @@ public class ArchitectureAnalyzerTests
         }
 
         return rendered.ToString();
+    }
+
+    private static Node Node(string name, NodeType type) => new()
+    {
+        Id = Guid.NewGuid(),
+        Type = type,
+        Name = name,
+        Configuration = "{}"
+    };
+
+    /// <summary>
+    /// Reports one finding per node, walking the graph backwards. Emission order is the opposite of
+    /// the order the analyzer has to produce, which is the only way to tell a real tie-break from
+    /// the stability of OrderBy.
+    /// </summary>
+    private sealed class BackwardsNodeRule(Area area, string code, Severity severity) : IArchitectureRule
+    {
+        public string Code => code;
+        public Area Area => area;
+        public Severity DefaultSeverity => severity;
+        public RulePhase Phase => RulePhase.Consumer;
+        public string PassedMessage => $"{code} passed.";
+        public string PassedExplanation => $"{code} was checked.";
+
+        public RuleResult Evaluate(ArchitectureGraph graph) => RuleResult.Applicable(graph.Nodes
+            .Reverse()
+            .Select(node => new RuleFinding(
+                code, area, severity, node.Name, "explanation", "suggestion", [FindingElement.Node(node.Id)]))
+            .ToList());
     }
 
     private sealed class StubRule : IArchitectureRule

@@ -35,11 +35,12 @@ public class MarkdownExporterTests
         // The test that holds up ajuste 1. Without it the golden files are decorative: the
         // repository does not guarantee an order, so the same graph could produce two documents.
         //
-        // The SAME AnalysisResult is composed twice, which is what the exporter owns. Re-analyzing
-        // the shuffled graph would test something else and would fail for a reason that predates
-        // V5: `Order` in ArchitectureAnalyzer breaks ties on (Severity, Area, Code) and nothing
-        // else, so two findings sharing all three keep the order the rules emitted them in - which
-        // is the input order of `graph.Nodes`. See plan técnico §2, ajuste 5.
+        // V5 had to compose the same AnalysisResult twice, because re-analyzing the shuffled graph
+        // failed for a reason that predated the export: the analyzer broke ties on
+        // (Severity, Area, Code) and nothing else, so findings sharing all three kept the order the
+        // rules emitted them in - the input order of `graph.Nodes`. That was ajuste 5, and V6 D1.1
+        // fixed it, so **each side analyzes its own graph** and the test now covers the whole
+        // pipeline instead of the last step of it.
         var gateway = Node("Edge", NodeType.Gateway);
         var api = Node("Orders API", NodeType.Api);
         var payments = Node("Payments", NodeType.Service);
@@ -57,11 +58,9 @@ public class MarkdownExporterTests
             nodes: [db, payments, api, gateway],
             connections: [edges[2], edges[0], edges[1]]);
 
-        var analysis = Analyze(straight);
-
         Assert.Equal(
-            MarkdownExporter.Compose(straight, analysis, ExportedAt),
-            MarkdownExporter.Compose(shuffled, analysis, ExportedAt));
+            MarkdownExporter.Compose(straight, Analyze(straight), ExportedAt),
+            MarkdownExporter.Compose(shuffled, Analyze(shuffled), ExportedAt));
     }
 
     [Fact]
