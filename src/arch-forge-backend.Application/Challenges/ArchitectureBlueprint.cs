@@ -38,11 +38,14 @@ public sealed class ArchitectureBlueprint
         };
 
         var idsByName = new Dictionary<string, Guid>(StringComparer.Ordinal);
+        var layout = BlueprintLayout.Of(this);
 
         foreach (var node in Nodes)
         {
             var id = Guid.NewGuid();
             idsByName[node.Name] = id;
+
+            var (x, y) = layout[node.Name];
 
             architecture.Nodes.Add(new Node
             {
@@ -50,8 +53,8 @@ public sealed class ArchitectureBlueprint
                 ArchitectureId = architecture.Id,
                 Type = node.Type,
                 Name = node.Name,
-                PositionX = node.X,
-                PositionY = node.Y,
+                PositionX = x,
+                PositionY = y,
                 Configuration = Raw(node.Configuration)
             });
         }
@@ -107,7 +110,18 @@ public sealed class BlueprintNode
 {
     public string Name { get; set; } = string.Empty;
     public NodeType Type { get; set; }
+
+    /// <summary>
+    /// <strong>Not a position.</strong> Where a component lands is computed by
+    /// <see cref="BlueprintLayout"/> - entry point on top, one row per depth level, the database
+    /// at the bottom - because which way a starter reads should not depend on whoever last edited
+    /// the file. These two survive as the only thing the layout cannot work out on its own: which
+    /// of two components sharing a row goes before the other, read across the axis the file was
+    /// authored on (<c>y</c> first, then <c>x</c>).
+    /// </summary>
     public double X { get; set; }
+
+    /// <inheritdoc cref="X"/>
     public double Y { get; set; }
 
     [JsonPropertyName("configuration")]
