@@ -73,6 +73,7 @@ public static class DependencyInjection
         services.AddScoped<UpdateArchitectureCommandHandler>();
         services.AddScoped<DeleteArchitectureCommandHandler>();
         services.AddScoped<GetArchitectureByShareTokenQueryHandler>();
+        services.AddScoped<GetArchitectureByEditTokenQueryHandler>();
         services.AddScoped<AnalyzeArchitectureQueryHandler>();
         services.AddScoped<SimulateArchitectureQueryHandler>();
         services.AddScoped<ForkArchitectureCommandHandler>();

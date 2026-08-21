@@ -8,9 +8,21 @@ public static class ArchitectureMappingExtensions
 {
     public static ArchitectureDto ToDto(this Architecture architecture) => new()
     {
-        Id = architecture.Id,
         Name = architecture.Name,
         ShareToken = architecture.ShareToken,
+        Version = architecture.Version,
+        CreatedAt = architecture.CreatedAt,
+        UpdatedAt = architecture.UpdatedAt,
+        Nodes = architecture.Nodes.Select(n => n.ToDto()).ToList(),
+        Connections = architecture.Connections.Select(c => c.ToDto()).ToList()
+    };
+
+    /// <summary>Only where the caller just minted the architecture (see <see cref="ArchitectureCreatedDto"/>).</summary>
+    public static ArchitectureCreatedDto ToCreatedDto(this Architecture architecture) => new()
+    {
+        Name = architecture.Name,
+        ShareToken = architecture.ShareToken,
+        EditToken = architecture.EditToken,
         Version = architecture.Version,
         CreatedAt = architecture.CreatedAt,
         UpdatedAt = architecture.UpdatedAt,

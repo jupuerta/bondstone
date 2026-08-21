@@ -89,6 +89,9 @@ public static class ChallengeHarness
         public Task<Architecture?> GetByShareTokenAsync(string shareToken, CancellationToken cancellationToken = default) =>
             Task.FromResult<Architecture?>(null);
 
+        public Task<Architecture?> GetByEditTokenAsync(string editToken, CancellationToken cancellationToken = default) =>
+            Task.FromResult<Architecture?>(null);
+
         public Task AddAsync(Architecture architecture, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public void Remove(Architecture architecture) { }

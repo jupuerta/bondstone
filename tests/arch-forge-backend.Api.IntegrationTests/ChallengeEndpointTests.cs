@@ -73,9 +73,9 @@ public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
     public async Task The_starter_does_not_pass_and_says_why()
     {
         var started = await StartAsync();
-        var id = started["id"]!.GetValue<string>();
+        var shareToken = started["shareToken"]!.GetValue<string>();
 
-        var response = await _client.PostAsJsonAsync("/api/challenges/payments-friday/evaluate", new { architectureId = id });
+        var response = await _client.PostAsJsonAsync("/api/challenges/payments-friday/evaluate", new { shareToken });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var body = await response.Content.ReadFromJsonAsync<JsonObject>();
@@ -92,15 +92,15 @@ public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
     public async Task Forking_gives_a_copy_with_its_own_token()
     {
         var started = await StartAsync();
-        var id = started["id"]!.GetValue<string>();
+        var shareToken = started["shareToken"]!.GetValue<string>();
 
-        var response = await _client.PostAsync($"/api/architectures/{id}/fork", null);
+        var response = await _client.PostAsync($"/api/architectures/{shareToken}/fork", null);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
         var fork = await response.Content.ReadFromJsonAsync<JsonObject>();
 
-        Assert.NotEqual(id, fork!["id"]!.GetValue<string>());
-        Assert.NotEqual(started["shareToken"]!.GetValue<string>(), fork["shareToken"]!.GetValue<string>());
+        Assert.NotEqual(started["editToken"]!.GetValue<string>(), fork!["editToken"]!.GetValue<string>());
+        Assert.NotEqual(shareToken, fork["shareToken"]!.GetValue<string>());
         Assert.Equal(1, fork["version"]!.GetValue<int>());
         Assert.Equal(4, fork["nodes"]!.AsArray().Count);
 
@@ -117,7 +117,7 @@ public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
         Assert.Equal(HttpStatusCode.NotFound, (await _client.PostAsync("/api/challenges/nope/start", null)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await _client.PostAsync("/api/challenges/nope/solution", null)).StatusCode);
 
-        var evaluate = await _client.PostAsJsonAsync("/api/challenges/nope/evaluate", new { architectureId = Guid.NewGuid() });
+        var evaluate = await _client.PostAsJsonAsync("/api/challenges/nope/evaluate", new { shareToken = Guid.NewGuid().ToString("N") });
         Assert.Equal(HttpStatusCode.NotFound, evaluate.StatusCode);
     }
 
@@ -126,7 +126,7 @@ public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
     {
         var response = await _client.PostAsJsonAsync(
             "/api/challenges/payments-friday/evaluate",
-            new { architectureId = Guid.NewGuid() });
+            new { shareToken = Guid.NewGuid().ToString("N") });
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -148,9 +148,14 @@ public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
         var solution = (await response.Content.ReadFromJsonAsync<JsonObject>())!;
         Assert.Equal("Los viernes — solución de referencia", solution["name"]!.GetValue<string>());
 
+        // Read-only by construction: the row has an edit token like every architecture does, but
+        // this response is never the one that hands it out - not even to the person who just
+        // opened the reference solution.
+        Assert.Null(solution["editToken"]);
+
         var evaluated = await _client.PostAsJsonAsync(
             "/api/challenges/payments-friday/evaluate",
-            new { architectureId = solution["id"]!.GetValue<string>() });
+            new { shareToken = solution["shareToken"]!.GetValue<string>() });
 
         var verdict = await evaluated.Content.ReadFromJsonAsync<JsonObject>();
         Assert.True(verdict!["passed"]!.GetValue<bool>());
@@ -166,7 +171,6 @@ public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
         var a = (await first.Content.ReadFromJsonAsync<JsonObject>())!;
         var b = (await second.Content.ReadFromJsonAsync<JsonObject>())!;
 
-        Assert.NotEqual(a["id"]!.GetValue<string>(), b["id"]!.GetValue<string>());
         Assert.NotEqual(a["shareToken"]!.GetValue<string>(), b["shareToken"]!.GetValue<string>());
     }
 

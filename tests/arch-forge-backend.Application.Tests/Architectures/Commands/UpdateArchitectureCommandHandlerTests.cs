@@ -43,7 +43,7 @@ public class UpdateArchitectureCommandHandlerTests
     [Fact]
     public async Task Handle_ArchitectureDoesNotExist_ReturnsNull()
     {
-        var result = await _handler.Handle(new UpdateArchitectureCommand { Id = Guid.NewGuid(), Name = "X", Version = 1 });
+        var result = await _handler.Handle(new UpdateArchitectureCommand { EditToken = "unknown-token", Name = "X", Version = 1 });
 
         Assert.Null(result);
     }
@@ -54,7 +54,7 @@ public class UpdateArchitectureCommandHandlerTests
         var architecture = await SeedArchitecture();
 
         var exception = await Assert.ThrowsAsync<ArchitectureConcurrencyConflictException>(() =>
-            _handler.Handle(new UpdateArchitectureCommand { Id = architecture.Id, Name = "Renamed", Version = architecture.Version + 1 }));
+            _handler.Handle(new UpdateArchitectureCommand { EditToken = architecture.EditToken, Name = "Renamed", Version = architecture.Version + 1 }));
 
         Assert.Equal(architecture.Version, exception.CurrentVersion);
     }
@@ -66,7 +66,7 @@ public class UpdateArchitectureCommandHandlerTests
         var originalVersion = architecture.Version;
         var command = new UpdateArchitectureCommand
         {
-            Id = architecture.Id,
+            EditToken = architecture.EditToken,
             Name = "Renamed",
             Version = originalVersion,
             Nodes = [Node(NodeType.Service, "Orders", x: 1, y: 2)]
@@ -93,7 +93,7 @@ public class UpdateArchitectureCommandHandlerTests
 
         await _handler.Handle(new UpdateArchitectureCommand
         {
-            Id = architecture.Id,
+            EditToken = architecture.EditToken,
             Name = "Original",
             Version = architecture.Version,
             Nodes = [kept, dropped]
@@ -101,7 +101,7 @@ public class UpdateArchitectureCommandHandlerTests
 
         await _handler.Handle(new UpdateArchitectureCommand
         {
-            Id = architecture.Id,
+            EditToken = architecture.EditToken,
             Name = "Original",
             Version = architecture.Version,
             Nodes = [kept]
@@ -119,7 +119,7 @@ public class UpdateArchitectureCommandHandlerTests
 
         var command = new UpdateArchitectureCommand
         {
-            Id = architecture.Id,
+            EditToken = architecture.EditToken,
             Name = "Renamed",
             Version = architecture.Version,
             Nodes = [api],
@@ -147,7 +147,7 @@ public class UpdateArchitectureCommandHandlerTests
 
         var command = new UpdateArchitectureCommand
         {
-            Id = architecture.Id,
+            EditToken = architecture.EditToken,
             Name = "Renamed",
             Version = architecture.Version,
             Nodes = [Node(NodeType.Api, "Api", id: id), Node(NodeType.Service, "Orders", id: id)]
@@ -163,7 +163,7 @@ public class UpdateArchitectureCommandHandlerTests
 
         var command = new UpdateArchitectureCommand
         {
-            Id = architecture.Id,
+            EditToken = architecture.EditToken,
             Name = "Renamed",
             Version = architecture.Version,
             Nodes = [Node(NodeType.Api, "Api", id: Guid.Empty)]
@@ -181,7 +181,7 @@ public class UpdateArchitectureCommandHandlerTests
 
         var command = new UpdateArchitectureCommand
         {
-            Id = architecture.Id,
+            EditToken = architecture.EditToken,
             Name = "Renamed",
             Version = architecture.Version,
             Nodes = [node]
@@ -199,7 +199,7 @@ public class UpdateArchitectureCommandHandlerTests
 
         var command = new UpdateArchitectureCommand
         {
-            Id = architecture.Id,
+            EditToken = architecture.EditToken,
             Name = "Renamed",
             Version = architecture.Version,
             Nodes = [node]
@@ -217,7 +217,7 @@ public class UpdateArchitectureCommandHandlerTests
 
         var command = new UpdateArchitectureCommand
         {
-            Id = architecture.Id,
+            EditToken = architecture.EditToken,
             Name = "Renamed",
             Version = architecture.Version,
             Nodes = [node]
@@ -244,7 +244,7 @@ public class UpdateArchitectureCommandHandlerTests
 
         var command = new UpdateArchitectureCommand
         {
-            Id = architecture.Id,
+            EditToken = architecture.EditToken,
             Name = "Renamed",
             Version = architecture.Version,
             Nodes = [node]
@@ -268,7 +268,7 @@ public class UpdateArchitectureCommandHandlerTests
 
         var command = new UpdateArchitectureCommand
         {
-            Id = architecture.Id,
+            EditToken = architecture.EditToken,
             Name = "Renamed",
             Version = architecture.Version,
             Nodes = [api, database],
@@ -290,7 +290,7 @@ public class UpdateArchitectureCommandHandlerTests
 
         await _handler.Handle(new UpdateArchitectureCommand
         {
-            Id = architecture.Id,
+            EditToken = architecture.EditToken,
             Name = "Renamed",
             Version = architecture.Version,
             Nodes = [api, database],
@@ -309,7 +309,7 @@ public class UpdateArchitectureCommandHandlerTests
 
         var command = new UpdateArchitectureCommand
         {
-            Id = architecture.Id,
+            EditToken = architecture.EditToken,
             Name = "Renamed",
             Version = architecture.Version,
             Nodes = [api, database],
@@ -328,7 +328,7 @@ public class UpdateArchitectureCommandHandlerTests
 
         var command = new UpdateArchitectureCommand
         {
-            Id = architecture.Id,
+            EditToken = architecture.EditToken,
             Name = "Renamed",
             Version = architecture.Version,
             Nodes = [api, database],
@@ -348,7 +348,7 @@ public class UpdateArchitectureCommandHandlerTests
 
         var command = new UpdateArchitectureCommand
         {
-            Id = architecture.Id,
+            EditToken = architecture.EditToken,
             Name = "Renamed",
             Version = architecture.Version,
             Nodes = [service],
@@ -367,7 +367,7 @@ public class UpdateArchitectureCommandHandlerTests
 
         var result = await _handler.Handle(new UpdateArchitectureCommand
         {
-            Id = architecture.Id,
+            EditToken = architecture.EditToken,
             Name = "Renamed",
             Version = architecture.Version,
             Nodes = [orders, payments],
@@ -384,7 +384,7 @@ public class UpdateArchitectureCommandHandlerTests
 
         var result = await _handler.Handle(new UpdateArchitectureCommand
         {
-            Id = architecture.Id,
+            EditToken = architecture.EditToken,
             Name = "Renamed",
             Version = architecture.Version,
             Nodes = [Node(NodeType.Gateway, "Gateway"), Node(NodeType.LoadBalancer, "LB")]
@@ -421,6 +421,7 @@ public class UpdateArchitectureCommandHandlerTests
             Id = Guid.NewGuid(),
             Name = "Original",
             ShareToken = Guid.NewGuid().ToString("N")[..10],
+            EditToken = Guid.NewGuid().ToString("N"),
             Version = 3,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -472,6 +473,7 @@ public class UpdateArchitectureCommandHandlerTests
             Id = Guid.NewGuid(),
             Name = "Seed",
             ShareToken = "tok",
+            EditToken = Guid.NewGuid().ToString("N"),
             Version = 1,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -488,7 +490,7 @@ public class UpdateArchitectureCommandHandlerTests
 
         return new UpdateArchitectureCommand
         {
-            Id = architecture.Id,
+            EditToken = architecture.EditToken,
             Name = name,
             Version = architecture.Version,
             Nodes =

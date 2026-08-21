@@ -4,7 +4,7 @@ namespace arch_forge_backend.Application.Architectures.Queries;
 
 public class GetArchitectureHistoryQuery
 {
-    public Guid Id { get; set; }
+    public string ShareToken { get; set; } = string.Empty;
 }
 
 /// <param name="Score">Null when no area was scorable at that version.</param>
@@ -33,11 +33,11 @@ public class GetArchitectureHistoryQueryHandler
         GetArchitectureHistoryQuery query,
         CancellationToken cancellationToken = default)
     {
-        var architecture = await _repository.GetByIdAsync(query.Id, cancellationToken);
+        var architecture = await _repository.GetByShareTokenAsync(query.ShareToken, cancellationToken);
         if (architecture is null)
             return null;
 
-        var snapshots = await _repository.GetSnapshotsAsync(query.Id, Limit, cancellationToken);
+        var snapshots = await _repository.GetSnapshotsAsync(architecture.Id, Limit, cancellationToken);
 
         return snapshots
             .Select(s => new ArchitectureSnapshotDto(s.Version, s.ScoringVersion, s.Score, s.CreatedAt))

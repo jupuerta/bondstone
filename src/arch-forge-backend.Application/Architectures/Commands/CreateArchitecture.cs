@@ -29,7 +29,7 @@ public class CreateArchitectureCommandHandler
         _validator = validator;
     }
 
-    public async Task<ArchitectureDto> Handle(CreateArchitectureCommand command, CancellationToken cancellationToken = default)
+    public async Task<ArchitectureCreatedDto> Handle(CreateArchitectureCommand command, CancellationToken cancellationToken = default)
     {
         await _validator.ValidateAndThrowAsync(command, cancellationToken);
 
@@ -39,6 +39,7 @@ public class CreateArchitectureCommandHandler
             Id = Guid.NewGuid(),
             Name = command.Name,
             ShareToken = Guid.NewGuid().ToString("N")[..10],
+            EditToken = Guid.NewGuid().ToString("N"),
             Version = 1,
             CreatedAt = now,
             UpdatedAt = now
@@ -47,6 +48,6 @@ public class CreateArchitectureCommandHandler
         await _repository.AddAsync(architecture, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);
 
-        return architecture.ToDto();
+        return architecture.ToCreatedDto();
     }
 }

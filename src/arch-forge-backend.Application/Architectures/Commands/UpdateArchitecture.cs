@@ -12,7 +12,8 @@ namespace arch_forge_backend.Application.Architectures.Commands;
 
 public class UpdateArchitectureCommand
 {
-    public Guid Id { get; set; }
+    /// <summary>The write handle. Resolved through it and nothing else - see <see cref="Domain.Entities.Architecture.EditToken"/>.</summary>
+    public string EditToken { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public int Version { get; set; }
     public List<NodeDto> Nodes { get; set; } = new();
@@ -23,6 +24,7 @@ public class UpdateArchitectureCommandValidator : AbstractValidator<UpdateArchit
 {
     public UpdateArchitectureCommandValidator()
     {
+        RuleFor(c => c.EditToken).NotEmpty();
         RuleFor(c => c.Name).NotEmpty().MaximumLength(200);
         RuleFor(c => c.Version).GreaterThan(0);
 
@@ -135,7 +137,7 @@ public class UpdateArchitectureCommandHandler
     {
         await _validator.ValidateAndThrowAsync(command, cancellationToken);
 
-        var architecture = await _repository.GetByIdAsync(command.Id, cancellationToken);
+        var architecture = await _repository.GetByEditTokenAsync(command.EditToken, cancellationToken);
         if (architecture is null)
             return null;
 

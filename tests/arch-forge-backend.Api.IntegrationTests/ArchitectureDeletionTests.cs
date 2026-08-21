@@ -21,17 +21,17 @@ public class ArchitectureDeletionTests : IClassFixture<PostgresApiFactory>
     [Fact]
     public async Task Delete_TakesTheArchitectureAndItsWholeGraph()
     {
-        var (id, shareToken) = await SeedGraphAsync();
+        var (editToken, shareToken) = await SeedGraphAsync();
 
-        var response = await _client.DeleteAsync($"/api/architectures/{id}");
+        var response = await _client.DeleteAsync($"/api/architectures/edit/{editToken}");
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
 
-        // Gone through both handles: the id the writes use and the token the link uses.
+        // Gone through both handles: the token the writes use and the one the link uses.
         Assert.Equal(HttpStatusCode.NotFound, (await _client.GetAsync($"/api/architectures/{shareToken}")).StatusCode);
 
         // And the nodes and connections went with it. If the cascade were not declared, this would
         // be a foreign key violation on the DELETE rather than a clean 404 here.
-        var orphaned = await _client.PostAsync($"/api/architectures/{id}/analyze", null);
+        var orphaned = await _client.PostAsync($"/api/architectures/{shareToken}/analyze", null);
         Assert.Equal(HttpStatusCode.NotFound, orphaned.StatusCode);
     }
 
@@ -41,9 +41,9 @@ public class ArchitectureDeletionTests : IClassFixture<PostgresApiFactory>
         // Unlike the PUT, which answers 409 to a stale snapshot. A delete has nothing to merge:
         // the intent is "this should not exist", and somebody having moved a box a second earlier
         // does not make it less true.
-        var (id, _) = await SeedGraphAsync();
+        var (editToken, _) = await SeedGraphAsync();
 
-        var edit = await _client.PutAsJsonAsync($"/api/architectures/{id}", new
+        var edit = await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", new
         {
             name = "Edited by somebody else",
             version = 2,
@@ -52,22 +52,37 @@ public class ArchitectureDeletionTests : IClassFixture<PostgresApiFactory>
         });
         Assert.Equal(HttpStatusCode.OK, edit.StatusCode);
 
-        Assert.Equal(HttpStatusCode.NoContent, (await _client.DeleteAsync($"/api/architectures/{id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await _client.DeleteAsync($"/api/architectures/edit/{editToken}")).StatusCode);
     }
 
     [Fact]
     public async Task Delete_Twice_ReturnsNotFoundTheSecondTime()
     {
-        var (id, _) = await SeedGraphAsync();
+        var (editToken, _) = await SeedGraphAsync();
 
-        Assert.Equal(HttpStatusCode.NoContent, (await _client.DeleteAsync($"/api/architectures/{id}")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await _client.DeleteAsync($"/api/architectures/{id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await _client.DeleteAsync($"/api/architectures/edit/{editToken}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await _client.DeleteAsync($"/api/architectures/edit/{editToken}")).StatusCode);
     }
 
     [Fact]
-    public async Task Delete_UnknownArchitecture_ReturnsNotFound()
+    public async Task Delete_UnknownEditToken_ReturnsNotFound()
     {
-        var response = await _client.DeleteAsync($"/api/architectures/{Guid.NewGuid()}");
+        var response = await _client.DeleteAsync($"/api/architectures/edit/{Guid.NewGuid():N}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    /// <summary>
+    /// A share token has never granted a write, but this is the test that would have caught it if
+    /// it ever did: hitting the write route with the read handle must 404, the same as any other
+    /// value that is not somebody's edit token.
+    /// </summary>
+    [Fact]
+    public async Task Delete_WithAShareTokenInstead_ReturnsNotFound()
+    {
+        var (_, shareToken) = await SeedGraphAsync();
+
+        var response = await _client.DeleteAsync($"/api/architectures/edit/{shareToken}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -75,27 +90,27 @@ public class ArchitectureDeletionTests : IClassFixture<PostgresApiFactory>
     [Fact]
     public async Task Delete_LeavesEveryOtherArchitectureAlone()
     {
-        var (doomed, _) = await SeedGraphAsync();
-        var (survivor, survivorToken) = await SeedGraphAsync();
+        var (doomedEditToken, _) = await SeedGraphAsync();
+        var (_, survivorShareToken) = await SeedGraphAsync();
 
-        await _client.DeleteAsync($"/api/architectures/{doomed}");
+        await _client.DeleteAsync($"/api/architectures/edit/{doomedEditToken}");
 
-        var reloaded = await _client.GetFromJsonAsync<JsonObject>($"/api/architectures/{survivorToken}");
-        Assert.Equal(survivor, reloaded!["id"]!.GetValue<Guid>());
+        var reloaded = await _client.GetFromJsonAsync<JsonObject>($"/api/architectures/{survivorShareToken}");
+        Assert.Equal(survivorShareToken, reloaded!["shareToken"]!.GetValue<string>());
         Assert.Equal(2, reloaded["nodes"]!.AsArray().Count);
         Assert.Single(reloaded["connections"]!.AsArray());
     }
 
-    private async Task<(Guid Id, string ShareToken)> SeedGraphAsync()
+    private async Task<(string EditToken, string ShareToken)> SeedGraphAsync()
     {
         var created = await _client.PostAsJsonAsync("/api/architectures", new { name = "Doomed" });
         var architecture = await created.Content.ReadFromJsonAsync<JsonObject>();
-        var id = architecture!["id"]!.GetValue<Guid>();
+        var editToken = architecture!["editToken"]!.GetValue<string>();
 
         var api = Guid.NewGuid();
         var db = Guid.NewGuid();
 
-        var update = await _client.PutAsJsonAsync($"/api/architectures/{id}", new
+        var update = await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", new
         {
             name = "Doomed",
             version = 1,
@@ -111,6 +126,6 @@ public class ArchitectureDeletionTests : IClassFixture<PostgresApiFactory>
         });
 
         Assert.Equal(HttpStatusCode.OK, update.StatusCode);
-        return (id, architecture["shareToken"]!.GetValue<string>());
+        return (editToken, architecture["shareToken"]!.GetValue<string>());
     }
 }

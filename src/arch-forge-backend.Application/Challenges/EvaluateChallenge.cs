@@ -7,7 +7,7 @@ namespace arch_forge_backend.Application.Challenges;
 public class EvaluateChallengeQuery
 {
     public string Slug { get; set; } = string.Empty;
-    public Guid ArchitectureId { get; set; }
+    public string ShareToken { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -40,7 +40,7 @@ public class EvaluateChallengeQueryHandler
         if (definition is null)
             return null;
 
-        var architecture = await _repository.GetByIdAsync(query.ArchitectureId, cancellationToken);
+        var architecture = await _repository.GetByShareTokenAsync(query.ShareToken, cancellationToken);
         if (architecture is null)
             return null;
 

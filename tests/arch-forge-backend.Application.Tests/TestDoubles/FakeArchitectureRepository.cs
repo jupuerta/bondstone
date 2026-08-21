@@ -16,6 +16,9 @@ public class FakeArchitectureRepository : IArchitectureRepository
     public Task<Architecture?> GetByShareTokenAsync(string shareToken, CancellationToken cancellationToken = default) =>
         Task.FromResult(_store.Values.FirstOrDefault(a => a.ShareToken == shareToken));
 
+    public Task<Architecture?> GetByEditTokenAsync(string editToken, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_store.Values.FirstOrDefault(a => a.EditToken == editToken));
+
     public Task AddAsync(Architecture architecture, CancellationToken cancellationToken = default)
     {
         _store[architecture.Id] = architecture;

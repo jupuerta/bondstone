@@ -26,6 +26,12 @@ public class ArchitectureRepository : IArchitectureRepository
             .Include(a => a.Connections)
             .FirstOrDefaultAsync(a => a.ShareToken == shareToken, cancellationToken);
 
+    public Task<Architecture?> GetByEditTokenAsync(string editToken, CancellationToken cancellationToken = default) =>
+        _context.Architectures
+            .Include(a => a.Nodes)
+            .Include(a => a.Connections)
+            .FirstOrDefaultAsync(a => a.EditToken == editToken, cancellationToken);
+
     public async Task AddAsync(Architecture architecture, CancellationToken cancellationToken = default) =>
         await _context.Architectures.AddAsync(architecture, cancellationToken);
 

@@ -42,14 +42,15 @@ public class ChallengesController : ControllerBase
 
     /// <summary>
     /// Instantiates the starter architecture and answers like <c>POST /architectures</c> does - the
-    /// attempt is an ordinary architecture with an ordinary share token (D2.2), which is why the
-    /// client can hand it straight to <c>/a/{token}</c>.
+    /// attempt is an ordinary architecture with an ordinary pair of tokens (D2.2), which is why the
+    /// client can hand it straight to <c>/e/{editToken}</c>: starting a challenge is claiming an
+    /// attempt, so this is one of the three responses that carries an edit token at all.
     /// </summary>
     [HttpPost("{slug}/start")]
     public async Task<IActionResult> Start(string slug, [FromBody] NameRequest? request, CancellationToken cancellationToken)
     {
         var result = await _startHandler.Handle(new StartChallengeCommand { Slug = slug, Name = request?.Name }, cancellationToken);
-        return result is null ? NotFound() : Created($"/api/architectures/{result.ShareToken}", result);
+        return result is null ? NotFound() : Created($"/api/architectures/edit/{result.EditToken}", result);
     }
 
     /// <summary>
@@ -63,7 +64,7 @@ public class ChallengesController : ControllerBase
     [HttpPost("{slug}/evaluate")]
     public async Task<IActionResult> Evaluate(string slug, [FromBody] EvaluateRequest request, CancellationToken cancellationToken)
     {
-        var query = new EvaluateChallengeQuery { Slug = slug, ArchitectureId = request.ArchitectureId };
+        var query = new EvaluateChallengeQuery { Slug = slug, ShareToken = request.ShareToken };
         var result = await _evaluateHandler.Handle(query, cancellationToken);
         return result is null ? NotFound() : Ok(result);
     }
@@ -85,7 +86,7 @@ public class ChallengesController : ControllerBase
 
     public class EvaluateRequest
     {
-        public Guid ArchitectureId { get; set; }
+        public string ShareToken { get; set; } = string.Empty;
     }
 
     /// <summary>

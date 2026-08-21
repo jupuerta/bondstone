@@ -20,7 +20,7 @@ public class DeleteArchitectureCommandHandlerTests
     {
         var architecture = await SeedArchitecture();
 
-        var deleted = await _handler.Handle(new DeleteArchitectureCommand { Id = architecture.Id });
+        var deleted = await _handler.Handle(new DeleteArchitectureCommand { EditToken = architecture.EditToken });
 
         Assert.True(deleted);
         Assert.Null(await _repository.GetByIdAsync(architecture.Id));
@@ -31,7 +31,7 @@ public class DeleteArchitectureCommandHandlerTests
     {
         // The controller turns this into a 404. On an irreversible operation with no history,
         // "there was nothing there" is worth returning rather than pretending it worked.
-        var deleted = await _handler.Handle(new DeleteArchitectureCommand { Id = Guid.NewGuid() });
+        var deleted = await _handler.Handle(new DeleteArchitectureCommand { EditToken = Guid.NewGuid().ToString() });
 
         Assert.False(deleted);
     }
@@ -45,7 +45,7 @@ public class DeleteArchitectureCommandHandlerTests
         var architecture = await SeedArchitecture();
         architecture.Version = 47;
 
-        Assert.True(await _handler.Handle(new DeleteArchitectureCommand { Id = architecture.Id }));
+        Assert.True(await _handler.Handle(new DeleteArchitectureCommand { EditToken = architecture.EditToken }));
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public class DeleteArchitectureCommandHandlerTests
             [api, db],
             [new Connection { Id = Guid.NewGuid(), SourceNodeId = api.Id, TargetNodeId = db.Id }]);
 
-        await _handler.Handle(new DeleteArchitectureCommand { Id = architecture.Id });
+        await _handler.Handle(new DeleteArchitectureCommand { EditToken = architecture.EditToken });
 
         Assert.Null(await _repository.GetByIdAsync(architecture.Id));
         Assert.Null(await _repository.GetByShareTokenAsync(architecture.ShareToken));
@@ -75,6 +75,7 @@ public class DeleteArchitectureCommandHandlerTests
             Id = Guid.NewGuid(),
             Name = "Checkout",
             ShareToken = Guid.NewGuid().ToString("N")[..10],
+            EditToken = Guid.NewGuid().ToString("N"),
             Version = 1,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow

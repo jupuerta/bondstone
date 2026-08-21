@@ -31,6 +31,11 @@ namespace arch_forge_backend.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("EditToken")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -51,6 +56,9 @@ namespace arch_forge_backend.Infrastructure.Persistence.Migrations
                         .HasDefaultValue(1);
 
                     b.HasKey("Id");
+
+                    b.HasIndex("EditToken")
+                        .IsUnique();
 
                     b.HasIndex("ShareToken")
                         .IsUnique();

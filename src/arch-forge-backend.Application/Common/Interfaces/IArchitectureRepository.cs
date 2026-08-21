@@ -4,8 +4,19 @@ namespace arch_forge_backend.Application.Common.Interfaces;
 
 public interface IArchitectureRepository
 {
+    /// <summary>
+    /// By primary key. Nothing HTTP-reachable resolves a client-supplied value this way any more -
+    /// the two token lookups below are what every controller action uses - so this exists for
+    /// server-internal reads that already hold the entity's own id (tests included).
+    /// </summary>
     Task<Architecture?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>The read handle. Everything that does not write resolves through this.</summary>
     Task<Architecture?> GetByShareTokenAsync(string shareToken, CancellationToken cancellationToken = default);
+
+    /// <summary>The write handle. <c>PUT</c> and <c>DELETE</c> resolve through this and nothing else.</summary>
+    Task<Architecture?> GetByEditTokenAsync(string editToken, CancellationToken cancellationToken = default);
+
     Task AddAsync(Architecture architecture, CancellationToken cancellationToken = default);
 
     /// <summary>

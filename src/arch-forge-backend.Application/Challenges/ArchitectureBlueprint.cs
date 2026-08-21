@@ -32,6 +32,7 @@ public sealed class ArchitectureBlueprint
             Id = Guid.NewGuid(),
             Name = name,
             ShareToken = Guid.NewGuid().ToString("N")[..10],
+            EditToken = Guid.NewGuid().ToString("N"),
             Version = 1,
             CreatedAt = now,
             UpdatedAt = now

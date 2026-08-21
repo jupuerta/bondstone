@@ -25,12 +25,15 @@ public class StartChallengeCommand
 
 /// <summary>
 /// V4 D2.3 and D4.3. Instantiates the challenge's starter architecture and hands back an ordinary
-/// architecture with an ordinary share token.
+/// architecture with an ordinary pair of tokens.
 ///
 /// <strong>Ordinary is the point.</strong> An attempt is not a special kind of entity (D2.2): it
 /// saves, analyses, simulates and shares exactly like anything else, and the only thing that links
 /// it to the challenge is the URL. That is what keeps V4 from needing a column, a table or a
 /// migration for any of this.
+///
+/// It hands back the edit token, unlike <see cref="OpenChallengeSolutionCommandHandler"/>: starting
+/// a challenge is claiming an attempt as yours, and there is nobody else this could belong to yet.
 /// </summary>
 public class StartChallengeCommandHandler
 {
@@ -47,7 +50,7 @@ public class StartChallengeCommandHandler
     internal static string NameOr(string? name, string slug) =>
         string.IsNullOrWhiteSpace(name) ? slug : name.Trim();
 
-    public async Task<ArchitectureDto?> Handle(StartChallengeCommand command, CancellationToken cancellationToken = default)
+    public async Task<ArchitectureCreatedDto?> Handle(StartChallengeCommand command, CancellationToken cancellationToken = default)
     {
         var definition = _catalog.Find(command.Slug);
         var starter = _catalog.StarterOf(command.Slug);
@@ -64,6 +67,6 @@ public class StartChallengeCommandHandler
         await _repository.AddAsync(architecture, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);
 
-        return architecture.ToDto();
+        return architecture.ToCreatedDto();
     }
 }

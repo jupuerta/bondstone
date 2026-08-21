@@ -4,15 +4,16 @@ namespace arch_forge_backend.Application.Architectures.Commands;
 
 public class DeleteArchitectureCommand
 {
-    public Guid Id { get; set; }
+    public string EditToken { get; set; } = string.Empty;
 }
 
 /// <summary>
 /// Deletes an architecture and, by cascade, its whole graph.
 ///
-/// <para><strong>By id and not by share token</strong>, like every other operation that writes: the
-/// token is the read handle that <c>GET</c> uses, and the id is what the client already holds after
-/// creating or loading one.</para>
+/// <para><strong>By edit token and not by share token</strong>, like every other operation that
+/// writes: the share token is the read handle everyone who has seen the architecture holds, and the
+/// edit token is the one credential that only its owner does. Resolving this by the database id, as
+/// it used to, made the id itself a write credential the moment any <c>GET</c> handed it back.</para>
 ///
 /// <para><strong>Not versioned</strong>, unlike the PUT. The <c>409</c> of
 /// <see cref="UpdateArchitectureCommandHandler"/> exists to stop a stale snapshot silently
@@ -37,7 +38,7 @@ public class DeleteArchitectureCommandHandler
     /// <returns><c>false</c> when the architecture does not exist, which the controller maps to 404.</returns>
     public async Task<bool> Handle(DeleteArchitectureCommand command, CancellationToken cancellationToken = default)
     {
-        var architecture = await _repository.GetByIdAsync(command.Id, cancellationToken);
+        var architecture = await _repository.GetByEditTokenAsync(command.EditToken, cancellationToken);
         if (architecture is null)
             return false;
 

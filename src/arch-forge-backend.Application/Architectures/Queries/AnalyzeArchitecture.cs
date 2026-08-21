@@ -5,7 +5,7 @@ namespace arch_forge_backend.Application.Architectures.Queries;
 
 public class AnalyzeArchitectureQuery
 {
-    public Guid Id { get; set; }
+    public string ShareToken { get; set; } = string.Empty;
 }
 
 public class AnalyzeArchitectureQueryHandler
@@ -21,7 +21,7 @@ public class AnalyzeArchitectureQueryHandler
 
     public async Task<AnalysisResult?> Handle(AnalyzeArchitectureQuery query, CancellationToken cancellationToken = default)
     {
-        var architecture = await _repository.GetByIdAsync(query.Id, cancellationToken);
+        var architecture = await _repository.GetByShareTokenAsync(query.ShareToken, cancellationToken);
         if (architecture is null)
             return null;
 

@@ -14,7 +14,7 @@ namespace arch_forge_backend.Application.Architectures.Queries;
 /// </summary>
 public class SimulateArchitectureQuery
 {
-    public Guid Id { get; set; }
+    public string ShareToken { get; set; } = string.Empty;
     public SimulationScenario Scenario { get; set; } = SimulationScenario.Empty;
 }
 
@@ -33,7 +33,7 @@ public class SimulateArchitectureQueryHandler
     {
         Validate(query.Scenario);
 
-        var architecture = await _repository.GetByIdAsync(query.Id, cancellationToken);
+        var architecture = await _repository.GetByShareTokenAsync(query.ShareToken, cancellationToken);
         if (architecture is null)
             return null;
 

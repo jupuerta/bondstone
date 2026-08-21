@@ -17,7 +17,7 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
     [Fact]
     public async Task FullFlow_CreateGetUpdateConflictAnalyze_BehavesPerContract()
     {
-        var (id, shareToken) = await CreateArchitectureAsync("Checkout flow");
+        var (editToken, shareToken) = await CreateArchitectureAsync("Checkout flow");
 
         var getResponse = await _client.GetAsync($"/api/architectures/{shareToken}");
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
@@ -46,12 +46,12 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
             }
         };
 
-        var updateResponse = await _client.PutAsJsonAsync($"/api/architectures/{id}", updateBody);
+        var updateResponse = await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", updateBody);
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
         var updated = await updateResponse.Content.ReadFromJsonAsync<JsonObject>();
         Assert.Equal(2, updated!["version"]!.GetValue<int>());
 
-        var staleResponse = await _client.PutAsJsonAsync($"/api/architectures/{id}", updateBody);
+        var staleResponse = await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", updateBody);
         Assert.Equal(HttpStatusCode.Conflict, staleResponse.StatusCode);
         var conflict = await staleResponse.Content.ReadFromJsonAsync<JsonObject>();
         Assert.Equal(2, conflict!["currentVersion"]!.GetValue<int>());
@@ -60,7 +60,7 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
         Assert.Equal(4, reloaded!["nodes"]!.AsArray().Count);
         Assert.Equal(3, reloaded["connections"]!.AsArray().Count);
 
-        var analyzeResponse = await _client.PostAsync($"/api/architectures/{id}/analyze", content: null);
+        var analyzeResponse = await _client.PostAsync($"/api/architectures/{shareToken}/analyze", content: null);
         Assert.Equal(HttpStatusCode.OK, analyzeResponse.StatusCode);
         var analysis = await analyzeResponse.Content.ReadFromJsonAsync<JsonObject>();
         var findings = analysis!["findings"]!.AsArray();
@@ -88,11 +88,11 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
     {
         // V2 D3.1: resilience moved into the edge's jsonb, so it has to survive the round trip
         // the same way a node's configuration does.
-        var (id, shareToken) = await CreateArchitectureAsync("Resilient edge");
+        var (editToken, shareToken) = await CreateArchitectureAsync("Resilient edge");
         var apiNodeId = Guid.NewGuid();
         var databaseNodeId = Guid.NewGuid();
 
-        var response = await _client.PutAsJsonAsync($"/api/architectures/{id}", new
+        var response = await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", new
         {
             name = "Resilient edge",
             version = 1,
@@ -127,11 +127,11 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
     [Fact]
     public async Task Put_ConnectionWithoutConfiguration_RoundTripsAsEmptyObject()
     {
-        var (id, shareToken) = await CreateArchitectureAsync("Bare edge");
+        var (editToken, shareToken) = await CreateArchitectureAsync("Bare edge");
         var apiNodeId = Guid.NewGuid();
         var databaseNodeId = Guid.NewGuid();
 
-        var response = await _client.PutAsJsonAsync($"/api/architectures/{id}", new
+        var response = await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", new
         {
             name = "Bare edge",
             version = 1,
@@ -156,10 +156,10 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
     public async Task Put_SelfLoop_ReturnsBadRequest()
     {
         // V2 D3.4: structural corruption, rejected on save. Cycles of length >= 2 are not.
-        var (id, _) = await CreateArchitectureAsync("Self loop");
+        var (editToken, _) = await CreateArchitectureAsync("Self loop");
         var nodeId = Guid.NewGuid();
 
-        var response = await _client.PutAsJsonAsync($"/api/architectures/{id}", new
+        var response = await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", new
         {
             name = "Self loop",
             version = 1,
@@ -180,9 +180,9 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
     public async Task Put_GatewayAndLoadBalancerNodes_RoundTrip()
     {
         // V2 D3.2: the two new types persist as text in the NodeType enum, no data migration.
-        var (id, shareToken) = await CreateArchitectureAsync("Edge tier");
+        var (editToken, shareToken) = await CreateArchitectureAsync("Edge tier");
 
-        var response = await _client.PutAsJsonAsync($"/api/architectures/{id}", new
+        var response = await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", new
         {
             name = "Edge tier",
             version = 1,
@@ -213,7 +213,7 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
     public async Task Put_RepeatedWithSameNodeIds_KeepsSavingAndBumpsVersion()
     {
         // The autosave loop re-sends the same client-generated ids on every flush.
-        var (id, shareToken) = await CreateArchitectureAsync("Autosave");
+        var (editToken, shareToken) = await CreateArchitectureAsync("Autosave");
 
         var apiNodeId = Guid.NewGuid();
         var databaseNodeId = Guid.NewGuid();
@@ -236,7 +236,7 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
 
         for (var version = 1; version <= 4; version++)
         {
-            var response = await _client.PutAsJsonAsync($"/api/architectures/{id}", Snapshot(version, version * 10));
+            var response = await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", Snapshot(version, version * 10));
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
             var body = await response.Content.ReadFromJsonAsync<JsonObject>();
@@ -255,10 +255,10 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
     [Fact]
     public async Task Put_NodeConfiguration_RoundTripsAsJsonObject()
     {
-        var (id, shareToken) = await CreateArchitectureAsync("Configured");
+        var (editToken, shareToken) = await CreateArchitectureAsync("Configured");
         var queueNodeId = Guid.NewGuid();
 
-        var response = await _client.PutAsJsonAsync($"/api/architectures/{id}", new
+        var response = await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", new
         {
             name = "Configured",
             version = 1,
@@ -289,9 +289,9 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
     public async Task Put_NodeWithoutConfiguration_RoundTripsAsEmptyObject()
     {
         // §5.1: the column is jsonb NOT NULL, so an unconfigured node reads back as {}, not null.
-        var (id, shareToken) = await CreateArchitectureAsync("Unconfigured");
+        var (editToken, shareToken) = await CreateArchitectureAsync("Unconfigured");
 
-        var response = await _client.PutAsJsonAsync($"/api/architectures/{id}", new
+        var response = await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", new
         {
             name = "Unconfigured",
             version = 1,
@@ -313,9 +313,9 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
     [Fact]
     public async Task Put_ConfigurationThatDoesNotMatchSchema_ReturnsBadRequest()
     {
-        var (id, _) = await CreateArchitectureAsync("Bad configuration");
+        var (editToken, _) = await CreateArchitectureAsync("Bad configuration");
 
-        var response = await _client.PutAsJsonAsync($"/api/architectures/{id}", new
+        var response = await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", new
         {
             name = "Bad configuration",
             version = 1,
@@ -339,9 +339,9 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
     [Fact]
     public async Task Put_ConnectionReferencingUnknownNode_ReturnsBadRequest()
     {
-        var (id, _) = await CreateArchitectureAsync("Dangling edge");
+        var (editToken, _) = await CreateArchitectureAsync("Dangling edge");
 
-        var response = await _client.PutAsJsonAsync($"/api/architectures/{id}", new
+        var response = await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", new
         {
             name = "Dangling edge",
             version = 1,
@@ -363,9 +363,9 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
     }
 
     [Fact]
-    public async Task Put_UnknownArchitecture_ReturnsNotFound()
+    public async Task Put_UnknownEditToken_ReturnsNotFound()
     {
-        var response = await _client.PutAsJsonAsync($"/api/architectures/{Guid.NewGuid()}", new
+        var response = await _client.PutAsJsonAsync($"/api/architectures/edit/{Guid.NewGuid():N}", new
         {
             name = "Ghost",
             version = 1,
@@ -377,9 +377,9 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
     }
 
     [Fact]
-    public async Task Analyze_UnknownArchitecture_ReturnsNotFound()
+    public async Task Analyze_UnknownShareToken_ReturnsNotFound()
     {
-        var response = await _client.PostAsync($"/api/architectures/{Guid.NewGuid()}/analyze", content: null);
+        var response = await _client.PostAsync($"/api/architectures/{Guid.NewGuid():N}/analyze", content: null);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -400,7 +400,7 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    private async Task<(Guid Id, string ShareToken)> CreateArchitectureAsync(string name)
+    private async Task<(string EditToken, string ShareToken)> CreateArchitectureAsync(string name)
     {
         var response = await _client.PostAsJsonAsync("/api/architectures", new { name });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -408,7 +408,7 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
         var created = await response.Content.ReadFromJsonAsync<JsonObject>();
         Assert.Equal(1, created!["version"]!.GetValue<int>());
 
-        return (created["id"]!.GetValue<Guid>(), created["shareToken"]!.GetValue<string>());
+        return (created["editToken"]!.GetValue<string>(), created["shareToken"]!.GetValue<string>());
     }
 
     /// <summary>
@@ -420,7 +420,8 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
     {
         var created = await _client.PostAsJsonAsync("/api/architectures", new { name = "History" });
         var architecture = (await created.Content.ReadFromJsonAsync<JsonObject>())!;
-        var id = architecture["id"]!.GetValue<string>();
+        var editToken = architecture["editToken"]!.GetValue<string>();
+        var shareToken = architecture["shareToken"]!.GetValue<string>();
 
         var api = Guid.NewGuid();
         var db = Guid.NewGuid();
@@ -450,10 +451,10 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
 
         // Two saves: one without a timeout on the call, then one with. The second scores better,
         // which is the `61 → 78` narrative the debt was written as.
-        await _client.PutAsJsonAsync($"/api/architectures/{id}", Snapshot(1, withTimeout: false));
-        await _client.PutAsJsonAsync($"/api/architectures/{id}", Snapshot(2, withTimeout: true));
+        await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", Snapshot(1, withTimeout: false));
+        await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", Snapshot(2, withTimeout: true));
 
-        var history = await _client.GetFromJsonAsync<JsonArray>($"/api/architectures/{id}/history");
+        var history = await _client.GetFromJsonAsync<JsonArray>($"/api/architectures/{shareToken}/history");
 
         Assert.NotNull(history);
         Assert.Equal(2, history!.Count);
@@ -471,7 +472,7 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
     [Fact]
     public async Task History_OfSomethingThatDoesNotExist_Is404()
     {
-        var response = await _client.GetAsync($"/api/architectures/{Guid.NewGuid()}/history");
+        var response = await _client.GetAsync($"/api/architectures/{Guid.NewGuid():N}/history");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }

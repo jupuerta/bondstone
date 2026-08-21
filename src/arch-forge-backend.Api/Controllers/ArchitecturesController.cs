@@ -11,7 +11,8 @@ public class ArchitecturesController : ControllerBase
 {
     private readonly CreateArchitectureCommandHandler _createHandler;
     private readonly UpdateArchitectureCommandHandler _updateHandler;
-    private readonly GetArchitectureByShareTokenQueryHandler _getHandler;
+    private readonly GetArchitectureByShareTokenQueryHandler _getByShareTokenHandler;
+    private readonly GetArchitectureByEditTokenQueryHandler _getByEditTokenHandler;
     private readonly DeleteArchitectureCommandHandler _deleteHandler;
     private readonly AnalyzeArchitectureQueryHandler _analyzeHandler;
     private readonly SimulateArchitectureQueryHandler _simulateHandler;
@@ -21,7 +22,8 @@ public class ArchitecturesController : ControllerBase
     public ArchitecturesController(
         CreateArchitectureCommandHandler createHandler,
         UpdateArchitectureCommandHandler updateHandler,
-        GetArchitectureByShareTokenQueryHandler getHandler,
+        GetArchitectureByShareTokenQueryHandler getByShareTokenHandler,
+        GetArchitectureByEditTokenQueryHandler getByEditTokenHandler,
         DeleteArchitectureCommandHandler deleteHandler,
         AnalyzeArchitectureQueryHandler analyzeHandler,
         SimulateArchitectureQueryHandler simulateHandler,
@@ -30,7 +32,8 @@ public class ArchitecturesController : ControllerBase
     {
         _createHandler = createHandler;
         _updateHandler = updateHandler;
-        _getHandler = getHandler;
+        _getByShareTokenHandler = getByShareTokenHandler;
+        _getByEditTokenHandler = getByEditTokenHandler;
         _deleteHandler = deleteHandler;
         _analyzeHandler = analyzeHandler;
         _simulateHandler = simulateHandler;
@@ -38,24 +41,43 @@ public class ArchitecturesController : ControllerBase
         _historyHandler = historyHandler;
     }
 
+    /// <summary>
+    /// Mints an architecture with a fresh share token and edit token. The <c>Location</c> header
+    /// points at the edit route: creating something is the one moment its author has nowhere else
+    /// to get that token from.
+    /// </summary>
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateArchitectureCommand command, CancellationToken cancellationToken)
     {
         var result = await _createHandler.Handle(command, cancellationToken);
-        return CreatedAtAction(nameof(GetByShareToken), new { shareToken = result.ShareToken }, result);
+        return CreatedAtAction(nameof(GetByEditToken), new { editToken = result.EditToken }, result);
     }
 
+    /// <summary>The read handle. Anyone holding a share token can view, analyze, simulate and fork - never write.</summary>
     [HttpGet("{shareToken}")]
     public async Task<IActionResult> GetByShareToken(string shareToken, CancellationToken cancellationToken)
     {
-        var result = await _getHandler.Handle(new GetArchitectureByShareTokenQuery { ShareToken = shareToken }, cancellationToken);
+        var result = await _getByShareTokenHandler.Handle(new GetArchitectureByShareTokenQuery { ShareToken = shareToken }, cancellationToken);
         return result is null ? NotFound() : Ok(result);
     }
 
-    [HttpPut("{id:guid}")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateArchitectureCommand command, CancellationToken cancellationToken)
+    /// <summary>
+    /// The owner's own load. Under <c>/edit/</c> rather than sharing the single-segment shape of
+    /// <see cref="GetByShareToken"/>: the two tokens must never be interchangeable at the routing
+    /// level, or a client bug that sends one where the other belongs would fail silently instead of
+    /// 404ing.
+    /// </summary>
+    [HttpGet("edit/{editToken}")]
+    public async Task<IActionResult> GetByEditToken(string editToken, CancellationToken cancellationToken)
     {
-        command.Id = id;
+        var result = await _getByEditTokenHandler.Handle(new GetArchitectureByEditTokenQuery { EditToken = editToken }, cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
+
+    [HttpPut("edit/{editToken}")]
+    public async Task<IActionResult> Update(string editToken, [FromBody] UpdateArchitectureCommand command, CancellationToken cancellationToken)
+    {
+        command.EditToken = editToken;
         var result = await _updateHandler.Handle(command, cancellationToken);
         return result is null ? NotFound() : Ok(result);
     }
@@ -63,31 +85,32 @@ public class ArchitecturesController : ControllerBase
     // by ArchForgeExceptionHandler from exceptions thrown in the handler.
 
     /// <summary>
-    /// Deletes the architecture and its whole graph. By id like the other writes, and with no
-    /// version: a delete has nothing to merge, so the 409 the PUT carries would only force the
-    /// caller to read an architecture in order to throw it away (see the handler).
+    /// Deletes the architecture and its whole graph. By edit token, like every other write, and
+    /// with no version: a delete has nothing to merge, so the 409 the PUT carries would only force
+    /// the caller to read an architecture in order to throw it away (see the handler).
     ///
     /// 204 when it is gone, 404 when there was nothing to delete - which on an irreversible
     /// operation with no history is information, not pedantry.
     /// </summary>
-    [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    [HttpDelete("edit/{editToken}")]
+    public async Task<IActionResult> Delete(string editToken, CancellationToken cancellationToken)
     {
-        var deleted = await _deleteHandler.Handle(new DeleteArchitectureCommand { Id = id }, cancellationToken);
+        var deleted = await _deleteHandler.Handle(new DeleteArchitectureCommand { EditToken = editToken }, cancellationToken);
         return deleted ? NoContent() : NotFound();
     }
 
     /// <summary>
-    /// V4 D2.3. Copies the architecture into a new one with its own share token, so opening a link
-    /// somebody shared and playing with it stops meaning editing theirs (§11).
+    /// V4 D2.3. Copies the architecture into a new one with its own tokens, so opening a link
+    /// somebody shared and playing with it stops meaning editing theirs (§11). By share token: fork
+    /// is a read-side action, offered to anyone who can already see the architecture.
     /// </summary>
-    [HttpPost("{id:guid}/fork")]
-    public async Task<IActionResult> Fork(Guid id, CancellationToken cancellationToken)
+    [HttpPost("{shareToken}/fork")]
+    public async Task<IActionResult> Fork(string shareToken, CancellationToken cancellationToken)
     {
-        var result = await _forkHandler.Handle(new ForkArchitectureCommand { Id = id }, cancellationToken);
+        var result = await _forkHandler.Handle(new ForkArchitectureCommand { ShareToken = shareToken }, cancellationToken);
         return result is null
             ? NotFound()
-            : CreatedAtAction(nameof(GetByShareToken), new { shareToken = result.ShareToken }, result);
+            : CreatedAtAction(nameof(GetByEditToken), new { editToken = result.EditToken }, result);
     }
 
     /// <summary>
@@ -95,18 +118,17 @@ public class ArchitecturesController : ControllerBase
     /// analysis) and the only thing in V4 that persists a verdict - which is why every entry
     /// carries the scoring version that produced it.
     /// </summary>
-    [HttpGet("{id:guid}/history")]
-    public async Task<IActionResult> History(Guid id, CancellationToken cancellationToken)
+    [HttpGet("{shareToken}/history")]
+    public async Task<IActionResult> History(string shareToken, CancellationToken cancellationToken)
     {
-        var result = await _historyHandler.Handle(new GetArchitectureHistoryQuery { Id = id }, cancellationToken);
+        var result = await _historyHandler.Handle(new GetArchitectureHistoryQuery { ShareToken = shareToken }, cancellationToken);
         return result is null ? NotFound() : Ok(result);
     }
 
-
-    [HttpPost("{id:guid}/analyze")]
-    public async Task<IActionResult> Analyze(Guid id, CancellationToken cancellationToken)
+    [HttpPost("{shareToken}/analyze")]
+    public async Task<IActionResult> Analyze(string shareToken, CancellationToken cancellationToken)
     {
-        var result = await _analyzeHandler.Handle(new AnalyzeArchitectureQuery { Id = id }, cancellationToken);
+        var result = await _analyzeHandler.Handle(new AnalyzeArchitectureQuery { ShareToken = shareToken }, cancellationToken);
         return result is null ? NotFound() : Ok(result);
     }
 
@@ -119,12 +141,12 @@ public class ArchitecturesController : ControllerBase
     /// unknown fault kind or the same fault twice over one element; an id that is no longer in the
     /// graph is dropped and reported back in `discardedFaults`, so an old link still opens.
     /// </summary>
-    [HttpPost("{id:guid}/simulate")]
-    public async Task<IActionResult> Simulate(Guid id, [FromBody] SimulateRequest? request, CancellationToken cancellationToken)
+    [HttpPost("{shareToken}/simulate")]
+    public async Task<IActionResult> Simulate(string shareToken, [FromBody] SimulateRequest? request, CancellationToken cancellationToken)
     {
         var query = new SimulateArchitectureQuery
         {
-            Id = id,
+            ShareToken = shareToken,
             Scenario = new SimulationScenario(request?.Faults ?? [])
         };
 

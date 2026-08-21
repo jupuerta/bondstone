@@ -39,6 +39,12 @@ public class OpenChallengeSolutionCommand
 /// check it against (D2.1), and D3.6 already settled the posture: without a ranking, a user who
 /// goes looking for the answer is a user learning at their own pace. The UI offers it once the
 /// challenge is passed, which is where it teaches instead of replacing the attempt.
+///
+/// <strong>Read-only by construction, unlike <see cref="StartChallengeCommandHandler"/>.</strong> It
+/// still mints an edit token - every row needs one - but hands back the ordinary
+/// <see cref="ArchitectureDto"/> rather than <see cref="ArchitectureCreatedDto"/>, so nobody, not
+/// even the person who just opened it, receives the token that would let them change it. A
+/// reference solution is something to read, not a second scratchpad.
 /// </summary>
 public class OpenChallengeSolutionCommandHandler
 {
