@@ -240,14 +240,128 @@ public class RequirementEvaluatorTests
 }
 
 /// <summary>Blueprints small enough that the assertion above them reads on its own.</summary>
+/// <summary>
+/// V8 §6.1 and §6.4. The three kinds that were added when the catalogue grew past four challenges:
+/// the two caps that stop a load challenge being passed by buying hardware, and the requirement
+/// that can talk about one concrete call.
+/// </summary>
+public class NewRequirementKindsTests
+{
+    private static ChallengeRequirementResult Run(ChallengeRequirement requirement, ArchitectureBlueprint blueprint) =>
+        RequirementEvaluator.Evaluate(requirement, ChallengeHarness.Context(blueprint));
+
+    private static ArchitectureBlueprint ApiDb(string apiConfiguration = "{}", string dbConfiguration = "{}") => Blueprint.Of(
+        [("Api", NodeType.Api, apiConfiguration), ("Db", NodeType.Database, dbConfiguration)],
+        [("Api", "Db", ProtocolType.Sql, true, """{"timeoutSeconds":5}""")]);
+
+    [Fact]
+    public void MaxNodes_counts_the_whole_inventory()
+    {
+        Assert.True(Run(new ChallengeRequirement { Kind = RequirementKinds.MaxNodes, LabelKey = "x", Max = 2 }, ApiDb()).Met);
+
+        var tight = Run(new ChallengeRequirement { Kind = RequirementKinds.MaxNodes, LabelKey = "x", Max = 1 }, ApiDb());
+
+        Assert.False(tight.Met);
+        Assert.Equal("challenge.requirement.maxNodes.exceeded(count=2, max=1)", tight.Detail.Describe());
+    }
+
+    [Fact]
+    public void MaxInstances_reads_the_same_copies_the_capacity_model_reads()
+    {
+        // A database's read replicas are copies for CapacityModel, so they are copies here too -
+        // otherwise the cap would forbid the lever it is meant to cap and allow the other one.
+        var scaled = ApiDb(dbConfiguration: """{"readReplicas":3}""");
+
+        var capped = Run(new ChallengeRequirement { Kind = RequirementKinds.MaxInstances, LabelKey = "x", NodeType = NodeType.Database, Max = 1 }, scaled);
+
+        Assert.False(capped.Met);
+        Assert.Equal("challenge.requirement.maxInstances.exceeded(count=4, max=1, node=Db)", capped.Detail.Describe());
+        Assert.Single(capped.Elements);
+    }
+
+    [Fact]
+    public void MaxInstances_without_a_type_caps_every_component()
+    {
+        var blueprint = ApiDb(apiConfiguration: """{"instances":4}""");
+
+        Assert.False(Run(new ChallengeRequirement { Kind = RequirementKinds.MaxInstances, LabelKey = "x", Max = 1 }, blueprint).Met);
+        Assert.True(Run(new ChallengeRequirement { Kind = RequirementKinds.MaxInstances, LabelKey = "x", NodeType = NodeType.Database, Max = 1 }, blueprint).Met);
+    }
+
+    [Fact]
+    public void Edge_asks_about_one_call_and_says_so_when_it_is_gone()
+    {
+        // The anti-cheese: deleting the call is not a way of making it asynchronous, and the
+        // sentence that comes back names both ends rather than saying "not met".
+        var missing = Run(
+            new ChallengeRequirement { Kind = RequirementKinds.Edge, LabelKey = "x", From = "Api", To = "Mailer", Synchronous = false },
+            ApiDb());
+
+        Assert.False(missing.Met);
+        Assert.Equal("challenge.requirement.edge.missing(from=Api, to=Mailer)", missing.Detail.Describe());
+    }
+
+    [Fact]
+    public void Edge_tells_a_synchronous_call_from_an_asynchronous_one()
+    {
+        var requirement = new ChallengeRequirement { Kind = RequirementKinds.Edge, LabelKey = "x", From = "Api", To = "Db", Synchronous = false };
+
+        var blocking = Run(requirement, ApiDb());
+        Assert.False(blocking.Met);
+        Assert.Equal("challenge.requirement.edge.notAsynchronous(from=Api, to=Db)", blocking.Detail.Describe());
+        Assert.Single(blocking.Elements);
+
+        var released = Blueprint.Of(
+            [("Api", NodeType.Api), ("Db", NodeType.Database)],
+            [("Api", "Db", ProtocolType.Amqp, false, "{}")]);
+
+        Assert.True(Run(requirement, released).Met);
+    }
+
+    [Fact]
+    public void Edge_asks_a_mechanism_only_of_the_call_it_names()
+    {
+        var blueprint = Blueprint.Of(
+            [("Api", NodeType.Api), ("Db", NodeType.Database), ("Cache", NodeType.Cache)],
+            [("Api", "Db", ProtocolType.Sql, true, """{"timeoutSeconds":5}"""),
+             ("Api", "Cache", ProtocolType.Http, true, "{}")]);
+
+        // 'Api → Cache' carries nothing at all, and this requirement does not care: it is about
+        // the other call. That is the whole difference with allEdgesTo.
+        Assert.True(Run(new ChallengeRequirement
+        {
+            Kind = RequirementKinds.Edge, LabelKey = "x", From = "Api", To = "Db", Mechanism = RequirementMechanisms.Timeout
+        }, blueprint).Met);
+
+        var fallback = Run(new ChallengeRequirement
+        {
+            Kind = RequirementKinds.Edge, LabelKey = "x", From = "Api", To = "Db", Mechanism = RequirementMechanisms.Fallback
+        }, blueprint);
+
+        Assert.False(fallback.Met);
+        Assert.Equal("mechanism.fallback", fallback.Detail.Arg("mechanism"));
+    }
+}
+
 internal static class Blueprint
 {
     public static ArchitectureBlueprint Of(
         (string Name, NodeType Type)[] nodes,
+        (string From, string To, ProtocolType Protocol, bool Synchronous, string Configuration)[] edges) =>
+        Of(nodes.Select(n => (n.Name, n.Type, "{}")).ToArray(), edges);
+
+    /// <summary>The same, with the node's own configuration - what <c>maxInstances</c> reads.</summary>
+    public static ArchitectureBlueprint Of(
+        (string Name, NodeType Type, string Configuration)[] nodes,
         (string From, string To, ProtocolType Protocol, bool Synchronous, string Configuration)[] edges) => new()
     {
         Name = "test",
-        Nodes = nodes.Select(n => new BlueprintNode { Name = n.Name, Type = n.Type }).ToList(),
+        Nodes = nodes.Select(n => new BlueprintNode
+        {
+            Name = n.Name,
+            Type = n.Type,
+            Configuration = System.Text.Json.JsonDocument.Parse(n.Configuration).RootElement.Clone()
+        }).ToList(),
         Connections = edges.Select(e => new BlueprintConnection
         {
             From = e.From,

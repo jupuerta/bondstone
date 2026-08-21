@@ -1,0 +1,47 @@
+{
+  "slug": "email-can-wait",
+  "titleKey": "challenge.email-can-wait.title",
+  "storyKey": "challenge.email-can-wait.story",
+  "difficulty": "beginner",
+  "order": 2,
+  "topic": "Resilience",
+  "starter": "email-can-wait.starter.json",
+  "referenceSolution": "email-can-wait.solution.json",
+  "requirements": [
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.email-can-wait.requirement.1",
+      "faults": [{ "node": "Mailer", "kind": "down" }],
+      "metric": "entryPointsAffected",
+      "operator": "eq",
+      "value": 0
+    },
+    {
+      "kind": "edge",
+      "labelKey": "challenge.email-can-wait.requirement.2",
+      "from": "Orders",
+      "to": "Mailer",
+      "synchronous": false
+    },
+    {
+      "kind": "containsNode",
+      "labelKey": "challenge.email-can-wait.requirement.3",
+      "nodeType": "Database"
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.email-can-wait.goal.1",
+      "faults": [{ "node": "Db", "kind": "down" }],
+      "metric": "entryPointsAffected",
+      "operator": "eq",
+      "value": 0
+    }
+  ],
+  "hintKeys": [
+    "challenge.email-can-wait.hint.1",
+    "challenge.email-can-wait.hint.2",
+    "challenge.email-can-wait.hint.3"
+  ]
+}

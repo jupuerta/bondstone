@@ -1,0 +1,161 @@
+{
+  "name": "god-service starter",
+  "nodes": [
+    {
+      "name": "Storefront",
+      "type": "Api",
+      "x": -280,
+      "y": 320,
+      "configuration": {
+        "requestsPerSecond": 100,
+        "authentication": true
+      }
+    },
+    {
+      "name": "Core",
+      "type": "Service",
+      "x": 0,
+      "y": 320
+    },
+    {
+      "name": "Users",
+      "type": "Service",
+      "x": 300,
+      "y": 40
+    },
+    {
+      "name": "Orders",
+      "type": "Service",
+      "x": 300,
+      "y": 140
+    },
+    {
+      "name": "Payments",
+      "type": "Service",
+      "x": 300,
+      "y": 240
+    },
+    {
+      "name": "Inventory",
+      "type": "Service",
+      "x": 300,
+      "y": 340
+    },
+    {
+      "name": "Shipping",
+      "type": "Service",
+      "x": 300,
+      "y": 440
+    },
+    {
+      "name": "Pricing",
+      "type": "Service",
+      "x": 300,
+      "y": 540
+    },
+    {
+      "name": "Notifications",
+      "type": "Service",
+      "x": 300,
+      "y": 640
+    },
+    {
+      "name": "Legacy",
+      "type": "Service",
+      "x": 0,
+      "y": 760
+    }
+  ],
+  "connections": [
+    {
+      "from": "Storefront",
+      "to": "Core",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "from": "Core",
+      "to": "Users",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "from": "Core",
+      "to": "Orders",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "from": "Core",
+      "to": "Payments",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "from": "Core",
+      "to": "Inventory",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "from": "Core",
+      "to": "Shipping",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "from": "Core",
+      "to": "Pricing",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "from": "Core",
+      "to": "Notifications",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "from": "Payments",
+      "to": "Core",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "from": "Inventory",
+      "to": "Core",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    }
+  ]
+}

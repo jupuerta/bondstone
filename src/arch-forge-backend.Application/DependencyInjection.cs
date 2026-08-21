@@ -37,6 +37,9 @@ public static class DependencyInjection
         services.AddScoped<IArchitectureRule, ExposedDatabaseRule>();       // Consumer
         services.AddScoped<IArchitectureRule, UnauthenticatedEntryRule>();  // Consumer
         services.AddScoped<IArchitectureRule, NoObservabilityRule>();       // Consumer
+
+        // V8 §6.2: the sixteenth, and the one that turns ExternalService into a component.
+        services.AddScoped<IArchitectureRule, ExternalNoFallbackRule>();    // Consumer
         services.AddScoped<ArchitectureAnalyzer>();
 
         // V3 D5.1: next to the analyzer and not inside it. Not a list of registered pieces either -
@@ -60,6 +63,7 @@ public static class DependencyInjection
         services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<ObservabilityConfiguration>(NodeType.Observability));
         services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<WorkerConfiguration>(NodeType.Worker));
         services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<ObjectStorageConfiguration>(NodeType.ObjectStorage));
+        services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<ExternalServiceConfiguration>(NodeType.ExternalService));
         services.AddSingleton<NodeConfigurationRegistry>();
 
         services.AddScoped<IValidator<CreateArchitectureCommand>, CreateArchitectureCommandValidator>();

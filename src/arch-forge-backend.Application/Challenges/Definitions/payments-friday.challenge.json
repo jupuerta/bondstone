@@ -3,6 +3,8 @@
   "titleKey": "challenge.payments-friday.title",
   "storyKey": "challenge.payments-friday.story",
   "difficulty": "intermediate",
+  "order": 4,
+  "topic": "Resilience",
   "starter": "payments-friday.starter.json",
   "referenceSolution": "payments-friday.solution.json",
   "requirements": [

@@ -1,0 +1,14 @@
+{
+  "name": "exposed-database starter",
+  "nodes": [
+    { "name": "Edge", "type": "Gateway", "x": 0, "y": 60, "configuration": { "requestsPerSecond": 100 } },
+    { "name": "Storefront", "type": "Api", "x": 280, "y": 60 },
+    { "name": "Reports", "type": "LoadBalancer", "x": 0, "y": 300, "configuration": { "requestsPerSecond": 20 } },
+    { "name": "Db", "type": "Database", "x": 560, "y": 180 }
+  ],
+  "connections": [
+    { "from": "Edge", "to": "Storefront", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Storefront", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Reports", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 5 } }
+  ]
+}

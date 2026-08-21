@@ -12,6 +12,7 @@ public sealed record ChallengeSummaryDto(
     LocalizedText Title,
     LocalizedText Story,
     string Difficulty,
+    Analysis.Area Topic,
     int RequirementCount);
 
 /// <summary>
@@ -24,6 +25,7 @@ public sealed record ChallengeDetailDto(
     LocalizedText Title,
     LocalizedText Story,
     string Difficulty,
+    Analysis.Area Topic,
     IReadOnlyList<ChallengeRequirementDto> Requirements,
     IReadOnlyList<ChallengeRequirementDto> OptionalGoals,
     IReadOnlyList<LocalizedText> Hints);
@@ -37,6 +39,7 @@ public static class ChallengeMappingExtensions
         LocalizedText.Of(definition.TitleKey),
         LocalizedText.Of(definition.StoryKey),
         definition.Difficulty,
+        definition.Topic,
         definition.Requirements.Count);
 
     public static ChallengeDetailDto ToDetailDto(this ChallengeDefinition definition) => new(
@@ -44,6 +47,7 @@ public static class ChallengeMappingExtensions
         LocalizedText.Of(definition.TitleKey),
         LocalizedText.Of(definition.StoryKey),
         definition.Difficulty,
+        definition.Topic,
         definition.Requirements.Select(Map).ToList(),
         definition.OptionalGoals.Select(Map).ToList(),
         definition.HintKeys.Select(LocalizedText.Of).ToList());

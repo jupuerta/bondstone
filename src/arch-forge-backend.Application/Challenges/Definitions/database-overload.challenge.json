@@ -3,6 +3,8 @@
   "titleKey": "challenge.database-overload.title",
   "storyKey": "challenge.database-overload.story",
   "difficulty": "intermediate",
+  "order": 1,
+  "topic": "Scalability",
   "starter": "database-overload.starter.json",
   "referenceSolution": "database-overload.solution.json",
   "requirements": [

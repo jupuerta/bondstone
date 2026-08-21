@@ -27,7 +27,23 @@ public sealed class ChallengeDefinition
     /// </summary>
     public string StoryKey { get; set; } = string.Empty;
 
+    /// <summary>One of <see cref="Difficulties"/>, checked when the catalogue loads.</summary>
     public string Difficulty { get; set; } = string.Empty;
+
+    /// <summary>
+    /// V8 §6.5. Where this one sits <em>inside its difficulty band</em>. The catalogue is ordered
+    /// by band and then by this, so the page reads as an itinerary - the challenge that teaches
+    /// utilisation comes before the one that assumes you know it - instead of by slug, which is an
+    /// order that means nothing to anybody.
+    /// </summary>
+    public int Order { get; set; }
+
+    /// <summary>
+    /// V8 §6.5. The axis it teaches, reusing the analyzer's <see cref="Analysis.Area"/> rather than
+    /// inventing a second vocabulary for the same six words. It is a label for the catalogue page,
+    /// never something the evaluator reads: a challenge is passed by its requirements.
+    /// </summary>
+    public Analysis.Area Topic { get; set; }
 
     /// <summary>
     /// D4.3, obligatory: <strong>a challenge that starts on an empty canvas is an exam, not a

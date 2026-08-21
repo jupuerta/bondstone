@@ -1,0 +1,54 @@
+{
+  "slug": "backlog",
+  "titleKey": "challenge.backlog.title",
+  "storyKey": "challenge.backlog.story",
+  "difficulty": "intermediate",
+  "order": 6,
+  "topic": "Scalability",
+  "starter": "backlog.starter.json",
+  "referenceSolution": "backlog.solution.json",
+  "requirements": [
+    {
+      "kind": "declaresLoad",
+      "labelKey": "challenge.backlog.requirement.1",
+      "min": 500
+    },
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.backlog.requirement.2",
+      "faults": [],
+      "metric": "backlogRps",
+      "operator": "eq",
+      "value": 0
+    },
+    {
+      "kind": "containsNode",
+      "labelKey": "challenge.backlog.requirement.3",
+      "nodeType": "Worker",
+      "min": 2
+    },
+    {
+      "kind": "maxInstances",
+      "labelKey": "challenge.backlog.requirement.4",
+      "nodeType": "Worker",
+      "max": 2
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.backlog.requirement.5",
+      "code": "QUEUE_NO_DLQ"
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.backlog.goal.1",
+      "code": "UNDERSIZED_COMPONENT"
+    }
+  ],
+  "hintKeys": [
+    "challenge.backlog.hint.1",
+    "challenge.backlog.hint.2",
+    "challenge.backlog.hint.3"
+  ]
+}

@@ -45,7 +45,8 @@ public static class ReferenceArchitecture
             new NoRateLimitRule(),
             new ExposedDatabaseRule(),
             new UnauthenticatedEntryRule(),
-            new NoObservabilityRule()
+            new NoObservabilityRule(),
+            new ExternalNoFallbackRule()
         ]);
 
         return analyzer.Analyze(graph);

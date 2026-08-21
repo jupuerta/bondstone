@@ -1,0 +1,173 @@
+{
+  "name": "god-service solution",
+  "nodes": [
+    {
+      "name": "Storefront",
+      "type": "Api",
+      "x": -280,
+      "y": 300,
+      "configuration": {
+        "requestsPerSecond": 100,
+        "authentication": true
+      }
+    },
+    {
+      "name": "Core",
+      "type": "Service",
+      "x": 0,
+      "y": 300
+    },
+    {
+      "name": "Orders",
+      "type": "Service",
+      "x": 280,
+      "y": 100
+    },
+    {
+      "name": "Catalog",
+      "type": "Service",
+      "x": 280,
+      "y": 320
+    },
+    {
+      "name": "Events",
+      "type": "Queue",
+      "x": 280,
+      "y": 560,
+      "configuration": {
+        "deadLetterQueue": true,
+        "maxRetries": 3
+      }
+    },
+    {
+      "name": "Users",
+      "type": "Service",
+      "x": 560,
+      "y": 20
+    },
+    {
+      "name": "Payments",
+      "type": "Service",
+      "x": 560,
+      "y": 180
+    },
+    {
+      "name": "Inventory",
+      "type": "Service",
+      "x": 560,
+      "y": 320
+    },
+    {
+      "name": "Pricing",
+      "type": "Service",
+      "x": 560,
+      "y": 440
+    },
+    {
+      "name": "Shipping",
+      "type": "Worker",
+      "x": 560,
+      "y": 580
+    },
+    {
+      "name": "Notifications",
+      "type": "Worker",
+      "x": 560,
+      "y": 700
+    }
+  ],
+  "connections": [
+    {
+      "from": "Storefront",
+      "to": "Core",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 3
+      }
+    },
+    {
+      "from": "Core",
+      "to": "Orders",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 2
+      }
+    },
+    {
+      "from": "Core",
+      "to": "Catalog",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 2
+      }
+    },
+    {
+      "from": "Core",
+      "to": "Events",
+      "protocol": "Amqp",
+      "synchronous": false,
+      "configuration": {}
+    },
+    {
+      "from": "Orders",
+      "to": "Users",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 2,
+        "circuitBreaker": true,
+        "fallback": true
+      }
+    },
+    {
+      "from": "Orders",
+      "to": "Payments",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 2,
+        "circuitBreaker": true,
+        "fallback": true
+      }
+    },
+    {
+      "from": "Catalog",
+      "to": "Inventory",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 2,
+        "circuitBreaker": true,
+        "fallback": true
+      }
+    },
+    {
+      "from": "Catalog",
+      "to": "Pricing",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 2,
+        "circuitBreaker": true,
+        "fallback": true
+      }
+    },
+    {
+      "from": "Events",
+      "to": "Shipping",
+      "protocol": "Amqp",
+      "synchronous": false,
+      "configuration": {}
+    },
+    {
+      "from": "Events",
+      "to": "Notifications",
+      "protocol": "Amqp",
+      "synchronous": false,
+      "configuration": {}
+    }
+  ]
+}

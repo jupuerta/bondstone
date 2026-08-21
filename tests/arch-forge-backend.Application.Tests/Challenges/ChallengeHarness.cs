@@ -76,7 +76,8 @@ public static class ChallengeHarness
         new NoRateLimitRule(),
         new ExposedDatabaseRule(),
         new UnauthenticatedEntryRule(),
-        new NoObservabilityRule()
+        new NoObservabilityRule(),
+        new ExternalNoFallbackRule()
     ]);
 
     /// <summary>The handler's repository is only touched by <c>Handle</c>; these tests call <c>Evaluate</c>.</summary>

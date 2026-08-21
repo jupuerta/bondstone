@@ -52,6 +52,9 @@ public static class NodeSettings
             ? 1 + Math.Max(0, db.Replicas ?? 0) + Math.Max(0, db.ReadReplicas ?? 0)
             : 1,
 
+        // V8 §6.2. An ExternalService lands here and answers 1, and that is not a fallthrough:
+        // it is the property that makes the type worth having. Nothing anybody writes in its
+        // configuration multiplies its capacity, because it is not theirs to scale.
         _ => 1
     };
 

@@ -1,0 +1,50 @@
+{
+  "slug": "third-party-outage",
+  "titleKey": "challenge.third-party-outage.title",
+  "storyKey": "challenge.third-party-outage.story",
+  "difficulty": "intermediate",
+  "order": 8,
+  "topic": "Resilience",
+  "starter": "third-party-outage.starter.json",
+  "referenceSolution": "third-party-outage.solution.json",
+  "requirements": [
+    {
+      "kind": "declaresLoad",
+      "labelKey": "challenge.third-party-outage.requirement.1",
+      "min": 150
+    },
+    {
+      "kind": "containsNode",
+      "labelKey": "challenge.third-party-outage.requirement.2",
+      "nodeType": "ExternalService"
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.third-party-outage.requirement.3",
+      "code": "EXTERNAL_NO_FALLBACK"
+    },
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.third-party-outage.requirement.4",
+      "faults": [{ "node": "Payments", "kind": "down" }],
+      "metric": "entryPointsAffected",
+      "operator": "eq",
+      "value": 0
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.third-party-outage.goal.1",
+      "faults": [{ "node": "Payments", "kind": "latency", "value": 6000 }],
+      "metric": "faultedLatencyMs",
+      "operator": "lt",
+      "value": 2000
+    }
+  ],
+  "hintKeys": [
+    "challenge.third-party-outage.hint.1",
+    "challenge.third-party-outage.hint.2",
+    "challenge.third-party-outage.hint.3"
+  ]
+}

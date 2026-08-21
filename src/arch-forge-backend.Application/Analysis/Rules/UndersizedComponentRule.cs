@@ -33,7 +33,12 @@ public class UndersizedComponentRule : IArchitectureRule
 
         foreach (var node in graph.Nodes.OrderBy(n => n.Id))
         {
-            var utilization = load.UtilizationOf(node.Id);
+            // V8 §6.2. Somebody else's service is left out on purpose. Every sentence this rule
+            // knows how to say - add instances, add replicas, share the work - is an instruction
+            // to do something you cannot do here, and a finding whose suggestion is impossible is
+            // worse than no finding. What there *is* to say about an external call under load is
+            // said by EXTERNAL_NO_FALLBACK, on the call rather than on the box.
+            var utilization = node.Type == Domain.Enums.NodeType.ExternalService ? 0m : load.UtilizationOf(node.Id);
             if (utilization < CapacityModel.SaturationWarning)
                 continue;
 

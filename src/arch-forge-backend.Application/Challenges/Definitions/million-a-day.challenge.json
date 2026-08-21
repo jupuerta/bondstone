@@ -3,6 +3,8 @@
   "titleKey": "challenge.million-a-day.title",
   "storyKey": "challenge.million-a-day.story",
   "difficulty": "advanced",
+  "order": 1,
+  "topic": "Scalability",
   "starter": "million-a-day.starter.json",
   "referenceSolution": "million-a-day.solution.json",
   "requirements": [

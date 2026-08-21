@@ -1,0 +1,40 @@
+{
+  "slug": "exposed-database",
+  "titleKey": "challenge.exposed-database.title",
+  "storyKey": "challenge.exposed-database.story",
+  "difficulty": "intermediate",
+  "order": 5,
+  "topic": "Security",
+  "starter": "exposed-database.starter.json",
+  "referenceSolution": "exposed-database.solution.json",
+  "requirements": [
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.exposed-database.requirement.1",
+      "code": "EXPOSED_DATABASE"
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.exposed-database.requirement.2",
+      "code": "UNAUTHENTICATED_ENTRY"
+    },
+    {
+      "kind": "pathExists",
+      "labelKey": "challenge.exposed-database.requirement.3",
+      "fromType": "Api",
+      "toType": "Database"
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "noSeverity",
+      "labelKey": "challenge.exposed-database.goal.1",
+      "severity": "Critical"
+    }
+  ],
+  "hintKeys": [
+    "challenge.exposed-database.hint.1",
+    "challenge.exposed-database.hint.2",
+    "challenge.exposed-database.hint.3"
+  ]
+}

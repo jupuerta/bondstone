@@ -1,0 +1,51 @@
+{
+  "slug": "retry-storm",
+  "titleKey": "challenge.retry-storm.title",
+  "storyKey": "challenge.retry-storm.story",
+  "difficulty": "advanced",
+  "order": 2,
+  "topic": "Resilience",
+  "starter": "retry-storm.starter.json",
+  "referenceSolution": "retry-storm.solution.json",
+  "requirements": [
+    {
+      "kind": "declaresLoad",
+      "labelKey": "challenge.retry-storm.requirement.1",
+      "min": 100
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.retry-storm.requirement.2",
+      "code": "RETRY_AMPLIFICATION"
+    },
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.retry-storm.requirement.3",
+      "faults": [{ "node": "Inventory", "kind": "latency", "value": 3000 }],
+      "metric": "requestAmplification",
+      "operator": "lte",
+      "value": 3
+    },
+    {
+      "kind": "allEdgesTo",
+      "labelKey": "challenge.retry-storm.requirement.4",
+      "nodeType": "Service",
+      "mechanism": "circuitBreaker"
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.retry-storm.goal.1",
+      "faults": [{ "node": "Inventory", "kind": "latency", "value": 3000 }],
+      "metric": "faultedLatencyMs",
+      "operator": "lt",
+      "value": 1000
+    }
+  ],
+  "hintKeys": [
+    "challenge.retry-storm.hint.1",
+    "challenge.retry-storm.hint.2",
+    "challenge.retry-storm.hint.3"
+  ]
+}

@@ -3,6 +3,8 @@
   "titleKey": "challenge.latency-budget.title",
   "storyKey": "challenge.latency-budget.story",
   "difficulty": "intermediate",
+  "order": 2,
+  "topic": "Scalability",
   "starter": "latency-budget.starter.json",
   "referenceSolution": "latency-budget.solution.json",
   "requirements": [

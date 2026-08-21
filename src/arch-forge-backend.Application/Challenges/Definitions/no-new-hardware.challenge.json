@@ -1,0 +1,52 @@
+{
+  "slug": "no-new-hardware",
+  "titleKey": "challenge.no-new-hardware.title",
+  "storyKey": "challenge.no-new-hardware.story",
+  "difficulty": "intermediate",
+  "order": 3,
+  "topic": "Scalability",
+  "starter": "no-new-hardware.starter.json",
+  "referenceSolution": "no-new-hardware.solution.json",
+  "requirements": [
+    {
+      "kind": "declaresLoad",
+      "labelKey": "challenge.no-new-hardware.requirement.1",
+      "min": 350
+    },
+    {
+      "kind": "containsNode",
+      "labelKey": "challenge.no-new-hardware.requirement.2",
+      "nodeType": "Database"
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.no-new-hardware.requirement.3",
+      "code": "UNDERSIZED_COMPONENT"
+    },
+    {
+      "kind": "maxNodes",
+      "labelKey": "challenge.no-new-hardware.requirement.4",
+      "max": 5
+    },
+    {
+      "kind": "maxInstances",
+      "labelKey": "challenge.no-new-hardware.requirement.5",
+      "max": 1
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.no-new-hardware.goal.1",
+      "faults": [],
+      "metric": "nominalLatencyMs",
+      "operator": "lt",
+      "value": 60
+    }
+  ],
+  "hintKeys": [
+    "challenge.no-new-hardware.hint.1",
+    "challenge.no-new-hardware.hint.2",
+    "challenge.no-new-hardware.hint.3"
+  ]
+}

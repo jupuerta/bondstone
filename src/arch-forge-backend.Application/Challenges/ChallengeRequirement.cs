@@ -34,10 +34,25 @@ public sealed class ChallengeRequirement
     /// <summary>How many, for <see cref="RequirementKinds.ContainsNode"/>. Defaults to 1.</summary>
     public int? Min { get; set; }
 
-    /// <summary>The cap, for <see cref="RequirementKinds.MaxFanOut"/>.</summary>
+    /// <summary>The cap, for <see cref="RequirementKinds.MaxFanOut"/>, <see cref="RequirementKinds.MaxNodes"/> and <see cref="RequirementKinds.MaxInstances"/>.</summary>
     public int? Max { get; set; }
 
     public string? Mechanism { get; set; }
+
+    /// <summary>
+    /// The two ends of the call <see cref="RequirementKinds.Edge"/> talks about, by name and for
+    /// the same reason <see cref="ScenarioFault"/> points by name: starting a challenge forks the
+    /// starter and mints fresh ids, so an id written in a definition would refer to nothing.
+    /// </summary>
+    public string? From { get; set; }
+
+    public string? To { get; set; }
+
+    /// <summary>
+    /// What that call has to be, for <see cref="RequirementKinds.Edge"/>. Null means the challenge
+    /// does not care, which is how a definition asks only for a mechanism.
+    /// </summary>
+    public bool? Synchronous { get; set; }
 
     // ---- Analítica ---------------------------------------------------------
 

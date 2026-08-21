@@ -53,9 +53,18 @@ public sealed class ChallengeCatalog
         _bySlug = loaded.ToDictionary(c => c.Definition.Slug, StringComparer.Ordinal);
     }
 
-    /// <summary>Ordered by slug, so the catalogue page does not change between two deploys for no reason.</summary>
+    /// <summary>
+    /// V8 §6.5. Ordered as an itinerary - difficulty band first, then the author's <c>order</c>
+    /// inside the band, then the slug so two deploys never disagree. It used to be by slug alone,
+    /// which with four challenges was arbitrary and harmless and with fourteen puts the advanced
+    /// one first.
+    /// </summary>
     public IReadOnlyList<ChallengeDefinition> All =>
-        _bySlug.Values.Select(c => c.Definition).OrderBy(d => d.Slug, StringComparer.Ordinal).ToList();
+        _bySlug.Values.Select(c => c.Definition)
+            .OrderBy(d => Difficulties.Rank(d.Difficulty))
+            .ThenBy(d => d.Order)
+            .ThenBy(d => d.Slug, StringComparer.Ordinal)
+            .ToList();
 
     public ChallengeDefinition? Find(string slug) =>
         _bySlug.TryGetValue(slug, out var loaded) ? loaded.Definition : null;
@@ -80,6 +89,10 @@ public sealed class ChallengeCatalog
 
         if (definition.Requirements.Count == 0)
             throw new InvalidChallengeDefinitionException($"'{definition.Slug}' has no mandatory requirements.");
+
+        if (!Difficulties.IsKnown(definition.Difficulty))
+            throw new InvalidChallengeDefinitionException(
+                $"'{definition.Slug}' is '{definition.Difficulty}', which is not one of beginner, intermediate or advanced.");
 
         foreach (var problem in starter.Validate())
             throw new InvalidChallengeDefinitionException($"The starter of '{definition.Slug}' {problem}.");
@@ -126,6 +139,25 @@ public sealed class ChallengeCatalog
 
             case RequirementKinds.MaxFanOut:
                 Require(requirement.Max is >= 0, "needs a max of 0 or more");
+                break;
+
+            case RequirementKinds.MaxNodes:
+                Require(requirement.Max is >= 1, "needs a max of 1 or more");
+                break;
+
+            case RequirementKinds.MaxInstances:
+                // No nodeType means every component, which is how "nothing is scaled out" is said
+                // in one line instead of ten.
+                Require(requirement.Max is >= 1, "needs a max of 1 or more");
+                break;
+
+            case RequirementKinds.Edge:
+                Require(!string.IsNullOrWhiteSpace(requirement.From) && !string.IsNullOrWhiteSpace(requirement.To),
+                    "needs the names of the two ends of the call");
+                Require(requirement.Synchronous is not null || requirement.Mechanism is not null,
+                    "asks nothing of the call: it needs a synchronous or a mechanism");
+                Require(requirement.Mechanism is null || RequirementMechanisms.IsKnown(requirement.Mechanism),
+                    "needs a known mechanism");
                 break;
 
             case RequirementKinds.AllEdgesTo:

@@ -28,6 +28,14 @@ public static class CapacityModel
     public const int ObjectStorage = 2_000;
 
     /// <summary>
+    /// V8 §6.2. The same as a Service, and that is the point: it is not <em>worse</em>, it is
+    /// <strong>fixed</strong>. <see cref="NodeSettings.Instances"/> answers 1 for this type no
+    /// matter what is configured, so the one lever that moves every other component's capacity
+    /// does not move this one.
+    /// </summary>
+    public const int ExternalService = 300;
+
+    /// <summary>
     /// Deliberately enormous: a bottleneck in the metrics pipeline is nobody's lesson, and a
     /// challenge that came out blocked on its own telemetry would be teaching the wrong thing.
     /// </summary>
@@ -51,6 +59,7 @@ public static class CapacityModel
         NodeType.Worker => Worker,
         NodeType.ObjectStorage => ObjectStorage,
         NodeType.Observability => Observability,
+        NodeType.ExternalService => ExternalService,
         _ => Service
     };
 

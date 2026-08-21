@@ -26,4 +26,7 @@ public static class RuleCodes
     public const string ExposedDatabase = "EXPOSED_DATABASE";
     public const string UnauthenticatedEntry = "UNAUTHENTICATED_ENTRY";
     public const string NoObservability = "NO_OBSERVABILITY";
+
+    // V8 §6.2. The rule that makes ExternalService a component and not a label.
+    public const string ExternalNoFallback = "EXTERNAL_NO_FALLBACK";
 }

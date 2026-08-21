@@ -1,0 +1,10 @@
+{
+  "name": "reproduce-the-incident starter",
+  "nodes": [
+    { "name": "Storefront", "type": "Api", "x": 0, "y": 160, "configuration": { "requestsPerSecond": 50, "authentication": true } },
+    { "name": "Recommendations", "type": "Service", "x": 300, "y": 160 }
+  ],
+  "connections": [
+    { "from": "Storefront", "to": "Recommendations", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 5, "circuitBreaker": true, "fallback": true } }
+  ]
+}

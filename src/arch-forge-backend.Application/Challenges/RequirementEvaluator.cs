@@ -31,6 +31,9 @@ public static class RequirementEvaluator
             RequirementKinds.AllEdgesTo => AllEdgesTo(requirement, context),
             RequirementKinds.PathExists => PathExists(requirement, context),
             RequirementKinds.DeclaresLoad => DeclaresLoad(requirement, context),
+            RequirementKinds.MaxNodes => MaxNodes(requirement, context),
+            RequirementKinds.MaxInstances => MaxInstances(requirement, context),
+            RequirementKinds.Edge => Edge(requirement, context),
             RequirementKinds.NoFinding => NoFinding(requirement, context),
             RequirementKinds.HasFinding => HasFinding(requirement, context),
             RequirementKinds.NoSeverity => NoSeverity(requirement, context),
@@ -195,6 +198,113 @@ public static class RequirementEvaluator
                     ("min", requirement.Min!.Value)),
             context.Graph.RootNodes.Select(n => FindingElement.Node(n.Id)).ToList());
     }
+
+    /// <summary>
+    /// V8 §6.1, the anti-cheese that was missing. <see cref="DeclaresLoad"/> keeps the question
+    /// being asked; this keeps the answer from being "buy more of everything".
+    /// </summary>
+    private static ChallengeRequirementResult MaxNodes(ChallengeRequirement requirement, EvaluationContext context)
+    {
+        var max = requirement.Max!.Value;
+        var count = context.Graph.Nodes.Count;
+
+        if (count <= max)
+            return ChallengeRequirementResult.Pass(requirement);
+
+        return ChallengeRequirementResult.Fail(requirement,
+            LocalizedText.Of("challenge.requirement.maxNodes.exceeded", ("count", count), ("max", max)));
+    }
+
+    /// <summary>
+    /// A cap on copies rather than on components. It reads the same
+    /// <see cref="NodeSettings.Instances"/> the capacity model reads, so a database's replicas count
+    /// as copies here exactly as they count as capacity there - which is the whole point: the
+    /// challenge caps the lever that would otherwise solve it.
+    /// </summary>
+    private static ChallengeRequirementResult MaxInstances(ChallengeRequirement requirement, EvaluationContext context)
+    {
+        var max = requirement.Max!.Value;
+
+        var offenders = context.Graph.Nodes
+            .Where(n => requirement.NodeType is null || n.Type == requirement.NodeType)
+            .Select(n => (Node: n, Instances: NodeSettings.Instances(n)))
+            .Where(x => x.Instances > max)
+            .OrderByDescending(x => x.Instances)
+            .ThenBy(x => x.Node.Id)
+            .ToList();
+
+        if (offenders.Count == 0)
+            return ChallengeRequirementResult.Pass(requirement);
+
+        var worst = offenders[0];
+        return ChallengeRequirementResult.Fail(
+            requirement,
+            LocalizedText.Of("challenge.requirement.maxInstances.exceeded",
+                ("node", worst.Node.Name),
+                ("count", worst.Instances),
+                ("max", max)),
+            offenders.Select(x => FindingElement.Node(x.Node.Id)).ToList());
+    }
+
+    /// <summary>
+    /// V8 §6.4. One call, named by its two ends.
+    ///
+    /// Several calls between the same pair are treated as one requirement over all of them: two
+    /// components can be wired twice, and passing "the charge does not block" while one of the two
+    /// copies still blocks would be a checklist that lies. Missing entirely is its own failure and
+    /// its own sentence - that is the anti-cheese, and it has to say so rather than pass vacuously
+    /// the way <see cref="AllEdgesTo"/> does over a type nobody drew.
+    /// </summary>
+    private static ChallengeRequirementResult Edge(ChallengeRequirement requirement, EvaluationContext context)
+    {
+        var edges = context.Graph.Connections
+            .Where(c => Named(context, c.SourceNodeId, requirement.From!) && Named(context, c.TargetNodeId, requirement.To!))
+            .ToList();
+
+        if (edges.Count == 0)
+            return ChallengeRequirementResult.Fail(requirement,
+                LocalizedText.Of("challenge.requirement.edge.missing",
+                    ("from", requirement.From!),
+                    ("to", requirement.To!)));
+
+        if (requirement.Synchronous is { } synchronous)
+        {
+            var wrong = edges.Where(c => c.Synchronous != synchronous).ToList();
+
+            if (wrong.Count > 0)
+                return ChallengeRequirementResult.Fail(
+                    requirement,
+                    LocalizedText.Of(synchronous
+                            ? "challenge.requirement.edge.notSynchronous"
+                            : "challenge.requirement.edge.notAsynchronous",
+                        ("from", requirement.From!),
+                        ("to", requirement.To!)),
+                    wrong.Select(c => FindingElement.Connection(c.Id)).ToList());
+        }
+
+        if (requirement.Mechanism is { } mechanism)
+        {
+            // Only a synchronous call can carry one (V3 D4.2): on an asynchronous edge nobody is
+            // waiting, so there is no error for the mechanism to catch and asking for it would be
+            // asking for a checkbox.
+            var wrong = edges.Where(c => c.Synchronous && !Has(context.Graph.ResilienceOf(c), mechanism)).ToList();
+
+            if (wrong.Count > 0)
+                return ChallengeRequirementResult.Fail(
+                    requirement,
+                    LocalizedText.Of("challenge.requirement.edge.withoutMechanism",
+                        ("from", requirement.From!),
+                        ("to", requirement.To!),
+                        ("mechanism", LocalizedText.Of($"mechanism.{mechanism}"))),
+                    wrong.Select(c => FindingElement.Connection(c.Id)).ToList());
+        }
+
+        return ChallengeRequirementResult.Pass(requirement);
+    }
+
+    private static bool Named(EvaluationContext context, Guid nodeId, string name) =>
+        context.Graph.NodesById.TryGetValue(nodeId, out var node) &&
+        string.Equals(node.Name, name, StringComparison.Ordinal);
 
     // ---- Analítica ---------------------------------------------------------
 

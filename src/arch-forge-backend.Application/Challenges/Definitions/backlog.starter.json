@@ -1,0 +1,14 @@
+{
+  "name": "backlog starter",
+  "nodes": [
+    { "name": "Storefront", "type": "Api", "x": 0, "y": 180, "configuration": { "requestsPerSecond": 500, "instances": 2, "authentication": true } },
+    { "name": "Jobs", "type": "Queue", "x": 260, "y": 180 },
+    { "name": "Worker", "type": "Worker", "x": 520, "y": 180 },
+    { "name": "Db", "type": "Database", "x": 780, "y": 180 }
+  ],
+  "connections": [
+    { "from": "Storefront", "to": "Jobs", "protocol": "Amqp", "synchronous": false, "configuration": {} },
+    { "from": "Jobs", "to": "Worker", "protocol": "Amqp", "synchronous": false, "configuration": {} },
+    { "from": "Worker", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 5 } }
+  ]
+}

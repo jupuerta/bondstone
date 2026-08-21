@@ -104,6 +104,69 @@ public class ChallengeDefinitionsTests
 }
 
 /// <summary>
+/// V8 §6.5. The catalogue as a catalogue rather than as twelve separate files: the itinerary is
+/// content too, and with four challenges nobody would have noticed it drifting.
+/// </summary>
+public class ChallengeCatalogueShapeTests
+{
+    [Fact]
+    public void Every_challenge_is_in_one_of_the_three_bands()
+    {
+        // The catalogue refuses to load anything else, so this is the assertion that says out loud
+        // what that refusal buys: `difficulty` used to be a free string and a typo invented a band.
+        Assert.All(ChallengeHarness.Catalog.All, c => Assert.True(Difficulties.IsKnown(c.Difficulty), c.Slug));
+    }
+
+    [Fact]
+    public void The_catalogue_reads_as_a_ramp()
+    {
+        var ranks = ChallengeHarness.Catalog.All.Select(c => Difficulties.Rank(c.Difficulty)).ToList();
+
+        Assert.Equal(ranks.OrderBy(r => r), ranks);
+
+        // And it starts on the ground: the hole V8 opened this work to close was that the easiest
+        // challenge already assumed the queueing factor.
+        Assert.Equal(Difficulties.Beginner, ChallengeHarness.Catalog.All[0].Difficulty);
+    }
+
+    [Fact]
+    public void No_two_challenges_claim_the_same_place_in_the_itinerary()
+    {
+        var places = ChallengeHarness.Catalog.All.Select(c => (c.Difficulty, c.Order)).ToList();
+
+        Assert.Equal(places.Count, places.Distinct().Count());
+    }
+
+    [Theory]
+    [MemberData(nameof(ChallengeDefinitionsTests.Slugs), MemberType = typeof(ChallengeDefinitionsTests))]
+    public void Every_text_key_is_derived_from_the_slug(string slug)
+    {
+        // V7 D1.1 made the definition point at prose instead of holding it, and the convention is
+        // what keeps the two from drifting: `challenge.{slug}.…`, checked here so a copied file
+        // that forgot to rename its keys fails on this side rather than rendering another
+        // challenge's sentences.
+        var definition = ChallengeHarness.Catalog.Find(slug)!;
+        var prefix = $"challenge.{slug}.";
+
+        var keys = definition.HintKeys
+            .Append(definition.TitleKey)
+            .Append(definition.StoryKey)
+            .Concat(definition.Requirements.Concat(definition.OptionalGoals).Select(r => r.LabelKey));
+
+        Assert.All(keys, key => Assert.StartsWith(prefix, key, StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [MemberData(nameof(ChallengeDefinitionsTests.Slugs), MemberType = typeof(ChallengeDefinitionsTests))]
+    public void Every_challenge_hands_out_three_hints(string slug)
+    {
+        // D3.6: free and unlimited, and always the same three steps - where to look, which
+        // principle, which mechanism. Two would skip one of them.
+        Assert.Equal(3, ChallengeHarness.Catalog.Find(slug)!.HintKeys.Count);
+    }
+}
+
+/// <summary>
 /// The content of `payments-friday` itself: the numbers of the starter and of the solution, which
 /// are what the challenge teaches. Written from the model, not from the output.
 /// </summary>

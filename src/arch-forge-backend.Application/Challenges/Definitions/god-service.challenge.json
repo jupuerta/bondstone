@@ -1,0 +1,47 @@
+{
+  "slug": "god-service",
+  "titleKey": "challenge.god-service.title",
+  "storyKey": "challenge.god-service.story",
+  "difficulty": "intermediate",
+  "order": 7,
+  "topic": "Coupling",
+  "starter": "god-service.starter.json",
+  "referenceSolution": "god-service.solution.json",
+  "requirements": [
+    {
+      "kind": "maxFanOut",
+      "labelKey": "challenge.god-service.requirement.1",
+      "max": 3
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.god-service.requirement.2",
+      "code": "CYCLE"
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.god-service.requirement.3",
+      "code": "HIGH_COUPLING"
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.god-service.requirement.4",
+      "code": "ORPHAN_NODE"
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.god-service.goal.1",
+      "faults": [{ "node": "Payments", "kind": "down" }],
+      "metric": "blastRadius",
+      "operator": "lt",
+      "value": 0.2
+    }
+  ],
+  "hintKeys": [
+    "challenge.god-service.hint.1",
+    "challenge.god-service.hint.2",
+    "challenge.god-service.hint.3"
+  ]
+}

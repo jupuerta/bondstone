@@ -31,6 +31,14 @@ public static class LatencyModel
     public const int ObjectStorage = 15;
 
     /// <summary>
+    /// V8 §6.2. Five times a Service, because a third party is on the other side of somebody else's
+    /// network and somebody else's queues. It is the highest processing time in the model on
+    /// purpose: an external call in the middle of a synchronous chain should be visible in the
+    /// latency before anybody breaks anything.
+    /// </summary>
+    public const int ExternalService = 50;
+
+    /// <summary>
     /// V4 D5.3. Telemetry is emitted alongside the request, not in front of it: charging it to the
     /// caller's path would make instrumenting an architecture look like slowing it down, which is
     /// the opposite of the lesson.
@@ -61,6 +69,7 @@ public static class LatencyModel
         NodeType.Worker => Worker,
         NodeType.ObjectStorage => ObjectStorage,
         NodeType.Observability => Observability,
+        NodeType.ExternalService => ExternalService,
         _ => Service
     };
 
