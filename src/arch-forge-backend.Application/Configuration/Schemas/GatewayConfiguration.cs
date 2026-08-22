@@ -20,6 +20,9 @@ public class GatewayConfiguration
     /// <summary>
     /// V4 D5.2. Comes back with <c>UNAUTHENTICATED_ENTRY</c>, the rule that reads it - which is the
     /// principle V3 D3.5 fixed and the reason it was not brought back in VS2 along with the rest.
+    ///
+    /// V13 D2.1. Nullable: absent means undeclared, and undeclared is not the same claim as
+    /// <c>false</c>. See <see cref="ApiConfiguration.Authentication"/>.
     /// </summary>
-    public bool Authentication { get; set; }
+    public bool? Authentication { get; set; }
 }

@@ -40,6 +40,11 @@ public static class DependencyInjection
 
         // V8 §6.2: the sixteenth, and the one that turns ExternalService into a component.
         services.AddScoped<IArchitectureRule, ExternalNoFallbackRule>();    // Consumer
+
+        // V13 D3.1: the seventeenth, and the one that turns ProtocolType into a field somebody
+        // reads. It checks the drawing rather than the architecture, which is why it is worth
+        // reading before the other sixteen.
+        services.AddScoped<IArchitectureRule, ProtocolMismatchRule>();      // Consumer
         services.AddScoped<ArchitectureAnalyzer>();
 
         // V3 D5.1: next to the analyzer and not inside it. Not a list of registered pieces either -

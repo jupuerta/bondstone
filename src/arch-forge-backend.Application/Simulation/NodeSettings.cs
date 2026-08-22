@@ -58,11 +58,18 @@ public static class NodeSettings
         _ => 1
     };
 
-    /// <summary>V4 D5.2: whether the front door asks who you are. Only Api and Gateway can be one.</summary>
-    public static bool HasAuthentication(Node node) => node.Type switch
+    /// <summary>
+    /// V4 D5.2: whether the front door asks who you are. Only Api and Gateway can be one.
+    ///
+    /// V13 D2.1. <strong>Three states, and the third is not a default.</strong> <c>null</c> is
+    /// "nobody has said", which is a different claim from <c>false</c> - "there is none" - and the
+    /// rule answers them differently. A component that cannot be a front door answers <c>false</c>
+    /// rather than <c>null</c>: for it the question is settled, not open.
+    /// </summary>
+    public static bool? AuthenticationOf(Node node) => node.Type switch
     {
-        NodeType.Api => Read<ApiConfiguration>(node)?.Authentication == true,
-        NodeType.Gateway => Read<GatewayConfiguration>(node)?.Authentication == true,
+        NodeType.Api => Read<ApiConfiguration>(node)?.Authentication,
+        NodeType.Gateway => Read<GatewayConfiguration>(node)?.Authentication,
         _ => false
     };
 

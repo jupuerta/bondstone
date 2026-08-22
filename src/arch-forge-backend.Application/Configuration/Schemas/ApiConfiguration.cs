@@ -20,6 +20,14 @@ public class ApiConfiguration
     /// </summary>
     public int? RequestsPerSecond { get; set; }
 
-    /// <summary>V4 D5.2. An Api can be the front door too, so it is asked the same question a Gateway is.</summary>
-    public bool Authentication { get; set; }
+    /// <summary>
+    /// V4 D5.2. An Api can be the front door too, so it is asked the same question a Gateway is.
+    ///
+    /// V13 D2.1. <strong>Nullable, and the null is the whole point.</strong> As a
+    /// <see cref="bool"/> this field could not tell "I have not configured it yet" from "I have
+    /// decided it carries none", so <c>UNAUTHENTICATED_ENTRY</c> opened every new diagram with a
+    /// Critical - the "todo rojo" the project has spent versions avoiding, only moved to Security.
+    /// Three states, three answers (D2.1).
+    /// </summary>
+    public bool? Authentication { get; set; }
 }

@@ -11,6 +11,19 @@ public static class RuleThresholds
     public const int SyncChainCritical = 5;
     public const int CouplingWarning = 4;       // fan-out
     public const int CouplingCritical = 7;
+
+    /// <summary>
+    /// V13 D2.2. The same measurement, a different bar, for a component whose <em>job</em> is to sit
+    /// in front of many others (<see cref="Rules.NodeRoles.IsRouter"/>). Four dependencies on a
+    /// service is a service that has grown responsibilities; four on a gateway is a gateway with
+    /// four routes.
+    ///
+    /// Double, and not "no limit": a gateway with twenty things behind it is the front door of a
+    /// monolith, and the rule should still be able to say so. Doubling is arguable, which is the
+    /// property D5.6 asks of a threshold - it can be wrong, but it can be understood.
+    /// </summary>
+    public const int RouterCouplingWarning = 8;
+    public const int RouterCouplingCritical = 12;
     public const int RetryAmplificationMax = 10; // accumulated factor
     public const int CacheMinConsumers = 2;
 }

@@ -3,6 +3,7 @@ using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Application.Tests.Analysis.Rules.Support;
+using arch_forge_backend.Domain.Enums;
 using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Analysis.Rules;
@@ -132,6 +133,53 @@ public class CycleRuleTests
         _builder.Nodes(default, "A", "B");
 
         Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
+    }
+
+    // ---- V13 D1.2: three cycles, three different fixes -----------------------
+
+    [Fact]
+    public void AnAllSynchronousCycle_IsToldToBreakItWithAnAsynchronousHop()
+    {
+        _builder
+            .Nodes(default, "Orders", "Payments", "Inventory")
+            .Connect("Orders", "Payments")
+            .Connect("Payments", "Inventory")
+            .Connect("Inventory", "Orders");
+
+        Assert.Equal(
+            "finding.CYCLE.detected.suggestion.synchronous",
+            Assert.Single(_rule.Evaluate(_builder.Build()).Findings).Suggestion.Key());
+    }
+
+    [Fact]
+    public void ACycleThatAlreadyHasAnAsynchronousHop_IsToldToDecoupleInstead()
+    {
+        // The deadlock is already gone. Telling it to add a queue is telling it to do what it did.
+        _builder
+            .Nodes(default, "Orders", "Payments", "Inventory")
+            .Connect("Orders", "Payments")
+            .Connect("Payments", "Inventory", synchronous: false)
+            .Connect("Inventory", "Orders");
+
+        Assert.Equal(
+            "finding.CYCLE.detected.suggestion.decouple",
+            Assert.Single(_rule.Evaluate(_builder.Build()).Findings).Suggestion.Key());
+    }
+
+    [Fact]
+    public void ACycleThroughAStore_IsAnOwnershipProblemAndSaysSo()
+    {
+        // The case the old constant got wrong: a queue would make the deadlock go away and leave
+        // two components writing each other's data exactly where they were.
+        _builder
+            .Node("Orders")
+            .Node("Db", NodeType.Database)
+            .Connect("Orders", "Db")
+            .Connect("Db", "Orders");
+
+        Assert.Equal(
+            "finding.CYCLE.detected.suggestion.sharedData",
+            Assert.Single(_rule.Evaluate(_builder.Build()).Findings).Suggestion.Key());
     }
 
     [Fact]

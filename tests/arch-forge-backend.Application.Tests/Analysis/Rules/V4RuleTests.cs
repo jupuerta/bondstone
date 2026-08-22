@@ -178,11 +178,28 @@ public class UndersizedComponentRuleTests
 public class SecurityRuleTests
 {
     [Fact]
-    public void An_unauthenticated_entry_point_with_a_database_behind_it_is_critical()
+    public void An_entry_point_that_declares_no_authentication_is_critical()
     {
-        var finding = Assert.Single(new UnauthenticatedEntryRule().Evaluate(ApiAndDb("{}")).Findings);
+        // V13 D2.1. Critical is now reserved for the *declared* no: somebody looked at a door with a
+        // database behind it and said it asks nobody anything.
+        var finding = Assert.Single(
+            new UnauthenticatedEntryRule().Evaluate(ApiAndDb("""{"authentication":false}""")).Findings);
 
         Assert.Equal(Severity.Critical, finding.Severity);
+        Assert.Equal("finding.UNAUTHENTICATED_ENTRY.open.message", finding.Message.Key());
+        Assert.Equal("Api", finding.Message.Arg("node"));
+    }
+
+    [Fact]
+    public void An_entry_point_that_never_declared_it_is_only_a_warning()
+    {
+        // V13 D2.1, and the measurement that forced it: this is `minimal-api-db`, two boxes and an
+        // arrow, which used to open with a red critical because an undeclared field and a declared
+        // "no" were the same `false`.
+        var finding = Assert.Single(new UnauthenticatedEntryRule().Evaluate(ApiAndDb("{}")).Findings);
+
+        Assert.Equal(Severity.Warning, finding.Severity);
+        Assert.Equal("finding.UNAUTHENTICATED_ENTRY.undeclared.message", finding.Message.Key());
         Assert.Equal("Api", finding.Message.Arg("node"));
     }
 

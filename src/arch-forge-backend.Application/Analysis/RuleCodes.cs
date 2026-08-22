@@ -29,4 +29,8 @@ public static class RuleCodes
 
     // V8 §6.2. The rule that makes ExternalService a component and not a label.
     public const string ExternalNoFallback = "EXTERNAL_NO_FALLBACK";
+
+    // V13 D3.1. The rule that makes ProtocolType a field somebody reads, and the only one whose
+    // findings are about the drawing rather than about the architecture.
+    public const string ProtocolMismatch = "PROTOCOL_MISMATCH";
 }

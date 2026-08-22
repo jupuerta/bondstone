@@ -14,6 +14,15 @@ namespace arch_forge_backend.Application.Analysis.Rules;
 /// different sentence. Without that condition every new diagram would open with a red critical
 /// before the user had finished drawing it - the "todo rojo" this project has spent three versions
 /// avoiding.
+///
+/// V13 D2.1. That condition was not enough, and the measurement said so: <strong>the rule fired on
+/// all four reference architectures, in Critical, <c>minimal-api-db</c> included</strong> - two
+/// boxes and an arrow. The reason was one letter of the schema. With <c>Authentication</c> as a
+/// <see cref="bool"/> there was no way to tell an undeclared field from a declared "no", so the rule
+/// was reading silence as a decision and shouting about it.
+///
+/// The rule to compare it with is <see cref="NoRateLimitRule"/>, which has been honest since V4: no
+/// declared RPS, no opinion. This one now answers the three states separately.
 /// </summary>
 public class UnauthenticatedEntryRule : IArchitectureRule
 {
@@ -34,17 +43,35 @@ public class UnauthenticatedEntryRule : IArchitectureRule
         if (exposed.Count == 0)
             return RuleResult.NotApplicable;
 
-        var findings = exposed
-            .Where(node => !NodeSettings.HasAuthentication(node))
-            .Select(node => new RuleFinding(
+        var findings = new List<RuleFinding>();
+
+        foreach (var node in exposed)
+        {
+            var authentication = NodeSettings.AuthenticationOf(node);
+            if (authentication == true)
+                continue;
+
+            // V13 D2.1. Declared "no" is a decision about a door with a database behind it, and it
+            // keeps the Critical it has had since V4. Undeclared is a gap in the drawing: worth
+            // saying, worth a different colour, and not worth fifteen points of an area on a
+            // diagram somebody started two minutes ago.
+            var declared = authentication is not null;
+            var variant = declared ? "open" : "undeclared";
+
+            findings.Add(new RuleFinding(
                 Code,
                 Area,
-                DefaultSeverity,
-                LocalizedText.Of("finding.UNAUTHENTICATED_ENTRY.open.message", ("node", node.Name)),
-                LocalizedText.Of("finding.UNAUTHENTICATED_ENTRY.open.explanation"),
-                LocalizedText.Of("finding.UNAUTHENTICATED_ENTRY.open.suggestion"),
-                [FindingElement.Node(node.Id)]))
-            .ToList();
+                declared ? Severity.Critical : Severity.Warning,
+                LocalizedText.Of($"finding.UNAUTHENTICATED_ENTRY.{variant}.message", ("node", node.Name)),
+
+                // Two whole sentences and not one with a clause bolted on. The two cases say
+                // different things - "anyone who knows the address reaches the data" versus "nobody
+                // has said whether this door asks" - and which of them applies is the rule's
+                // decision rather than the translator's (V7 D1.1).
+                LocalizedText.Of($"finding.UNAUTHENTICATED_ENTRY.{variant}.explanation"),
+                LocalizedText.Of($"finding.UNAUTHENTICATED_ENTRY.{variant}.suggestion"),
+                [FindingElement.Node(node.Id)]));
+        }
 
         return RuleResult.Applicable(findings);
     }

@@ -20,9 +20,14 @@ public class ReferenceArchitectureTests
         // the analyzer from drifting into telling off the smallest correct thing you can draw.
         //
         // **It no longer scores 100, and that is the point of V4.** The four areas V2 measured are
-        // still perfect; the three points it loses are an unauthenticated front door with a database
-        // behind it, and nothing watching. Both are true of these two boxes, and until V4 nobody
+        // still perfect; the two points it loses are a front door that never said whether it
+        // authenticates, and nothing watching. Both are true of these two boxes, and until V4 nobody
         // was asking.
+        //
+        // **And it no longer carries a single Critical** (V13 D2.1). Until V13, the smallest correct
+        // thing you can draw - an Api and a Database - opened with a red one, because an undeclared
+        // `authentication` and a declared "no" were the same `false`. Two boxes and an arrow is not
+        // a security incident; it is a drawing that has not said yet.
         var result = ReferenceArchitecture.Analyze("minimal-api-db");
 
         Assert.Equal(100, result.ScoreOf(Area.Availability));
@@ -30,9 +35,11 @@ public class ReferenceArchitectureTests
         Assert.Equal(100, result.ScoreOf(Area.Coupling));
         Assert.Equal(100, result.ScoreOf(Area.Scalability));
 
-        Assert.Equal(85, result.ScoreOf(Area.Security));        // UNAUTHENTICATED_ENTRY, critical
+        Assert.Equal(95, result.ScoreOf(Area.Security));        // UNAUTHENTICATED_ENTRY, undeclared
         Assert.Equal(95, result.ScoreOf(Area.Observability));   // NO_OBSERVABILITY, warning
-        Assert.Equal(97, result.Score);                         // (100·4 + 85 + 95) / 6
+        Assert.Equal(98, result.Score);                         // (100·4 + 95 + 95) / 6
+
+        Assert.Equal(new AnalysisSummary(Critical: 0, Warning: 2, Passed: 10), result.Summary);
     }
 
     [Fact]
@@ -58,7 +65,7 @@ public class ReferenceArchitectureTests
     }
 
     [Fact]
-    public void GatewayMicroservices_ScoresEightyFive()
+    public void GatewayMicroservices_ScoresEightySeven()
     {
         // The most important fixture: a normal microservices architecture, neither exemplary nor a
         // disaster. (75 + 60 + 100 + 95) / 4 = 82.5 -> 83.
@@ -68,18 +75,17 @@ public class ReferenceArchitectureTests
         Assert.Equal(60, result.ScoreOf(Area.Resilience));
         Assert.Equal(100, result.ScoreOf(Area.Coupling));
         Assert.Equal(95, result.ScoreOf(Area.Scalability));
-        Assert.Equal(85, result.ScoreOf(Area.Security));
+        Assert.Equal(95, result.ScoreOf(Area.Security));
         Assert.Equal(95, result.ScoreOf(Area.Observability));
 
-        // **83 in v2 and 85 in v4, and the architecture did not change.** Two areas that were not
-        // measured are now measured and only mildly penalised, so an unweighted average over six
-        // dilutes the 60 and the 75 it already had. Scores from two scoring versions are not
-        // comparable, which is what `scoringVersion` is for (V2 D1.5) and why a challenge may never
-        // assert on one (D1.4).
-        Assert.Equal(85, result.Score);
-        // V2 counted 5 · 4 · 2. V4 adds one critical (the unauthenticated gateway), one warning
-        // (nothing watching) and three passed checks - the rules that looked and found nothing.
-        Assert.Equal(new AnalysisSummary(Critical: 6, Warning: 5, Passed: 5), result.Summary);
+        // **83 in v2, 85 in v4, 87 in v5, and the architecture never changed.** V4 started measuring
+        // two areas nobody was measuring; V13 D2.1 stopped reading an undeclared field as a
+        // decision. Scores from two scoring versions are not comparable, which is what
+        // `scoringVersion` is for (V2 D1.5) and why a challenge may never assert on one (V4 D1.4).
+        Assert.Equal(87, result.Score);
+
+        // The gateway moves from the Critical column to the Warning one, so 6 · 5 becomes 5 · 6.
+        Assert.Equal(new AnalysisSummary(Critical: 5, Warning: 6, Passed: 6), result.Summary);
     }
 
     [Fact]
@@ -107,11 +113,17 @@ public class ReferenceArchitectureTests
     }
 
     [Fact]
-    public void ResilientAsync_ScoresNinetyTwo()
+    public void ResilientAsync_ScoresNinetySix()
     {
         var result = ReferenceArchitecture.Analyze("resilient-async");
 
-        Assert.Equal(90, result.ScoreOf(Area.Availability));
+        // **92 in v4 and 93 in v5, and the architecture did not change.** V13 D1.1: SPOF used to
+        // count three of them here - Db, Queue and Cache - by counting arrows without reading them.
+        // The Queue only ever receives asynchronous posts and the Cache is called with a declared
+        // fallback on both ways in, so neither is a component anything falls with. Availability
+        // pays 5 instead of 10 and the architecture the catalogue ships as *the good one* stops
+        // being scolded for the two mechanisms that make it good.
+        Assert.Equal(95, result.ScoreOf(Area.Availability));
 
         // 95 in v2. QUEUE_NO_DLQ fires here and nowhere else - it is the only fixture with a queue,
         // and the field it reads came back in the same commit as the rule (D5.2).
@@ -121,10 +133,45 @@ public class ReferenceArchitectureTests
         Assert.Equal(100, result.ScoreOf(Area.Scalability));
 
         // Both APIs sit behind the balancer with nothing in front that could authenticate, so both
-        // are public: 15 for the first and 7,5 for the second (D1.1's diminishing returns).
-        Assert.Equal(78, result.ScoreOf(Area.Security));
+        // are public - and neither declared anything, so it is 5 for the first and 2,5 for the
+        // second (V13 D2.1 over D1.1's diminishing returns). It was 78 while an undeclared field
+        // counted as a decision.
+        Assert.Equal(93, result.ScoreOf(Area.Security));
         Assert.Equal(95, result.ScoreOf(Area.Observability));
-        Assert.Equal(92, result.Score);
+        Assert.Equal(96, result.Score);
+
+        // **Not one Critical left on the architecture the catalogue ships as the good one.** V13
+        // takes two SPOFs off it (D1.1) and downgrades the two entry points (D2.1); what remains is
+        // six warnings, every one of them a real thing to go and look at.
+        Assert.Equal(new AnalysisSummary(Critical: 0, Warning: 6, Passed: 8), result.Summary);
+    }
+
+    [Fact]
+    public void ResilientAsync_KeepsTheDatabaseAndDropsTheQueueAndTheCache()
+    {
+        // V13 D1.1, and the reason this is not simply "trust the fallback". The Db is called with a
+        // circuit breaker **and** a fallback on both of its incoming edges, exactly like the Cache -
+        // and it is still the one SPOF left, because it is the system of record: a fallback in front
+        // of it serves something stale or refuses, and neither of those is the write that was lost.
+        //
+        // Three protected components coming out clean would have been the opposite failure to the
+        // one V13 fixes.
+        var result = ReferenceArchitecture.Analyze("resilient-async");
+        var spofs = result.Findings.Where(f => f.Code == RuleCodes.Spof).ToList();
+
+        Assert.Equal(["Db"], spofs.Select(f => f.Message.Arg("node")));
+        Assert.Equal(Severity.Warning, Assert.Single(spofs).Severity);
+    }
+
+    [Fact]
+    public void ResilientAsync_TellsTheDatabaseWhatToDoAboutIt()
+    {
+        // V13 D1.2. The suggestion is the database's, not the one constant every SPOF used to get.
+        var result = ReferenceArchitecture.Analyze("resilient-async");
+
+        Assert.Equal(
+            "finding.SPOF.suggestion.database",
+            Assert.Single(result.Findings, f => f.Code == RuleCodes.Spof).Suggestion.Key());
     }
 
     [Fact]
@@ -155,7 +202,7 @@ public class ReferenceArchitectureTests
     }
 
     [Fact]
-    public void WorstCase_ScoresSeventyThree()
+    public void WorstCase_ScoresSeventyFive()
     {
         // The fixture that pins the caps down - MISSING_RESILIENCE fires six times and only costs
         // 45 - and the only one where the rounding of an area matters: without rounding
@@ -166,14 +213,19 @@ public class ReferenceArchitectureTests
         Assert.Equal(25, result.ScoreOf(Area.Resilience));
         Assert.Equal(70, result.ScoreOf(Area.Coupling));
         Assert.Equal(95, result.ScoreOf(Area.Scalability));
-        Assert.Equal(85, result.ScoreOf(Area.Security));
+        Assert.Equal(95, result.ScoreOf(Area.Security));
         Assert.Equal(95, result.ScoreOf(Area.Observability));
 
-        // **65 in v2 and 73 in v4**, and it is the worst architecture in the suite that gains the
-        // most. Six areas averaged without weights means two freshly measured ones at 85 and 95
-        // pull a 25 upwards. Not a bug and not a calibration to fiddle with (D1.2 chose the plain
-        // average on purpose) - a reason why comparing two scoring versions is meaningless.
-        Assert.Equal(73, result.Score);
+        // **65 in v2, 73 in v4, 75 in v5**, and it is the worst architecture in the suite that gains
+        // the most. Six areas averaged without weights means freshly measured ones at 95 pull a 25
+        // upwards. Not a bug and not a calibration to fiddle with (D1.2 chose the plain average on
+        // purpose) - a reason why comparing two scoring versions is meaningless.
+        Assert.Equal(75, result.Score);
+
+        // What keeps this fixture honest: **twelve Criticals**. V13 lowers the floor under the small
+        // correct architectures without softening the bad one - the two moves are separate, and this
+        // is where you see it.
+        Assert.Equal(12, result.Summary.Critical);
     }
 
     [Fact]
@@ -195,8 +247,10 @@ public class ReferenceArchitectureTests
         // declared traffic for the two rules that need it.
         //
         // Before V4 this fixture had **zero** passed checks. Even the worst architecture in the
-        // suite does three things right; nobody was asking.
-        Assert.Equal(3, result.Summary.Passed);
+        // suite does four things right; nobody was asking. The fourth is V13 D3.1: every one of its
+        // fourteen edges names a protocol that matches what is at the other end, which is worth a
+        // green tick precisely because the rule exists to catch the ones that do not.
+        Assert.Equal(4, result.Summary.Passed);
     }
 
     [Theory]
@@ -255,10 +309,10 @@ public class ReferenceArchitectureTests
                 RuleCodes.MissingResilience, RuleCodes.MissingResilience,
                 RuleCodes.RetryAmplification, RuleCodes.SyncChain,
                 RuleCodes.Cycle, RuleCodes.HighCoupling,
-                RuleCodes.UnauthenticatedEntry,
-                // Warning: same walk through the areas.
+                // Warning: same walk through the areas. UNAUTHENTICATED_ENTRY crossed over from the
+                // block above in V13 D2.1, and lands under Security exactly where the order says.
                 RuleCodes.Spof, RuleCodes.MissingResilience, RuleCodes.MissingCache,
-                RuleCodes.NoObservability
+                RuleCodes.UnauthenticatedEntry, RuleCodes.NoObservability
             ],
             result.Findings.Where(f => f.Severity != Severity.Good).Select(f => f.Code));
     }
@@ -283,7 +337,7 @@ public class ReferenceArchitectureTests
     {
         var result = ReferenceArchitecture.Analyze(fixture);
 
-        Assert.Equal("v4", result.ScoringVersion);
+        Assert.Equal("v5", result.ScoringVersion);
         Assert.Equal(Enum.GetValues<Area>(), result.Areas.Select(a => a.Area));
         Assert.All(result.Findings, finding =>
         {

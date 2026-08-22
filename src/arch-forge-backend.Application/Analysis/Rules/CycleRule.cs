@@ -8,6 +8,13 @@ namespace arch_forge_backend.Application.Analysis.Rules;
 /// V2 D4.x. A cycle goes to Coupling, not Resilience: a mutual dependency is coupling in its
 /// purest form. It is detected, never rejected on save (D3.4) - turning the most instructive
 /// pathology in architecture into a form error would forbid exactly what the product teaches.
+///
+/// V13 D1.2. The suggestion is chosen, not constant. A cycle has no single protagonist type the way
+/// a SPOF does, so the axis is the two things that actually change the answer: whether the loop
+/// passes through a store two components are both writing to, and whether every hop of it is
+/// synchronous. "Invert a dependency or put a queue in between" was being said to all three cases,
+/// and it is the wrong advice for the first one - the queue would make the deadlock go away and
+/// leave the shared ownership exactly where it was.
 /// </summary>
 public class CycleRule : IArchitectureRule
 {
@@ -49,11 +56,35 @@ public class CycleRule : IArchitectureRule
                     ("count", cycle.Count),
                     ("walk", string.Join(" → ", names) + $" → {names[0]}")),
                 LocalizedText.Of("finding.CYCLE.detected.explanation"),
-                LocalizedText.Of("finding.CYCLE.detected.suggestion"),
+                Suggest(graph, cycle),
                 Interleave(cycle)));
         }
 
         return RuleResult.Applicable(findings);
+    }
+
+    /// <summary>
+    /// V13 D1.2, on <see cref="UndersizedComponentRule"/>'s pattern - here keyed on what the cycle
+    /// is made of rather than on one node's type, because every component in it is equally the
+    /// subject of the finding.
+    /// </summary>
+    private static LocalizedText Suggest(ArchitectureGraph graph, IReadOnlyList<Connection> cycle)
+    {
+        var participants = cycle
+            .Select(edge => graph.NodesById.GetValueOrDefault(edge.SourceNodeId))
+            .Where(node => node is not null)
+            .ToList();
+
+        // Two components looping through the same store are not badly wired, they are both writing
+        // somebody else's data. Rewiring does not fix that, so it is said first (D1.2).
+        if (participants.Any(node => NodeRoles.IsDataStore(node!.Type)))
+            return LocalizedText.Of("finding.CYCLE.detected.suggestion.sharedData");
+
+        // Every hop blocking is the deadlock case, and there the async hop *is* the fix.
+        return LocalizedText.Of(cycle.All(edge => edge.Synchronous)
+            ? "finding.CYCLE.detected.suggestion.synchronous"
+            // It already has one, so the deadlock is gone and the mutual dependency is not.
+            : "finding.CYCLE.detected.suggestion.decouple");
     }
 
     // The walk, closing back on the node it started from (D2.2).

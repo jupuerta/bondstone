@@ -68,7 +68,7 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
         Assert.True(analysis["score"]!.GetValue<int>() is >= 0 and <= 100);
 
         // V2 D2.1: the six areas always travel, in enum order; what varies is their state.
-        Assert.Equal("v4", analysis["scoringVersion"]!.GetValue<string>());
+        Assert.Equal("v5", analysis["scoringVersion"]!.GetValue<string>());
         Assert.Equal(
             ["Availability", "Resilience", "Coupling", "Scalability", "Security", "Observability"],
             analysis["areas"]!.AsArray().Select(a => a!["area"]!.GetValue<string>()));
@@ -426,13 +426,22 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
         var api = Guid.NewGuid();
         var db = Guid.NewGuid();
 
-        object Snapshot(int version, bool withTimeout) => new
+        object Snapshot(int version, bool fixedUp) => new
         {
             name = "History",
             version,
             nodes = new object[]
             {
-                new { id = api, type = "Api", name = "Api", position = new { x = 0, y = 0 } },
+                new
+                {
+                    id = api,
+                    type = "Api",
+                    name = "Api",
+                    position = new { x = 0, y = 0 },
+                    // V13 D2.1 travelling over the wire: absent on the first save is the undeclared
+                    // third state, and this is the only test that round-trips it through the API.
+                    configuration = fixedUp ? new { authentication = true } : null
+                },
                 new { id = db, type = "Database", name = "Db", position = new { x = 200, y = 0 } }
             },
             connections = new object[]
@@ -444,15 +453,23 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
                     targetNodeId = db,
                     protocol = "Sql",
                     synchronous = true,
-                    configuration = withTimeout ? new { timeoutSeconds = 5 } : null
+                    configuration = fixedUp ? new { timeoutSeconds = 5 } : null
                 }
             }
         };
 
-        // Two saves: one without a timeout on the call, then one with. The second scores better,
-        // which is the `61 → 78` narrative the debt was written as.
-        await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", Snapshot(1, withTimeout: false));
-        await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", Snapshot(2, withTimeout: true));
+        // Two saves: one that says nothing about the call's timeout nor about the door's
+        // authentication, then one that answers both. The second scores better, which is the
+        // `61 → 78` narrative the debt was written as.
+        //
+        // **Both things, and not only the timeout.** Until V13 the timeout alone moved the global
+        // score across a rounding boundary; with UNAUTHENTICATED_ENTRY no longer taking fifteen
+        // points off a diagram that simply had not said (D2.1), one area recovering five is 0,83 of
+        // a global point and both versions round to the same number. The assertion was always one
+        // bucket away from meaning nothing - a history entry carries the global score and nothing
+        // else - so the fixture improves two axes and clears it by a whole point.
+        await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", Snapshot(1, fixedUp: false));
+        await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", Snapshot(2, fixedUp: true));
 
         var history = await _client.GetFromJsonAsync<JsonArray>($"/api/architectures/{shareToken}/history");
 
@@ -462,7 +479,7 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
         // Oldest first, one per version, each carrying the model that produced it.
         Assert.Equal(2, history[0]!["version"]!.GetValue<int>());
         Assert.Equal(3, history[1]!["version"]!.GetValue<int>());
-        Assert.All(history, entry => Assert.Equal("v4", entry!["scoringVersion"]!.GetValue<string>()));
+        Assert.All(history, entry => Assert.Equal("v5", entry!["scoringVersion"]!.GetValue<string>()));
 
         // Adding the timeout silences MISSING_RESILIENCE, so Resilience recovers and the average
         // with it: the number went up because the architecture got better.
