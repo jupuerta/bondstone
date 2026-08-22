@@ -52,9 +52,9 @@ public class FakeArchitectureRepository : IArchitectureRepository
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<ArchitectureSnapshot>> GetSnapshotsAsync(Guid architectureId, int limit, CancellationToken cancellationToken = default) =>
+    public Task<IReadOnlyList<ArchitectureSnapshot>> GetSnapshotsAsync(Guid architectureId, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<ArchitectureSnapshot>>(
-            Snapshots.Where(s => s.ArchitectureId == architectureId).OrderBy(s => s.Version).Take(limit).ToList());
+            Snapshots.Where(s => s.ArchitectureId == architectureId).OrderBy(s => s.Version).ToList());
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 }

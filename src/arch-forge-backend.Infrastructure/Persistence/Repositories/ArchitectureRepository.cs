@@ -88,12 +88,10 @@ public class ArchitectureRepository : IArchitectureRepository
 
     public async Task<IReadOnlyList<ArchitectureSnapshot>> GetSnapshotsAsync(
         Guid architectureId,
-        int limit,
         CancellationToken cancellationToken = default) =>
         await _context.ArchitectureSnapshots
             .Where(s => s.ArchitectureId == architectureId)
             .OrderBy(s => s.Version)
-            .Take(limit)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 

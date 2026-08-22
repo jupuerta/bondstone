@@ -45,8 +45,13 @@ public interface IArchitectureRepository
     /// </summary>
     Task RecordSnapshotAsync(ArchitectureSnapshot snapshot, CancellationToken cancellationToken = default);
 
-    /// <summary>Oldest first, capped: the panel only needs where you started and where you are.</summary>
-    Task<IReadOnlyList<ArchitectureSnapshot>> GetSnapshotsAsync(Guid architectureId, int limit, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// The whole history, oldest first. Deliberately uncapped: the history query collapses it to one
+    /// point per score change, and it cannot tell what a change is without seeing every version.
+    /// Bounded in practice by one architecture's own edit history, and the (ArchitectureId, Version)
+    /// index already covers the ordering.
+    /// </summary>
+    Task<IReadOnlyList<ArchitectureSnapshot>> GetSnapshotsAsync(Guid architectureId, CancellationToken cancellationToken = default);
 
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
