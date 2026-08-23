@@ -69,7 +69,9 @@ public static class NodeSettings
     };
 
     /// <summary>
-    /// V4 D5.2: whether the front door asks who you are. Only Api and Gateway can be one.
+    /// V4 D5.2: whether the front door asks who you are. The types that can be one are
+    /// <see cref="Analysis.Rules.NodeRoles.CanAuthenticate"/>'s - Api, Gateway and, since V14 B6,
+    /// Service, because a BFF is a door too.
     ///
     /// V13 D2.1. <strong>Three states, and the third is not a default.</strong> <c>null</c> is
     /// "nobody has said", which is a different claim from <c>false</c> - "there is none" - and the
@@ -80,6 +82,7 @@ public static class NodeSettings
     {
         NodeType.Api => Read<ApiConfiguration>(node)?.Authentication,
         NodeType.Gateway => Read<GatewayConfiguration>(node)?.Authentication,
+        NodeType.Service => Read<ServiceConfiguration>(node)?.Authentication,
         _ => false
     };
 

@@ -338,6 +338,122 @@ public class UpdateArchitectureCommandHandlerTests
         await Assert.ThrowsAsync<InvalidConnectionConfigurationException>(() => _handler.Handle(command));
     }
 
+    // ---- V14 B14: the nodes get the range guards the edges had ----------------------
+
+    [Fact]
+    public async Task Handle_NegativeInstances_ThrowsInvalidNodeConfigurationException()
+    {
+        // QA V14 U1: `instances: -3` and `requestsPerSecond: -5000` saved without a word and
+        // scored a hundred, with the whole load axis silently switched off.
+        var architecture = await SeedArchitecture();
+        var api = Node(NodeType.Api, "Api");
+        api.Configuration = Json("""{"instances":-3}""");
+
+        var exception = await Assert.ThrowsAsync<InvalidNodeConfigurationException>(() =>
+            _handler.Handle(Command(architecture, api)));
+
+        Assert.Contains("instances must be 1 or greater", exception.Message);
+    }
+
+    [Fact]
+    public async Task Handle_NegativeRequestsPerSecond_ThrowsInvalidNodeConfigurationException()
+    {
+        var architecture = await SeedArchitecture();
+        var api = Node(NodeType.Api, "Api");
+        api.Configuration = Json("""{"requestsPerSecond":-5000}""");
+
+        var exception = await Assert.ThrowsAsync<InvalidNodeConfigurationException>(() =>
+            _handler.Handle(Command(architecture, api)));
+
+        Assert.Contains("requestsPerSecond must be 0 or greater", exception.Message);
+    }
+
+    [Fact]
+    public async Task Handle_HitRatioAboveOne_ThrowsInvalidNodeConfigurationException()
+    {
+        var architecture = await SeedArchitecture();
+        var cache = Node(NodeType.Cache, "Cache");
+        cache.Configuration = Json("""{"hitRatio":5}""");
+
+        await Assert.ThrowsAsync<InvalidNodeConfigurationException>(() => _handler.Handle(Command(architecture, cache)));
+    }
+
+    [Fact]
+    public async Task Handle_NegativeReplicas_ThrowsInvalidNodeConfigurationException()
+    {
+        var architecture = await SeedArchitecture();
+        var db = Node(NodeType.Database, "Db");
+        db.Configuration = Json("""{"replicas":-3}""");
+
+        await Assert.ThrowsAsync<InvalidNodeConfigurationException>(() => _handler.Handle(Command(architecture, db)));
+    }
+
+    [Fact]
+    public async Task Handle_NodeValuesAtTheEdgeOfTheirRange_Succeed()
+    {
+        // Zero load, one instance, an empty cache and no replicas are all real declarations.
+        var architecture = await SeedArchitecture();
+        var api = Node(NodeType.Api, "Api");
+        api.Configuration = Json("""{"instances":1,"requestsPerSecond":0,"rateLimit":1}""");
+        var cache = Node(NodeType.Cache, "Cache");
+        cache.Configuration = Json("""{"hitRatio":0}""");
+        var db = Node(NodeType.Database, "Db");
+        db.Configuration = Json("""{"replicas":0,"readReplicas":0}""");
+
+        var result = await _handler.Handle(Command(architecture, api, cache, db));
+
+        Assert.NotNull(result);
+    }
+
+    [Fact]
+    public async Task Handle_TimeoutOverTheCeiling_Throws()
+    {
+        // QA V14 T6: a timeout of twenty-seven hours was valid and counted as protection.
+        var architecture = await SeedArchitecture();
+        var api = Node(NodeType.Api, "Api");
+        var database = Node(NodeType.Database, "Db");
+
+        var command = new UpdateArchitectureCommand
+        {
+            EditToken = architecture.EditToken,
+            Name = "Renamed",
+            Version = architecture.Version,
+            Nodes = [api, database],
+            Connections = [Connect(api, database, Json("""{"timeoutSeconds":100000}"""))]
+        };
+
+        var exception = await Assert.ThrowsAsync<InvalidConnectionConfigurationException>(() => _handler.Handle(command));
+
+        Assert.Contains("timeoutSeconds must be between 1 and 600", exception.Message);
+    }
+
+    [Fact]
+    public async Task Handle_TimeoutAtTheCeiling_Succeeds()
+    {
+        var architecture = await SeedArchitecture();
+        var api = Node(NodeType.Api, "Api");
+        var database = Node(NodeType.Database, "Db");
+
+        var command = new UpdateArchitectureCommand
+        {
+            EditToken = architecture.EditToken,
+            Name = "Renamed",
+            Version = architecture.Version,
+            Nodes = [api, database],
+            Connections = [Connect(api, database, Json("""{"timeoutSeconds":600,"retries":0}"""))]
+        };
+
+        Assert.NotNull(await _handler.Handle(command));
+    }
+
+    private static UpdateArchitectureCommand Command(Architecture architecture, params NodeDto[] nodes) => new()
+    {
+        EditToken = architecture.EditToken,
+        Name = "Renamed",
+        Version = architecture.Version,
+        Nodes = [.. nodes]
+    };
+
     [Fact]
     public async Task Handle_SelfLoop_IsRejected()
     {
@@ -443,7 +559,7 @@ public class UpdateArchitectureCommandHandlerTests
         var snapshot = Assert.Single(_repository.Snapshots);
         Assert.Equal(architecture.Id, snapshot.ArchitectureId);
         Assert.Equal(2, snapshot.Version);
-        Assert.Equal("v6", snapshot.ScoringVersion);
+        Assert.Equal("v7", snapshot.ScoringVersion);
     }
 
     [Fact]

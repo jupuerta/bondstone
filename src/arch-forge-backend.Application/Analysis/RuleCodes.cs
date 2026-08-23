@@ -40,4 +40,10 @@ public static class RuleCodes
     public const string QueueNoConsumer = "QUEUE_NO_CONSUMER";
     public const string CacheAsStore = "CACHE_AS_STORE";
     public const string SharedDatabase = "SHARED_DATABASE";
+
+    // V14 §4.1 (docs/V14/QA-analisis-V14.md). PROTOCOL_MISMATCH's idea applied to the ends of the
+    // arrow instead of to its protocol: whether the two types it joins describe a call that can
+    // happen at all. The second rule whose findings are about the drawing, and the one that
+    // stops `Db -> Client` scoring 98.
+    public const string ImplausibleDependency = "IMPLAUSIBLE_DEPENDENCY";
 }

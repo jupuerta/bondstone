@@ -33,9 +33,12 @@ public class SyncDependencyChainRule : IArchitectureRule
         // chain of four whose first hop is a metrics scrape: the user's chain is three, and the
         // component the finding named as starting it was the telemetry box. A scrape does not wait
         // on what the Api waits on, so it cannot lengthen the path a request suffers.
+        //
+        // V14 B10. Nor is a provider's own hop: `Api -> Stripe -> Maps` is a chain of two from
+        // where this architect stands, and what Stripe does with the call is Stripe's chain.
         var synchronous = graph.Connections
             .Where(c => c.Synchronous
-                        && !NodeRoles.IsRequestFromOutside(graph, c)
+                        && !NodeRoles.IsNotYourCall(graph, c)
                         && !NodeRoles.IsTelemetryEdge(graph, c))
             .ToList();
 

@@ -42,7 +42,10 @@ public class ReferenceArchitectureTests
         // Eleven since QA §4: SHARED_DATABASE looks at the one database and finds one caller.
         // The other two of that round are not applicable here - no queue, no cache. And three
         // warnings, not two: coverage (QA §4) names the Api and the database separately.
-        Assert.Equal(new AnalysisSummary(Critical: 0, Warning: 3, Passed: 11), result.Summary);
+        // V14 §4.1 adds a green tick here and in every other reference: each arrow joins two types
+        // that can talk to each other, which is worth saying precisely because the rule exists
+        // to catch the ones that do not.
+        Assert.Equal(new AnalysisSummary(Critical: 0, Warning: 3, Passed: 12), result.Summary);
     }
 
     [Fact]
@@ -104,7 +107,7 @@ public class ReferenceArchitectureTests
         // The gateway moves from the Critical column to the Warning one, so 6 · 5 becomes 5 · 6;
         // SHARED_DATABASE makes the six seven, and coverage turns one NO_OBSERVABILITY into five.
         // V14 B3 takes SYNC_CHAIN's Warning off the count and gives the rule its green tick back.
-        Assert.Equal(new AnalysisSummary(Critical: 5, Warning: 10, Passed: 7), result.Summary);
+        Assert.Equal(new AnalysisSummary(Critical: 5, Warning: 10, Passed: 8), result.Summary);
     }
 
     [Fact]
@@ -176,7 +179,7 @@ public class ReferenceArchitectureTests
         // And three more green ticks since QA §4, all three earned: the queue has its worker, the
         // cache has the database behind it, and Orders is the only service on that database.
         // V14 B3 turns SYNC_CHAIN's Warning into its green tick here too.
-        Assert.Equal(new AnalysisSummary(Critical: 0, Warning: 11, Passed: 12), result.Summary);
+        Assert.Equal(new AnalysisSummary(Critical: 0, Warning: 11, Passed: 13), result.Summary);
     }
 
     [Fact]
@@ -293,8 +296,9 @@ public class ReferenceArchitectureTests
         // Before V4 this fixture had **zero** passed checks. Even the worst architecture in the
         // suite does four things right; nobody was asking. The fourth is V13 D3.1: every one of its
         // fourteen edges names a protocol that matches what is at the other end, which is worth a
-        // green tick precisely because the rule exists to catch the ones that do not.
-        Assert.Equal(4, result.Summary.Passed);
+        // green tick precisely because the rule exists to catch the ones that do not. The fifth is
+        // V14 §4.1, the same sentence about the two ends of the arrow instead of its protocol.
+        Assert.Equal(5, result.Summary.Passed);
     }
 
     [Theory]
@@ -390,7 +394,7 @@ public class ReferenceArchitectureTests
     {
         var result = ReferenceArchitecture.Analyze(fixture);
 
-        Assert.Equal("v6", result.ScoringVersion);
+        Assert.Equal("v7", result.ScoringVersion);
         Assert.Equal(Enum.GetValues<Area>(), result.Areas.Select(a => a.Area));
         Assert.All(result.Findings, finding =>
         {

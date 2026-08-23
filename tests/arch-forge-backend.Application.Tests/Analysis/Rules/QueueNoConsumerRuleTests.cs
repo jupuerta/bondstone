@@ -73,6 +73,125 @@ public class QueueNoConsumerRuleTests
         Assert.Equal([_builder.NodeElement("Cola"), _builder.EdgeElement("Worker", "Cola")], finding.Elements);
     }
 
+    // ---- V14 B8: the delivery has to land on something that runs code ----------
+
+    [Fact]
+    public void A_database_at_the_end_of_the_queue_is_not_a_consumer()
+    {
+        // QA V14 T3: `Api -> Cola -> Db`. The only wire out of the queue points at a database,
+        // which processes no message - the exact shape this rule was written for, and until V14
+        // the one it gave a green tick to.
+        _builder
+            .Node("Api", NodeType.Api)
+            .Node("Cola", NodeType.Queue)
+            .Node("Db", NodeType.Database)
+            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Cola", "Db", synchronous: false, protocol: ProtocolType.Amqp);
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal("finding.QUEUE_NO_CONSUMER.unconsumed.explanation", finding.Explanation.Key());
+        Assert.Equal(_builder.NodeElement("Cola"), Assert.Single(finding.Elements));
+    }
+
+    [Fact]
+    public void A_false_consumer_no_longer_hides_the_worker_drawn_backwards()
+    {
+        // QA V14 N8: the arrow to the database used to count as the consumer, so the queue passed
+        // and the `backwards` sentence - the one that names the arrow to reverse - was never said.
+        _builder
+            .Node("Api", NodeType.Api)
+            .Node("Cola", NodeType.Queue)
+            .Node("Db", NodeType.Database)
+            .Node("Worker", NodeType.Worker)
+            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Cola", "Db", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Worker", "Cola", synchronous: false, protocol: ProtocolType.Amqp);
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal("finding.QUEUE_NO_CONSUMER.backwards.explanation(node=Cola, worker=Worker)", finding.Explanation.Describe());
+        Assert.Equal([_builder.NodeElement("Cola"), _builder.EdgeElement("Worker", "Cola")], finding.Elements);
+    }
+
+    [Theory]
+    [InlineData(NodeType.Worker)]
+    [InlineData(NodeType.Service)]
+    [InlineData(NodeType.Api)]
+    [InlineData(NodeType.ExternalService)]
+    public void Whatever_runs_code_on_a_message_consumes(NodeType consumer)
+    {
+        _builder
+            .Node("Api", NodeType.Api)
+            .Node("Cola", NodeType.Queue)
+            .Node("Consumer", consumer)
+            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Cola", "Consumer", synchronous: false, protocol: ProtocolType.Amqp);
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Theory]
+    [InlineData(NodeType.Database)]
+    [InlineData(NodeType.Cache)]
+    [InlineData(NodeType.ObjectStorage)]
+    [InlineData(NodeType.Client)]
+    [InlineData(NodeType.LoadBalancer)]
+    [InlineData(NodeType.IdentityProvider)]
+    public void Whatever_does_not_run_code_on_a_message_does_not(NodeType target)
+    {
+        _builder
+            .Node("Api", NodeType.Api)
+            .Node("Cola", NodeType.Queue)
+            .Node("Target", target)
+            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Cola", "Target", synchronous: false, protocol: ProtocolType.Amqp);
+
+        Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Fact]
+    public void A_queue_forwarding_to_a_drained_queue_has_a_consumer_at_every_stage()
+    {
+        // The staged pipeline the V13 QA calls "the one this product itself recommends". A queue
+        // feeding a queue is the broker routing, not dropping: the work is forwarded and done.
+        _builder
+            .Node("Api", NodeType.Api)
+            .Nodes(NodeType.Queue, "Cola1", "Cola2")
+            .Node("Worker", NodeType.Worker)
+            .Connect("Api", "Cola1", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Cola1", "Cola2", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Cola2", "Worker", synchronous: false, protocol: ProtocolType.Amqp);
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Fact]
+    public void A_chain_of_queues_nobody_drains_is_flagged_at_every_stage()
+    {
+        _builder
+            .Node("Api", NodeType.Api)
+            .Nodes(NodeType.Queue, "Cola1", "Cola2")
+            .Connect("Api", "Cola1", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Cola1", "Cola2", synchronous: false, protocol: ProtocolType.Amqp);
+
+        Assert.Equal(2, _rule.Evaluate(_builder.Build()).Findings.Count);
+    }
+
+    [Fact]
+    public void Two_queues_forwarding_to_each_other_drain_nothing()
+    {
+        // The walk through forwarded queues has to terminate on a cycle of them and say "nobody".
+        _builder
+            .Node("Api", NodeType.Api)
+            .Nodes(NodeType.Queue, "Cola1", "Cola2")
+            .Connect("Api", "Cola1", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Cola1", "Cola2", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Cola2", "Cola1", synchronous: false, protocol: ProtocolType.Amqp);
+
+        Assert.Equal(2, _rule.Evaluate(_builder.Build()).Findings.Count);
+    }
+
     [Fact]
     public void A_queue_delivering_to_itself_has_no_consumer()
     {

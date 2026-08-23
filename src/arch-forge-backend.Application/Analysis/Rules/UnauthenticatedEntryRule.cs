@@ -54,7 +54,37 @@ public class UnauthenticatedEntryRule : IArchitectureRule
             // asks: delegation is a declaration, made in the drawing instead of in a checkbox,
             // and the drawing is the stronger claim - it is the one every other rule reads.
             var authentication = NodeSettings.AuthenticationOf(node);
-            if (authentication == true || DelegatesAuthentication(graph, node))
+            var delegation = DelegationOf(graph, node);
+
+            // V14 B15. Unless the checkbox says the opposite. "The drawing is the stronger claim"
+            // settles silence against a wire; it does not settle two explicit declarations that
+            // contradict each other, and choosing one of them quietly is the analyzer making the
+            // user's decision for them. A Warning, not the Critical of a declared "no": the wire
+            // is there, so the data is not open in the way an undelegated "no" leaves it - what is
+            // wrong is that the diagram says two things, and the card says which two.
+            if (authentication == false && delegation is { } contradicted)
+            {
+                var provider = graph.NodesById[contradicted.TargetNodeId];
+
+                findings.Add(new RuleFinding(
+                    Code,
+                    Area,
+                    Severity.Warning,
+                    LocalizedText.Of("finding.UNAUTHENTICATED_ENTRY.contradicted.message",
+                        ("node", node.Name),
+                        ("provider", provider.Name)),
+                    LocalizedText.Of("finding.UNAUTHENTICATED_ENTRY.contradicted.explanation",
+                        ("node", node.Name),
+                        ("provider", provider.Name)),
+                    LocalizedText.Of("finding.UNAUTHENTICATED_ENTRY.contradicted.suggestion",
+                        ("node", node.Name),
+                        ("provider", provider.Name)),
+                    [FindingElement.Node(node.Id), FindingElement.Connection(contradicted.Id)]));
+
+                continue;
+            }
+
+            if (authentication == true || delegation is not null)
                 continue;
 
             // V13 D2.1. Declared "no" is a decision about a door with a database behind it, and it
@@ -82,9 +112,13 @@ public class UnauthenticatedEntryRule : IArchitectureRule
         return RuleResult.Applicable(findings);
     }
 
-    /// <summary>QA §3.4: the door hands the "who are you" question to an IdentityProvider it calls.</summary>
-    private static bool DelegatesAuthentication(ArchitectureGraph graph, Domain.Entities.Node door) =>
-        graph.OutgoingBySource[door.Id].Any(edge =>
+    /// <summary>
+    /// QA §3.4: the door hands the "who are you" question to an IdentityProvider it calls. The
+    /// edge itself, so a contradiction (V14 B15) can point at the wire it is about; the first one
+    /// in the graph's order when a door is wired to more than one provider.
+    /// </summary>
+    private static Domain.Entities.Connection? DelegationOf(ArchitectureGraph graph, Domain.Entities.Node door) =>
+        graph.OutgoingBySource[door.Id].FirstOrDefault(edge =>
             graph.NodesById.TryGetValue(edge.TargetNodeId, out var target)
             && target.Type == NodeType.IdentityProvider);
 }

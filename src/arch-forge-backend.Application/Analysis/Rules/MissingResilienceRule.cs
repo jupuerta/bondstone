@@ -30,9 +30,9 @@ public class MissingResilienceRule : IArchitectureRule
     {
         // The outside's edges are the requests themselves, not calls anybody configures (QA
         // §3.1): drawing a Client must not open every diagram with "your users' call has no
-        // timeout".
+        // timeout". A third party's own calls are not yours to configure either (V14 B10).
         var synchronous = graph.Connections
-            .Where(c => c.Synchronous && !NodeRoles.IsRequestFromOutside(graph, c))
+            .Where(c => c.Synchronous && !NodeRoles.IsNotYourCall(graph, c))
             .ToList();
 
         if (synchronous.Count == 0)

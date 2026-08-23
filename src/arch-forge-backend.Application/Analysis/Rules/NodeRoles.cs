@@ -60,6 +60,24 @@ public static class NodeRoles
              or NodeType.ExternalService or NodeType.IdentityProvider;
 
     /// <summary>
+    /// V14 B8. What can drain a queue: the types that <strong>run code on a message</strong>. A
+    /// <see cref="NodeType.Worker"/> is the one the product recommends; a
+    /// <see cref="NodeType.Service"/> or an <see cref="NodeType.Api"/> subscribing is ordinary; an
+    /// <see cref="NodeType.ExternalService"/> is somebody else's code, and it still runs. Nothing
+    /// else does: a database does not process a message, a cache does not, a balancer does not, and
+    /// the outside (<see cref="NodeType.Client"/>) least of all. Until V14 <c>QUEUE_NO_CONSUMER</c>
+    /// accepted any arrow leaving the queue as the delivery, so <c>Api → Cola → Db</c> - the exact
+    /// shape the rule exists to catch, work that goes in and never comes out - got the green tick,
+    /// and <c>QUEUE_NO_DLQ</c> then handed out the second-level advice over the missing first.
+    ///
+    /// Narrower than <see cref="IsLogicComponent"/> on purpose: an
+    /// <see cref="NodeType.IdentityProvider"/> is a hop out of your process for <c>SYNC_CHAIN</c>,
+    /// but nobody subscribes it to a queue.
+    /// </summary>
+    public static bool ProcessesMessages(NodeType type) =>
+        type is NodeType.Worker or NodeType.Service or NodeType.Api or NodeType.ExternalService;
+
+    /// <summary>
     /// Components whose whole purpose is to sit in front of several others.
     /// <strong>Fan-out is their function</strong>, so what a finding has to say to one of them is a
     /// different sentence from what it says to a service that grew seven dependencies (D1.2).
@@ -94,6 +112,29 @@ public static class NodeRoles
         graph.NodesById.TryGetValue(edge.SourceNodeId, out var source) && IsTrafficOrigin(source.Type);
 
     /// <summary>
+    /// V14 B10. The other end of the same predicate: a call <em>made by</em> somebody else's
+    /// service is not one this architect can contain either. <c>Api → Stripe</c> is yours - the
+    /// timeout, the fallback, the retries all sit on your side of it. <c>Stripe → Maps</c> is
+    /// Stripe's: drawing it says "the provider depends on another provider", which is worth knowing
+    /// and is nothing you can put a knob on. Every rule that asked the user to configure it was
+    /// handing out an instruction nobody can follow, the exact failure <c>UNDERSIZED_COMPONENT</c>
+    /// refuses to commit on the same type (V8 §6.2, QA V14 B2).
+    /// </summary>
+    public static bool IsCallByThirdParty(ArchitectureGraph graph, Connection edge) =>
+        graph.NodesById.TryGetValue(edge.SourceNodeId, out var source) && source.Type == NodeType.ExternalService;
+
+    /// <summary>
+    /// V14 B10. <strong>The one question the five resilience rules ask about an edge before they
+    /// read it</strong>: is this a call the architect configures? The request from the outside is
+    /// not (QA §3.1), and a third party's own call is not (B10) - two ends, one predicate, because
+    /// until V14 the rules read one and not the other, and <c>EXTERNAL_NO_FALLBACK</c>,
+    /// <c>MISSING_RESILIENCE</c>, <c>TIMEOUT_TOO_SHORT</c>, <c>RETRY_AMPLIFICATION</c> and
+    /// <c>SYNC_CHAIN</c> all opined on Stripe's timeout to Google Maps.
+    /// </summary>
+    public static bool IsNotYourCall(ArchitectureGraph graph, Connection edge) =>
+        IsRequestFromOutside(graph, edge) || IsCallByThirdParty(graph, edge);
+
+    /// <summary>
     /// QA B6. Types whose outgoing edges are work they start, never traffic somebody sent from
     /// outside: a Worker polling its queue, a clock firing jobs, telemetry reading what it watches.
     /// A root of one of these is not a door - which is what stopped a background Worker from
@@ -101,6 +142,32 @@ public static class NodeRoles
     /// </summary>
     public static bool ActsFromInside(NodeType type) =>
         type is NodeType.Worker or NodeType.Observability or NodeType.Scheduler;
+
+    /// <summary>
+    /// V14 B6. The inference turned the right way up. QA B6 excluded three types from "a root is a
+    /// door" and left the other twelve in, so a queue, a cache, a service or a database drawn at the
+    /// top of the flow - the ordinary shape of a diagram of <em>part</em> of a system - was the
+    /// internet, and the data behind it was a breach. <strong>A root is a door only if its type is
+    /// something the outside can reach</strong>: the edge, the balancer, the router, the Api, or a
+    /// third party calling in (a webhook is outside traffic, which is why ExternalService stayed
+    /// an origin through QA B6). Everything else at the root is a drawing that starts in the
+    /// middle, not a hole in the wall. A drawn <see cref="NodeType.Client"/> still settles the
+    /// question before this is ever asked (<see cref="EntryPoints.TrafficOrigins"/>).
+    /// </summary>
+    public static bool ReceivesFromOutside(NodeType type) =>
+        type is NodeType.Api or NodeType.Gateway or NodeType.LoadBalancer
+             or NodeType.Cdn or NodeType.ExternalService;
+
+    /// <summary>
+    /// V14 B6 (N12). Where the outside stops being the outside: the components that can ask who is
+    /// calling, which is the same list as the ones that carry the <c>authentication</c> field.
+    /// Until V14 that was Api and Gateway, so <c>Client → Bff(Service) → Db</c> - an ordinary BFF -
+    /// walked straight through the service and found the database "reachable without passing
+    /// through any API", with advice to rename the box. A Service facing the outside is a door
+    /// like any other; the right finding is the question every door gets, not a shape error.
+    /// </summary>
+    public static bool CanAuthenticate(NodeType type) =>
+        type is NodeType.Api or NodeType.Gateway or NodeType.Service;
 
     /// <summary>
     /// QA §4 (coverage). The telemetry box itself: the one component that observes and is never
@@ -150,4 +217,19 @@ public static class NodeRoles
         !IsTelemetry(type)
         && !IsTrafficOrigin(type)
         && type is not (NodeType.ExternalService or NodeType.Cdn);
+
+    /// <summary>
+    /// V14 B2. What <c>UNDERSIZED_COMPONENT</c> may tell you to grow. Every sentence that rule
+    /// knows - add instances, add replicas, share the work - is an instruction, and the five types
+    /// left out here are the ones where that instruction is impossible to follow:
+    /// <see cref="NodeType.ExternalService"/> is somebody else's to scale (V8 §6.2), the
+    /// <see cref="NodeType.Client"/> is your users, a <see cref="NodeType.Cdn"/> is a provider's
+    /// edge, a <see cref="NodeType.Scheduler"/> is a clock, and the telemetry box is nobody's lesson.
+    /// They are exactly the types <see cref="Simulation.CapacityModel"/> hands an enormous capacity
+    /// <em>so that they never saturate</em> - and a declared load big enough got past that number
+    /// and produced "give your users more instances". The same criterion as
+    /// <see cref="IsObservable"/>, widened by the two boxes that do not take traffic at all.
+    /// </summary>
+    public static bool IsYoursToSize(NodeType type) =>
+        IsObservable(type) && type is not NodeType.Scheduler;
 }

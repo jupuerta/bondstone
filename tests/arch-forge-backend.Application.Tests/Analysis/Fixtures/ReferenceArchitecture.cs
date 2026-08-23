@@ -50,7 +50,8 @@ public static class ReferenceArchitecture
             new ProtocolMismatchRule(),
             new QueueNoConsumerRule(),
             new CacheAsStoreRule(),
-            new SharedDatabaseRule()
+            new SharedDatabaseRule(),
+            new ImplausibleDependencyRule()
         ]);
 
         return analyzer.Analyze(graph);

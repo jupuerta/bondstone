@@ -51,8 +51,9 @@ public class ExternalNoFallbackRule : IArchitectureRule
         var calls = graph.Connections
             .Where(c => c.Synchronous)
             // A Client calling a third party directly is their conversation, not a call this
-            // architecture can contain (QA §3.1).
-            .Where(c => !NodeRoles.IsRequestFromOutside(graph, c))
+            // architecture can contain (QA §3.1) - and neither is a third party calling another
+            // (V14 B10): `Stripe -> Maps` is Stripe's timeout to set, not yours.
+            .Where(c => !NodeRoles.IsNotYourCall(graph, c))
             .Where(c => graph.NodesById.TryGetValue(c.TargetNodeId, out var target) && target.Type == NodeType.ExternalService)
             .ToList();
 

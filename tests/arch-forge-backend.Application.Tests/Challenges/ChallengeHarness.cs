@@ -81,7 +81,8 @@ public static class ChallengeHarness
         new ProtocolMismatchRule(),
         new QueueNoConsumerRule(),
         new CacheAsStoreRule(),
-        new SharedDatabaseRule()
+        new SharedDatabaseRule(),
+        new ImplausibleDependencyRule()
     ]);
 
     /// <summary>The handler's repository is only touched by <c>Handle</c>; these tests call <c>Evaluate</c>.</summary>

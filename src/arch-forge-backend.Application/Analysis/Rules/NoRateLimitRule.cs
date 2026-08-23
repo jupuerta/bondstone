@@ -55,10 +55,15 @@ public class NoRateLimitRule : IArchitectureRule
                 LocalizedText.Of("finding.NO_RATE_LIMIT.unlimited.message", ("node", door.Name)),
                 LocalizedText.Of("finding.NO_RATE_LIMIT.unlimited.explanation"),
                 // The advice is the door's (V13 D1.2): a gateway limits, an Api either limits
-                // itself or gets a gateway to do it.
-                LocalizedText.Of(door.Type == NodeType.Api
-                    ? "finding.NO_RATE_LIMIT.unlimited.suggestion.api"
-                    : "finding.NO_RATE_LIMIT.unlimited.suggestion"),
+                // itself or gets a gateway to do it - and a Service (a door since V14 B6) has no
+                // limit to set, so its only move is the gateway. Handing it the generic sentence
+                // would point at a field it does not have, which is the B4 mistake over again.
+                LocalizedText.Of(door.Type switch
+                {
+                    NodeType.Api => "finding.NO_RATE_LIMIT.unlimited.suggestion.api",
+                    NodeType.Service => "finding.NO_RATE_LIMIT.unlimited.suggestion.service",
+                    _ => "finding.NO_RATE_LIMIT.unlimited.suggestion"
+                }),
                 [FindingElement.Node(door.Id)]))
             .ToList();
 

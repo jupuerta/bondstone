@@ -2,6 +2,7 @@ using arch_forge_backend.Application.Tests.TestDoubles;
 using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Rules;
+using arch_forge_backend.Application.Simulation;
 using arch_forge_backend.Application.Tests.Analysis.Fixtures;
 using arch_forge_backend.Application.Tests.Analysis.Rules.Support;
 using arch_forge_backend.Domain.Enums;
@@ -88,6 +89,23 @@ public class QueueNoDlqRuleTests
         Assert.Empty(result.Findings);
     }
 
+    [Fact]
+    public void A_queue_delivering_only_to_a_database_is_not_asked_either()
+    {
+        // V14 B8. The arrow to the database used to pass for a consumer, so this rule spoke and
+        // QUEUE_NO_CONSUMER did not: the second-level advice handed out over the missing first.
+        var graph = new GraphBuilder()
+            .Node("Api", NodeType.Api)
+            .Node("Q", NodeType.Queue)
+            .Node("Db", NodeType.Database)
+            .Connect("Api", "Q", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Q", "Db", synchronous: false, protocol: ProtocolType.Amqp)
+            .Build();
+
+        Assert.Empty(new QueueNoDlqRule().Evaluate(graph).Findings);
+        Assert.Single(new QueueNoConsumerRule().Evaluate(graph).Findings);
+    }
+
     // A queue with a producer and a consumer: the flow this rule has something to say about.
     private static ArchitectureGraph Queue(string configuration) => new GraphBuilder()
         .Node("Api", NodeType.Api)
@@ -133,6 +151,27 @@ public class TimeoutTooShortRuleTests
         .Node("Db", NodeType.Database)
         .Connect("Api", "Db", timeoutSeconds: 1, protocol: ProtocolType.Sql)
         .Build();
+
+    [Fact]
+    public void A_providers_own_timeout_is_not_the_architects_knob()
+    {
+        // V14 B10. Whatever Stripe set on its call to Maps expires or does not on Stripe's side:
+        // a one-second timeout on the provider's hop, under a load that would make it expire, is
+        // not an edge this rule has anything to say about. Your own call, with a generous
+        // timeout, is the one it reads - and finds fine.
+        var graph = new GraphBuilder()
+            .Node("Api", NodeType.Api, """{"requestsPerSecond":1200}""")
+            .Node("Stripe", NodeType.ExternalService)
+            .Node("Maps", NodeType.ExternalService)
+            .Connect("Api", "Stripe", timeoutSeconds: 30, fallback: true)
+            .Connect("Stripe", "Maps", timeoutSeconds: 1)
+            .Build();
+
+        var result = new TimeoutTooShortRule().Evaluate(graph);
+
+        Assert.True(result.IsApplicable);
+        Assert.Empty(result.Findings);
+    }
 
     [Fact]
     public void Without_a_single_timeout_there_is_nothing_to_compare()
@@ -204,6 +243,63 @@ public class UndersizedComponentRuleTests
         var finding = Assert.Single(new UndersizedComponentRule().Evaluate(graph).Findings);
 
         Assert.Equal("finding.UNDERSIZED_COMPONENT.overloaded.explanation", finding.Explanation.Key());
+    }
+
+    // ---- V14 B2: the exclusion is a predicate, and it names five --------------
+
+    [Theory]
+    [InlineData(NodeType.Client, """{"requestsPerSecond":2000000}""")]
+    [InlineData(NodeType.Scheduler, """{"jobsPerSecond":5000}""")]
+    public void What_is_not_yours_to_size_is_never_told_to_grow(NodeType type, string configuration)
+    {
+        // T9. "Give your users more instances" and "add a replica of the cron" are the same
+        // impossible sentence UNDERSIZED_COMPONENT already refuses to say about a third party. The
+        // enormous capacity CapacityModel hands these boxes so they never saturate was no guard
+        // against a declared load big enough to get past it.
+        var graph = new GraphBuilder()
+            .Node("Origin", type, configuration)
+            .Node("Worker", NodeType.Worker, """{"instances":1000}""")
+            .Connect("Origin", "Worker")
+            .Build();
+
+        var origin = graph.Nodes.Single(n => n.Name == "Origin").Id;
+
+        Assert.True(LoadModel.Of(graph).UtilizationOf(origin) > 1m);
+        Assert.DoesNotContain(new UndersizedComponentRule().Evaluate(graph).Findings, f => f.Elements.Any(e => e.Id == origin));
+    }
+
+    [Fact]
+    public void The_cdn_is_a_providers_edge_not_a_box_you_scale()
+    {
+        // T9's third: a CDN with every request missing, under two million of them. "Spread its
+        // work over several components" was the advice - for somebody else's edge.
+        var graph = new GraphBuilder()
+            .Node("Web", NodeType.Client, """{"requestsPerSecond":2000000}""")
+            .Node("Edge", NodeType.Cdn, """{"hitRatio":0}""")
+            .Node("Gw", NodeType.Gateway, """{"rateLimit":100}""")
+            .Connect("Web", "Edge").Connect("Edge", "Gw")
+            .Build();
+
+        var edge = graph.Nodes.Single(n => n.Name == "Edge").Id;
+
+        Assert.True(LoadModel.Of(graph).UtilizationOf(edge) > 1m);
+        Assert.DoesNotContain(new UndersizedComponentRule().Evaluate(graph).Findings, f => f.Elements.Any(e => e.Id == edge));
+    }
+
+    [Fact]
+    public void What_is_yours_behind_them_is_still_sized()
+    {
+        // The guard: leaving the origin out does not leave out what it floods. The worker behind
+        // the cron is yours, and it is drowning.
+        var graph = new GraphBuilder()
+            .Node("Cron", NodeType.Scheduler, """{"jobsPerSecond":5000}""")
+            .Node("Worker", NodeType.Worker)
+            .Connect("Cron", "Worker")
+            .Build();
+
+        var finding = Assert.Single(new UndersizedComponentRule().Evaluate(graph).Findings);
+
+        Assert.Equal(graph.Nodes.Single(n => n.Name == "Worker").Id, Assert.Single(finding.Elements).Id);
     }
 
     private static ArchitectureGraph Loaded(int rps) => new GraphBuilder()
@@ -345,6 +441,180 @@ public class SecurityRuleTests
         var finding = Assert.Single(new NoRateLimitRule().Evaluate(graph).Findings);
         Assert.Equal("Gw", finding.Message.Arg("node"));
     }
+
+    // ---- V14 B6: a root is a door only if the outside could reach it ----------
+
+    [Theory]
+    [InlineData(NodeType.Queue)]
+    [InlineData(NodeType.Cache)]
+    [InlineData(NodeType.Service)]
+    [InlineData(NodeType.Database)]
+    public void A_root_the_outside_could_not_reach_is_not_the_internet(NodeType type)
+    {
+        // T2a, T2b, U2. Drawing only part of a system puts a queue, a cache or a service at the
+        // top of the flow, and "every root is a door except three types" read each of them as the
+        // internet - so the data behind it was a breach. A store or a broker at the root is a
+        // diagram that starts in the middle.
+        var graph = new GraphBuilder()
+            .Node("Root", type)
+            .Node("Db", NodeType.Database)
+            .Connect("Root", "Db", protocol: ProtocolType.Sql)
+            .Build();
+
+        var result = new ExposedDatabaseRule().Evaluate(graph);
+
+        Assert.True(result.IsApplicable);
+        Assert.Empty(result.Findings);
+    }
+
+    [Theory]
+    [InlineData(NodeType.LoadBalancer)]
+    [InlineData(NodeType.Cdn)]
+    [InlineData(NodeType.ExternalService)]
+    public void A_root_the_outside_reaches_is_still_a_door(NodeType type)
+    {
+        // The guard: the edge, the balancer and a third party calling in (a webhook is outside
+        // traffic) keep inferring "internet" without a Client drawn.
+        var graph = new GraphBuilder()
+            .Node("Root", type)
+            .Node("Db", NodeType.Database)
+            .Connect("Root", "Db", protocol: ProtocolType.Sql)
+            .Build();
+
+        Assert.Single(new ExposedDatabaseRule().Evaluate(graph).Findings);
+    }
+
+    [Fact]
+    public void Two_services_on_their_own_databases_are_not_two_breaches()
+    {
+        // The scenario V13 documented its B2 with, rerun in the V14 sweep: the two SPOF Warnings
+        // it promised were there, and beside them two Critical EXPOSED_DATABASE nobody had
+        // promised, because the two services were roots. Security 78 on the canonical
+        // microservices drawing with no gateway drawn.
+        var graph = new GraphBuilder()
+            .Nodes(NodeType.Service, "Users", "Orders")
+            .Node("users-db", NodeType.Database).Node("orders-db", NodeType.Database)
+            .Connect("Users", "users-db", protocol: ProtocolType.Sql)
+            .Connect("Orders", "orders-db", protocol: ProtocolType.Sql)
+            .Build();
+
+        Assert.Empty(new ExposedDatabaseRule().Evaluate(graph).Findings);
+    }
+
+    [Fact]
+    public void The_scrape_does_not_take_the_door_out_of_Securitys_sight()
+    {
+        // The B1 bug, one area over, and one the sweep did not catch: `Obs -> Api` took the Api
+        // out of RootNodes, the old inference found no origin at all, and every door rule went
+        // quiet - EXPOSED_DATABASE green, the other two not applicable - the moment the telemetry
+        // was wired the way NO_OBSERVABILITY asks. Origins are read over TrafficRoots now.
+        var graph = new GraphBuilder()
+            .Node("Api", NodeType.Api, """{"requestsPerSecond":100}""")
+            .Node("Db", NodeType.Database)
+            .Node("Obs", NodeType.Observability)
+            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Connect("Obs", "Api", synchronous: false)
+            .Connect("Obs", "Db", synchronous: false)
+            .Build();
+
+        Assert.Single(new UnauthenticatedEntryRule().Evaluate(graph).Findings);
+        Assert.Single(new NoRateLimitRule().Evaluate(graph).Findings);
+    }
+
+    // ---- V14 B6 (N12): a Service facing the outside is a door ------------------
+
+    [Fact]
+    public void A_bff_is_a_door_and_gets_the_doors_question_not_a_shape_error()
+    {
+        // `Client -> Bff(Service) -> Db`, an ordinary BFF. The frontier walked through the
+        // service and called the database exposed, with advice to put "an API or a gateway" in
+        // front - that is, to rename the box. The right finding is the one every door gets.
+        var graph = new GraphBuilder()
+            .Node("Web", NodeType.Client)
+            .Node("Bff", NodeType.Service)
+            .Node("Db", NodeType.Database)
+            .Connect("Web", "Bff")
+            .Connect("Bff", "Db", protocol: ProtocolType.Sql)
+            .Build();
+
+        Assert.Empty(new ExposedDatabaseRule().Evaluate(graph).Findings);
+
+        var finding = Assert.Single(new UnauthenticatedEntryRule().Evaluate(graph).Findings);
+        Assert.Equal("finding.UNAUTHENTICATED_ENTRY.undeclared.message", finding.Message.Key());
+        Assert.Equal("Bff", finding.Message.Arg("node"));
+    }
+
+    [Fact]
+    public void A_bff_can_answer_the_question()
+    {
+        // The field that closes the loop, on the type that did not have it: declared "yes"
+        // clears it, declared "no" is the Critical it has always been on an Api.
+        Assert.Empty(new UnauthenticatedEntryRule().Evaluate(Bff("""{"authentication":true}""")).Findings);
+
+        Assert.Equal(
+            Severity.Critical,
+            Assert.Single(new UnauthenticatedEntryRule().Evaluate(Bff("""{"authentication":false}""")).Findings).Severity);
+    }
+
+    [Fact]
+    public void A_bff_cannot_limit_so_its_advice_is_the_gateway()
+    {
+        // NO_RATE_LIMIT asks every door. A Service has no limit to set, so the generic sentence
+        // would point at a field it does not have - the B4 mistake - and the advice is the only
+        // move it has (V13 D1.2).
+        var finding = Assert.Single(new NoRateLimitRule().Evaluate(Bff("{}", rps: 100)).Findings);
+
+        Assert.Equal("finding.NO_RATE_LIMIT.unlimited.suggestion.service", finding.Suggestion.Key());
+    }
+
+    // ---- V14 B15: two declarations that contradict each other --------------------
+
+    [Fact]
+    public void A_door_that_declares_no_and_wires_an_identity_provider_is_told_to_decide()
+    {
+        // QA V14 N15. "The drawing is the stronger claim" settles silence against a wire; it does
+        // not settle a declared "no" against a wire, and choosing one quietly was the analyzer
+        // making the user's decision. A Warning naming both, pointing at the door and the wire.
+        var builder = Delegating("""{"authentication":false}""");
+
+        var finding = Assert.Single(new UnauthenticatedEntryRule().Evaluate(builder.Build()).Findings);
+
+        Assert.Equal(Severity.Warning, finding.Severity);
+        Assert.Equal("finding.UNAUTHENTICATED_ENTRY.contradicted.message", finding.Message.Key());
+        Assert.Equal("Api", finding.Message.Arg("node"));
+        Assert.Equal("IdP", finding.Message.Arg("provider"));
+        Assert.Equal("finding.UNAUTHENTICATED_ENTRY.contradicted.explanation", finding.Explanation.Key());
+        Assert.Equal("finding.UNAUTHENTICATED_ENTRY.contradicted.suggestion", finding.Suggestion.Key());
+        Assert.Equal(["Api", "Api->IdP"], builder.Names(finding.Elements));
+    }
+
+    [Fact]
+    public void A_declared_yes_and_a_wired_identity_provider_agree()
+    {
+        Assert.Empty(new UnauthenticatedEntryRule().Evaluate(Delegating("""{"authentication":true}""").Build()).Findings);
+    }
+
+    [Fact]
+    public void An_undeclared_door_with_a_wired_identity_provider_is_still_the_delegation()
+    {
+        // QA §3.4 unchanged: silence plus a wire is the wire.
+        Assert.Empty(new UnauthenticatedEntryRule().Evaluate(Delegating("{}").Build()).Findings);
+    }
+
+    private static GraphBuilder Delegating(string configuration) => new GraphBuilder()
+        .Node("Api", NodeType.Api, configuration)
+        .Node("IdP", NodeType.IdentityProvider)
+        .Node("Db", NodeType.Database)
+        .Connect("Api", "IdP", timeoutSeconds: 1)
+        .Connect("Api", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+
+    private static ArchitectureGraph Bff(string configuration, int rps = 0) => new GraphBuilder()
+        .Node("Web", NodeType.Client, rps == 0 ? "{}" : $$"""{"requestsPerSecond":{{rps}}}""")
+        .Node("Bff", NodeType.Service, configuration)
+        .Node("Db", NodeType.Database)
+        .Connect("Web", "Bff")
+        .Connect("Bff", "Db", protocol: ProtocolType.Sql)
+        .Build();
 
     private static ArchitectureGraph ApiAndDb(string configuration) => new GraphBuilder()
         .Node("Api", NodeType.Api, configuration)

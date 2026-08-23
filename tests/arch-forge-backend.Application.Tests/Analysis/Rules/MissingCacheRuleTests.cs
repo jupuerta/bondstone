@@ -122,6 +122,43 @@ public class MissingCacheRuleTests
         Assert.Equal(["Db", "Api->Db", "Service->Db"], _builder.Names(finding.Elements));
     }
 
+    // ---- V14 B7: components, not arrows ----------------------------------------
+
+    [Fact]
+    public void OneConsumerDrawnTwice_IsOneConsumer()
+    {
+        // QA V14 T4: a single Api with two arrows to the same database said "2 componentes". The
+        // threshold is called MinConsumers; it was being fed the length of an edge list.
+        _builder
+            .Node("Db", NodeType.Database)
+            .Node("Api", NodeType.Api)
+            .Connect("Api", "Db").Connect("Api", "Db");
+
+        var result = _rule.Evaluate(_builder.Build());
+
+        Assert.True(result.IsApplicable);
+        Assert.Empty(result.Findings);
+    }
+
+    [Fact]
+    public void TheCardCountsConsumers_AndTheCanvasGetsEveryArrow()
+    {
+        // Two consumers, three arrows (QA V14 C8 said "3 componentes" here). The count the card
+        // prints is the one HIGH_COUPLING would make - "depending twice on the same thing is one
+        // dependency" - and every arrow still travels in Elements, because two arrows are two
+        // things to light up even when they are one consumer.
+        _builder
+            .Node("Db", NodeType.Database)
+            .Node("Api", NodeType.Api)
+            .Node("Service", NodeType.Service)
+            .Connect("Api", "Db").Connect("Api", "Db").Connect("Service", "Db");
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal("finding.MISSING_CACHE.direct.message(count=2, node=Db)", finding.Message.Describe());
+        Assert.Equal(["Db", "Api->Db", "Api->Db", "Service->Db"], _builder.Names(finding.Elements));
+    }
+
     [Fact]
     public void NeverEscalatesToCritical()
     {

@@ -43,7 +43,16 @@ public class UndersizedComponentRule : IArchitectureRule
             // to do something you cannot do here, and a finding whose suggestion is impossible is
             // worse than no finding. What there *is* to say about an external call under load is
             // said by EXTERNAL_NO_FALLBACK, on the call rather than on the box.
-            var utilization = node.Type == Domain.Enums.NodeType.ExternalService ? 0m : load.UtilizationOf(node.Id);
+            //
+            // V14 B2. And that argument was never about one type. "Give your users more
+            // instances", "scale the CDN", "add a replica of the cron" are the same impossible
+            // sentence, and the enormous capacity CapacityModel hands those boxes so they never
+            // saturate was no guard against a declared load of two million. The exclusion is a
+            // predicate now, and it names all five.
+            if (!NodeRoles.IsYoursToSize(node.Type))
+                continue;
+
+            var utilization = load.UtilizationOf(node.Id);
             if (utilization < CapacityModel.SaturationWarning)
                 continue;
 

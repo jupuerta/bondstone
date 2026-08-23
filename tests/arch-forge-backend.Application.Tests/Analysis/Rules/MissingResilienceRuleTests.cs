@@ -205,4 +205,19 @@ public class MissingResilienceRuleTests
 
         Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
     }
+
+    [Fact]
+    public void AThirdPartysOwnCall_IsNotYoursToProtect()
+    {
+        // V14 B10. `Stripe -> Maps` bare: what Stripe does with its call to Google Maps is
+        // Stripe's resilience, and there is no knob on this canvas that changes it.
+        _builder
+            .Node("Api", NodeType.Api)
+            .Node("Stripe", NodeType.ExternalService)
+            .Node("Maps", NodeType.ExternalService)
+            .Connect("Api", "Stripe", timeoutSeconds: 2, fallback: true)
+            .Connect("Stripe", "Maps");
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
 }

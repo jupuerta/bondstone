@@ -3,6 +3,7 @@ using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Application.Tests.Analysis.Rules.Support;
+using arch_forge_backend.Domain.Enums;
 using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Analysis.Rules;
@@ -155,5 +156,20 @@ public class RetryAmplificationRuleTests
             .Connect("C", "A", retries: 1, timeoutSeconds: 5);
 
         Assert.True(_rule.Evaluate(_builder.Build()).IsApplicable);
+    }
+
+    [Fact]
+    public void AThirdPartysRetries_AreNotPartOfYourStorm()
+    {
+        // V14 B10. A provider retrying against its own provider is drawn to say it happens; it is
+        // not a multiplier this architect can turn down.
+        _builder
+            .Node("Api", NodeType.Api)
+            .Node("Stripe", NodeType.ExternalService)
+            .Node("Maps", NodeType.ExternalService)
+            .Connect("Api", "Stripe", timeoutSeconds: 2, fallback: true)
+            .Connect("Stripe", "Maps", retries: 5, timeoutSeconds: 5);
+
+        Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
     }
 }

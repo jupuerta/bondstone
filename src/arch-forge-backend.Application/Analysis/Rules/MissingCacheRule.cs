@@ -54,7 +54,15 @@ public class MissingCacheRule : IArchitectureRule
                 .ToList();
             var effective = direct.Where(edge => IsEffectiveConsumer(graph, edge.SourceNodeId, database.Id)).ToList();
 
-            if (effective.Count < RuleThresholds.CacheMinConsumers)
+            // V14 B7. Components, not arrows. The threshold is called MinConsumers and the card
+            // says "N componentes", and until V14 both were fed the length of an edge list, so one
+            // Api drawn twice to its database was "2 componentes" - the same reading HIGH_COUPLING
+            // already refused on its own side ("depending twice on the same thing is one
+            // dependency"). Every arrow still goes into Elements: they are what the canvas lights
+            // up, and two arrows are two things to look at even when they are one consumer.
+            var consumers = effective.Select(edge => edge.SourceNodeId).Distinct().Count();
+
+            if (consumers < RuleThresholds.CacheMinConsumers)
                 continue;
 
             // Same as HIGH_COUPLING: the consumers read in the graph's order (V6 D1.1), which is
@@ -68,7 +76,7 @@ public class MissingCacheRule : IArchitectureRule
                 Severity.Warning,
                 LocalizedText.Of("finding.MISSING_CACHE.direct.message",
                     ("node", database.Name),
-                    ("count", effective.Count)),
+                    ("count", consumers)),
                 LocalizedText.Of("finding.MISSING_CACHE.direct.explanation"),
                 LocalizedText.Of("finding.MISSING_CACHE.direct.suggestion"),
                 elements)

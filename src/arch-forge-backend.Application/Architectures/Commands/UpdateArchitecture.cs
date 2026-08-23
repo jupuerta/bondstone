@@ -213,11 +213,10 @@ public class UpdateArchitectureCommandHandler
                 throw new InvalidConnectionConfigurationException(connection.Id, ex.Message);
             }
 
-            if (resilience.TimeoutSeconds is <= 0)
-                throw new InvalidConnectionConfigurationException(connection.Id, "timeoutSeconds must be greater than 0.");
-
-            if (resilience.Retries is < 0)
-                throw new InvalidConnectionConfigurationException(connection.Id, "retries must be 0 or greater.");
+            // V14 B14: the guards this method carried since V2 moved to the table the nodes now
+            // share, and the timeout gained the ceiling it never had.
+            if (ConfigurationRanges.Violation(resilience) is { } violation)
+                throw new InvalidConnectionConfigurationException(connection.Id, violation);
         }
     }
 
@@ -239,14 +238,21 @@ public class UpdateArchitectureCommandHandler
             if (!_configurationRegistry.TryGetProvider(node.Type, out var provider))
                 continue;
 
+            object parsed;
             try
             {
-                provider.Deserialize(configuration);
+                parsed = provider.Deserialize(configuration);
             }
             catch (JsonException ex)
             {
                 throw new InvalidNodeConfigurationException(node.Name, ex.Message);
             }
+
+            // V14 B14. Deserializing was the whole check until V14, so a node could be saved with
+            // instances: -3 and requestsPerSecond: -5000 and score a hundred. Same guards the edge
+            // has had since V2, same 400 (ConfigurationRanges).
+            if (ConfigurationRanges.Violation(parsed) is { } violation)
+                throw new InvalidNodeConfigurationException(node.Name, violation);
         }
     }
 }

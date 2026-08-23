@@ -94,6 +94,62 @@ public sealed record AnalysisResult(
     /// them (D1.1); v6 is that correction reaching the rest of the analyzer. Two figures produced
     /// by different scoring versions are not comparable either way, which is the whole reason this
     /// field travels (V2 D1.5) and why a challenge may never assert on one (V4 D1.4).
+    ///
+    /// <h3>v7 - the V14 sweep (docs/V14/QA-analisis-V14.md)</h3>
+    ///
+    /// The second QA round, and the one whose opening table said <em>"the more architecture you
+    /// draw, the worse you score; the less sense it makes, the better"</em>. Fourteen corrections
+    /// and one rule, landed as one bump for the same reason v6 was: none of it shipped on its own,
+    /// and every one of them moves what a drawing scores.
+    ///
+    /// <strong>What was hiding findings.</strong> B1 - the scrape arrow took the Api out of the
+    /// roots, so SPOF's walk entered through the metrics sink and the entry point's Critical
+    /// vanished the moment NO_OBSERVABILITY's advice was followed; <c>TrafficRoots</c> is now the
+    /// one definition of where traffic enters, read by the walk, by OutageImpact and (B6) by
+    /// Security, which had gone quiet the same way. B4 - <c>instances &gt;= 2</c> declared on an
+    /// Api, a Service or a Worker is redundancy, as <c>replicas</c> already was on a Database: the
+    /// field the card asked for is the field the rule reads. B9 - CYCLE, SYNC_CHAIN,
+    /// PROTOCOL_MISMATCH and both halves of SPOF stopped reading instrumentation, so wiring the
+    /// telemetry by hand - synchronous by default on the canvas - no longer made the metrics box a
+    /// Critical SPOF or escalated the database it scraped; MISSING_RESILIENCE keeps reading those
+    /// edges on purpose.
+    ///
+    /// <strong>What was punishing correct architecture.</strong> B5 - a Gateway routes: each
+    /// request goes to one of its routes, not to all of them, so splitting a monolith relieves the
+    /// pieces and adding redundancy no longer doubles the load on the store. B3 - SYNC_CHAIN counts
+    /// components that run logic (<c>IsLogicComponent</c>) and not boxes: the CDN, the router, the
+    /// cache and the store a realistic drawing adds around <c>Api → Orders → Payments</c> are the
+    /// layers the call crosses, not links; the threshold stays where V1 calibrated it, and the
+    /// finding starts at the first thing it counts. B6 - a root is a door only if the outside
+    /// could reach it (<c>ReceivesFromOutside</c>): a queue, a cache or a service at the top of a
+    /// partial drawing is not the internet; and the frontier stops at anything that can ask who is
+    /// calling (<c>CanAuthenticate</c>), which now includes a Service - a BFF is a door, it gets a
+    /// door's question and the <c>authentication</c> field to answer it. B2 and B10 - two
+    /// predicates for one idea: UNDERSIZED_COMPONENT never tells you to scale what is not yours to
+    /// size (the users, the CDN, the cron, the telemetry, a third party), and the five resilience
+    /// rules never opine on a third party's own calls (<c>IsNotYourCall</c>).
+    ///
+    /// <strong>The cheap ones.</strong> B7 - MISSING_CACHE counts consumers, not arrows. B8 - a
+    /// queue delivering to a Database has no consumer (<c>ProcessesMessages</c>); one delivering
+    /// to another queue still does. B14 - configuration ranges are validated on save, so a
+    /// negative RPS can no longer buy a hundred. B15 - a door declaring "no authentication" while
+    /// wired to an IdentityProvider is a contradiction with its own Warning, not a silent choice.
+    ///
+    /// <strong>And §4.1, the twenty-first rule.</strong> IMPLAUSIBLE_DEPENDENCY asks whether the
+    /// two ends of an arrow can talk at all - a store does not originate calls, nothing of yours
+    /// calls the users, a CDN talks to an origin, a clock fires work. PROTOCOL_MISMATCH's doctrine
+    /// on the ends instead of the protocol, and the reason a database that called the users
+    /// stops scoring 98. (§4.4 travels beside it without moving a number: the card shows the
+    /// denominator, and a score over fewer than four areas is labelled unevaluated.)
+    ///
+    /// <strong>The four reference fixtures move, and all four upward</strong>, every point of it
+    /// B3: <c>gateway-microservices</c> 84 → 85, <c>resilient-async</c> 94 → 95, <c>worst-case</c>
+    /// 72 → 74 (its SYNC_CHAIN of five boxes is a Warning of three services, eleven Criticals
+    /// instead of twelve), <c>minimal-api-db</c> stays 98. All four gain IMPLAUSIBLE_DEPENDENCY's
+    /// green tick and none a finding, which is what a rule about drawings owes a drawing done
+    /// right. What moves further is what the sweep measured: the canonical read path loses its
+    /// false Critical, the microservices with real redundancy stop scoring below the ones without,
+    /// and the two-box nonsense stops being "solid".
     /// </summary>
-    public const string CurrentScoringVersion = "v6";
+    public const string CurrentScoringVersion = "v7";
 }

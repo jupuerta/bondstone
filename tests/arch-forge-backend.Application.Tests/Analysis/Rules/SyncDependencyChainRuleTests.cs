@@ -269,6 +269,20 @@ public class SyncDependencyChainRuleTests
         Assert.Equal("finding.SYNC_CHAIN.long.message(count=3, node=Api)", finding.Message.Describe());
     }
 
+    [Fact]
+    public void AProvidersOwnHop_IsNotALinkOfYourChain()
+    {
+        // V14 B10. `Api -> Stripe -> Maps` is a chain of two from where this architect stands;
+        // what Stripe does with the call is Stripe's chain. It used to count three and warn.
+        _builder
+            .Node("Api", NodeType.Api)
+            .Node("Stripe", NodeType.ExternalService)
+            .Node("Maps", NodeType.ExternalService)
+            .Connect("Api", "Stripe").Connect("Stripe", "Maps");
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
     // ---- V14 B9: instrumentation is not a link either -------------------------
 
     [Fact]

@@ -146,4 +146,63 @@ public class ExternalServiceCapacityTests
         Assert.Equal(900m / CapacityModel.ExternalService, LoadModel.Of(graph).UtilizationOf(graph.Nodes.Single(n => n.Name == "Provider").Id));
         Assert.DoesNotContain(findings, f => f.Elements.Any(e => e.Id == graph.Nodes.Single(n => n.Name == "Provider").Id));
     }
+
+    // ---- V14 B10: a provider's own call is not yours to protect -------------
+
+    [Fact]
+    public void A_third_partys_call_to_another_third_party_is_not_yours_to_protect()
+    {
+        // T10. `Api -> Stripe` is protected; `Stripe -> Maps` is drawn to say the provider depends
+        // on another provider. The rule told the user to put a timeout and a fallback on Stripe's
+        // call to Google Maps - an instruction nobody can follow, which is the exact failure
+        // UNDERSIZED_COMPONENT refuses to commit on the same type.
+        var graph = new GraphBuilder()
+            .Node("Api", NodeType.Api)
+            .Node("Stripe", NodeType.ExternalService)
+            .Node("Maps", NodeType.ExternalService)
+            .Connect("Api", "Stripe", timeoutSeconds: 2, fallback: true)
+            .Connect("Stripe", "Maps")
+            .Build();
+
+        var result = new ExternalNoFallbackRule().Evaluate(graph);
+
+        Assert.True(result.IsApplicable);
+        Assert.Empty(result.Findings);
+    }
+
+    [Fact]
+    public void Your_own_unprotected_call_to_the_provider_is_still_the_finding()
+    {
+        // The guard: the edge that *is* yours keeps its Critical, with or without the provider's
+        // own hop drawn behind it.
+        var graph = new GraphBuilder()
+            .Node("Api", NodeType.Api)
+            .Node("Stripe", NodeType.ExternalService)
+            .Node("Maps", NodeType.ExternalService)
+            .Connect("Api", "Stripe")
+            .Connect("Stripe", "Maps")
+            .Build();
+
+        var finding = Assert.Single(new ExternalNoFallbackRule().Evaluate(graph).Findings);
+
+        Assert.Equal(FindingElement.Connection(graph.Connections.Single(c => c.SourceNodeId == graph.Nodes.Single(n => n.Name == "Api").Id).Id), Assert.Single(finding.Elements));
+    }
+
+    [Fact]
+    public void The_telemetry_box_calling_a_provider_is_the_B9_exception_not_B10()
+    {
+        // N4 in the sweep: `Obs -> Stripe`. Its source is not a third party, so B10 does not
+        // apply - and it is deliberately *not* silenced as instrumentation either. This rule is
+        // what MISSING_RESILIENCE would say about the same edge (D4.5), and MISSING_RESILIENCE
+        // keeps reading telemetry edges on purpose (V14 B9, NodeRoles.IsTelemetryEdge): a blocking
+        // call out of the metrics box with no bound on the wait is the one true thing to say
+        // about it.
+        var graph = new GraphBuilder()
+            .Node("Obs", NodeType.Observability)
+            .Node("Stripe", NodeType.ExternalService)
+            .Connect("Obs", "Stripe")
+            .Build();
+
+        Assert.Single(new ExternalNoFallbackRule().Evaluate(graph).Findings);
+    }
 }

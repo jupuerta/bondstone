@@ -51,6 +51,11 @@ public static class DependencyInjection
         services.AddScoped<IArchitectureRule, QueueNoConsumerRule>();       // Consumer
         services.AddScoped<IArchitectureRule, CacheAsStoreRule>();          // Consumer
         services.AddScoped<IArchitectureRule, SharedDatabaseRule>();        // Consumer
+
+        // V14 §4.1: the twenty-first, and the second one about the drawing rather than the
+        // architecture. PROTOCOL_MISMATCH asks whether the protocol fits the far end; this one asks
+        // whether the two ends can talk at all.
+        services.AddScoped<IArchitectureRule, ImplausibleDependencyRule>(); // Consumer
         services.AddScoped<ArchitectureAnalyzer>();
 
         // V3 D5.1: next to the analyzer and not inside it. Not a list of registered pieces either -

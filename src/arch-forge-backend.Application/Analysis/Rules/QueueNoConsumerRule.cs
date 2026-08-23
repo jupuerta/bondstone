@@ -57,10 +57,44 @@ public class QueueNoConsumerRule : IArchitectureRule
     /// <summary>
     /// The edge that leaves the queue is the delivery. Nothing else is - and the telemetry watching
     /// the queue is not draining it (QA §4, coverage).
+    ///
+    /// <strong>V14 B8. And the delivery has to land on something that runs code.</strong> Until V14
+    /// any non-telemetry arrow out of the queue counted, so a queue whose only outgoing edge
+    /// pointed at a database passed - the one drawing this rule was written to catch, and the one
+    /// where a worker drawn backwards went unreported because the false consumer hid the
+    /// <c>backwards</c> variant. What consumes is <see cref="NodeRoles.ProcessesMessages"/>.
+    ///
+    /// A queue delivering to another queue is the broker routing, not dropping: the work is
+    /// forwarded, and it is done if the chain ends in somebody who does it. So
+    /// <c>Api → Cola1 → Cola2 → Worker</c> - the staged pipeline the V13 QA calls "the one this
+    /// product itself recommends" - has a consumer at every stage, and <c>Api → Cola1 → Cola2</c>
+    /// has one at none.
     /// </summary>
     public static bool HasConsumer(ArchitectureGraph graph, Node queue) =>
-        graph.OutgoingBySource[queue.Id].Any(edge =>
-            edge.TargetNodeId != queue.Id && !NodeRoles.IsTelemetryEdge(graph, edge));
+        HasConsumer(graph, queue.Id, []);
+
+    private static bool HasConsumer(ArchitectureGraph graph, Guid queueId, HashSet<Guid> visited)
+    {
+        if (!visited.Add(queueId))
+            return false;
+
+        foreach (var edge in graph.OutgoingBySource[queueId])
+        {
+            if (edge.TargetNodeId == queueId || NodeRoles.IsTelemetryEdge(graph, edge))
+                continue;
+
+            if (!graph.NodesById.TryGetValue(edge.TargetNodeId, out var target))
+                continue;
+
+            if (NodeRoles.ProcessesMessages(target.Type))
+                return true;
+
+            if (target.Type == NodeType.Queue && HasConsumer(graph, target.Id, visited))
+                return true;
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// D5.6: no fix on either variant. Wiring the consumer is the decision - which component, and
