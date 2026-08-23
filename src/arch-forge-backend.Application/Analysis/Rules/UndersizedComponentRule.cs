@@ -33,6 +33,11 @@ public class UndersizedComponentRule : IArchitectureRule
 
         foreach (var node in graph.Nodes.OrderBy(n => n.Id))
         {
+            // A disconnected box serves no flow, whatever RPS its configuration declares: sizing
+            // it is ORPHAN_NODE's problem to raise, not this rule's (QA B4).
+            if (graph.OrphanNodes.Contains(node.Id))
+                continue;
+
             // V8 §6.2. Somebody else's service is left out on purpose. Every sentence this rule
             // knows how to say - add instances, add replicas, share the work - is an instruction
             // to do something you cannot do here, and a finding whose suggestion is impossible is
@@ -42,7 +47,7 @@ public class UndersizedComponentRule : IArchitectureRule
             if (utilization < CapacityModel.SaturationWarning)
                 continue;
 
-            // Over capacity it is not "close to the limit", it is already rejecting requests, and
+            // Over capacity it is not "close to the limit", it is already failing requests, and
             // the two deserve different colours: one is a risk, the other is an outage in progress.
             var overloaded = utilization > 1m;
 
@@ -55,13 +60,11 @@ public class UndersizedComponentRule : IArchitectureRule
                         : "finding.UNDERSIZED_COMPONENT.atCapacity.message",
                     ("node", node.Name)),
 
-                // Two whole sentences, not a shared prefix plus a tail. Concatenating fragments is
-                // the localization bug that survives review: the join reads fine in the language it
+                // Whole sentences, not a shared prefix plus a tail. Concatenating fragments is the
+                // localization bug that survives review: the join reads fine in the language it
                 // was written in and falls apart in the next one, where the clause order moves
                 // (V7 D1.1). The numbers travel raw and the catalogue formats them.
-                LocalizedText.Of(overloaded
-                        ? "finding.UNDERSIZED_COMPONENT.overloaded.explanation"
-                        : "finding.UNDERSIZED_COMPONENT.atCapacity.explanation",
+                LocalizedText.Of(Explanation(graph, node, overloaded),
                     ("loadRps", load.LoadOf(node.Id)),
                     ("capacityRps", load.CapacityOf(node.Id)),
                     ("utilization", utilization)),
@@ -71,6 +74,29 @@ public class UndersizedComponentRule : IArchitectureRule
         }
 
         return RuleResult.Applicable(findings);
+    }
+
+    /// <summary>
+    /// QA B9. The overloaded sentence used to say "what does not fit is rejected", and the model
+    /// does not reject: a saturated component passes its whole load on to what it calls (see
+    /// <see cref="LoadModel"/>, "saturation sheds nothing"). So a component that has dependencies
+    /// gets the sentence that says so - the database behind an Api at 200 % is about to show up
+    /// in this same list, and the card should be the one to explain why - and a component with
+    /// nothing behind it gets the one without the clause it would have no use for. The telemetry
+    /// edge does not count: what reaches an Observability node is not the traffic the lesson is
+    /// about.
+    /// </summary>
+    private static string Explanation(ArchitectureGraph graph, Domain.Entities.Node node, bool overloaded)
+    {
+        if (!overloaded)
+            return "finding.UNDERSIZED_COMPONENT.atCapacity.explanation";
+
+        var hasDependencies = graph.OutgoingBySource[node.Id]
+            .Any(edge => graph.NodesById[edge.TargetNodeId].Type != Domain.Enums.NodeType.Observability);
+
+        return hasDependencies
+            ? "finding.UNDERSIZED_COMPONENT.overloaded.explanation.withDependencies"
+            : "finding.UNDERSIZED_COMPONENT.overloaded.explanation";
     }
 
     private static LocalizedText Suggest(ArchitectureGraph graph, Domain.Entities.Node node) => LocalizedText.Of(node.Type switch

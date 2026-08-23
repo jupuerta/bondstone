@@ -21,6 +21,10 @@ namespace arch_forge_backend.Application.Analysis;
 /// <see cref="LocalizedText"/> and not a key on its own: "Subir el timeout a 8 s" carries a value
 /// the rule computed (V7 D1.1).
 /// </param>
+/// <param name="TargetNodeId">
+/// QA §4 (coverage). For <see cref="FixKinds.ConnectTo"/>: the other end of the edge to draw.
+/// The element is the node to connect; this is what it connects to.
+/// </param>
 public sealed record AppliedFix(
     string Kind,
     FindingElement Element,
@@ -29,7 +33,8 @@ public sealed record AppliedFix(
     bool? CircuitBreaker = null,
     bool? Fallback = null,
     string? ConfigurationKey = null,
-    bool? ConfigurationValue = null);
+    bool? ConfigurationValue = null,
+    Guid? TargetNodeId = null);
 
 /// <summary>
 /// The closed catalogue of transformations, in the same spirit as <c>FaultKinds</c> and
@@ -54,6 +59,13 @@ public static class FixKinds
     /// <summary>Remove a node. Only ever offered for one that is connected to nothing.</summary>
     public const string RemoveNode = "removeNode";
 
+    /// <summary>
+    /// QA §4 (coverage). Draw an asynchronous edge from the element to <c>TargetNodeId</c> - today
+    /// only from a component to the telemetry that should be watching it, and only when there is
+    /// exactly one telemetry box to point at, because with two the choice is the decision.
+    /// </summary>
+    public const string ConnectTo = "connectTo";
+
     public static bool IsKnown(string kind) => kind is
-        SetEdgeResilience or SetNodeFlag or InsertCache or RemoveNode;
+        SetEdgeResilience or SetNodeFlag or InsertCache or RemoveNode or ConnectTo;
 }

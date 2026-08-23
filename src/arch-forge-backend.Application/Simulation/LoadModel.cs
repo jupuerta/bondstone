@@ -1,4 +1,5 @@
 using arch_forge_backend.Application.Analysis;
+using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Domain.Entities;
 using arch_forge_backend.Domain.Enums;
 
@@ -18,6 +19,22 @@ namespace arch_forge_backend.Application.Simulation;
 /// <strong>Absent load is zero, and zero changes nothing.</strong> Utilisation 0, queueing factor 1,
 /// the four nominal figures of V3 - 27 · 57 · 39 · 72 ms - to the digit. That is not a courtesy, it
 /// is the property that lets V4 add an axis without invalidating V3's five reference scenarios.
+///
+/// <strong>Saturation sheds nothing (QA B9).</strong> A component over its capacity passes the
+/// whole of its load on to whatever it calls: an Api at 200 % sends the database every request it
+/// received, not the half it can serve. That is a decision, not an oversight, and it is the same
+/// one the product makes everywhere else - <em>only a declared mechanism sheds</em>. A gateway's
+/// rate limit rejects at the door (<see cref="NodeSettings.Admit"/>), a queue delivers what
+/// its consumers can take and keeps the rest as backlog (<see cref="Deliver"/>), a cache or a CDN
+/// absorb their hit ratio. Being saturated is none of those: a service with no limit in front of it
+/// does not turn requests away, it takes them all in, slows down, and fails the ones it cannot
+/// finish - after they have already hit its dependencies. Modelling it as a polite rejection would
+/// make NO_RATE_LIMIT's lesson worthless (the limit would buy nothing a saturated Api did not do by
+/// itself) and would cap the retry storm of <c>worst-case</c> at the first service's capacity,
+/// which is exactly the storm not happening. <see cref="RequestYield"/> reads the same overload
+/// with its own question - what fraction gets an answer - and answers <c>capacity / load</c>; the
+/// two axes disagree on purpose, the way latency takes the maximum of a fan-out while load takes
+/// the sum. The user-facing sentence of UNDERSIZED_COMPONENT says so in as many words.
 /// </summary>
 public sealed class LoadModel
 {
@@ -114,7 +131,7 @@ public sealed class LoadModel
     {
         get
         {
-            var entering = _graph.RootNodes.Sum(n => NodeSettings.DeclaredRps(n));
+            var entering = _graph.RootNodes.Sum(n => NodeSettings.Admit(n, NodeSettings.DeclaredRps(n)));
             if (entering <= 0m)
                 return 1m;
 
@@ -142,7 +159,9 @@ public sealed class LoadModel
                 .Where(edge => !_backEdges.Contains(edge.Id))
                 .Sum(edge => _edgeLoad.GetValueOrDefault(edge.Id));
 
-            var load = NodeSettings.DeclaredRps(node) + incoming;
+            // The door admits at most its rate limit, whether the traffic was declared on it or
+            // arrived from the Client in front of it (DT.3, QA §4).
+            var load = NodeSettings.Admit(node, NodeSettings.DeclaredRps(node) + incoming);
             _nodeLoad[nodeId] = load;
 
             DistributeOutgoing(node, load, amplification);
@@ -159,8 +178,20 @@ public sealed class LoadModel
         if (outgoing.Count == 0)
             return;
 
+        // Instrumentation is not traffic (QA §4, coverage): the wire to the telemetry carries no
+        // requests and is not one of the consumers a queue or a balancer splits its work among.
+        // Without this, wiring a queue to the telemetry - what NO_OBSERVABILITY asks for - halved
+        // what its worker received.
+        var fanOut = outgoing.Count(edge => !NodeRoles.IsTelemetryEdge(_graph, edge));
+
         foreach (var edge in outgoing)
         {
+            if (NodeRoles.IsTelemetryEdge(_graph, edge))
+            {
+                _edgeLoad[edge.Id] = 0m;
+                continue;
+            }
+
             // DT.3: the edge that closes a cycle carries nothing. Same rule and same reason as V3
             // D5.4 - going round adds traffic on every lap and never settles - and it underreports
             // the load of the nodes inside the cycle, which is written down rather than hidden.
@@ -171,7 +202,7 @@ public sealed class LoadModel
                 continue;
             }
 
-            _edgeLoad[edge.Id] = Basis(node, load, outgoing.Count, edge) * amplification(edge);
+            _edgeLoad[edge.Id] = Basis(node, load, fanOut, edge) * amplification(edge);
         }
     }
 
@@ -180,6 +211,14 @@ public sealed class LoadModel
         // DT.3: a cache lets through only what it misses. This is what solves Challenge #004 -
         // a cache in front and the database's utilisation falls to a fifth.
         NodeType.Cache => load * (1m - NodeSettings.HitRatio(node)),
+
+        // QA §3.2: the same absorption at the edge, with its own default. The origin behind a CDN
+        // sees a tenth of the traffic, which is the whole lesson the type exists to teach.
+        NodeType.Cdn => load * (1m - NodeSettings.HitRatio(node)),
+
+        // QA §3.1: the declared users enter through however many doors they use, they do not
+        // duplicate per door - the outside splits like a balancer, not like a fan-out of calls.
+        NodeType.Client => load / fanOut,
 
         // Competing consumers: the work splits, and each consumer takes at most what it can chew.
         // What does not fit does not vanish - it is backlog, and a *rate* of growth needs no clock,
@@ -190,7 +229,9 @@ public sealed class LoadModel
 
         // Everything else: a fan-out means all of those calls happen. The load sums them while the
         // latency takes the maximum, because they are parallel - each axis reads the same fan-out
-        // with the question that is its own (plan técnico §2, corrección 7).
+        // with the question that is its own (plan técnico §2, corrección 7). And it is `load`,
+        // not `min(load, capacity)`: saturation sheds nothing, only declared mechanisms do (QA B9,
+        // class summary).
         _ => load
     };
 

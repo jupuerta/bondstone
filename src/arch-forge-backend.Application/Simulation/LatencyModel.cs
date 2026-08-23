@@ -45,6 +45,18 @@ public static class LatencyModel
     /// </summary>
     public const int Observability = 0;
 
+    /// <summary>QA §3.1. The outside does no processing of yours; the cost of reaching you is its edge's hop.</summary>
+    public const int Client = 0;
+
+    /// <summary>QA §3.2. Edge-fast, like the cache it is.</summary>
+    public const int Cdn = 1;
+
+    /// <summary>QA §3.3. A trigger, not a hop on anybody's request path.</summary>
+    public const int Scheduler = 0;
+
+    /// <summary>QA §3.4. A service doing real work (token validation, lookups) on the request path.</summary>
+    public const int IdentityProvider = 10;
+
     // Network hop, per protocol (ms).
     public const int Sql = 2;
     public const int Amqp = 3;
@@ -70,6 +82,10 @@ public static class LatencyModel
         NodeType.ObjectStorage => ObjectStorage,
         NodeType.Observability => Observability,
         NodeType.ExternalService => ExternalService,
+        NodeType.Client => Client,
+        NodeType.Cdn => Cdn,
+        NodeType.Scheduler => Scheduler,
+        NodeType.IdentityProvider => IdentityProvider,
         _ => Service
     };
 

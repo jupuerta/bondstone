@@ -27,7 +27,10 @@ public class RetryAmplificationRule : IArchitectureRule
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
-        var synchronous = graph.Connections.Where(c => c.Synchronous).ToList();
+        // The outside's edges are not part of the amplification the architect can fix (QA §3.1).
+        var synchronous = graph.Connections
+            .Where(c => c.Synchronous && !NodeRoles.IsRequestFromOutside(graph, c))
+            .ToList();
 
         // Nothing to amplify while nobody retries.
         if (!synchronous.Any(c => graph.ResilienceOf(c).Retries >= 1))

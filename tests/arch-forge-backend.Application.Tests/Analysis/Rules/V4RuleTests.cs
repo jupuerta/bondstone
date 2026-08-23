@@ -2,6 +2,7 @@ using arch_forge_backend.Application.Tests.TestDoubles;
 using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Rules;
+using arch_forge_backend.Application.Tests.Analysis.Fixtures;
 using arch_forge_backend.Application.Tests.Analysis.Rules.Support;
 using arch_forge_backend.Domain.Enums;
 using Xunit;
@@ -69,10 +70,31 @@ public class QueueNoDlqRuleTests
         Assert.False(new QueueNoDlqRule().Evaluate(graph).IsApplicable);
     }
 
+    [Fact]
+    public void A_queue_nobody_drains_is_not_asked_for_its_dead_letter_queue_yet()
+    {
+        // QA §4: a message that is never processed cannot fail processing, so the DLQ has nothing
+        // to catch. QUEUE_NO_CONSUMER owns that box until the consumer is drawn - one lesson at a
+        // time, under one code (D4.5).
+        var graph = new GraphBuilder()
+            .Node("Api", NodeType.Api)
+            .Node("Q", NodeType.Queue)
+            .Connect("Api", "Q", synchronous: false, protocol: ProtocolType.Amqp)
+            .Build();
+
+        var result = new QueueNoDlqRule().Evaluate(graph);
+
+        Assert.True(result.IsApplicable);
+        Assert.Empty(result.Findings);
+    }
+
+    // A queue with a producer and a consumer: the flow this rule has something to say about.
     private static ArchitectureGraph Queue(string configuration) => new GraphBuilder()
         .Node("Api", NodeType.Api)
         .Node("Q", NodeType.Queue, configuration)
+        .Node("Worker", NodeType.Worker)
         .Connect("Api", "Q", synchronous: false, protocol: ProtocolType.Amqp)
+        .Connect("Q", "Worker", synchronous: false, protocol: ProtocolType.Amqp)
         .Build();
 }
 
@@ -166,6 +188,22 @@ public class UndersizedComponentRuleTests
         Assert.Equal("300", finding.Explanation.Arg("loadRps"));
         Assert.Equal("200", finding.Explanation.Arg("capacityRps"));
         Assert.Equal("finding.UNDERSIZED_COMPONENT.suggestion.database", finding.Suggestion.Key());
+    }
+
+    [Fact]
+    public void The_telemetry_edge_does_not_make_an_overloaded_leaf_a_relay()
+    {
+        // QA B9: the clause about "what is behind" is for dependencies. An Api whose only outgoing
+        // edge is its telemetry has nothing behind it in the sense the lesson means.
+        var graph = new GraphBuilder()
+            .Node("Api", NodeType.Api, """{"requestsPerSecond":1000}""")
+            .Node("Obs", NodeType.Observability)
+            .Connect("Api", "Obs", synchronous: false)
+            .Build();
+
+        var finding = Assert.Single(new UndersizedComponentRule().Evaluate(graph).Findings);
+
+        Assert.Equal("finding.UNDERSIZED_COMPONENT.overloaded.explanation", finding.Explanation.Key());
     }
 
     private static ArchitectureGraph Loaded(int rps) => new GraphBuilder()
@@ -279,6 +317,35 @@ public class SecurityRuleTests
         Assert.False(new NoRateLimitRule().Evaluate(Gateway("{}")).IsApplicable);
     }
 
+    [Fact]
+    public void An_api_that_is_the_door_is_asked_the_same_question()
+    {
+        // QA §4. Until the field existed, an Api with a thousand declared requests a second was a
+        // door this rule could never speak to. The advice is the door's: limit here, or put a
+        // gateway in front that does.
+        var unlimited = Assert.Single(new NoRateLimitRule().Evaluate(ApiAndDb("""{"requestsPerSecond":1000}""")).Findings);
+        Assert.Equal("finding.NO_RATE_LIMIT.unlimited.suggestion.api", unlimited.Suggestion.Key());
+
+        Assert.Empty(new NoRateLimitRule().Evaluate(ApiAndDb("""{"requestsPerSecond":1000,"rateLimit":500}""")).Findings);
+    }
+
+    [Fact]
+    public void The_volume_is_what_reaches_the_door_not_what_it_declares()
+    {
+        // The users' traffic lives on the Client since QA §3.1; a gateway with a Client in front
+        // receives every one of those requests whether or not it declared any itself.
+        var graph = new GraphBuilder()
+            .Node("Web", NodeType.Client, """{"requestsPerSecond":1000}""")
+            .Node("Gw", NodeType.Gateway)
+            .Node("Db", NodeType.Database)
+            .Connect("Web", "Gw")
+            .Connect("Gw", "Db", protocol: ProtocolType.Sql)
+            .Build();
+
+        var finding = Assert.Single(new NoRateLimitRule().Evaluate(graph).Findings);
+        Assert.Equal("Gw", finding.Message.Arg("node"));
+    }
+
     private static ArchitectureGraph ApiAndDb(string configuration) => new GraphBuilder()
         .Node("Api", NodeType.Api, configuration)
         .Node("Db", NodeType.Database)
@@ -295,33 +362,150 @@ public class SecurityRuleTests
 public class NoObservabilityRuleTests
 {
     [Fact]
-    public void Flags_an_architecture_with_nothing_watching()
+    public void Every_component_nobody_watches_is_a_finding()
     {
-        var finding = Assert.Single(new NoObservabilityRule().Evaluate(Base().Build()).Findings);
+        // QA §4, coverage. Nothing watching used to be one Warning; it is now one per component
+        // that is yours to watch, which is what lets the area climb as the wiring does.
+        var findings = new NoObservabilityRule().Evaluate(Base().Build()).Findings;
 
-        Assert.Equal("finding.NO_OBSERVABILITY.absent.message", finding.Message.Key());
+        Assert.Equal(2, findings.Count);
+        Assert.All(findings, f => Assert.Equal("finding.NO_OBSERVABILITY.unobserved.message", f.Message.Key()));
+        Assert.Equal(["Api", "Db"], findings.Select(f => f.Message.Arg("node")));
+
+        // With no telemetry on the canvas the advice starts with adding it, and there is nothing
+        // to offer a button for.
+        Assert.All(findings, f => Assert.Equal("finding.NO_OBSERVABILITY.unobserved.suggestion.absent", f.Suggestion.Key()));
+        Assert.All(findings, f => Assert.Null(f.Fix));
     }
 
     [Fact]
-    public void A_connected_observability_component_silences_it()
+    public void Wiring_one_component_clears_that_component_and_no_other()
     {
         // The chain D5.3 had to walk whole: without a component there is no rule, and without a
-        // rule the area stays empty. This is the far end of it.
+        // rule the area stays empty. This is the far end of it - and the grain QA §4 gave it: the
+        // Api is watched, the database is not, and the card says which.
         var graph = Base()
             .Node("Telemetry", NodeType.Observability)
             .Connect("Api", "Telemetry", synchronous: false)
             .Build();
 
-        Assert.Empty(new NoObservabilityRule().Evaluate(graph).Findings);
+        var finding = Assert.Single(new NoObservabilityRule().Evaluate(graph).Findings);
+
+        Assert.Equal("Db", finding.Message.Arg("node"));
+        Assert.Equal("finding.NO_OBSERVABILITY.unobserved.suggestion.present(node=Db, telemetry=Telemetry)", finding.Suggestion.Describe());
+
+        // D5.6: with exactly one telemetry box there is nothing to decide, so the card has a button.
+        Assert.NotNull(finding.Fix);
+        Assert.Equal(FixKinds.ConnectTo, finding.Fix!.Kind);
+        Assert.Equal(graph.NodeId("Db"), finding.Fix.Element.Id);
+        Assert.Equal(graph.NodeId("Telemetry"), finding.Fix.TargetNodeId);
     }
 
     [Fact]
-    public void An_observability_component_wired_to_nothing_does_not_count()
+    public void Either_direction_counts_as_watching()
+    {
+        // Telemetry scraping the database and the Api pushing to the telemetry are both wiring.
+        var graph = Base()
+            .Node("Telemetry", NodeType.Observability)
+            .Connect("Api", "Telemetry", synchronous: false)
+            .Connect("Telemetry", "Db", synchronous: false)
+            .Build();
+
+        var result = new NoObservabilityRule().Evaluate(graph);
+
+        Assert.True(result.IsApplicable);
+        Assert.Empty(result.Findings);
+    }
+
+    [Fact]
+    public void An_observability_component_wired_to_nothing_watches_nothing()
     {
         var graph = Base().Node("Telemetry", NodeType.Observability).Build();
+        var findings = new NoObservabilityRule().Evaluate(graph).Findings;
+
+        Assert.Equal(2, findings.Count);
+        Assert.All(findings, f => Assert.Equal("finding.NO_OBSERVABILITY.unobserved.suggestion.present", f.Suggestion.Key()));
+    }
+
+    [Fact]
+    public void With_two_telemetry_boxes_which_one_is_the_decision()
+    {
+        var graph = Base()
+            .Node("Metrics", NodeType.Observability)
+            .Node("Logs", NodeType.Observability)
+            .Connect("Api", "Metrics", synchronous: false)
+            .Build();
+
         var finding = Assert.Single(new NoObservabilityRule().Evaluate(graph).Findings);
 
-        Assert.Equal("finding.NO_OBSERVABILITY.orphan.message", finding.Message.Key());
+        Assert.Equal("finding.NO_OBSERVABILITY.unobserved.suggestion.several", finding.Suggestion.Key());
+        Assert.Null(finding.Fix);
+    }
+
+    [Fact]
+    public void What_is_not_yours_to_instrument_is_not_asked_for()
+    {
+        // The outside, a third party and the CDN: the same three the analyzer declines to size or
+        // to replicate, for the same reason. The orphan box is ORPHAN_NODE's.
+        var graph = new GraphBuilder()
+            .Node("Web", NodeType.Client)
+            .Node("Edge", NodeType.Cdn)
+            .Node("Api", NodeType.Api)
+            .Node("Payments", NodeType.ExternalService)
+            .Node("Telemetry", NodeType.Observability)
+            .Node("Leftover", NodeType.Service)
+            .Connect("Web", "Edge")
+            .Connect("Edge", "Api")
+            .Connect("Api", "Payments", timeoutSeconds: 5, fallback: true)
+            .Connect("Api", "Telemetry", synchronous: false)
+            .Build();
+
+        var result = new NoObservabilityRule().Evaluate(graph);
+
+        Assert.True(result.IsApplicable);
+        Assert.Empty(result.Findings);
+    }
+
+    [Fact]
+    public void Wiring_the_telemetry_costs_nothing_in_the_structural_rules()
+    {
+        // The rule asks for one wire per component; HIGH_COUPLING, MISSING_CACHE and
+        // QUEUE_NO_CONSUMER must not charge for any of them - or for the telemetry's own fan-out.
+        // Three dependencies on the Api - two services and the queue - one under the bar of four.
+        var bare = new GraphBuilder()
+            .Node("Api", NodeType.Api)
+            .Nodes(NodeType.Service, "A", "B")
+            .Node("Db", NodeType.Database)
+            .Node("Cola", NodeType.Queue)
+            .Connect("Api", "A", timeoutSeconds: 3).Connect("Api", "B", timeoutSeconds: 3)
+            .Connect("A", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
+            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp);
+
+        var wired = new GraphBuilder()
+            .Node("Api", NodeType.Api)
+            .Nodes(NodeType.Service, "A", "B")
+            .Node("Db", NodeType.Database)
+            .Node("Cola", NodeType.Queue)
+            .Node("Telemetry", NodeType.Observability)
+            .Connect("Api", "A", timeoutSeconds: 3).Connect("Api", "B", timeoutSeconds: 3)
+            .Connect("A", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
+            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Api", "Telemetry", synchronous: false)
+            .Connect("Telemetry", "A").Connect("Telemetry", "B")
+            .Connect("Telemetry", "Db")
+            .Connect("Cola", "Telemetry", synchronous: false);
+
+        // The Api has three dependencies in both drawings: the fourth edge is instrumentation,
+        // and the telemetry's own four edges are its job.
+        Assert.Empty(new HighCouplingRule().Evaluate(bare.Build()).Findings);
+        Assert.Empty(new HighCouplingRule().Evaluate(wired.Build()).Findings);
+
+        // The telemetry reading the database is not a reader that wants a cache.
+        Assert.Empty(new MissingCacheRule().Evaluate(wired.Build()).Findings);
+
+        // And the telemetry watching the queue is not draining it.
+        Assert.Single(new QueueNoConsumerRule().Evaluate(bare.Build()).Findings);
+        Assert.Single(new QueueNoConsumerRule().Evaluate(wired.Build()).Findings);
     }
 
     private static GraphBuilder Base() => new GraphBuilder()

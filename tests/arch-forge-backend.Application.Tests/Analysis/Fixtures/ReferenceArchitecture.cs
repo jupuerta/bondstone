@@ -8,8 +8,8 @@ using arch_forge_backend.Domain.Enums;
 namespace arch_forge_backend.Application.Tests.Analysis.Fixtures;
 
 /// <summary>
-/// Loads one of the reference architectures and runs the real seventeen rules over it (D5.5). With
-/// seventeen rules, precedences and shared facts, the interaction is where the risk lives: changing a
+/// Loads one of the reference architectures and runs the real twenty rules over it (D5.5). With
+/// twenty rules, precedences and shared facts, the interaction is where the risk lives: changing a
 /// HIGH_COUPLING threshold moves the score of architectures that have nothing to do with coupling,
 /// and no unit test notices.
 /// </summary>
@@ -24,7 +24,7 @@ public static class ReferenceArchitecture
     public static AnalysisResult Analyze(string fixtureName) => Analyze(Graph(fixtureName));
 
     /// <summary>
-    /// The seventeen rules over a graph the caller built - which is how the shuffling test feeds the
+    /// The twenty rules over a graph the caller built - which is how the shuffling test feeds the
     /// same fixture in a different order (V6 D1.1).
     /// </summary>
     public static AnalysisResult Analyze(ArchitectureGraph graph)
@@ -47,7 +47,10 @@ public static class ReferenceArchitecture
             new UnauthenticatedEntryRule(),
             new NoObservabilityRule(),
             new ExternalNoFallbackRule(),
-            new ProtocolMismatchRule()
+            new ProtocolMismatchRule(),
+            new QueueNoConsumerRule(),
+            new CacheAsStoreRule(),
+            new SharedDatabaseRule()
         ]);
 
         return analyzer.Analyze(graph);

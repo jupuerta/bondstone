@@ -34,7 +34,54 @@ public class ExternalNoFallbackRuleTests
         var finding = Assert.Single(result.Findings);
         Assert.Equal(Severity.Critical, finding.Severity);
         Assert.Equal("finding.EXTERNAL_NO_FALLBACK.unprotected.message(source=Checkout, target=Provider)", finding.Message.Describe());
+        Assert.Equal("finding.EXTERNAL_NO_FALLBACK.unprotected.explanation", finding.Explanation.Key());
+        Assert.Equal("finding.EXTERNAL_NO_FALLBACK.unprotected.suggestion", finding.Suggestion.Key());
+
+        // The timeout is there, so the fix touches only the half that is missing.
         Assert.NotNull(finding.Fix);
+        Assert.Null(finding.Fix!.TimeoutSeconds);
+        Assert.True(finding.Fix.Fallback);
+        Assert.Equal("fix.EXTERNAL_NO_FALLBACK.addFallback", finding.Fix.Label.Key());
+    }
+
+    [Fact]
+    public void Without_a_timeout_the_finding_says_so_and_the_fix_sets_both()
+    {
+        // QA B8. The timeout used to be MISSING_RESILIENCE's half of the same call, under a second
+        // code in the same area. Now this rule absorbs it: the edge with nothing configured gets
+        // its own sentence, and its fix sets the timeout with the fallback - a fallback without
+        // one contains nothing (D4.2), and a fix that left the Warning standing would not be one.
+        var finding = Assert.Single(new ExternalNoFallbackRule().Evaluate(Calling(timeoutSeconds: null)).Findings);
+
+        Assert.Equal(Severity.Critical, finding.Severity);
+        Assert.Equal("finding.EXTERNAL_NO_FALLBACK.unprotected.message(source=Checkout, target=Provider)", finding.Message.Describe());
+        Assert.Equal("finding.EXTERNAL_NO_FALLBACK.noTimeout.explanation(source=Checkout, target=Provider)", finding.Explanation.Describe());
+        Assert.Equal("finding.EXTERNAL_NO_FALLBACK.noTimeout.suggestion", finding.Suggestion.Key());
+
+        Assert.NotNull(finding.Fix);
+        Assert.Equal(FixKinds.SetEdgeResilience, finding.Fix!.Kind);
+        Assert.Equal(5, finding.Fix.TimeoutSeconds);
+        Assert.True(finding.Fix.Fallback);
+        Assert.Equal("fix.EXTERNAL_NO_FALLBACK.timeoutAndFallback(seconds=5)", finding.Fix.Label.Describe());
+    }
+
+    [Fact]
+    public void It_tells_MISSING_RESILIENCE_which_calls_it_has_already_covered()
+    {
+        // QA B8, the D4.5 channel: a Producer that leaves one fact per reported edge, so the
+        // sibling rule can stay quiet on exactly those and nothing else.
+        var rule = new ExternalNoFallbackRule();
+        Assert.Equal(RulePhase.Producer, rule.Phase);
+
+        var reported = Calling(timeoutSeconds: null);
+        rule.Evaluate(reported);
+        var fact = Assert.Single(reported.Facts.OfType<ExternalNoFallbackFact>());
+        Assert.Equal(reported.Connections.Single().Id, fact.ConnectionId);
+
+        // A contained call is not reported, so nobody is told to keep quiet about it.
+        var contained = Calling(timeoutSeconds: null, fallback: true);
+        rule.Evaluate(contained);
+        Assert.Empty(contained.Facts);
     }
 
     [Theory]

@@ -26,8 +26,10 @@ public class OrphanNodeRule : IArchitectureRule
         if (graph.Nodes.Count < 2)
             return RuleResult.NotApplicable;
 
+        // The set lives on the graph (QA B4) because this rule's promise - "every other rule will
+        // simply ignore it" - needs the other rules to agree on what an orphan is.
         var findings = graph.Nodes
-            .Where(node => !graph.OutgoingBySource[node.Id].Any() && !graph.IncomingByTarget[node.Id].Any())
+            .Where(node => graph.OrphanNodes.Contains(node.Id))
             .OrderBy(node => node.Id)
             .Select(node => new RuleFinding(
                 Code,

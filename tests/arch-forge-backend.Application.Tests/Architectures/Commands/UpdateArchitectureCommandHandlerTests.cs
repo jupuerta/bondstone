@@ -443,7 +443,7 @@ public class UpdateArchitectureCommandHandlerTests
         var snapshot = Assert.Single(_repository.Snapshots);
         Assert.Equal(architecture.Id, snapshot.ArchitectureId);
         Assert.Equal(2, snapshot.Version);
-        Assert.Equal("v5", snapshot.ScoringVersion);
+        Assert.Equal("v6", snapshot.ScoringVersion);
     }
 
     [Fact]

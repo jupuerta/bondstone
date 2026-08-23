@@ -57,7 +57,14 @@ public static class OutageImpact
         // shared model would move `simulationVersion` for a case the simulator already reports
         // another way.
         if (graph.RootNodes.Any(root => root.Id == nodeId))
-            return 1m;
+        {
+            // QA B6 refines the one line: a dead *door* costs everything that enters - but a root
+            // is not always a door. A Worker, a Scheduler or an Observability node standing at the
+            // top of its own flow starts work, it does not receive requests, and answering "100 %
+            // of requests" for a dead cron was the same conflation of root-with-outside that
+            // exposed the worker's database.
+            return NodeRoles.ActsFromInside(graph.NodesById[nodeId].Type) ? 0m : 1m;
+        }
 
         return RequestYield
             .Of(graph, load, new YieldInputs(new HashSet<Guid> { nodeId }, new HashSet<Guid>()))

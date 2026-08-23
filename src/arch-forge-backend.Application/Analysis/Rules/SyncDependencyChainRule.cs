@@ -26,7 +26,13 @@ public class SyncDependencyChainRule : IArchitectureRule
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
-        var synchronous = graph.Connections.Where(c => c.Synchronous).ToList();
+        // Client edges are the requests, not hops of the chain (QA §3.1): the chain a user
+        // suffers starts at the first component that is yours, and counting the outside as a link
+        // would hand every Client-fronted two-tier diagram a warning for existing.
+        var synchronous = graph.Connections
+            .Where(c => c.Synchronous && !NodeRoles.IsRequestFromOutside(graph, c))
+            .ToList();
+
         if (synchronous.Count == 0)
             return RuleResult.NotApplicable;
 

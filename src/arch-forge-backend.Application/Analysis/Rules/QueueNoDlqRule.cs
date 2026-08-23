@@ -27,11 +27,23 @@ public class QueueNoDlqRule : IArchitectureRule
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
-        var queues = graph.Nodes.Where(n => n.Type == NodeType.Queue).ToList();
+        // An orphan queue is ORPHAN_NODE's finding and nobody else's (QA B4): it is part of no
+        // flow, so there are no messages for it to lose, and asking for its DLQ penalized the same
+        // leftover box twice - once in Coupling for existing, once in Resilience for a field on a
+        // queue the architecture does not contain.
+        var queues = graph.Nodes
+            .Where(n => n.Type == NodeType.Queue && !graph.OrphanNodes.Contains(n.Id))
+            .ToList();
+
         if (queues.Count == 0)
             return RuleResult.NotApplicable;
 
+        // And a queue nobody drains is QUEUE_NO_CONSUMER's (QA §4): a message that is never
+        // processed can never fail processing, so there is nothing for a dead-letter queue to
+        // catch yet. The DLQ question comes back the moment the consumer is drawn - one lesson at
+        // a time, under one code at a time (D4.5).
         var findings = queues
+            .Where(queue => QueueNoConsumerRule.HasConsumer(graph, queue))
             .Where(queue => !NodeSettings.HasDeadLetterQueue(queue))
             .OrderBy(queue => queue.Id)
             .Select(queue => new RuleFinding(

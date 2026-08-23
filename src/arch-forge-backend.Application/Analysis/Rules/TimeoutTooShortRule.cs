@@ -31,6 +31,8 @@ public class TimeoutTooShortRule : IArchitectureRule
     {
         var timed = graph.Connections
             .Where(c => c.Synchronous && graph.ResilienceOf(c).TimeoutSeconds is > 0)
+            // The outside's timeout is not the architect's knob (QA §3.1).
+            .Where(c => !NodeRoles.IsRequestFromOutside(graph, c))
             .ToList();
 
         if (timed.Count == 0)

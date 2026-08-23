@@ -140,6 +140,38 @@ public class ScoreCalculatorTests
         Assert.Equal(Enum.GetValues<Area>(), result.Areas.Select(a => a.Area));
     }
 
+    [Fact]
+    public void Calculate_WritesTheArithmeticOutPerCode()
+    {
+        // QA §4, "explica esta nota": the number was always reconstructible by hand from the
+        // source; now the lines that add up to it travel with it, one per code that cost something,
+        // in code order, with the cap named when it is what the number is.
+        var result = Calculate(
+            Outcome(Area.Resilience, RuleCodes.SyncChain, Severity.Warning),
+            Outcome(Area.Resilience, RuleCodes.RetryAmplification, Severity.Good),
+            Outcome(Area.Resilience, RuleCodes.MissingResilience,
+                Enumerable.Repeat(Severity.Critical, 6).ToArray()));
+
+        var area = AreaOf(result, Area.Resilience);
+
+        Assert.Equal(50, area.Score);   // 100 - 45 - 5
+        Assert.Equal(
+            [
+                new PenaltyLine(RuleCodes.MissingResilience, Severity.Critical, Findings: 6, Penalty: 45m, Capped: true),
+                new PenaltyLine(RuleCodes.SyncChain, Severity.Warning, Findings: 1, Penalty: 5m, Capped: false)
+            ],
+            area.Penalties);
+    }
+
+    [Fact]
+    public void Calculate_APerfectOrUnscoredArea_HasNoLines()
+    {
+        var result = Calculate(Outcome(Area.Coupling, RuleCodes.Cycle, Severity.Good));
+
+        Assert.Empty(AreaOf(result, Area.Coupling).Penalties);
+        Assert.Empty(AreaOf(result, Area.Security).Penalties);
+    }
+
     private static ScoreResult Calculate(params RuleOutcome[] outcomes) => ScoreCalculator.Calculate(outcomes);
 
     private static RuleOutcome Outcome(Area area, string code, params Severity[] severities) =>

@@ -21,12 +21,32 @@ public static class EntryPoints
             .OrderBy(n => n.Id)
             .ToList();
 
+    /// <summary>
+    /// Where outside traffic comes from - declared when it can be, inferred when it must be
+    /// (QA B6 / §3.1).
+    ///
+    /// <strong>A drawn Client settles the question.</strong> With one on the canvas, "public" is
+    /// exactly what hangs from it, and every other root is by declaration internal. Without one,
+    /// the old inference stands - a root is a door - minus the roots that could never be one:
+    /// a Worker polling its queue, a Scheduler firing jobs, telemetry reading what it watches
+    /// (<see cref="NodeRoles.ActsFromInside"/>). Inferring "internet" from those is how a
+    /// background worker's private database ended up flagged as open to the world.
+    /// </summary>
+    public static IReadOnlyList<Node> TrafficOrigins(ArchitectureGraph graph)
+    {
+        var clients = graph.Nodes.Where(n => NodeRoles.IsTrafficOrigin(n.Type)).ToList();
+        if (clients.Count > 0)
+            return clients;
+
+        return graph.RootNodes.Where(n => !NodeRoles.ActsFromInside(n.Type)).ToList();
+    }
+
     /// <summary>Everything traffic reaches before meeting anything that could authenticate it.</summary>
     public static IReadOnlyList<Node> Frontier(ArchitectureGraph graph)
     {
         var frontier = new List<Node>();
         var seen = new HashSet<Guid>();
-        var pending = new Queue<Guid>(graph.RootNodes.OrderBy(n => n.Id).Select(n => n.Id));
+        var pending = new Queue<Guid>(TrafficOrigins(graph).OrderBy(n => n.Id).Select(n => n.Id));
 
         while (pending.TryDequeue(out var nodeId))
         {
@@ -46,8 +66,13 @@ public static class EntryPoints
         return frontier;
     }
 
-    /// <summary>Whether anything of <paramref name="type"/> hangs behind <paramref name="from"/>.</summary>
-    public static bool Reaches(ArchitectureGraph graph, Guid from, NodeType type)
+    /// <summary>
+    /// Whether anything whose type satisfies <paramref name="matches"/> hangs behind
+    /// <paramref name="from"/>. A predicate and not a <see cref="NodeType"/> since QA B3: the
+    /// question Security actually asks is "is there data back there", and that is
+    /// <see cref="NodeRoles.IsSystemOfRecord"/> - two types today, and one place to grow.
+    /// </summary>
+    public static bool Reaches(ArchitectureGraph graph, Guid from, Func<NodeType, bool> matches)
     {
         var seen = new HashSet<Guid> { from };
         var pending = new Queue<Guid>([from]);
@@ -59,7 +84,7 @@ public static class EntryPoints
                 if (!seen.Add(edge.TargetNodeId))
                     continue;
 
-                if (graph.NodesById.TryGetValue(edge.TargetNodeId, out var target) && target.Type == type)
+                if (graph.NodesById.TryGetValue(edge.TargetNodeId, out var target) && matches(target.Type))
                     return true;
 
                 pending.Enqueue(edge.TargetNodeId);

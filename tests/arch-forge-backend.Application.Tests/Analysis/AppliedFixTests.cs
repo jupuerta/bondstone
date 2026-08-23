@@ -59,7 +59,9 @@ public class AppliedFixTests
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Q", NodeType.Queue)
+            .Node("Worker", NodeType.Worker)
             .Connect("Api", "Q", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Q", "Worker", synchronous: false, protocol: ProtocolType.Amqp)
             .Build();
 
         var fix = Assert.Single(new QueueNoDlqRule().Evaluate(graph).Findings).Fix;

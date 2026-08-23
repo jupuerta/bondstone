@@ -36,8 +36,17 @@ public class HighCouplingRule : IArchitectureRule
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
+        // A Client fanning out is the users using several doors, not a component accumulating
+        // dependencies (QA §3.1).
+        // And the telemetry is neither a dependency nor a dependant (QA §4, coverage): the edge
+        // to the metrics sink is instrumentation, and a telemetry box scraping nine components is
+        // doing its job, not growing responsibilities. Without this, wiring what NO_OBSERVABILITY
+        // asks for would have pushed a three-dependency service over the bar.
         var coupled = graph.Nodes
-            .Select(node => (Node: node, Edges: graph.OutgoingBySource[node.Id].ToList()))
+            .Where(node => !NodeRoles.IsTrafficOrigin(node.Type) && !NodeRoles.IsTelemetry(node.Type))
+            .Select(node => (Node: node, Edges: graph.OutgoingBySource[node.Id]
+                .Where(edge => !NodeRoles.IsTelemetryEdge(graph, edge))
+                .ToList()))
             .Where(entry => entry.Edges.Count > 0)
             .ToList();
 

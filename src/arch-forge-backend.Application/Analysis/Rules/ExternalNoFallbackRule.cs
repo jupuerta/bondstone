@@ -20,13 +20,28 @@ namespace arch_forge_backend.Application.Analysis.Rules;
 /// user is asked for here is <em>an answer without the provider</em>: a fallback, or a breaker that
 /// stops asking. An asynchronous call is not reported: nobody is waiting, so there is nothing to
 /// contain.
+///
+/// <strong>QA B8: one call, one finding.</strong> Until scoring v6 an unconfigured external call
+/// paid twice in the same area - this Critical and MISSING_RESILIENCE's Warning about the missing
+/// timeout, on the same edge. That is the pattern D4.5 calls noise: two codes scolding you for not
+/// protecting one call. So this rule is now a Producer, like RETRY_AMPLIFICATION: it publishes an
+/// <see cref="ExternalNoFallbackFact"/> for every edge it reports, MISSING_RESILIENCE stays quiet
+/// on those, and the timeout is absorbed here - the edge without one gets its own variant, whose
+/// text says both halves and whose fix sets both, so clearing this finding never leaves the
+/// Warning it used to hide standing behind it.
 /// </summary>
 public class ExternalNoFallbackRule : IArchitectureRule
 {
+    /// <summary>
+    /// The same number MISSING_RESILIENCE's fix sets, for the same reason: well above what any
+    /// call in the latency model costs, so the fix does not create a TIMEOUT_TOO_SHORT of its own.
+    /// </summary>
+    private const int FixTimeoutSeconds = 5;
+
     public string Code => RuleCodes.ExternalNoFallback;
     public Area Area => Area.Resilience;
     public Severity DefaultSeverity => Severity.Critical;
-    public RulePhase Phase => RulePhase.Consumer;
+    public RulePhase Phase => RulePhase.Producer;
 
     public LocalizedText PassedMessage => LocalizedText.Of("finding.EXTERNAL_NO_FALLBACK.passed.message");
     public LocalizedText PassedExplanation => LocalizedText.Of("finding.EXTERNAL_NO_FALLBACK.passed.explanation");
@@ -35,37 +50,58 @@ public class ExternalNoFallbackRule : IArchitectureRule
     {
         var calls = graph.Connections
             .Where(c => c.Synchronous)
+            // A Client calling a third party directly is their conversation, not a call this
+            // architecture can contain (QA §3.1).
+            .Where(c => !NodeRoles.IsRequestFromOutside(graph, c))
             .Where(c => graph.NodesById.TryGetValue(c.TargetNodeId, out var target) && target.Type == NodeType.ExternalService)
             .ToList();
 
         if (calls.Count == 0)
             return RuleResult.NotApplicable;
 
-        var findings = calls
-            .Where(c => graph.ResilienceOf(c) is { CircuitBreaker: false, Fallback: false })
-            .OrderBy(c => c.Id)
-            .Select(edge => new RuleFinding(
+        var findings = new List<RuleFinding>();
+
+        foreach (var edge in calls.Where(c => graph.ResilienceOf(c) is { CircuitBreaker: false, Fallback: false }).OrderBy(c => c.Id))
+        {
+            // D4.5: whatever MISSING_RESILIENCE would have said about this edge is said here.
+            graph.Facts.Add(new ExternalNoFallbackFact(edge.Id));
+
+            var hasTimeout = graph.ResilienceOf(edge).TimeoutSeconds is not null;
+            var source = graph.NodesById[edge.SourceNodeId].Name;
+            var target = graph.NodesById[edge.TargetNodeId].Name;
+
+            // Two whole sentences and not a shared one plus a tail about the timeout: the join
+            // reads fine in the language it was written in and falls apart in the next (V7 D1.1).
+            var variant = hasTimeout ? "unprotected" : "noTimeout";
+
+            findings.Add(new RuleFinding(
                 Code,
                 Area,
                 DefaultSeverity,
                 LocalizedText.Of("finding.EXTERNAL_NO_FALLBACK.unprotected.message",
-                    ("source", graph.NodesById[edge.SourceNodeId].Name),
-                    ("target", graph.NodesById[edge.TargetNodeId].Name)),
-                LocalizedText.Of("finding.EXTERNAL_NO_FALLBACK.unprotected.explanation",
-                    ("target", graph.NodesById[edge.TargetNodeId].Name)),
-                LocalizedText.Of("finding.EXTERNAL_NO_FALLBACK.unprotected.suggestion"),
+                    ("source", source),
+                    ("target", target)),
+                LocalizedText.Of($"finding.EXTERNAL_NO_FALLBACK.{variant}.explanation",
+                    ("source", source),
+                    ("target", target)),
+                LocalizedText.Of($"finding.EXTERNAL_NO_FALLBACK.{variant}.suggestion"),
                 [FindingElement.Connection(edge.Id)])
             {
                 // D5.6: the fallback is the half with a single answer. Which breaker policy, and
                 // what the alternative response actually is, are decisions - turning them into a
-                // button would be the analyzer deciding the product for you.
+                // button would be the analyzer deciding the product for you. The timeout travels
+                // with it when it is missing, because a fallback without one contains nothing
+                // (D4.2) and a fix that leaves the call half-protected is not a fix.
                 Fix = new AppliedFix(
                     FixKinds.SetEdgeResilience,
                     FindingElement.Connection(edge.Id),
-                    LocalizedText.Of("fix.EXTERNAL_NO_FALLBACK.addFallback"),
+                    hasTimeout
+                        ? LocalizedText.Of("fix.EXTERNAL_NO_FALLBACK.addFallback")
+                        : LocalizedText.Of("fix.EXTERNAL_NO_FALLBACK.timeoutAndFallback", ("seconds", FixTimeoutSeconds)),
+                    TimeoutSeconds: hasTimeout ? null : FixTimeoutSeconds,
                     Fallback: true)
-            })
-            .ToList();
+            });
+        }
 
         return RuleResult.Applicable(findings);
     }

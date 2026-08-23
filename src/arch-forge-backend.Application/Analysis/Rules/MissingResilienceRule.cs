@@ -6,8 +6,8 @@ namespace arch_forge_backend.Application.Analysis.Rules;
 /// V2 D4.4. Only synchronous edges - on an asynchronous one these mechanisms do not apply.
 ///
 /// This is the rule that put <c>Facts</c> into service: it needs to know whether another rule
-/// marked the destination as a single point of failure, and whether RETRY_AMPLIFICATION already
-/// spoke about the edge (D4.5).
+/// marked the destination as a single point of failure, and whether RETRY_AMPLIFICATION or
+/// EXTERNAL_NO_FALLBACK already spoke about the edge (D4.5, QA B8).
 /// </summary>
 public class MissingResilienceRule : IArchitectureRule
 {
@@ -28,7 +28,13 @@ public class MissingResilienceRule : IArchitectureRule
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
-        var synchronous = graph.Connections.Where(c => c.Synchronous).ToList();
+        // The outside's edges are the requests themselves, not calls anybody configures (QA
+        // §3.1): drawing a Client must not open every diagram with "your users' call has no
+        // timeout".
+        var synchronous = graph.Connections
+            .Where(c => c.Synchronous && !NodeRoles.IsRequestFromOutside(graph, c))
+            .ToList();
+
         if (synchronous.Count == 0)
             return RuleResult.NotApplicable;
 
@@ -43,10 +49,12 @@ public class MissingResilienceRule : IArchitectureRule
             .ToHashSet();
 
         // Saying "you are missing a timeout" twice, under two different codes, is what D4.5 calls
-        // noise. The more specific rule already said it.
-        var alreadyReported = graph.Facts
-            .OfType<RetryAmplificationFact>()
-            .Select(fact => fact.ConnectionId)
+        // noise. The more specific rule already said it - RETRY_AMPLIFICATION on a call that
+        // retries, EXTERNAL_NO_FALLBACK on a call to somebody else's service (QA B8: its Critical
+        // already names the timeout when there is none and its fix sets it, so this Warning on
+        // the same edge was the same scolding twice in the same area).
+        var alreadyReported = graph.Facts.OfType<RetryAmplificationFact>().Select(fact => fact.ConnectionId)
+            .Concat(graph.Facts.OfType<ExternalNoFallbackFact>().Select(fact => fact.ConnectionId))
             .ToHashSet();
 
         var findings = new List<RuleFinding>();

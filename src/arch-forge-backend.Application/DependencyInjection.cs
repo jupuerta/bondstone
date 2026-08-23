@@ -38,13 +38,19 @@ public static class DependencyInjection
         services.AddScoped<IArchitectureRule, UnauthenticatedEntryRule>();  // Consumer
         services.AddScoped<IArchitectureRule, NoObservabilityRule>();       // Consumer
 
-        // V8 §6.2: the sixteenth, and the one that turns ExternalService into a component.
-        services.AddScoped<IArchitectureRule, ExternalNoFallbackRule>();    // Consumer
+        // V8 §6.2: the sixteenth, and the one that turns ExternalService into a component. A
+        // Producer since QA B8: it tells MISSING_RESILIENCE which calls it has already covered.
+        services.AddScoped<IArchitectureRule, ExternalNoFallbackRule>();    // Producer
 
         // V13 D3.1: the seventeenth, and the one that turns ProtocolType into a field somebody
         // reads. It checks the drawing rather than the architecture, which is why it is worth
         // reading before the other sixteen.
         services.AddScoped<IArchitectureRule, ProtocolMismatchRule>();      // Consumer
+
+        // QA §4: three lessons the model could already teach. Twenty rules.
+        services.AddScoped<IArchitectureRule, QueueNoConsumerRule>();       // Consumer
+        services.AddScoped<IArchitectureRule, CacheAsStoreRule>();          // Consumer
+        services.AddScoped<IArchitectureRule, SharedDatabaseRule>();        // Consumer
         services.AddScoped<ArchitectureAnalyzer>();
 
         // V3 D5.1: next to the analyzer and not inside it. Not a list of registered pieces either -
@@ -69,6 +75,14 @@ public static class DependencyInjection
         services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<WorkerConfiguration>(NodeType.Worker));
         services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<ObjectStorageConfiguration>(NodeType.ObjectStorage));
         services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<ExternalServiceConfiguration>(NodeType.ExternalService));
+
+        // QA §3: the four types of the QA round, each schema arriving with the mechanism that
+        // reads it - Client and Scheduler feed the load model, Cdn absorbs, IdentityProvider is
+        // read by UNAUTHENTICATED_ENTRY through the wiring rather than through a field.
+        services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<ClientConfiguration>(NodeType.Client));
+        services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<CdnConfiguration>(NodeType.Cdn));
+        services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<SchedulerConfiguration>(NodeType.Scheduler));
+        services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<IdentityProviderConfiguration>(NodeType.IdentityProvider));
         services.AddSingleton<NodeConfigurationRegistry>();
 
         services.AddScoped<IValidator<CreateArchitectureCommand>, CreateArchitectureCommandValidator>();

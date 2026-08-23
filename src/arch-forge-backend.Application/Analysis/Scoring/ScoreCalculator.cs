@@ -61,14 +61,21 @@ public static class ScoreCalculator
                 continue;
             }
 
-            var penalty = areaOutcomes
+            // One line per code that cost something, in code order so the breakdown reads the same
+            // whichever order the rules ran in (QA §4, "explica esta nota").
+            var lines = areaOutcomes
                 .GroupBy(o => o.Code)
-                .Sum(byCode => PenaltyForCode(byCode.SelectMany(o => o.Findings).ToList()));
+                .OrderBy(byCode => byCode.Key, StringComparer.Ordinal)
+                .Select(byCode => PenaltyForCode(byCode.Key, byCode.SelectMany(o => o.Findings).ToList()))
+                .OfType<PenaltyLine>()
+                .ToList();
+
+            var penalty = lines.Sum(line => line.Penalty);
 
             // Rounded here, before the average, so the four numbers the user sees are exactly the
             // ones that add up to the big one (D1.1).
             var areaScore = RoundHalfUp(Math.Max(0m, 100m - penalty));
-            areas.Add(new AreaScore(area, areaScore, AreaState.Scored));
+            areas.Add(new AreaScore(area, areaScore, AreaState.Scored, lines));
             scored.Add(areaScore);
         }
 
@@ -79,7 +86,8 @@ public static class ScoreCalculator
         return new ScoreResult(score, areas);
     }
 
-    private static decimal PenaltyForCode(IReadOnlyList<RuleFinding> findings)
+    /// <summary>Null when the code cost nothing: a line that reads "− 0" explains nothing.</summary>
+    private static PenaltyLine? PenaltyForCode(string code, IReadOnlyList<RuleFinding> findings)
     {
         // Good findings weigh 0 (D1.1): they mark the area as checked, they do not move it.
         var penalized = findings
@@ -90,7 +98,7 @@ public static class ScoreCalculator
             .ToList();
 
         if (penalized.Count == 0)
-            return 0m;
+            return null;
 
         var total = 0m;
         for (var i = 0; i < penalized.Count; i++)
@@ -101,7 +109,9 @@ public static class ScoreCalculator
 
         // The cap uses the highest severity present, which is the first after the sort.
         var cap = WeightOf(penalized[0].Severity) * CapMultiplier;
-        return Math.Min(total, cap);
+        var capped = total > cap;
+
+        return new PenaltyLine(code, penalized[0].Severity, penalized.Count, capped ? cap : total, capped);
     }
 
     private static decimal WeightOf(Severity severity) => severity switch

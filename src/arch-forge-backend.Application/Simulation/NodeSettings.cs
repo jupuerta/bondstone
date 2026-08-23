@@ -24,8 +24,9 @@ public static class NodeSettings
         node.Type == NodeType.LoadBalancer && Read<LoadBalancerConfiguration>(node)?.HealthCheck == true;
 
     /// <summary>
-    /// V4 DT.1. The declared load of an entry point, in requests per second, already capped by the
-    /// gateway's rate limit where there is one (DT.3).
+    /// V4 DT.1. The declared load of an entry point, in requests per second, as declared - the
+    /// rate limit is applied by <see cref="Admit"/>, on everything that reaches the door and not
+    /// only on what the door itself declares (QA §4).
     ///
     /// <strong>Absent is zero</strong>, and zero is what makes every architecture drawn before V4
     /// behave exactly as it did: no load, no utilisation, no queueing factor, same numbers to the
@@ -35,7 +36,13 @@ public static class NodeSettings
     {
         NodeType.Api => Read<ApiConfiguration>(node)?.RequestsPerSecond ?? 0,
         NodeType.LoadBalancer => Read<LoadBalancerConfiguration>(node)?.RequestsPerSecond ?? 0,
-        NodeType.Gateway => Admitted(Read<GatewayConfiguration>(node)),
+        NodeType.Gateway => Read<GatewayConfiguration>(node)?.RequestsPerSecond ?? 0,
+
+        // QA §3.1 / §3.3: where traffic is actually born. A Client declares the users' requests,
+        // a Scheduler declares the jobs its clock fires - both flow downstream exactly as an entry
+        // point's RPS always has.
+        NodeType.Client => Read<ClientConfiguration>(node)?.RequestsPerSecond ?? 0,
+        NodeType.Scheduler => Read<SchedulerConfiguration>(node)?.JobsPerSecond ?? 0,
         _ => 0
     };
 
@@ -77,27 +84,55 @@ public static class NodeSettings
     public static bool HasDeadLetterQueue(Node node) =>
         node.Type == NodeType.Queue && Read<QueueConfiguration>(node)?.DeadLetterQueue == true;
 
-    /// <summary>V4 D5.2: the rate limit as configured, for the rule that asks whether there is one.</summary>
-    public static int? RateLimitOf(Node node) =>
-        node.Type == NodeType.Gateway ? Read<GatewayConfiguration>(node)?.RateLimit : null;
-
-    /// <summary>DT.3: the share of incoming traffic a cache answers by itself, so it never reaches what is behind.</summary>
-    public static decimal HitRatio(Node node)
+    /// <summary>
+    /// V4 D5.2: the rate limit as configured, for the rule that asks whether there is one. On a
+    /// Gateway or an Api (QA §4) - the two things that can be a door - and nothing else.
+    /// </summary>
+    public static int? RateLimitOf(Node node) => node.Type switch
     {
-        if (node.Type != NodeType.Cache)
-            return 0m;
+        NodeType.Gateway => Read<GatewayConfiguration>(node)?.RateLimit,
+        NodeType.Api => Read<ApiConfiguration>(node)?.RateLimit,
+        _ => null
+    };
 
-        var configured = Read<CacheConfiguration>(node)?.HitRatio;
-        return configured is null ? CapacityModel.DefaultHitRatio : Math.Clamp(configured.Value, 0m, 1m);
+    /// <summary>
+    /// DT.3: what is over the limit is rejected at the door instead of piling onto what is behind.
+    /// Applied to the whole of what reaches the node - declared there or arriving from a Client in
+    /// front of it - because a limit that only capped the number typed on the gateway and waved
+    /// through the same number typed on the Client was a limit in name only (QA §4).
+    /// </summary>
+    public static decimal Admit(Node node, decimal load)
+    {
+        var limit = RateLimitOf(node);
+        return limit is > 0 ? Math.Min(load, limit.Value) : load;
     }
 
-    /// <summary>DT.3: what is over the limit is rejected at the door instead of piling onto what is behind.</summary>
-    private static decimal Admitted(GatewayConfiguration? gateway)
-    {
-        var declared = gateway?.RequestsPerSecond ?? 0;
-        var limit = gateway?.RateLimit;
+    /// <summary>
+    /// QA B2: whether a system of record declares the failover replication that SPOF's suggestion
+    /// asks for - the field that clears the finding, so the advice and the way out are the same
+    /// thing. <strong>Read replicas deliberately do not count</strong>: they spread reads and can
+    /// never take a write, which is exactly the asymmetry that makes a system of record a SPOF in
+    /// the first place (<see cref="Analysis.Rules.NodeRoles.IsSystemOfRecord"/>). ObjectStorage
+    /// answers false because it has no replication field yet - it arrives the day something can
+    /// read it, never before (V3 D3.5).
+    /// </summary>
+    public static bool HasDeclaredReplication(Node node) =>
+        node.Type == NodeType.Database && Read<DatabaseConfiguration>(node)?.Replicas is >= 1;
 
-        return limit is > 0 ? Math.Min(declared, limit.Value) : declared;
+    /// <summary>
+    /// DT.3: the share of incoming traffic a cache answers by itself, so it never reaches what is
+    /// behind. A Cdn is the same mechanism at the edge (QA §3.2), with its own, higher default.
+    /// </summary>
+    public static decimal HitRatio(Node node)
+    {
+        var (configured, fallback) = node.Type switch
+        {
+            NodeType.Cache => (Read<CacheConfiguration>(node)?.HitRatio, CapacityModel.DefaultHitRatio),
+            NodeType.Cdn => (Read<CdnConfiguration>(node)?.HitRatio, CapacityModel.DefaultCdnHitRatio),
+            _ => (0m, 0m)
+        };
+
+        return configured is null ? fallback : Math.Clamp(configured.Value, 0m, 1m);
     }
 
     private static int Positive(int? value) => value is > 0 ? value.Value : 1;

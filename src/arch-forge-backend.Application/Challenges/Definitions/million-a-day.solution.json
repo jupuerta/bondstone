@@ -18,6 +18,11 @@
     { "from": "Api", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 5, "circuitBreaker": true, "fallback": true } },
     { "from": "Api", "to": "Jobs", "protocol": "Amqp", "synchronous": false },
     { "from": "Api", "to": "Telemetry", "protocol": "Http", "synchronous": false },
+    { "from": "Gateway", "to": "Telemetry", "protocol": "Http", "synchronous": false },
+    { "from": "Uploads", "to": "Telemetry", "protocol": "Http", "synchronous": false },
+    { "from": "Jobs", "to": "Telemetry", "protocol": "Http", "synchronous": false },
+    { "from": "Worker", "to": "Telemetry", "protocol": "Http", "synchronous": false },
+    { "from": "Db", "to": "Telemetry", "protocol": "Http", "synchronous": false },
     { "from": "Jobs", "to": "Worker", "protocol": "Amqp", "synchronous": false },
     { "from": "Worker", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 5, "circuitBreaker": true, "fallback": true } }
   ]

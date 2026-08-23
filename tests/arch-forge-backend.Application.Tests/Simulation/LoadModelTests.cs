@@ -106,6 +106,65 @@ public class LoadModelTests
     }
 
     [Fact]
+    public void The_limit_caps_what_arrives_from_a_client_too()
+    {
+        // QA §4. Since QA §3.1 the users' traffic is declared on the Client; a limit that only
+        // capped the number typed on the gateway itself let the same number typed on the Client
+        // straight through. Admission is on everything that reaches the door.
+        var graph = new GraphBuilder()
+            .Node("Web", NodeType.Client, """{"requestsPerSecond":5000}""")
+            .Node("Gateway", NodeType.Gateway, """{"rateLimit":400}""")
+            .Node("Db", NodeType.Database)
+            .Connect("Web", "Gateway")
+            .Connect("Gateway", "Db", protocol: ProtocolType.Sql)
+            .Build();
+
+        var load = LoadModel.Of(graph);
+
+        Assert.Equal(400m, load.LoadOf(graph.NodeId("Gateway")));
+        Assert.Equal(400m, load.LoadOf(graph.NodeId("Db")));
+        Assert.Equal(1m, load.LoadAmplification);   // measured against what was admitted
+    }
+
+    [Fact]
+    public void An_api_can_be_the_door_that_limits()
+    {
+        // QA §4: the same lever on the other thing that can be a front door.
+        var graph = new GraphBuilder()
+            .Node("Api", NodeType.Api, """{"requestsPerSecond":1000,"rateLimit":300}""")
+            .Node("Db", NodeType.Database)
+            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Build();
+
+        var load = LoadModel.Of(graph);
+
+        Assert.Equal(300m, load.LoadOf(graph.NodeId("Api")));
+        Assert.Equal(300m, load.LoadOf(graph.NodeId("Db")));
+    }
+
+    [Fact]
+    public void The_wire_to_the_telemetry_carries_no_traffic_and_splits_nothing()
+    {
+        // QA §4, coverage. Instrumentation is not requests: the queue still hands its whole load
+        // to its one worker after being wired to the telemetry, and the telemetry receives none.
+        var graph = new GraphBuilder()
+            .Node("Api", NodeType.Api, """{"requestsPerSecond":100}""")
+            .Node("Cola", NodeType.Queue)
+            .Node("Worker", NodeType.Worker)
+            .Node("Telemetry", NodeType.Observability)
+            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Cola", "Worker", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Cola", "Telemetry", synchronous: false)
+            .Connect("Api", "Telemetry", synchronous: false)
+            .Build();
+
+        var load = LoadModel.Of(graph);
+
+        Assert.Equal(100m, load.LoadOf(graph.NodeId("Worker")));
+        Assert.Equal(0m, load.LoadOf(graph.NodeId("Telemetry")));
+    }
+
+    [Fact]
     public void A_queue_delivers_what_its_consumer_can_chew_and_the_rest_is_backlog()
     {
         // DT.3. A *rate* of growth needs no clock, which is exactly why V3 could reject backlog

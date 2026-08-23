@@ -52,6 +52,11 @@ public class ArchitectureGraph
         // redefining it its own way.
         var nodesWithDependents = Connections.Select(c => c.TargetNodeId).ToHashSet();
         RootNodes = Nodes.Where(n => !nodesWithDependents.Contains(n.Id)).ToList();
+
+        OrphanNodes = Nodes
+            .Where(n => !OutgoingBySource[n.Id].Any() && !IncomingByTarget[n.Id].Any())
+            .Select(n => n.Id)
+            .ToHashSet();
     }
 
     /// <summary>
@@ -77,6 +82,15 @@ public class ArchitectureGraph
 
     /// <summary>Nodes with no dependents - where traffic enters the system.</summary>
     public IReadOnlyList<Node> RootNodes { get; }
+
+    /// <summary>
+    /// Nodes with no edges in either direction - part of no flow. <c>ORPHAN_NODE</c> is the rule
+    /// that names them, and its promise (QA B4) is that it is the <em>only</em> one: a node-scoped
+    /// rule grading a leftover box would penalize the same fact twice under two areas, and ask for
+    /// configuration on something the architecture does not contain. Held here rather than
+    /// re-derived per rule for the same reason <see cref="RootNodes"/> is.
+    /// </summary>
+    public IReadOnlySet<Guid> OrphanNodes { get; }
 
     /// <summary>
     /// What a producer rule published for consumer rules to read (V2 D5.1).

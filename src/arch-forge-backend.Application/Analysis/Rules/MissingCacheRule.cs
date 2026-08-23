@@ -47,7 +47,11 @@ public class MissingCacheRule : IArchitectureRule
             if (ReadReplicasOf(database) is > 0)
                 continue;
 
-            var direct = graph.IncomingByTarget[database.Id].Where(c => c.Synchronous).ToList();
+            // Telemetry reading the database is not a consumer whose reads want a cache (QA §4,
+            // coverage): it is the wire NO_OBSERVABILITY asks for, and it must not cost a point here.
+            var direct = graph.IncomingByTarget[database.Id]
+                .Where(c => c.Synchronous && !NodeRoles.IsTelemetryEdge(graph, c))
+                .ToList();
             var effective = direct.Where(edge => IsEffectiveConsumer(graph, edge.SourceNodeId, database.Id)).ToList();
 
             if (effective.Count < RuleThresholds.CacheMinConsumers)

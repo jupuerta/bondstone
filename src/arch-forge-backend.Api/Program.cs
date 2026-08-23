@@ -72,6 +72,6 @@ if (app.Environment.IsDevelopment())
 app.UseCors(FrontendCorsPolicy);
 app.MapControllers();
 
-app.Run();
+ app.Run();
 
 public partial class Program;

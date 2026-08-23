@@ -145,6 +145,43 @@ public class MissingResilienceRuleTests
     }
 
     [Fact]
+    public void EdgeAlreadyReportedByExternalNoFallback_StaysQuiet()
+    {
+        // QA B8: the same D4.5 courtesy towards EXTERNAL_NO_FALLBACK. Its Critical on a call to a
+        // third party already names the missing timeout and its fix sets it - a second Warning on
+        // the same edge was the same advice charged twice in the same area.
+        _builder
+            .Node("Checkout")
+            .Node("Payments", NodeType.ExternalService)
+            .Connect("Checkout", "Payments");
+
+        var graph = _builder.Build();
+        graph.Facts.Add(new ExternalNoFallbackFact(_builder.EdgeId("Checkout", "Payments")));
+
+        var result = _rule.Evaluate(graph);
+
+        Assert.True(result.IsApplicable);
+        Assert.Empty(result.Findings);
+    }
+
+    [Fact]
+    public void ExternalCallThatIsContainedButUnbounded_IsStillMissingItsTimeout()
+    {
+        // The fact only travels with a finding: a call with a fallback and no timeout is not
+        // EXTERNAL_NO_FALLBACK's to report, so the timeout lesson is still this rule's to give -
+        // and it matters, because a fallback without a timeout contains nothing (D4.2).
+        _builder
+            .Node("Checkout")
+            .Node("Payments", NodeType.ExternalService)
+            .Connect("Checkout", "Payments", fallback: true);
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal(Severity.Warning, finding.Severity);
+        Assert.Equal("finding.MISSING_RESILIENCE.noTimeout.explanation", finding.Explanation.Key());
+    }
+
+    [Fact]
     public void AtMostOneFindingPerEdge()
     {
         _builder

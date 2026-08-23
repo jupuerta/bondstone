@@ -36,8 +36,11 @@ public class UnauthenticatedEntryRule : IArchitectureRule
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
+        // "Data behind the door" means any system of record (QA B3): the files in an object
+        // storage are as much somebody's data as the rows in a database, and a door that reaches
+        // either one is the same question.
         var exposed = EntryPoints.PublicFacing(graph)
-            .Where(node => EntryPoints.Reaches(graph, node.Id, NodeType.Database))
+            .Where(node => EntryPoints.Reaches(graph, node.Id, NodeRoles.IsSystemOfRecord))
             .ToList();
 
         if (exposed.Count == 0)
@@ -47,8 +50,11 @@ public class UnauthenticatedEntryRule : IArchitectureRule
 
         foreach (var node in exposed)
         {
+            // QA §3.4. A door wired to an IdentityProvider has answered the question this rule
+            // asks: delegation is a declaration, made in the drawing instead of in a checkbox,
+            // and the drawing is the stronger claim - it is the one every other rule reads.
             var authentication = NodeSettings.AuthenticationOf(node);
-            if (authentication == true)
+            if (authentication == true || DelegatesAuthentication(graph, node))
                 continue;
 
             // V13 D2.1. Declared "no" is a decision about a door with a database behind it, and it
@@ -75,4 +81,10 @@ public class UnauthenticatedEntryRule : IArchitectureRule
 
         return RuleResult.Applicable(findings);
     }
+
+    /// <summary>QA §3.4: the door hands the "who are you" question to an IdentityProvider it calls.</summary>
+    private static bool DelegatesAuthentication(ArchitectureGraph graph, Domain.Entities.Node door) =>
+        graph.OutgoingBySource[door.Id].Any(edge =>
+            graph.NodesById.TryGetValue(edge.TargetNodeId, out var target)
+            && target.Type == NodeType.IdentityProvider);
 }

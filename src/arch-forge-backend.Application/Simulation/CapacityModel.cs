@@ -41,11 +41,37 @@ public static class CapacityModel
     /// </summary>
     public const int Observability = 100_000;
 
+    /// <summary>QA §3.1. The outside has no capacity of yours: it is where load comes from, never where it piles up.</summary>
+    public const int Client = 1_000_000;
+
+    /// <summary>
+    /// QA §3.2. Enormous for the same reason <see cref="Observability"/> is: a saturated CDN is
+    /// nobody's lesson here. What a CDN teaches is absorption - see <see cref="DefaultCdnHitRatio"/> -
+    /// not sizing.
+    /// </summary>
+    public const int Cdn = 100_000;
+
+    /// <summary>QA §3.3. A clock fires work; it barely receives any. The number exists so the switch is total, not because it teaches.</summary>
+    public const int Scheduler = 1_000;
+
+    /// <summary>
+    /// QA §3.4. The same as a Service on purpose: an IdentityProvider on the synchronous path of
+    /// every request should saturate like the service it is, because that is the famous outage.
+    /// </summary>
+    public const int IdentityProvider = 300;
+
     /// <summary>DT.5. At or above this, a component is <see cref="HealthState.Degraded"/> - never worse.</summary>
     public const decimal SaturationWarning = 0.8m;
 
     /// <summary>DT.3. What a cache absorbs when nobody says otherwise.</summary>
     public const decimal DefaultHitRatio = 0.8m;
+
+    /// <summary>
+    /// QA §3.2. Higher than a cache's on purpose: a CDN serves static content, and static content
+    /// is the best-behaved cacheable traffic there is. The gap between the two defaults is itself
+    /// the lesson.
+    /// </summary>
+    public const decimal DefaultCdnHitRatio = 0.9m;
 
     public static int PerInstance(NodeType type) => type switch
     {
@@ -60,6 +86,10 @@ public static class CapacityModel
         NodeType.ObjectStorage => ObjectStorage,
         NodeType.Observability => Observability,
         NodeType.ExternalService => ExternalService,
+        NodeType.Client => Client,
+        NodeType.Cdn => Cdn,
+        NodeType.Scheduler => Scheduler,
+        NodeType.IdentityProvider => IdentityProvider,
         _ => Service
     };
 

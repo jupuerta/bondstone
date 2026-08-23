@@ -33,4 +33,11 @@ public static class RuleCodes
     // V13 D3.1. The rule that makes ProtocolType a field somebody reads, and the only one whose
     // findings are about the drawing rather than about the architecture.
     public const string ProtocolMismatch = "PROTOCOL_MISMATCH";
+
+    // QA §4 (docs/QA-analisis.md). Three lessons the model could already teach and nobody was
+    // asking for: work handed to a queue nobody drains, state kept in a cache with no origin
+    // behind it, and services meeting on one schema.
+    public const string QueueNoConsumer = "QUEUE_NO_CONSUMER";
+    public const string CacheAsStore = "CACHE_AS_STORE";
+    public const string SharedDatabase = "SHARED_DATABASE";
 }

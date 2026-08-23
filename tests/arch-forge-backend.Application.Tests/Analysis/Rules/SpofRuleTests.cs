@@ -172,29 +172,55 @@ public class SpofRuleTests
     [Fact]
     public void EquivalentSibling_SameTypeAndSameDependents_IsExempt()
     {
+        // Stateless siblings only (QA B2): two Services serving exactly the same consumers are
+        // interchangeable copies. The same wiring over two Databases proves nothing - they would
+        // be two truths, not two replicas - and no longer earns the exemption; see
+        // QaRegressionTests.B2_TwoDifferentDatabasesWithTheSameConsumers_AreBothFlagged.
         _builder
-            .Nodes(NodeType.Database, "Db", "DbReplica")
-            .Nodes(NodeType.Service, "Orders", "Payments")
-            .Connect("Orders", "Db").Connect("Orders", "DbReplica")
-            .Connect("Payments", "Db").Connect("Payments", "DbReplica");
+            .Nodes(NodeType.Service, "Search1", "Search2")
+            .Nodes(NodeType.Api, "Api1", "Api2")
+            .Connect("Api1", "Search1").Connect("Api1", "Search2")
+            .Connect("Api2", "Search1").Connect("Api2", "Search2");
 
         Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Fact]
+    public void ASystemOfRecord_IsClearedByDeclaredReplicasAlone()
+    {
+        // The loop this closes (QA B2): the suggestion says "add replicas with failover", the UI
+        // edits the field, and now the rule reads it. Read replicas deliberately do not clear it -
+        // they spread reads and can never take the write, which is the whole asymmetry of D1.1.
+        var replicated = new GraphBuilder()
+            .Node("Db", NodeType.Database, """{"replicas": 2}""")
+            .Nodes(NodeType.Service, "Orders", "Payments")
+            .Connect("Orders", "Db").Connect("Payments", "Db");
+
+        Assert.Empty(_rule.Evaluate(replicated.Build()).Findings);
+
+        var readOnly = new GraphBuilder()
+            .Node("Db", NodeType.Database, """{"readReplicas": 3}""")
+            .Nodes(NodeType.Service, "Orders", "Payments")
+            .Connect("Orders", "Db").Connect("Payments", "Db");
+
+        Assert.Single(_rule.Evaluate(readOnly.Build()).Findings);
     }
 
     [Fact]
     public void SiblingsOfTheSameTypeServingDifferentConsumers_AreNotRedundant()
     {
         // V1 asked only for "some dependent in common", which with microservices exempted Users,
-        // Orders and Payments from each other for hanging off the same gateway (D4.x).
+        // Orders and Payments from each other for hanging off the same gateway (D4.x). Stateless
+        // types, because since QA B2 they are the only ones the sibling exemption applies to.
         _builder
-            .Nodes(NodeType.Database, "Db", "Reporting")
-            .Nodes(NodeType.Service, "Orders", "Payments", "Users")
-            .Connect("Orders", "Db").Connect("Orders", "Reporting")
-            .Connect("Payments", "Db").Connect("Users", "Db");
+            .Nodes(NodeType.Service, "Search", "Reporting")
+            .Nodes(NodeType.Api, "Orders", "Payments", "Users")
+            .Connect("Orders", "Search").Connect("Orders", "Reporting")
+            .Connect("Payments", "Search").Connect("Users", "Search");
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
-        Assert.Equal(_builder.NodeElement("Db"), Assert.Single(finding.Elements));
+        Assert.Equal(_builder.NodeElement("Search"), Assert.Single(finding.Elements));
     }
 
     // ---- V13 D1.1: an arrow is not a dependency until you read it -------------

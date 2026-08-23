@@ -10,9 +10,17 @@ namespace arch_forge_backend.Application.Analysis.Rules;
 /// <em>"RateLimit is a defence against load, and there is no model of load"</em>. Now there is one,
 /// so the field is back and this is what reads it.
 ///
-/// Only applicable once traffic is declared, like <see cref="UndersizedComponentRule"/>: a rate
+/// Only applicable once traffic reaches a door, like <see cref="UndersizedComponentRule"/>: a rate
 /// limit protects against a volume, and with no volume in the model there is nothing to protect
 /// against and nothing honest to say.
+///
+/// <strong>QA §4: both doors, and the traffic that actually arrives.</strong> Until scoring v6 the
+/// rule asked only gateways, because only gateways had the field - an Api that was the front door
+/// with a thousand declared requests a second was a door this rule could never speak to. The field
+/// now exists on the Api (<see cref="Configuration.Schemas.ApiConfiguration.RateLimit"/>), and the
+/// volume is read from the load model rather than from the door's own configuration: since QA §3.1
+/// the users' traffic is declared on the Client, and a door with a Client in front of it receives
+/// every one of those requests whether or not it declared any itself.
 /// </summary>
 public class NoRateLimitRule : IArchitectureRule
 {
@@ -26,24 +34,32 @@ public class NoRateLimitRule : IArchitectureRule
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
-        var gateways = EntryPoints.PublicFacing(graph)
-            .Where(n => n.Type == NodeType.Gateway)
-            .Where(n => NodeSettings.DeclaredRps(n) > 0)
+        var load = LoadModel.Of(graph);
+
+        var doors = EntryPoints.PublicFacing(graph)
+            // A door wired to nothing guards nothing, whatever traffic its configuration declares -
+            // it is ORPHAN_NODE's finding, not this rule's (QA B4).
+            .Where(n => !graph.OrphanNodes.Contains(n.Id))
+            .Where(n => load.LoadOf(n.Id) > 0)
             .ToList();
 
-        if (gateways.Count == 0)
+        if (doors.Count == 0)
             return RuleResult.NotApplicable;
 
-        var findings = gateways
-            .Where(gateway => NodeSettings.RateLimitOf(gateway) is not > 0)
-            .Select(gateway => new RuleFinding(
+        var findings = doors
+            .Where(door => NodeSettings.RateLimitOf(door) is not > 0)
+            .Select(door => new RuleFinding(
                 Code,
                 Area,
                 DefaultSeverity,
-                LocalizedText.Of("finding.NO_RATE_LIMIT.unlimited.message", ("node", gateway.Name)),
+                LocalizedText.Of("finding.NO_RATE_LIMIT.unlimited.message", ("node", door.Name)),
                 LocalizedText.Of("finding.NO_RATE_LIMIT.unlimited.explanation"),
-                LocalizedText.Of("finding.NO_RATE_LIMIT.unlimited.suggestion"),
-                [FindingElement.Node(gateway.Id)]))
+                // The advice is the door's (V13 D1.2): a gateway limits, an Api either limits
+                // itself or gets a gateway to do it.
+                LocalizedText.Of(door.Type == NodeType.Api
+                    ? "finding.NO_RATE_LIMIT.unlimited.suggestion.api"
+                    : "finding.NO_RATE_LIMIT.unlimited.suggestion"),
+                [FindingElement.Node(door.Id)]))
             .ToList();
 
         return RuleResult.Applicable(findings);

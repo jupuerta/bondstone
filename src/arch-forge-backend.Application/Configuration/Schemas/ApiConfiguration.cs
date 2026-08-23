@@ -21,6 +21,15 @@ public class ApiConfiguration
     public int? RequestsPerSecond { get; set; }
 
     /// <summary>
+    /// QA §4. The same lever <see cref="GatewayConfiguration.RateLimit"/> is, on the other thing
+    /// that can be a front door. Until it existed, an Api with declared traffic was a door
+    /// NO_RATE_LIMIT could never speak to: the rule asked only gateways, because only gateways had
+    /// the field. Read by that rule and by the load model's admission (DT.3), which is what earns
+    /// it the place (D3.5).
+    /// </summary>
+    public int? RateLimit { get; set; }
+
+    /// <summary>
     /// V4 D5.2. An Api can be the front door too, so it is asked the same question a Gateway is.
     ///
     /// V13 D2.1. <strong>Nullable, and the null is the whole point.</strong> As a

@@ -26,4 +26,10 @@ public static class RuleThresholds
     public const int RouterCouplingCritical = 12;
     public const int RetryAmplificationMax = 10; // accumulated factor
     public const int CacheMinConsumers = 2;
+
+    /// <summary>
+    /// QA §4. Two services on one schema is already the integration-by-database anti-pattern;
+    /// there is no number of services at which it becomes fine.
+    /// </summary>
+    public const int SharedDatabaseMinServices = 2;
 }
