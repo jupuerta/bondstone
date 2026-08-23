@@ -170,4 +170,34 @@ public class ProtocolMismatchRuleTests
 
         Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
     }
+
+    // ---- V14 B9: the protocol of a scrape is not the architect's claim -------
+
+    [Fact]
+    public void TheTelemetrysOwnProtocol_IsNotJudged()
+    {
+        // T1b/T1c. `Obs -> Db` over Http was told to consider Sql: advice to make the metrics
+        // backend speak the database's wire protocol, about an arrow that is not a call in the
+        // architecture's sense.
+        _builder
+            .Node("Db", NodeType.Database)
+            .Node("Obs", NodeType.Observability)
+            .Connect("Obs", "Db", protocol: ProtocolType.Http);
+
+        Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
+    }
+
+    [Fact]
+    public void ARealMismatchBesideTheInstrumentation_IsStillReported()
+    {
+        _builder
+            .Node("Api", NodeType.Api).Node("Db", NodeType.Database)
+            .Node("Obs", NodeType.Observability)
+            .Connect("Api", "Db", protocol: ProtocolType.Amqp)
+            .Connect("Obs", "Db", protocol: ProtocolType.Http);
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal(_builder.EdgeElement("Api", "Db"), Assert.Single(finding.Elements));
+    }
 }

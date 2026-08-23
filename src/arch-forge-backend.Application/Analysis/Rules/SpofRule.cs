@@ -34,6 +34,25 @@ namespace arch_forge_backend.Application.Analysis.Rules;
 /// pattern on both sides, for the reason <see cref="Simulation.CapacityModel"/> already wrote
 /// down: the telemetry box is nobody's lesson, and counting it let the act of wiring telemetry
 /// turn a clean entry point into a SPOF.
+///
+/// V14 B1 (docs/V14/QA-analisis-V14.md). And the half of that fix that was missed: the counting
+/// side skipped the telemetry, <see cref="ReachableFromRoots"/> did not. Wiring
+/// <c>Obs → Api</c>, <c>Obs → Svc</c>, <c>Obs → Db</c> made <c>Obs</c> the root of the graph and
+/// let it reach everything behind the Api through its own scrape cables, so the Api stopped being
+/// a point of passage and its Critical vanished - the reverse of the V13 bug and worse than it,
+/// because that one added noise and this one <em>hid a real finding</em>, at the exact moment the
+/// student followed <c>NO_OBSERVABILITY</c>'s advice. A rule cannot hold two notions of "this is
+/// not traffic" depending on which half of itself you read; the walk holds the only one.
+///
+/// V14 B4. <strong>Redundancy is something you can say, on every type that has a word for it.</strong>
+/// QA B2 wrote the doctrine - a system of record's redundancy is declared, never inferred - and it
+/// was applied to exactly one type. For the other fourteen the card asked for a second instance, the
+/// inspector edited <c>instances</c>, the node printed "10 inst" on its own face, the load model
+/// multiplied capacity by it, and this rule was the only place in the product where the field meant
+/// nothing: an Api with ten instances was told, in a Critical, to add a second one. Both patterns now
+/// stop at <see cref="NodeSettings.HasDeclaredInstances"/> wherever the field exists, so the loop
+/// advice → field → green closes; where it does not exist, the topological way out the component's
+/// own suggestion names is still the way out.
 /// </summary>
 public class SpofRule : IArchitectureRule
 {
@@ -62,10 +81,18 @@ public class SpofRule : IArchitectureRule
         // exempt each other as "replicas" for serving the same crowd. And a node is never its own
         // dependent (QA B7): a self-loop is CYCLE's finding, and counting it here turned one real
         // consumer into the two the threshold asks for.
+        // V14 B9, and the last half of B1. The walk stopped reading instrumentation; this side of
+        // the rule had not, and it is the side a student actually hits - the canvas draws a new
+        // edge synchronous by default, so an `Api → Obs` wired by hand made the telemetry box a
+        // Critical SPOF that four components "depended on", and a scrape drawn the same way turned
+        // the database's Warning into a Critical by being its third dependent. Nobody depends on
+        // their metrics sink: losing it loses the graphs, not the request.
         var dependentsByNode = graph.Nodes.ToDictionary(
             node => node.Id,
             node => graph.IncomingByTarget[node.Id]
-                .Where(edge => edge.SourceNodeId != node.Id && !NodeRoles.IsRequestFromOutside(graph, edge))
+                .Where(edge => edge.SourceNodeId != node.Id
+                               && !NodeRoles.IsRequestFromOutside(graph, edge)
+                               && !NodeRoles.IsTelemetryEdge(graph, edge))
                 .Select(c => c.SourceNodeId)
                 .Distinct()
                 .ToHashSet());
@@ -75,6 +102,7 @@ public class SpofRule : IArchitectureRule
             node => graph.IncomingByTarget[node.Id]
                 .Where(edge => edge.SourceNodeId != node.Id
                                && !NodeRoles.IsRequestFromOutside(graph, edge)
+                               && !NodeRoles.IsTelemetryEdge(graph, edge)
                                && IsHardDependency(graph, edge))
                 .Select(edge => edge.SourceNodeId)
                 .Distinct()
@@ -105,19 +133,19 @@ public class SpofRule : IArchitectureRule
 
             var dependents = hardDependentsByNode[node.Id].Count;
 
-            // Pattern B: how much of the system stops being reachable without it. The walk still
-            // reads every edge - passage is about traffic flowing, and a fallback dies with the
-            // caller that holds it - but an Observability node stays out of it on both sides
-            // (QA B1): it is never a point of passage for requests, and it does not count among
-            // what falls, for the same reason CapacityModel gives it an enormous capacity - the
-            // telemetry box is nobody's lesson. Counting it meant that wiring the telemetry, the
-            // exact thing NO_OBSERVABILITY asks for, could turn a clean entry point into a SPOF.
-            var unreachable = node.Type == NodeType.Observability || reachableFromRoots.Count == 0
+            // Pattern B: how much of the system stops being reachable without it. The walk reads
+            // every edge that carries traffic - passage is about traffic flowing, and a fallback
+            // dies with the caller that holds it - and only those (V14 B1). Observability stays out
+            // of the pattern on both sides, as it has since QA B1: it is never a point of passage
+            // for requests and it never counts among what falls, for the same reason CapacityModel
+            // gives it an enormous capacity - the telemetry box is nobody's lesson. That used to be
+            // spelled out here as two extra conditions while ReachableFromRoots walked the
+            // instrumentation anyway; it is one rule now, stated once, in the walk.
+            var unreachable = reachableFromRoots.Count == 0
                 ? 0
                 : reachableFromRoots.Except(ReachableFromRoots(graph, excluded: node.Id))
                     .Count(id => id != node.Id
                                  && graph.NodesById.TryGetValue(id, out var lost)
-                                 && lost.Type != NodeType.Observability
                                  && !NodeRoles.IsTrafficOrigin(lost.Type));
 
             var passage = unreachable >= UnreachableMin;
@@ -224,6 +252,11 @@ public class SpofRule : IArchitectureRule
     /// the zero means "nothing could be measured", not "every caller is covered". The covered
     /// sentence asserts protections by name, and asserting them over a graph whose every edge is a
     /// bare synchronous call was the analyzer vouching for mechanisms nobody declared.
+    ///
+    /// V14 B1. Which entry points is <see cref="TrafficRoots"/>'s question and no longer
+    /// <c>RootNodes</c>: drawing a telemetry box over that same all-cycle graph gave it a node
+    /// nothing points at, and the analyzer went straight from admitting it could not measure to
+    /// vouching for protections that were still not there.
     /// </summary>
     private static LocalizedText Explain(ArchitectureGraph graph, Node node, decimal affected)
     {
@@ -232,7 +265,7 @@ public class SpofRule : IArchitectureRule
                 ("node", node.Name),
                 ("affected", affected));
 
-        return LocalizedText.Of(graph.RootNodes.Count == 0
+        return LocalizedText.Of(TrafficRoots.Of(graph).Count == 0
             ? "finding.SPOF.explanation.unmeasured"
             : "finding.SPOF.explanation.covered", ("node", node.Name));
     }
@@ -281,6 +314,20 @@ public class SpofRule : IArchitectureRule
         if (NodeRoles.IsSystemOfRecord(node.Type))
             return NodeSettings.HasDeclaredReplication(node);
 
+        // QA V14 B4. And a stateless component's redundancy is declared too - not *only*
+        // declared, which is B2's rule for the system of record, but declared as one of the ways.
+        // The suggestion this rule hands out says "add a second equivalent instance"; the UI edits
+        // that field, the node prints "2 inst" on its own card and CapacityModel has read it as
+        // "how many copies of me there are" since V4. SPOF was the one place it meant nothing, so
+        // the loop advice → field → green closed on a Database and nowhere else.
+        //
+        // Declaring is enough here for the reason it is not enough there (D1.1): what a fallback
+        // cannot give back is the write, and a component with no state has no write only one copy
+        // can take. Two of them are interchangeable by construction, which is exactly what two
+        // databases are not.
+        if (NodeSettings.HasDeclaredInstances(node))
+            return true;
+
         // Explicit: it hangs from a LoadBalancer that spreads over ≥2 nodes of its type.
         var behindBalancer = graph.IncomingByTarget[node.Id]
             .Select(c => graph.NodesById.GetValueOrDefault(c.SourceNodeId))
@@ -323,11 +370,23 @@ public class SpofRule : IArchitectureRule
     /// What traffic can still get to, entering through the roots. Costs O(V · (V+E)) over the
     /// whole rule; irrelevant at the sizes this product handles, and replaceable by a dominator
     /// tree the day it is not (D4.x).
+    ///
+    /// <strong>V14 B1. The walk follows traffic, and instrumentation is not traffic.</strong> Until
+    /// V14 it read every edge and started from every node without dependents, telemetry included -
+    /// so <c>Obs → Api</c>, <c>Obs → Svc</c>, <c>Obs → Db</c>, the exact wiring
+    /// <c>NO_OBSERVABILITY</c> asks for, made <c>Obs</c> the root of the graph and let it reach
+    /// <c>Svc</c> and <c>Db</c> through its own scrape cables. Nothing was left "unreachable"
+    /// without the Api, and the flagship finding of the product disappeared the moment the student
+    /// followed another rule's advice. The rule had two notions of "this is not traffic" - the
+    /// counting side skipped telemetry, the walk did not - and that is the whole lesson of the
+    /// V13 bug of the same number. There is one notion now, and it lives here:
+    /// <see cref="NodeRoles.IsTelemetryEdge"/> on the way out, <see cref="TrafficRoots.Of"/> on the
+    /// way in.
     /// </summary>
     private static HashSet<Guid> ReachableFromRoots(ArchitectureGraph graph, Guid? excluded)
     {
         var reachable = new HashSet<Guid>();
-        var pending = new Stack<Guid>(graph.RootNodes.Select(n => n.Id).Where(id => id != excluded));
+        var pending = new Stack<Guid>(TrafficRoots.Of(graph).Select(n => n.Id).Where(id => id != excluded));
 
         while (pending.TryPop(out var nodeId))
         {
@@ -336,11 +395,13 @@ public class SpofRule : IArchitectureRule
 
             foreach (var edge in graph.OutgoingBySource[nodeId])
             {
-                if (edge.TargetNodeId != excluded)
+                if (edge.TargetNodeId != excluded && !NodeRoles.IsTelemetryEdge(graph, edge))
                     pending.Push(edge.TargetNodeId);
             }
         }
 
         return reachable;
     }
+
+    /// <summary>
 }

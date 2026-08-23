@@ -89,6 +89,71 @@ public class LoadModelTests
     }
 
     [Fact]
+    public void A_gateway_routes_a_request_down_one_route_instead_of_all_of_them()
+    {
+        // QA V14 B5. A gateway's fan-out is a routing table, not a list of calls it makes on every
+        // request: 600 rps over three routes are 200 rps each. They used to be 600 each, so 600
+        // real requests were charged as 1.800 and all three services came out over capacity - and
+        // the lesson HIGH_COUPLING teaches ("split it by context") was contradicted by the one
+        // UNDERSIZED_COMPONENT teaches, because splitting relieved nothing in the model.
+        var graph = new GraphBuilder()
+            .Node("Web", NodeType.Client, """{"requestsPerSecond":600}""")
+            .Node("Gateway", NodeType.Gateway)
+            .Nodes(NodeType.Service, "A", "B", "C")
+            .Connect("Web", "Gateway")
+            .Connect("Gateway", "A")
+            .Connect("Gateway", "B")
+            .Connect("Gateway", "C")
+            .Build();
+
+        var load = LoadModel.Of(graph);
+
+        Assert.Equal(600m, load.LoadOf(graph.NodeId("Gateway")));
+        Assert.All(["A", "B", "C"], name => Assert.Equal(200m, load.LoadOf(graph.NodeId(name))));
+        Assert.All(["A", "B", "C"], name => Assert.True(load.UtilizationOf(graph.NodeId(name)) < 1m));
+    }
+
+    [Fact]
+    public void A_second_gateway_for_redundancy_does_not_double_the_database()
+    {
+        // QA V14 B5, the consequence that made the bug worth fixing: while the gateway duplicated, a
+        // balancer over two of them sent each service - and through them the database - twice the
+        // traffic of the single-gateway drawing, so **adding real redundancy lowered the grade**.
+        // Both routers split now, and the two drawings carry exactly the same load.
+        var single = Fronted("Gw1");
+        var redundant = Fronted("Gw1", "Gw2");
+
+        Assert.Equal(150m, LoadModel.Of(single).LoadOf(single.NodeId("SvcA")));
+        Assert.Equal(300m, LoadModel.Of(single).LoadOf(single.NodeId("Db")));
+
+        Assert.Equal(150m, LoadModel.Of(redundant).LoadOf(redundant.NodeId("SvcA")));
+        Assert.Equal(300m, LoadModel.Of(redundant).LoadOf(redundant.NodeId("Db")));
+    }
+
+    /// <summary>300 rps into a balancer, however many gateways behind it, and two services on one database.</summary>
+    private static ArchitectureGraph Fronted(params string[] gateways)
+    {
+        var builder = new GraphBuilder()
+            .Node("Web", NodeType.Client, """{"requestsPerSecond":300}""")
+            .Node("LB", NodeType.LoadBalancer)
+            .Nodes(NodeType.Service, "SvcA", "SvcB")
+            .Node("Db", NodeType.Database)
+            .Connect("Web", "LB")
+            .Connect("SvcA", "Db", protocol: ProtocolType.Sql)
+            .Connect("SvcB", "Db", protocol: ProtocolType.Sql);
+
+        foreach (var gateway in gateways)
+        {
+            builder.Node(gateway, NodeType.Gateway)
+                .Connect("LB", gateway)
+                .Connect(gateway, "SvcA")
+                .Connect(gateway, "SvcB");
+        }
+
+        return builder.Build();
+    }
+
+    [Fact]
     public void A_rate_limit_rejects_at_the_door_instead_of_letting_it_pile_up()
     {
         // DT.3. V3 retired RateLimit saying "a defence against load, and there is no model of

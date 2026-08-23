@@ -68,14 +68,18 @@ public class ReferenceArchitectureTests
     }
 
     [Fact]
-    public void GatewayMicroservices_ScoresEightyFour()
+    public void GatewayMicroservices_ScoresEightyFive()
     {
         // The most important fixture: a normal microservices architecture, neither exemplary nor a
         // disaster. (75 + 60 + 100 + 95) / 4 = 82.5 -> 83.
         var result = ReferenceArchitecture.Analyze("gateway-microservices");
 
         Assert.Equal(75, result.ScoreOf(Area.Availability));
-        Assert.Equal(60, result.ScoreOf(Area.Resilience));
+
+        // 60 until V14 B3. `Gateway -> Orders -> Payments -> Db` was four links; it is two services
+        // calling each other through a router and into a store, which is under the threshold the
+        // rule was calibrated on.
+        Assert.Equal(65, result.ScoreOf(Area.Resilience));
 
         // 100 until QA §4. Three services on one database is the textbook integration-by-database,
         // and this is the fixture it was always drawn in: SHARED_DATABASE names Users, Orders and
@@ -88,16 +92,19 @@ public class ReferenceArchitectureTests
         // coverage). Until v6 this read 95 - one Warning for a whole system running blind.
         Assert.Equal(85, result.ScoreOf(Area.Observability));
 
-        // **83 in v2, 85 in v4, 87 in v5, 84 in v6, and the architecture never changed.** V4 started
-        // measuring two areas nobody was measuring; V13 D2.1 stopped reading an undeclared field as
-        // a decision; v6 started reading a schema three services share and counting what runs
-        // blind. Scores from two scoring versions are not comparable, which is what
+        // **83 in v2, 85 in v4, 87 in v5, 84 in v6, 85 since V14 B3, and the architecture never
+        // changed.** V4 started measuring two areas nobody was measuring; V13 D2.1 stopped reading
+        // an undeclared field as a decision; v6 started reading a schema three services share and
+        // counting what runs blind; B3 stopped counting the gateway and the database as links of a
+        // chain, and `Gateway -> Orders -> Payments` is two services, under the threshold the rule
+        // was calibrated on. Scores from two scoring versions are not comparable, which is what
         // `scoringVersion` is for (V2 D1.5) and why a challenge may never assert on one (V4 D1.4).
-        Assert.Equal(84, result.Score);
+        Assert.Equal(85, result.Score);
 
         // The gateway moves from the Critical column to the Warning one, so 6 · 5 becomes 5 · 6;
         // SHARED_DATABASE makes the six seven, and coverage turns one NO_OBSERVABILITY into five.
-        Assert.Equal(new AnalysisSummary(Critical: 5, Warning: 11, Passed: 6), result.Summary);
+        // V14 B3 takes SYNC_CHAIN's Warning off the count and gives the rule its green tick back.
+        Assert.Equal(new AnalysisSummary(Critical: 5, Warning: 10, Passed: 7), result.Summary);
     }
 
     [Fact]
@@ -125,7 +132,7 @@ public class ReferenceArchitectureTests
     }
 
     [Fact]
-    public void ResilientAsync_ScoresNinetyFour()
+    public void ResilientAsync_ScoresNinetyFive()
     {
         var result = ReferenceArchitecture.Analyze("resilient-async");
 
@@ -137,9 +144,12 @@ public class ReferenceArchitectureTests
         // being scolded for the two mechanisms that make it good.
         Assert.Equal(95, result.ScoreOf(Area.Availability));
 
-        // 95 in v2. QUEUE_NO_DLQ fires here and nowhere else - it is the only fixture with a queue,
-        // and the field it reads came back in the same commit as the rule (D5.2).
-        Assert.Equal(90, result.ScoreOf(Area.Resilience));
+        // 95 in v2, 90 while SYNC_CHAIN counted boxes, 95 again since V14 B3. QUEUE_NO_DLQ fires
+        // here and nowhere else - it is the only fixture with a queue, and the field it reads came
+        // back in the same commit as the rule (D5.2). What left is the chain: `LB -> Api -> Cache
+        // -> Db` was read as four links and it is one API reaching its own cache and store, which
+        // is not a chain of anything.
+        Assert.Equal(95, result.ScoreOf(Area.Resilience));
 
         Assert.Equal(100, result.ScoreOf(Area.Coupling));
         Assert.Equal(100, result.ScoreOf(Area.Scalability));
@@ -153,7 +163,10 @@ public class ReferenceArchitectureTests
         // Seven components and no telemetry: the cap (QA §4, coverage). "Resilient" was never
         // "observed", and the fixture that does everything else right still runs blind.
         Assert.Equal(85, result.ScoreOf(Area.Observability));
-        Assert.Equal(94, result.Score);
+
+        // 94 until V14 B3 took the chain off it. `LB -> Api -> Cache -> Db` is not four links, it
+        // is one API and the two things it stores in.
+        Assert.Equal(95, result.Score);
 
         // **Not one Critical left on the architecture the catalogue ships as the good one.** V13
         // takes two SPOFs off it (D1.1) and downgrades the two entry points (D2.1); what remains is
@@ -162,7 +175,8 @@ public class ReferenceArchitectureTests
         //
         // And three more green ticks since QA §4, all three earned: the queue has its worker, the
         // cache has the database behind it, and Orders is the only service on that database.
-        Assert.Equal(new AnalysisSummary(Critical: 0, Warning: 12, Passed: 11), result.Summary);
+        // V14 B3 turns SYNC_CHAIN's Warning into its green tick here too.
+        Assert.Equal(new AnalysisSummary(Critical: 0, Warning: 11, Passed: 12), result.Summary);
     }
 
     [Fact]
@@ -221,7 +235,7 @@ public class ReferenceArchitectureTests
     }
 
     [Fact]
-    public void WorstCase_ScoresSeventyTwo()
+    public void WorstCase_ScoresSeventyFour()
     {
         // The fixture that pins the caps down - MISSING_RESILIENCE fires six times and only costs
         // 45 - and the only one where the rounding of an area matters: without rounding
@@ -229,7 +243,11 @@ public class ReferenceArchitectureTests
         var result = ReferenceArchitecture.Analyze("worst-case");
 
         Assert.Equal(68, result.ScoreOf(Area.Availability));
-        Assert.Equal(25, result.ScoreOf(Area.Resilience));
+
+        // 25 until V14 B3, when SYNC_CHAIN stopped counting the gateway and the database as links:
+        // the chain here is `Orders -> Shipping -> Notifications`, three services, a Warning - not
+        // the Critical of five boxes it used to report from the Gateway.
+        Assert.Equal(35, result.ScoreOf(Area.Resilience));
 
         // 70 until QA §4: a Critical cycle and a Critical fan-out, and now the Warning for four
         // services - Orders, Notifications, Users, Billing - meeting on one database.
@@ -238,16 +256,19 @@ public class ReferenceArchitectureTests
         Assert.Equal(95, result.ScoreOf(Area.Security));
         Assert.Equal(85, result.ScoreOf(Area.Observability));   // ten boxes, nothing watching: the cap
 
-        // **65 in v2, 73 in v4, 75 in v5, 72 in v6**, and it is the worst architecture in the suite
-        // that gains the most. Six areas averaged without weights means freshly measured ones at 95
-        // pull a 25 upwards. Not a bug and not a calibration to fiddle with (D1.2 chose the plain
-        // average on purpose) - a reason why comparing two scoring versions is meaningless.
-        Assert.Equal(72, result.Score);
+        // **65 in v2, 73 in v4, 75 in v5, 72 in v6, 74 since V14 B3**, and it is the worst
+        // architecture in the suite that gains the most. Six areas averaged without weights means
+        // freshly measured ones at 95 pull a 25 upwards. Not a bug and not a calibration to fiddle
+        // with (D1.2 chose the plain average on purpose) - a reason why comparing two scoring
+        // versions is meaningless.
+        Assert.Equal(74, result.Score);
 
-        // What keeps this fixture honest: **twelve Criticals**. V13 lowers the floor under the small
-        // correct architectures without softening the bad one - the two moves are separate, and this
-        // is where you see it.
-        Assert.Equal(12, result.Summary.Critical);
+        // What keeps this fixture honest: **eleven Criticals** - twelve until V14 B3 moved
+        // SYNC_CHAIN's to the Warning column, which is the one place that fix softens this fixture,
+        // and it softens it to the truth: three chained services, not five boxes. V13 lowers the
+        // floor under the small correct architectures without softening the bad one - the two moves
+        // are separate, and this is where you see it.
+        Assert.Equal(11, result.Summary.Critical);
     }
 
     [Fact]
@@ -330,11 +351,14 @@ public class ReferenceArchitectureTests
                 RuleCodes.Spof, RuleCodes.Spof, RuleCodes.Spof,
                 RuleCodes.MissingResilience, RuleCodes.MissingResilience, RuleCodes.MissingResilience,
                 RuleCodes.MissingResilience, RuleCodes.MissingResilience,
-                RuleCodes.RetryAmplification, RuleCodes.SyncChain,
+                RuleCodes.RetryAmplification,
                 RuleCodes.Cycle, RuleCodes.HighCoupling,
                 // Warning: same walk through the areas. UNAUTHENTICATED_ENTRY crossed over from the
                 // block above in V13 D2.1, and lands under Security exactly where the order says.
-                RuleCodes.Spof, RuleCodes.MissingResilience, RuleCodes.SharedDatabase, RuleCodes.MissingCache,
+                // SYNC_CHAIN moved down here in V14 B3: three services chained is a Warning, and
+                // the Critical of five was four boxes of infrastructure padding the count.
+                RuleCodes.Spof, RuleCodes.MissingResilience, RuleCodes.SyncChain,
+                RuleCodes.SharedDatabase, RuleCodes.MissingCache,
                 RuleCodes.UnauthenticatedEntry,
                 // Coverage (QA §4): one per box nobody watches, and this fixture has ten.
                 RuleCodes.NoObservability, RuleCodes.NoObservability, RuleCodes.NoObservability,
@@ -348,12 +372,13 @@ public class ReferenceArchitectureTests
     [Fact]
     public void WorstCase_CapsMissingResilienceAtThreeTimesItsWeight()
     {
-        // Six findings would be 52.5 points; the cap leaves 45, which is what keeps Resilience at
-        // 25 instead of bottoming out.
+        // Six findings would be 52.5 points; the cap leaves 45, which is what keeps Resilience off
+        // the floor - 25 while SYNC_CHAIN added a Critical of its own, 35 since V14 B3 dropped it
+        // to the Warning the three chained services earn.
         var result = ReferenceArchitecture.Analyze("worst-case");
 
         Assert.Equal(6, result.Findings.Count(f => f.Code == RuleCodes.MissingResilience));
-        Assert.Equal(25, result.ScoreOf(Area.Resilience));
+        Assert.Equal(35, result.ScoreOf(Area.Resilience));
     }
 
     [Theory]

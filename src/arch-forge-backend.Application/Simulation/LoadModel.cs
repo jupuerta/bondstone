@@ -225,7 +225,15 @@ public sealed class LoadModel
         // which is exactly why V3 could reject backlog and V4 can accept it.
         NodeType.Queue => Deliver(load / fanOut, edge),
 
-        NodeType.LoadBalancer => load / fanOut,
+        // QA V14 B5: a router routes, and NodeRoles.IsRouter says which two do. A Gateway's fan-out
+        // is a routing table, not a list of calls it makes on every request - it sends each one
+        // down *one* route exactly as a LoadBalancer sends it to *one* instance. Only the balancer
+        // split until V14, and the gateway duplicating had two consequences worse than the number:
+        // splitting a monolith into three relieved nothing, so HIGH_COUPLING's lesson was
+        // contradicted by UNDERSIZED_COMPONENT's; and a second gateway for redundancy doubled what
+        // the database received, so *adding redundancy lowered the grade*. Equal shares are as
+        // arbitrary as any other split, but duplicating invents traffic, which is strictly worse.
+        _ when NodeRoles.IsRouter(node.Type) => load / fanOut,
 
         // Everything else: a fan-out means all of those calls happen. The load sums them while the
         // latency takes the maximum, because they are parallel - each axis reads the same fan-out

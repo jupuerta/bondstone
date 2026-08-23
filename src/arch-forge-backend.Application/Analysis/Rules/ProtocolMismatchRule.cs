@@ -37,12 +37,18 @@ public class ProtocolMismatchRule : IArchitectureRule
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
-        if (graph.Connections.Count == 0)
+        // V14 B9. The protocol of a scrape is not a claim about how this architecture reaches its
+        // database. `Obs → Db` over Http was being told to consider Sql - advice to make the
+        // metrics backend speak the database's wire protocol - and the graph that is nothing but
+        // instrumentation has nothing to check rather than a clean bill of health (D1.4).
+        var edges = graph.Connections.Where(edge => !NodeRoles.IsTelemetryEdge(graph, edge)).ToList();
+
+        if (edges.Count == 0)
             return RuleResult.NotApplicable;
 
         var findings = new List<RuleFinding>();
 
-        foreach (var edge in graph.Connections)
+        foreach (var edge in edges)
         {
             if (Mismatch(graph, edge) is not { } mismatch)
                 continue;

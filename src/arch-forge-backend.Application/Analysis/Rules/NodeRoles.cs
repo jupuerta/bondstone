@@ -31,6 +31,35 @@ public static class NodeRoles
         type is NodeType.Database or NodeType.ObjectStorage;
 
     /// <summary>
+    /// V14 B3. Components that <strong>decide something</strong>, as opposed to components you
+    /// <strong>pass through</strong> — the distinction <c>SYNC_CHAIN</c> measures its chains in.
+    ///
+    /// <strong>The threshold was calibrated on a palette of eleven and a sentence of three.</strong>
+    /// V1 set "3 warns, 5 is critical" against <c>API → Orders → Payments</c>: three places where
+    /// business logic runs, three deploys, three teams, three things that can be wrong on their own.
+    /// With fifteen types the same count also sums the edge cache, the router, the read cache and
+    /// the store, so <c>Client → Cdn → Gateway → Api → Service → Cache → Db</c> — the canonical read
+    /// path of every layered web application, protected on every hop — came out a <em>Critical</em>
+    /// advising a queue in the middle of a read. The chain had not grown; the palette had.
+    ///
+    /// A <see cref="NodeType.Cdn"/>, a <see cref="NodeType.Gateway"/>, a
+    /// <see cref="NodeType.LoadBalancer"/>, a <see cref="NodeType.Cache"/> or a
+    /// <see cref="NodeType.Database"/> on the path is the layer the call crosses, not another link
+    /// that fails on its own in the sense this rule grades. What counts is what runs logic — yours
+    /// (<see cref="NodeType.Api"/>, <see cref="NodeType.Service"/>, <see cref="NodeType.Worker"/>)
+    /// or somebody else's (<see cref="NodeType.ExternalService"/>,
+    /// <see cref="NodeType.IdentityProvider"/>, which is a hop out of your process however you draw
+    /// it).
+    ///
+    /// <see cref="NodeType.Queue"/> is absent because it can never be in a synchronous chain
+    /// anyway, and <see cref="NodeType.Scheduler"/> and <see cref="NodeType.Client"/> because they
+    /// are where a flow <em>starts</em> - an origin is not a link.
+    /// </summary>
+    public static bool IsLogicComponent(NodeType type) =>
+        type is NodeType.Api or NodeType.Service or NodeType.Worker
+             or NodeType.ExternalService or NodeType.IdentityProvider;
+
+    /// <summary>
     /// Components whose whole purpose is to sit in front of several others.
     /// <strong>Fan-out is their function</strong>, so what a finding has to say to one of them is a
     /// different sentence from what it says to a service that grew seven dependencies (D1.2).
@@ -81,10 +110,32 @@ public static class NodeRoles
     /// this is that doctrine made into a predicate so HIGH_COUPLING, MISSING_CACHE and
     /// QUEUE_NO_CONSUMER read the same one, and wiring telemetry never costs a point anywhere but
     /// on the edge's own resilience, which is real.
+    ///
+    /// V14 B1. SPOF's reachability walk reads it too, and that was the one place the doctrine was
+    /// written down twice: the counting side skipped the telemetry while the walk followed it, so
+    /// instrumenting a graph made its front door stop being a point of passage.
     /// </summary>
     public static bool IsTelemetry(NodeType type) => type is NodeType.Observability;
 
-    /// <summary>An edge with the telemetry at either end: instrumentation, not a call in the architecture's sense.</summary>
+    /// <summary>
+    /// An edge with the telemetry at either end: instrumentation, not a call in the architecture's
+    /// sense.
+    ///
+    /// <strong>V14 B9. Every structural rule reads this, and there is exactly one deliberate
+    /// exception.</strong> <c>HIGH_COUPLING</c>, <c>MISSING_CACHE</c>, <c>QUEUE_NO_CONSUMER</c> and
+    /// <see cref="Simulation.LoadModel"/> already did; <c>CYCLE</c>, <c>SYNC_CHAIN</c>,
+    /// <c>PROTOCOL_MISMATCH</c> and both halves of <see cref="SpofRule"/> now do too. The doctrine
+    /// is one sentence: <em>wiring the telemetry costs a point nowhere except on the edge's own
+    /// resilience.</em>
+    ///
+    /// <strong>And that exception is <c>MISSING_RESILIENCE</c>, which is not an oversight.</strong>
+    /// A blocking call to your metrics backend on the request path is a real finding - it is the one
+    /// thing about an instrumentation edge that is genuinely the architect's, and the one the
+    /// student can act on by making the hop asynchronous, which is what the guided fix already
+    /// draws. Adding this predicate there would silence the only true thing the analyzer says about
+    /// these edges. If a later reading is tempted to "finish the job", this is the job being
+    /// finished.
+    /// </summary>
     public static bool IsTelemetryEdge(ArchitectureGraph graph, Connection edge) =>
         (graph.NodesById.TryGetValue(edge.SourceNodeId, out var source) && IsTelemetry(source.Type))
         || (graph.NodesById.TryGetValue(edge.TargetNodeId, out var target) && IsTelemetry(target.Type));

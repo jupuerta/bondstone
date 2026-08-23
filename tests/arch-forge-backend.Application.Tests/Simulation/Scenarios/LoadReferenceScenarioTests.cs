@@ -9,10 +9,10 @@ namespace arch_forge_backend.Application.Tests.Simulation.Scenarios;
 
 /// <summary>
 /// V4 plan técnico §8, the four load scenarios. One per fixture, and between them they tell four
-/// different stories - nuisance · a system standing and useless · a fault absorbed · collapse -
-/// which is what the eighth correction was for. Before the queueing factor was allowed to keep
-/// growing past capacity, all four said "everything amber" and the database contributed the same
-/// 400 ms to every one of them.
+/// different stories - nuisance · a database everybody shares · a fault absorbed · collapse - which
+/// is what the eighth correction was for. Before the queueing factor was allowed to keep growing
+/// past capacity, all four said "everything amber" and the database contributed the same 400 ms to
+/// every one of them.
 /// </summary>
 public class LoadReferenceScenarioTests
 {
@@ -53,36 +53,47 @@ public class LoadReferenceScenarioTests
     }
 
     // =============================================================================================
-    // §8.2  gateway-microservices · 300 rps - the fan-out, and correction 2.
+    // §8.2  gateway-microservices · 300 rps - routing, fan-out, and the database underneath both.
     // =============================================================================================
 
     [Fact]
-    public void GatewayMicroservices_300Rps_AliveAndUseless()
+    public void GatewayMicroservices_300Rps_TheGatewayRoutesAndTheServiceFansOut()
     {
         var run = LoadScenario.Run("gateway-microservices", 300);
 
-        // Correction 7: the load *sums* the fan-out because all three calls happen, while the
-        // latency takes the maximum because they are parallel. Each axis reads the same fan-out
-        // with the question that is its own.
-        Assert.Equal(300m, run.LoadRps("Users"));
-        Assert.Equal(600m, run.LoadRps("Payments"));   // 300 from the gateway + 300 from Orders
-        Assert.Equal(1_200m, run.LoadRps("Db"));
-        Assert.Equal(6m, run.Utilization("Db"));
+        // **QA V14 B5, and the two behaviours the scenario now separates.** A gateway *routes*: each
+        // request goes down one of its three routes, so 300 rps at the door are 100 rps per service
+        // and not 300 each. A service's fan-out is something else entirely - Orders makes two calls
+        // per request it serves, so both of them carry its full 100 rps. Until V14 the gateway
+        // duplicated like a service, splitting a monolith into three relieved nothing in the model,
+        // and 300 real requests were charged as 900.
+        Assert.Equal(100m, run.LoadRps("Users"));
+        Assert.Equal(200m, run.LoadRps("Payments"));   // 100 routed by the gateway + 100 from Orders
+        Assert.Equal(400m, run.LoadRps("Db"));         // 100 + 100 + 200
+        Assert.Equal(2m, run.Utilization("Db"));
 
-        // Nobody is down and nothing has failed: five components standing, three seconds to answer
-        // and five out of every six requests lost.
+        // Correction 7 still holds where it applies: Orders takes 100 rps and hands 100 to *each* of
+        // its two dependencies, because both calls happen - while the latency takes the maximum of
+        // the same two, because they are parallel. Each axis reads the same fan-out with the
+        // question that is its own.
+        Assert.Equal(100m, run.LoadRps("Orders"));
+
+        // Nobody is down and nothing has failed, and the three services are comfortable. Splitting
+        // the traffic three ways bought all of them room and bought the database nothing - it is the
+        // only box past its capacity, and 863 ms and half the requests lost are all its doing.
         Assert.Empty(run.NodesIn(HealthState.Down));
-        Assert.Equal(["Db", "Orders", "Payments", "Users"], run.NodesIn(HealthState.Degraded));
+        Assert.Equal(["Db"], run.NodesIn(HealthState.Degraded));
 
-        // Gateway 6 + Http 5 + Orders 200 + Http 5 + Payments 400 + Sql 2 + Db 2.400.
-        Assert.Equal(3_018, run.Metrics.NominalLatencyMs);
+        // Gateway 6 + Http 5 + Orders 15 + Http 5 + Payments 30 + Sql 2 + Db 800.
+        Assert.Equal(863, run.Metrics.NominalLatencyMs);
 
-        // **Correction 2.** Composing the served fractions as independent probabilities gives
-        // 1/5184 - 99,98 % - a number nobody can redo and which claims the architecture is dead
-        // when the database is serving one call in six. The bound gives 83 % and names Db.
-        Assert.Equal(0.8333m, run.Metrics.RequestsAffected);
+        // The bound of correction 2, naming the one component that sets it. With the gateway routing
+        // there is a single fraction below 1 here, so this fixture no longer tells the bound apart
+        // from the product it replaced - that argument lives in RequestYieldTests, where two
+        // bottlenecks in series give 50 % and not 25 %.
+        Assert.Equal(0.5m, run.Metrics.RequestsAffected);
         Assert.Equal(FindingElement.Node(run.Graph.NodeId("Db")), run.Metrics.Bottleneck);
-        Assert.Equal(4m, run.Metrics.LoadAmplification);
+        Assert.Equal(1.33m, run.Metrics.LoadAmplification);
     }
 
     // =============================================================================================

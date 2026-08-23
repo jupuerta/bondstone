@@ -29,8 +29,14 @@ public class SyncDependencyChainRule : IArchitectureRule
         // Client edges are the requests, not hops of the chain (QA §3.1): the chain a user
         // suffers starts at the first component that is yours, and counting the outside as a link
         // would hand every Client-fronted two-tier diagram a warning for existing.
+        // V14 B9. And instrumentation is not a link either. `Obs → Api → Svc → Db` was read as a
+        // chain of four whose first hop is a metrics scrape: the user's chain is three, and the
+        // component the finding named as starting it was the telemetry box. A scrape does not wait
+        // on what the Api waits on, so it cannot lengthen the path a request suffers.
         var synchronous = graph.Connections
-            .Where(c => c.Synchronous && !NodeRoles.IsRequestFromOutside(graph, c))
+            .Where(c => c.Synchronous
+                        && !NodeRoles.IsRequestFromOutside(graph, c)
+                        && !NodeRoles.IsTelemetryEdge(graph, c))
             .ToList();
 
         if (synchronous.Count == 0)
@@ -44,20 +50,36 @@ public class SyncDependencyChainRule : IArchitectureRule
         var bySource = edges.ToLookup(c => c.SourceNodeId);
         var withIncoming = edges.Select(c => c.TargetNodeId).ToHashSet();
 
-        var longest = new Dictionary<Guid, List<Connection>>();
+        var longest = new Dictionary<Guid, (List<Connection> Path, int Logic)>();
         var findings = new List<RuleFinding>();
+        var reported = new HashSet<Guid>();
 
         // Reported once per chain, from the node that starts it, instead of once per node along
         // the way.
         foreach (var node in graph.Nodes.Where(n => !withIncoming.Contains(n.Id)))
         {
-            var path = LongestFrom(node.Id);
+            var (path, logicAhead) = LongestFrom(node.Id);
 
-            // Length is measured in components, not hops: API -> Orders -> Payments is a chain of
-            // 3 (V1.1 §3.1).
-            var components = path.Count + 1;
+            // V14 B3. Length is measured in components that run logic, not in boxes on the path -
+            // the layers the call crosses on its way are not links of the chain. `API -> Orders ->
+            // Payments` is still the 3 the threshold was calibrated on (V1.1 §3.1); the CDN, the
+            // router, the cache and the store that a realistic drawing adds around it are not.
+            var components = (IsLogic(node.Id) ? 1 : 0) + logicAhead;
             if (components < RuleThresholds.SyncChainWarning)
                 continue;
+
+            // And the finding starts at the first thing it is counting. Naming the load balancer as
+            // the head of a chain of services it is not one of was the same confusion, said out
+            // loud - and two doors into the same chain are one finding, not one each.
+            var walk = path.Select(edge => edge.TargetNodeId).Prepend(node.Id).ToList();
+            var from = walk.FindIndex(IsLogic);
+            var head = walk[from];
+
+            if (!reported.Add(head))
+                continue;
+
+            path = path.Skip(from).ToList();
+            var start = graph.NodesById[head];
 
             // The cut at 5 is the literal example of §8.1 of the ideas document (D4.2).
             var severity = components >= RuleThresholds.SyncChainCritical ? Severity.Critical : Severity.Warning;
@@ -67,35 +89,48 @@ public class SyncDependencyChainRule : IArchitectureRule
                 Area,
                 severity,
                 LocalizedText.Of("finding.SYNC_CHAIN.long.message",
-                    ("node", node.Name),
+                    ("node", start.Name),
                     ("count", components)),
                 LocalizedText.Of("finding.SYNC_CHAIN.long.explanation"),
                 LocalizedText.Of("finding.SYNC_CHAIN.long.suggestion"),
-                Interleave(node.Id, path)));
+                Interleave(start.Id, path)));
         }
 
         return RuleResult.Applicable(findings);
 
-        // chain[n] = 1 + max(chain[children]), memoized: every node is resolved once, so the whole
-        // walk is O(V + E). The on-path set is belt and braces - the graph is already acyclic here.
-        List<Connection> LongestFrom(Guid nodeId, HashSet<Guid>? onPath = null)
+        bool IsLogic(Guid nodeId) =>
+            graph.NodesById.TryGetValue(nodeId, out var node) && NodeRoles.IsLogicComponent(node.Type);
+
+        // chain[n] = max(chain[children]) scored in logic components, memoized: every node is
+        // resolved once, so the whole walk is O(V + E). The on-path set is belt and braces - the
+        // graph is already acyclic here.
+        //
+        // V14 B3. The longest path is the one with the most logic in it, not the one with the most
+        // arrows: `Api -> Cache -> Db` and `Api -> Payments` both leave the Api by two hops, and
+        // only the second one is a second link. `Logic` counts the path's targets, so the caller
+        // adds itself.
+        (List<Connection> Path, int Logic) LongestFrom(Guid nodeId, HashSet<Guid>? onPath = null)
         {
             if (longest.TryGetValue(nodeId, out var cached))
                 return cached;
 
             onPath ??= [];
             if (!onPath.Add(nodeId))
-                return [];
+                return ([], 0);
 
-            var best = new List<Connection>();
+            var best = (Path: new List<Connection>(), Logic: 0);
+            var found = false;
 
             foreach (var edge in bySource[nodeId].OrderBy(c => c.TargetNodeId).ThenBy(c => c.Id))
             {
                 var candidate = LongestFrom(edge.TargetNodeId, onPath);
-                if (candidate.Count + 1 <= best.Count)
+                var logic = candidate.Logic + (IsLogic(edge.TargetNodeId) ? 1 : 0);
+
+                if (found && logic <= best.Logic)
                     continue;
 
-                best = candidate.Prepend(edge).ToList();
+                best = (candidate.Path.Prepend(edge).ToList(), logic);
+                found = true;
             }
 
             onPath.Remove(nodeId);

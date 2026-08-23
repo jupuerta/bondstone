@@ -206,6 +206,118 @@ public class SpofRuleTests
         Assert.Single(_rule.Evaluate(readOnly.Build()).Findings);
     }
 
+    // ---- V14 B4: redundancy you can say, not only redundancy you can draw ----
+
+    [Fact]
+    public void AStatelessComponent_IsClearedByDeclaredInstances()
+    {
+        // The other half of the doctrine QA B2 wrote for the system of record. The card handed to
+        // an Api says "add a second equivalent instance", the inspector edits that field, the node
+        // prints "2 inst" on its own face and CapacityModel has doubled its capacity for it since
+        // V4 - and this rule was the single place in the product where it meant nothing, so an Api
+        // with ten instances was told, in a Critical, to add a second one.
+        var declared = new GraphBuilder()
+            .Node("Api", NodeType.Api, """{"instances": 2}""")
+            .Nodes(NodeType.Service, "Orders", "Payments")
+            .Connect("Orders", "Api").Connect("Payments", "Api");
+
+        Assert.Empty(_rule.Evaluate(declared.Build()).Findings);
+
+        // And one instance is the same architecture with nothing declared: still a SPOF.
+        var single = new GraphBuilder()
+            .Node("Api", NodeType.Api, """{"instances": 1}""")
+            .Nodes(NodeType.Service, "Orders", "Payments")
+            .Connect("Orders", "Api").Connect("Payments", "Api");
+
+        Assert.Single(_rule.Evaluate(single.Build()).Findings);
+    }
+
+    [Theory]
+    [InlineData(NodeType.Api)]
+    [InlineData(NodeType.Service)]
+    [InlineData(NodeType.Worker)]
+    public void EveryTypeThatOwnsTheField_IsClearedByIt(NodeType type)
+    {
+        // Three types declare instances and all three are read, because the bug was never about
+        // the Api - it was about the field meaning one thing to the load model and nothing here.
+        _builder
+            .Node("Target", type, """{"instances": 3}""")
+            .Nodes(NodeType.Service, "Orders", "Payments")
+            .Connect("Orders", "Target").Connect("Payments", "Target");
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Theory]
+    [InlineData("""{"instances": 0}""")]
+    [InlineData("""{"instances": -3}""")]
+    [InlineData("""{"instances": 1}""")]
+    [InlineData("{}")]
+    public void InstancesThatDoNotAmountToTwo_AreNotADeclaration(string configuration)
+    {
+        // Zero and a negative are not a smaller redundancy, they are no redundancy - and the
+        // schema lets them through today (V14 B14), so the rule guards its own reading.
+        _builder
+            .Node("Api", NodeType.Api, configuration)
+            .Nodes(NodeType.Service, "Orders", "Payments")
+            .Connect("Orders", "Api").Connect("Payments", "Api");
+
+        Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Fact]
+    public void DeclaringInstancesOnATypeThatHasNoSuchField_ClearsNothing()
+    {
+        // A Queue's redundancy is a clustered broker, not a count - which is what its own
+        // suggestion says. Writing the field anyway is configuration for another schema and gets
+        // the answer that deserves (V14 C6): the finding stands.
+        _builder
+            .Node("Queue", NodeType.Queue, """{"instances": 5}""")
+            .Nodes(NodeType.Api, "Orders", "Payments")
+            .Connect("Orders", "Queue").Connect("Payments", "Queue");
+
+        Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Fact]
+    public void TheDeclaredFrontDoor_IsNoLongerAPointOfPassage()
+    {
+        // U8, the reproduction in the sweep: Api and Svc with ten instances each, the telemetry
+        // wired as NO_OBSERVABILITY asks, the database replicated - everything the product teaches,
+        // declared - and SPOF still called the Api a critical single point of failure and told the
+        // student to add the second instance that was already the tenth. Pattern B stops at the
+        // declaration too: a component there are ten of is not the one thing whose loss cuts the
+        // graph in half.
+        _builder
+            .Node("Api", NodeType.Api, """{"instances": 10}""")
+            .Node("Svc", NodeType.Service, """{"instances": 10}""")
+            .Node("Db", NodeType.Database, """{"replicas": 2}""")
+            .Node("Obs", NodeType.Observability)
+            .Connect("Api", "Svc", timeoutSeconds: 5, fallback: true)
+            .Connect("Svc", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql)
+            .Connect("Obs", "Api", synchronous: false)
+            .Connect("Obs", "Svc", synchronous: false)
+            .Connect("Obs", "Db", synchronous: false);
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Fact]
+    public void ADeclaredComponentStillCountsAsSomebodyElsesDependent()
+    {
+        // The exemption is about this node's own redundancy and nothing else: ten copies of the
+        // Api do not make the single database behind it any less of one.
+        _builder
+            .Node("Db", NodeType.Database)
+            .Node("Api1", NodeType.Api, """{"instances": 4}""")
+            .Node("Api2", NodeType.Api, """{"instances": 4}""")
+            .Connect("Api1", "Db").Connect("Api2", "Db");
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal(_builder.NodeElement("Db"), Assert.Single(finding.Elements));
+    }
+
     [Fact]
     public void SiblingsOfTheSameTypeServingDifferentConsumers_AreNotRedundant()
     {
@@ -336,6 +448,195 @@ public class SpofRuleTests
 
         Assert.Equal(Severity.Critical, finding.Severity);
         Assert.Equal("finding.SPOF.unreachable.message", finding.Message.Key());
+    }
+
+    // ---- V14 B1: the walk follows traffic, and telemetry is not traffic ------
+
+    [Fact]
+    public void WiringTheTelemetry_DoesNotMakeTheEntryPointStopBeingAPointOfPassage()
+    {
+        // QA V14 B1 (T1a -> T1b). Api -> Svc -> Db, and then the instrumentation
+        // NO_OBSERVABILITY asks for on top of it. Obs became the root of the graph and reached Svc
+        // and Db down its own scrape cables, so nothing was left unreachable without the Api and
+        // its Critical disappeared - the analyzer dropping the worst finding on the board as a
+        // reward for following another rule's advice.
+        _builder
+            .Node("Api", NodeType.Api)
+            .Node("Svc", NodeType.Service)
+            .Node("Db", NodeType.Database, """{"replicas": 2}""")
+            .Node("Obs", NodeType.Observability)
+            .Connect("Api", "Svc", timeoutSeconds: 5, fallback: true)
+            .Connect("Svc", "Db", timeoutSeconds: 5, fallback: true)
+            .Connect("Obs", "Api", synchronous: false)
+            .Connect("Obs", "Svc", synchronous: false)
+            .Connect("Obs", "Db", synchronous: false);
+
+        var api = Assert.Single(
+            _rule.Evaluate(_builder.Build()).Findings,
+            f => f.Elements.Contains(_builder.NodeElement("Api")));
+
+        Assert.Equal(Severity.Critical, api.Severity);
+        Assert.Equal("finding.SPOF.unreachable.message(count=2, node=Api)", api.Message.Describe());
+
+        // And the severity is the measurement's, not a constant (V13 D4.1): the Api is still the
+        // front door of this architecture, so losing it still costs every request. The telemetry
+        // arrow used to take it out of the graph's roots and with it out of that answer too.
+        Assert.Equal("finding.SPOF.explanation.measured(affected=1, node=Api)", api.Explanation.Describe());
+    }
+
+    [Fact]
+    public void InstrumentingAGraph_ChangesNothingAboutItsSpofs()
+    {
+        // The general form of the same promise, and the one that outlives the next rule change:
+        // two graphs that differ only by telemetry have to come out of this rule identical - same
+        // components, same severities, same counts, same sentences. The explanation is in the
+        // comparison on purpose: it is where the second half of the bug showed, with the Db's
+        // measured "100 % of requests" turning into "every caller is covered" because the walk that
+        // measures it had started at the metrics sink.
+        var bare = Instrumented(new GraphBuilder(), telemetry: false);
+        var observed = Instrumented(new GraphBuilder(), telemetry: true);
+
+        Assert.Equal(
+            Described(bare, _rule.Evaluate(bare.Build()).Findings),
+            Described(observed, _rule.Evaluate(observed.Build()).Findings));
+
+        static GraphBuilder Instrumented(GraphBuilder builder, bool telemetry)
+        {
+            builder
+                .Node("Gateway", NodeType.Gateway)
+                .Nodes(NodeType.Service, "Users", "Orders")
+                .Node("Db", NodeType.Database)
+                .Connect("Gateway", "Users").Connect("Gateway", "Orders")
+                .Connect("Users", "Db").Connect("Orders", "Db");
+
+            if (telemetry)
+                builder
+                    .Node("Obs", NodeType.Observability)
+                    .Connect("Obs", "Gateway", synchronous: false)
+                    .Connect("Obs", "Users", synchronous: false)
+                    .Connect("Obs", "Orders", synchronous: false)
+                    .Connect("Obs", "Db", synchronous: false);
+
+            return builder;
+        }
+
+        static List<string> Described(GraphBuilder builder, IReadOnlyList<RuleFinding> findings) =>
+            findings
+                .Select(f => $"{string.Join(",", builder.Names(f.Elements))} {f.Severity} {f.Message.Describe()} {f.Explanation.Describe()}")
+                .OrderBy(line => line, StringComparer.Ordinal)
+                .ToList();
+    }
+
+    // ---- V14 B9: nobody depends on their metrics sink ------------------------
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void InstrumentingAGraph_ChangesNothing_HoweverTheWireIsDrawn(bool push, bool synchronous)
+    {
+        // The promise above, over the four shapes a student can actually draw instead of the one
+        // the helper drew. Both halves matter: the canvas defaults a new edge to *synchronous*
+        // (DEFAULT_CONNECTION_DATA), and the guided fix of NO_OBSERVABILITY draws the *push*
+        // direction - so `Api -> Obs` synchronous is what you get by following the advice and then
+        // touching the wire. It used to make the telemetry box a Critical SPOF that four
+        // components depended on, and a scrape drawn the same way turned the database's Warning
+        // into a Critical by being its third dependent.
+        var bare = Wired(new GraphBuilder(), telemetry: false, push, synchronous);
+        var observed = Wired(new GraphBuilder(), telemetry: true, push, synchronous);
+
+        Assert.Equal(
+            Describe(bare, _rule.Evaluate(bare.Build()).Findings),
+            Describe(observed, _rule.Evaluate(observed.Build()).Findings));
+
+        static GraphBuilder Wired(GraphBuilder builder, bool telemetry, bool push, bool synchronous)
+        {
+            builder
+                .Node("Gateway", NodeType.Gateway)
+                .Nodes(NodeType.Service, "Users", "Orders")
+                .Node("Db", NodeType.Database)
+                .Connect("Gateway", "Users").Connect("Gateway", "Orders")
+                .Connect("Users", "Db").Connect("Orders", "Db");
+
+            if (!telemetry)
+                return builder;
+
+            builder.Node("Obs", NodeType.Observability);
+
+            foreach (var name in new[] { "Gateway", "Users", "Orders", "Db" })
+            {
+                if (push)
+                    builder.Connect(name, "Obs", synchronous);
+                else
+                    builder.Connect("Obs", name, synchronous);
+            }
+
+            return builder;
+        }
+
+        static List<string> Describe(GraphBuilder builder, IReadOnlyList<RuleFinding> findings) =>
+            findings
+                .Select(f => $"{string.Join(",", builder.Names(f.Elements))} {f.Severity} {f.Message.Describe()} {f.Explanation.Describe()}")
+                .OrderBy(line => line, StringComparer.Ordinal)
+                .ToList();
+    }
+
+    [Fact]
+    public void TheTelemetryBox_IsNeverASinglePointOfFailure()
+    {
+        // The named repro of what pattern A did on its own: four components pushing their metrics
+        // synchronously, and the sink comes out the worst finding on the board. Losing it loses
+        // the graphs, not the request - which is the reason CapacityModel gives it an enormous
+        // capacity and the walk refuses to enter through it.
+        _builder
+            .Nodes(NodeType.Service, "A", "B", "C")
+            .Node("Obs", NodeType.Observability)
+            .Connect("A", "Obs").Connect("B", "Obs").Connect("C", "Obs");
+
+        Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
+    }
+
+    [Fact]
+    public void TheScrape_DoesNotEscalateWhatItWatches()
+    {
+        // The quieter half, and the one nobody would have looked for: with the collector counted
+        // as a third dependent, wiring the telemetry pushed the database from Warning to Critical.
+        _builder
+            .Node("Db", NodeType.Database)
+            .Nodes(NodeType.Service, "Users", "Orders")
+            .Node("Obs", NodeType.Observability)
+            .Connect("Users", "Db").Connect("Orders", "Db")
+            .Connect("Obs", "Db");
+
+        var db = Assert.Single(
+            _rule.Evaluate(_builder.Build()).Findings,
+            f => f.Elements.Contains(_builder.NodeElement("Db")));
+
+        Assert.Equal(Severity.Warning, db.Severity);
+        Assert.Equal("finding.SPOF.shared.message(count=2, node=Db)", db.Message.Describe());
+    }
+
+    [Fact]
+    public void TheTelemetryBoxItselfIsNeverAPointOfPassage()
+    {
+        // The other half of the same doctrine - the half that used to be spelled out as an extra
+        // condition on the counting side while the walk contradicted it. Obs points at three
+        // components and is a point of passage for none of them: nothing was ever flowing down
+        // those arrows.
+        _builder
+            .Node("Obs", NodeType.Observability)
+            .Node("Api", NodeType.Api)
+            .Nodes(NodeType.Service, "Users", "Orders")
+            .Connect("Api", "Users").Connect("Api", "Orders")
+            .Connect("Obs", "Api", synchronous: false)
+            .Connect("Obs", "Users", synchronous: false)
+            .Connect("Obs", "Orders", synchronous: false);
+
+        var findings = _rule.Evaluate(_builder.Build()).Findings;
+
+        Assert.DoesNotContain(findings, f => f.Elements.Contains(_builder.NodeElement("Obs")));
+        Assert.Single(findings, f => f.Elements.Contains(_builder.NodeElement("Api")));
     }
 
     // ---- V13 D1.2: the advice is the component's, not the code's --------------

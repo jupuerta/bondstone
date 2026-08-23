@@ -192,4 +192,46 @@ public class CycleRuleTests
 
         Assert.Equal(2, _rule.Evaluate(_builder.Build()).Findings.Count);
     }
+
+    // ---- V14 B9: instrumentation is not a mutual dependency -------------------
+
+    [Fact]
+    public void SendingMetricsAndBeingScrapedBack_IsNotACycle()
+    {
+        // T1c, and the most ordinary drawing there is: the Api pushes its metrics and the
+        // collector scrapes it back. It came out a Critical telling the student to break the loop
+        // with an asynchronous hop - over two arrows where neither side waits on the other's work.
+        _builder
+            .Node("Api", NodeType.Api)
+            .Node("Obs", NodeType.Observability)
+            .Connect("Api", "Obs").Connect("Obs", "Api");
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Fact]
+    public void ALoopOfTelemetryBoxes_IsNotACycleEither()
+    {
+        // N19. Five observability boxes watching each other is a nonsense worth its own finding -
+        // ORPHAN_NODE says so since V13 B5 - but it is not a circular dependency of the
+        // architecture, and CYCLE was calling it a Critical one.
+        _builder
+            .Nodes(NodeType.Observability, "O1", "O2", "O3")
+            .Connect("O1", "O2").Connect("O2", "O3").Connect("O3", "O1");
+
+        Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
+    }
+
+    [Fact]
+    public void ARealCycleWithTelemetryHangingOffIt_IsStillReported()
+    {
+        // The guard on the guard: skipping instrumentation must not skip the loop it is watching.
+        _builder
+            .Nodes(default, "A", "B")
+            .Node("Obs", NodeType.Observability)
+            .Connect("A", "B").Connect("B", "A")
+            .Connect("Obs", "A").Connect("Obs", "B");
+
+        Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+    }
 }

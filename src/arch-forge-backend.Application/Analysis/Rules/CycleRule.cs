@@ -29,7 +29,9 @@ public class CycleRule : IArchitectureRule
 
     public RuleResult Evaluate(ArchitectureGraph graph)
     {
-        if (graph.Connections.Count == 0)
+        // V14 B9. Nothing to check on a graph made only of instrumentation - and that is silence,
+        // not a clean bill of health (D1.4).
+        if (!graph.Connections.Any(edge => !NodeRoles.IsTelemetryEdge(graph, edge)))
             return RuleResult.NotApplicable;
 
         var findings = new List<RuleFinding>();
@@ -128,6 +130,15 @@ public class CycleRule : IArchitectureRule
 
             foreach (var edge in graph.OutgoingBySource[nodeId].OrderBy(c => c.TargetNodeId).ThenBy(c => c.Id))
             {
+                // V14 B9. Sending your metrics and being scraped back is not a mutual dependency,
+                // it is one component instrumented twice - and it is the most ordinary drawing
+                // there is. `Api → Obs` plus `Obs → Api` came out a Critical telling the student to
+                // break the loop with an asynchronous hop, over a pair of arrows where neither side
+                // waits on the other's work. The walk does not traverse instrumentation, so it
+                // cannot close a loop through it.
+                if (NodeRoles.IsTelemetryEdge(graph, edge))
+                    continue;
+
                 if (onPath.Contains(edge.TargetNodeId))
                 {
                     var cycle = path.SkipWhile(e => e.SourceNodeId != edge.TargetNodeId).Append(edge).ToList();

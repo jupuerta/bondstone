@@ -15,6 +15,9 @@ public static class NodeSettings
 {
     private static readonly JsonSerializerOptions Options = new() { PropertyNameCaseInsensitive = true };
 
+    /// <summary>Copies of yourself below which there is only one of you (QA V14 B4).</summary>
+    private const int RedundantInstances = 2;
+
     /// <summary>D4.7: consumer redeliveries. 0 when there are none.</summary>
     public static int QueueRetries(Node node) =>
         node.Type == NodeType.Queue ? Read<QueueConfiguration>(node)?.MaxRetries ?? 0 : 0;
@@ -118,6 +121,30 @@ public static class NodeSettings
     /// </summary>
     public static bool HasDeclaredReplication(Node node) =>
         node.Type == NodeType.Database && Read<DatabaseConfiguration>(node)?.Replicas is >= 1;
+
+    /// <summary>
+    /// QA V14 B4: the same question for a component that holds no state, and the other half of the
+    /// doctrine QA B2 wrote down. A system of record's redundancy is declared <em>and never
+    /// inferred</em> because two databases are two truths; a stateless component's is declared
+    /// <em>as well as</em> inferred from the wiring, because copies of something with no state are
+    /// interchangeable by construction - there is no write only one of them can take. SPOF's advice
+    /// for these types is "add a second equivalent instance", and until V14 this was the one place
+    /// in the product where the field that says so meant nothing.
+    ///
+    /// <strong>Deliberately not <see cref="Instances"/></strong>, which answers a different
+    /// question - how many copies multiply capacity - and defaults to 1 for every type that cannot
+    /// declare any. Asking it here would read a Database's read replicas as failover, which is the
+    /// exact confusion <see cref="HasDeclaredReplication"/> exists to prevent. Only the three types
+    /// that own the field answer at all; a Gateway or a Queue has no <c>instances</c> to declare and
+    /// says so (V3 D3.5), so their way out stays the topological one their own suggestion names.
+    /// </summary>
+    public static bool HasDeclaredInstances(Node node) => node.Type switch
+    {
+        NodeType.Api => Read<ApiConfiguration>(node)?.Instances is >= RedundantInstances,
+        NodeType.Service => Read<ServiceConfiguration>(node)?.Instances is >= RedundantInstances,
+        NodeType.Worker => Read<WorkerConfiguration>(node)?.Instances is >= RedundantInstances,
+        _ => false
+    };
 
     /// <summary>
     /// DT.3: the share of incoming traffic a cache answers by itself, so it never reaches what is

@@ -2,6 +2,7 @@ using arch_forge_backend.Application.Tests.TestDoubles;
 using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Rules;
+using arch_forge_backend.Domain.Enums;
 using arch_forge_backend.Application.Tests.Analysis.Rules.Support;
 using Xunit;
 
@@ -160,5 +161,148 @@ public class SyncDependencyChainRuleTests
         _builder.Nodes(default, "A", "B").Connect("A", "B", synchronous: false);
 
         Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
+    }
+
+    // ---- V14 B3: the chain is measured in logic, not in boxes ----------------
+
+    [Fact]
+    public void TheCanonicalReadPath_IsNotAChain()
+    {
+        // T8: the read path of every layered web application, protected on every hop. It came out
+        // a *Critical* of six components advising a queue in the middle of a read - which you
+        // cannot do. Two of those six run logic; the other four are the layers the call crosses.
+        _builder
+            .Node("Web", NodeType.Client).Node("Edge", NodeType.Cdn).Node("Gw", NodeType.Gateway)
+            .Node("Api", NodeType.Api).Node("Svc", NodeType.Service)
+            .Node("Cache", NodeType.Cache).Node("Db", NodeType.Database)
+            .Connect("Web", "Edge").Connect("Edge", "Gw").Connect("Gw", "Api")
+            .Connect("Api", "Svc").Connect("Svc", "Cache").Connect("Cache", "Db");
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Fact]
+    public void TheCalibrationExample_StillCountsThree()
+    {
+        // The sentence the threshold was set on in V1, and the one that must not move: three places
+        // where business logic runs is a chain of three, with or without the palette around it.
+        _builder
+            .Node("Api", NodeType.Api).Nodes(NodeType.Service, "Orders", "Payments")
+            .Connect("Api", "Orders").Connect("Orders", "Payments");
+
+        var bare = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+        Assert.Equal("finding.SYNC_CHAIN.long.message(count=3, node=Api)", bare.Message.Describe());
+
+        // And it stays three when the same three are drawn inside a realistic diagram. This is the
+        // whole of B3 in one assertion: the layers around the chain are not links of it.
+        var layered = new GraphBuilder()
+            .Node("Edge", NodeType.Cdn).Node("Gw", NodeType.Gateway)
+            .Node("Api", NodeType.Api).Nodes(NodeType.Service, "Orders", "Payments")
+            .Node("Cache", NodeType.Cache).Node("Db", NodeType.Database)
+            .Connect("Edge", "Gw").Connect("Gw", "Api")
+            .Connect("Api", "Orders").Connect("Orders", "Payments")
+            .Connect("Payments", "Cache").Connect("Cache", "Db");
+
+        var finding = Assert.Single(_rule.Evaluate(layered.Build()).Findings);
+
+        Assert.Equal("finding.SYNC_CHAIN.long.message(count=3, node=Api)", finding.Message.Describe());
+    }
+
+    [Fact]
+    public void TheFindingStartsAtTheFirstComponentItCounts()
+    {
+        // Naming the load balancer as the head of a chain of services it is not one of was the same
+        // confusion said out loud, and it is what the highlighted walk starts from too.
+        _builder
+            .Node("LB", NodeType.LoadBalancer)
+            .Node("Api", NodeType.Api).Nodes(NodeType.Service, "Orders", "Payments")
+            .Connect("LB", "Api").Connect("Api", "Orders").Connect("Orders", "Payments");
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal("finding.SYNC_CHAIN.long.message(count=3, node=Api)", finding.Message.Describe());
+        Assert.Equal(_builder.NodeElement("Api"), finding.Elements[0]);
+        Assert.DoesNotContain(_builder.NodeElement("LB"), finding.Elements);
+    }
+
+    [Fact]
+    public void TwoDoorsIntoTheSameChain_AreOneFinding()
+    {
+        // Consequence of starting at the first component counted: without the guard, two gateways
+        // in front of the same chain reported it twice, identically.
+        _builder
+            .Nodes(NodeType.Gateway, "Gw1", "Gw2")
+            .Node("Api", NodeType.Api).Nodes(NodeType.Service, "Orders", "Payments")
+            .Connect("Gw1", "Api").Connect("Gw2", "Api")
+            .Connect("Api", "Orders").Connect("Orders", "Payments");
+
+        Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Fact]
+    public void AChainOfInfrastructureAlone_IsNeverAChain()
+    {
+        // The degenerate end of the same argument: five layers in a row and nothing that decides
+        // anything. There is no chain of calls here, there is one call crossing five things.
+        _builder
+            .Node("Edge", NodeType.Cdn).Node("Gw", NodeType.Gateway).Node("LB", NodeType.LoadBalancer)
+            .Node("Cache", NodeType.Cache).Node("Db", NodeType.Database)
+            .Connect("Edge", "Gw").Connect("Gw", "LB").Connect("LB", "Cache").Connect("Cache", "Db");
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Fact]
+    public void SomebodyElsesServiceIsALinkLikeAnyOther()
+    {
+        // An ExternalService and an IdentityProvider are a hop out of your process however they are
+        // drawn, so they count - which is the other half of the distinction, and the reason it is
+        // not "components I deployed".
+        _builder
+            .Node("Api", NodeType.Api)
+            .Node("Auth", NodeType.IdentityProvider)
+            .Node("Stripe", NodeType.ExternalService)
+            .Connect("Api", "Auth").Connect("Auth", "Stripe");
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal("finding.SYNC_CHAIN.long.message(count=3, node=Api)", finding.Message.Describe());
+    }
+
+    // ---- V14 B9: instrumentation is not a link either -------------------------
+
+    [Fact]
+    public void TheTelemetryDoesNotJoinTwoChainsIntoOne()
+    {
+        // What skipping instrumentation buys this rule now that B3 counts logic: two short chains
+        // that only meet at the metrics sink - the services push, the collector scrapes - were read
+        // as one chain of four and warned about. Neither half waits on the other.
+        _builder
+            .Nodes(NodeType.Service, "A", "B", "C", "D")
+            .Node("Obs", NodeType.Observability)
+            .Connect("A", "B").Connect("B", "Obs")
+            .Connect("Obs", "C").Connect("C", "D");
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Fact]
+    public void InstrumentingAChain_ChangesNothingAboutIt()
+    {
+        // And the durable form: the same three services, with and without telemetry all over them,
+        // produce the same finding down to the sentence.
+        var bare = new GraphBuilder()
+            .Node("Api", NodeType.Api).Nodes(NodeType.Service, "Orders", "Payments")
+            .Connect("Api", "Orders").Connect("Orders", "Payments");
+
+        var observed = new GraphBuilder()
+            .Node("Api", NodeType.Api).Nodes(NodeType.Service, "Orders", "Payments")
+            .Node("Obs", NodeType.Observability)
+            .Connect("Api", "Orders").Connect("Orders", "Payments")
+            .Connect("Obs", "Api").Connect("Orders", "Obs").Connect("Obs", "Payments");
+
+        Assert.Equal(
+            _rule.Evaluate(bare.Build()).Findings.Single().Message.Describe(),
+            _rule.Evaluate(observed.Build()).Findings.Single().Message.Describe());
     }
 }
