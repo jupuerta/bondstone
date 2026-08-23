@@ -129,6 +129,17 @@ public sealed record AnalysisResult(
     /// size (the users, the CDN, the cron, the telemetry, a third party), and the five resilience
     /// rules never opine on a third party's own calls (<c>IsNotYourCall</c>).
     ///
+    /// <strong>The exemptions SPOF no longer guesses at.</strong> B11 - the "equivalent sibling"
+    /// exemption is gone: two components of one type serving the same consumers are two things,
+    /// not two copies, and with B4's field there is finally a way to say "copies" on purpose -
+    /// redundancy is drawn (a balancer) or declared (instances, replicas), never inferred from who
+    /// calls you. The balancer convention keeps its known limit (T14), pinned in a test. B12 - the
+    /// identity provider is a SPOF with a single hard dependent, graded by what losing it costs:
+    /// one door blocking on it is every request that door admits, so the drawing the type was
+    /// justified with stops scoring Resilience 100, and the way out its suggestion teaches -
+    /// validate locally, and a fallback that keeps a valid session alive - is the fix
+    /// MISSING_RESILIENCE now offers on that edge.
+    ///
     /// <strong>The cheap ones.</strong> B7 - MISSING_CACHE counts consumers, not arrows. B8 - a
     /// queue delivering to a Database has no consumer (<c>ProcessesMessages</c>); one delivering
     /// to another queue still does. B14 - configuration ranges are validated on save, so a

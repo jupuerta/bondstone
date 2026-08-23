@@ -170,19 +170,25 @@ public class SpofRuleTests
     }
 
     [Fact]
-    public void EquivalentSibling_SameTypeAndSameDependents_IsExempt()
+    public void EquivalentSibling_SameTypeAndSameDependents_IsNotARedundancyClaim()
     {
-        // Stateless siblings only (QA B2): two Services serving exactly the same consumers are
-        // interchangeable copies. The same wiring over two Databases proves nothing - they would
-        // be two truths, not two replicas - and no longer earns the exemption; see
-        // QaRegressionTests.B2_TwoDifferentDatabasesWithTheSameConsumers_AreBothFlagged.
+        // Flipped in V14 B11. This used to pin the "equivalent sibling" exemption: two Services
+        // serving exactly the same consumers were taken for interchangeable copies. QA B2 had
+        // already removed that for systems of record with an argument that applied word for word
+        // here - they pass every topological test and are still two things, not two copies - and
+        // B4 gave the field that says "two" on purpose. So two boxes of one type with two hard
+        // dependents each are two Warnings, and the way to say they are replicas is a balancer
+        // over them or `instances: 2` on one of them. See TwoBusinessServices_SharingTheirCallers.
         _builder
             .Nodes(NodeType.Service, "Search1", "Search2")
             .Nodes(NodeType.Api, "Api1", "Api2")
             .Connect("Api1", "Search1").Connect("Api1", "Search2")
             .Connect("Api2", "Search1").Connect("Api2", "Search2");
 
-        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+        var findings = _rule.Evaluate(_builder.Build()).Findings;
+
+        Assert.Equal(2, findings.Count);
+        Assert.All(findings, f => Assert.Equal(Severity.Warning, f.Severity));
     }
 
     [Fact]
@@ -527,6 +533,139 @@ public class SpofRuleTests
                 .ToList();
     }
 
+    // ---- V14 B11: redundancy is drawn or declared, never inferred --------------
+
+    [Fact]
+    public void TwoBusinessServices_SharingTheirCallers_AreTwoSinglePointsOfFailure()
+    {
+        // T5 in the sweep: `Gw -> Users`, `Gw -> Orders`, `Api -> Users`, `Api -> Orders`. Two
+        // business services, each with two hard dependents, each a Warning - and SPOF showed a
+        // green tick because they exempted each other for having the same callers.
+        _builder
+            .Node("Gw", NodeType.Gateway).Node("Api", NodeType.Api)
+            .Nodes(NodeType.Service, "Users", "Orders")
+            .Connect("Gw", "Users").Connect("Gw", "Orders")
+            .Connect("Api", "Users").Connect("Api", "Orders");
+
+        var findings = _rule.Evaluate(_builder.Build()).Findings;
+
+        Assert.Contains(findings, f => f.Elements.Contains(_builder.NodeElement("Users")) && f.Severity == Severity.Warning);
+        Assert.Contains(findings, f => f.Elements.Contains(_builder.NodeElement("Orders")) && f.Severity == Severity.Warning);
+    }
+
+    [Fact]
+    public void TheTwoWaysToSayCopies_StillClearIt()
+    {
+        // What replaces the guess: the drawn way and the declared way. Same T5 wiring, and
+        // either one turns both Warnings off.
+        var drawn = new GraphBuilder()
+            .Node("LB", NodeType.LoadBalancer).Node("Gw", NodeType.Gateway)
+            .Nodes(NodeType.Service, "Users1", "Users2")
+            .Connect("LB", "Users1").Connect("LB", "Users2")
+            .Connect("Gw", "Users1").Connect("Gw", "Users2");
+
+        Assert.Empty(_rule.Evaluate(drawn.Build()).Findings);
+
+        var declared = new GraphBuilder()
+            .Node("Gw", NodeType.Gateway).Node("Api", NodeType.Api)
+            .Node("Users", NodeType.Service, """{"instances": 3}""")
+            .Connect("Gw", "Users").Connect("Api", "Users");
+
+        Assert.Empty(_rule.Evaluate(declared.Build()).Findings);
+    }
+
+    [Fact]
+    public void ABalancerOverTwoDifferentApis_IsAKnownLimit()
+    {
+        // T14, pinned as the limit it is and not as a bug to fix (V14 B11). A balancer spreading
+        // over ApiPublica and ApiAdmin exempts both, because from the wiring alone two boxes of
+        // one type behind one balancer is exactly what two copies look like - it is the drawing
+        // convention for replicas, and the rule cannot read names. If this ever flips, it is
+        // because somebody gave the product a way to draw "different" that is not "a name".
+        _builder
+            .Node("LB", NodeType.LoadBalancer)
+            .Nodes(NodeType.Api, "ApiPublica", "ApiAdmin")
+            .Node("Db", NodeType.Database, """{"replicas": 1}""")
+            .Connect("LB", "ApiPublica").Connect("LB", "ApiAdmin")
+            .Connect("ApiPublica", "Db").Connect("ApiAdmin", "Db");
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    // ---- V14 B12: the identity provider is a SPOF with one dependent -----------
+
+    [Fact]
+    public void TheIdentityProviderOnTheDoorsPath_IsTheFamousSpof()
+    {
+        // T12, the canonical shape: `Client -> Gw`, `Gw -> Auth0` with a timeout and no fallback,
+        // `Gw -> Db`. Pattern A wanted two dependents and the IdP had one; pattern B saw nothing
+        // behind it; the analyzer said nothing about Auth0 and scored Resilience 100. If Auth0 is
+        // down nobody authenticates, which is every request the door admits - and the severity is
+        // that measurement, not the count of one.
+        _builder
+            .Node("Web", NodeType.Client).Node("Gw", NodeType.Gateway)
+            .Node("Auth0", NodeType.IdentityProvider).Node("Db", NodeType.Database, """{"replicas": 1}""")
+            .Connect("Web", "Gw")
+            .Connect("Gw", "Auth0", timeoutSeconds: 2)
+            .Connect("Gw", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql);
+
+        var auth = Assert.Single(
+            _rule.Evaluate(_builder.Build()).Findings,
+            f => f.Elements.Contains(_builder.NodeElement("Auth0")));
+
+        Assert.Equal(Severity.Critical, auth.Severity);
+        Assert.Equal("finding.SPOF.shared.message(count=1, node=Auth0)", auth.Message.Describe());
+        Assert.Equal("finding.SPOF.explanation.measured(affected=1, node=Auth0)", auth.Explanation.Describe());
+        Assert.Equal("finding.SPOF.suggestion.identityProvider", auth.Suggestion.Key());
+    }
+
+    [Fact]
+    public void AFallbackOnTheCallToTheIdentityProvider_IsTheWayOut()
+    {
+        // The loop the suggestion closes: "decide what a valid session does when the provider is
+        // away" is the fallback on the edge, and with it the door no longer falls with Auth0.
+        _builder
+            .Node("Web", NodeType.Client).Node("Gw", NodeType.Gateway)
+            .Node("Auth0", NodeType.IdentityProvider)
+            .Connect("Web", "Gw")
+            .Connect("Gw", "Auth0", timeoutSeconds: 2, fallback: true);
+
+        Assert.DoesNotContain(_rule.Evaluate(_builder.Build()).Findings, f => f.Elements.Contains(_builder.NodeElement("Auth0")));
+    }
+
+    [Fact]
+    public void AnIdentityProviderBehindACoveredCaller_IsAWarningThatSaysSo()
+    {
+        // The same reading pattern B has had since QA B1: a covered caller is a Warning whose card
+        // says no request is lost. Svc blocks on the IdP, but the door reaches Svc with a fallback,
+        // so losing Auth0 fails no request coming in the front.
+        _builder
+            .Node("Web", NodeType.Client).Node("Gw", NodeType.Gateway)
+            .Node("Svc", NodeType.Service).Node("Auth0", NodeType.IdentityProvider)
+            .Connect("Web", "Gw")
+            .Connect("Gw", "Svc", timeoutSeconds: 5, fallback: true)
+            .Connect("Svc", "Auth0", timeoutSeconds: 2);
+
+        var auth = Assert.Single(
+            _rule.Evaluate(_builder.Build()).Findings,
+            f => f.Elements.Contains(_builder.NodeElement("Auth0")));
+
+        Assert.Equal(Severity.Warning, auth.Severity);
+        Assert.Equal("finding.SPOF.explanation.covered", auth.Explanation.Key());
+    }
+
+    [Fact]
+    public void OneDependentIsStillNotEnough_ForAnythingElse()
+    {
+        // The exception is the identity provider's and nobody else's: a Service with one hard
+        // dependent is a dependency, not a single point of failure.
+        _builder
+            .Node("Gw", NodeType.Gateway).Node("Svc", NodeType.Service)
+            .Connect("Gw", "Svc", timeoutSeconds: 2);
+
+        Assert.DoesNotContain(_rule.Evaluate(_builder.Build()).Findings, f => f.Elements.Contains(_builder.NodeElement("Svc")));
+    }
+
     // ---- V14 B9: nobody depends on their metrics sink ------------------------
 
     [Theory]
@@ -647,6 +786,7 @@ public class SpofRuleTests
     [InlineData(NodeType.Queue, "finding.SPOF.suggestion.queue")]
     [InlineData(NodeType.ObjectStorage, "finding.SPOF.suggestion.objectStorage")]
     [InlineData(NodeType.ExternalService, "finding.SPOF.suggestion.external")]
+    [InlineData(NodeType.IdentityProvider, "finding.SPOF.suggestion.identityProvider")]
     [InlineData(NodeType.Gateway, "finding.SPOF.suggestion.entryPoint")]
     [InlineData(NodeType.LoadBalancer, "finding.SPOF.suggestion.entryPoint")]
     [InlineData(NodeType.Service, "finding.SPOF.suggestion.instances")]

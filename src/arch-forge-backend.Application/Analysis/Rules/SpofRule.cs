@@ -53,6 +53,12 @@ namespace arch_forge_backend.Application.Analysis.Rules;
 /// stop at <see cref="NodeSettings.HasDeclaredInstances"/> wherever the field exists, so the loop
 /// advice → field → green closes; where it does not exist, the topological way out the component's
 /// own suggestion names is still the way out.
+///
+/// V14 B11. And with a way to <em>say</em> two copies, the guess at them is gone: the "equivalent
+/// sibling" exemption - same type, same consumers, therefore replicas - exempted Users and Orders
+/// from each other for sharing a gateway and an Api. Redundancy is drawn or declared, never inferred
+/// from who calls you. V14 B12: the identity provider is a SPOF with one dependent, graded by what
+/// losing it costs, because one door is every request that door admits.
 /// </summary>
 public class SpofRule : IArchitectureRule
 {
@@ -128,7 +134,7 @@ public class SpofRule : IArchitectureRule
             if (NodeRoles.IsTrafficOrigin(node.Type))
                 continue;
 
-            if (IsRedundancyMechanism(graph, node) || HasRedundancy(graph, node, dependentsByNode))
+            if (IsRedundancyMechanism(graph, node) || HasRedundancy(graph, node))
                 continue;
 
             var dependents = hardDependentsByNode[node.Id].Count;
@@ -151,7 +157,15 @@ public class SpofRule : IArchitectureRule
             var passage = unreachable >= UnreachableMin;
             var shared = dependents >= SharedDependencyMin;
 
-            if (!passage && !shared)
+            // V14 B12. The identity provider is the one type for which a single hard dependent is
+            // enough, and it is the exception the type was added to earn: "on the synchronous
+            // path of every request it is the most famous SPOF in the industry". Pattern A asked
+            // for two dependents and a door has one IdP; pattern B saw nothing behind it; and the
+            // analyzer said nothing at all about Auth0 while handing the drawing Resilience 100.
+            // One door blocking on it without a fallback is every request that door admits.
+            var identity = node.Type == NodeType.IdentityProvider && dependents >= 1;
+
+            if (!passage && !shared && !identity)
                 continue;
 
             // QA B1. Pattern B used to be "always Critical", and that severity contradicted its
@@ -163,7 +177,15 @@ public class SpofRule : IArchitectureRule
             // finding can no longer disagree.
             var affected = OutageImpact.OfLosing(graph, load, node.Id);
             var passageSeverity = affected > 0m ? Severity.Critical : Severity.Warning;
-            var sharedSeverity = dependents >= SharedDependencyCritical ? Severity.Critical : Severity.Warning;
+
+            // The identity provider's severity is the measurement too (B12), not the count: one
+            // dependent is not "a small blast radius" when that dependent is the front door and
+            // every request it admits authenticates against this. The same reading pattern B
+            // uses - losing real traffic is Critical, a covered caller is a Warning - so the card
+            // that says "100 % of requests" is never a Warning.
+            var sharedSeverity = identity
+                ? passageSeverity
+                : dependents >= SharedDependencyCritical ? Severity.Critical : Severity.Warning;
 
             // One finding per node with the highest severity it earns (D4.x), said by the pattern
             // that earns it - and by pattern B on a tie, which is who always spoke when both fired.
@@ -291,6 +313,12 @@ public class SpofRule : IArchitectureRule
         // situation (QA §3.2): the honest advice is a fallback to the origin or a second provider.
         NodeType.ExternalService or NodeType.Cdn => "finding.SPOF.suggestion.external",
 
+        // V14 B12. Somebody else's too, and with a way out of its own that "add an instance"
+        // cannot teach: validate the token locally instead of calling on every request, and
+        // decide what a request with a valid session does when the provider is away - which is
+        // the fallback that clears this finding.
+        NodeType.IdentityProvider => "finding.SPOF.suggestion.identityProvider",
+
         _ when NodeRoles.IsRouter(node.Type) => "finding.SPOF.suggestion.entryPoint",
         _ => "finding.SPOF.suggestion.instances"
     });
@@ -303,7 +331,7 @@ public class SpofRule : IArchitectureRule
     private static bool IsRedundancyMechanism(ArchitectureGraph graph, Node node) =>
         node.Type == NodeType.LoadBalancer && BalancedTypes(graph, node).Any();
 
-    private static bool HasRedundancy(ArchitectureGraph graph, Node node, Dictionary<Guid, HashSet<Guid>> dependentsByNode)
+    private static bool HasRedundancy(ArchitectureGraph graph, Node node)
     {
         // QA B2. A system of record's redundancy is declared, never inferred from the wiring.
         // users-db and orders-db serving exactly the same consumers pass every topological test
@@ -328,28 +356,24 @@ public class SpofRule : IArchitectureRule
         if (NodeSettings.HasDeclaredInstances(node))
             return true;
 
-        // Explicit: it hangs from a LoadBalancer that spreads over ≥2 nodes of its type.
-        var behindBalancer = graph.IncomingByTarget[node.Id]
+        // Explicit: it hangs from a LoadBalancer that spreads over ≥2 nodes of its type. This is
+        // the drawing convention for replicas, and it is kept knowing its limit (V14 B11, T14): a
+        // balancer over an ApiPublica and an ApiAdmin exempts both, because from the wiring alone
+        // two boxes of one type behind one balancer *is* what two copies look like. The way to
+        // draw two different things is to name them on one box each with nothing spreading over
+        // them - or, since B4, to say "two" on the box that has two.
+        return graph.IncomingByTarget[node.Id]
             .Select(c => graph.NodesById.GetValueOrDefault(c.SourceNodeId))
             .Any(source => source is { Type: NodeType.LoadBalancer } && BalancedTypes(graph, source).Contains(node.Type));
 
-        if (behindBalancer)
-            return true;
-
-        var dependents = dependentsByNode[node.Id];
-
-        // Equivalent sibling: same type, and serving exactly the same consumers. V1 asked only for
-        // "some dependent in common", which breaks with microservices - Users, Orders and Payments
-        // are all Services hanging off the same gateway and would exempt each other as if they
-        // were replicas. Serving nobody is not redundancy either, so an empty set does not count.
-        //
-        // Compared over every dependent and not only the hard ones (D1.1): whether two replicas are
-        // interchangeable is a question about who they serve, and a consumer that holds a fallback
-        // is still one of the two things they both serve.
-        return dependents.Count > 0 && graph.Nodes.Any(other =>
-            other.Id != node.Id &&
-            other.Type == node.Type &&
-            dependentsByNode[other.Id].SetEquals(dependents));
+        // V14 B11. There used to be a third way out here: an "equivalent sibling" - another node
+        // of the same type serving exactly the same consumers - exempted both as replicas. QA B2
+        // removed it for systems of record with an argument that applied word for word to
+        // everything else: Users and Orders, two services each with two hard dependents, pass
+        // every topological test and are still two things, not two copies. What kept it alive was
+        // that there was no other way to *say* two stateless boxes were copies; B4 gave the field,
+        // so the inference that guessed at it is gone. Redundancy is drawn (a balancer) or
+        // declared (instances, replicas). It is never inferred from who happens to call you.
     }
 
     /// <summary>
