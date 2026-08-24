@@ -2,6 +2,7 @@ using arch_forge_backend.Application.Tests.TestDoubles;
 using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Rules;
+using arch_forge_backend.Application.Tests.Analysis.Fixtures;
 using arch_forge_backend.Application.Tests.Analysis.Rules.Support;
 using arch_forge_backend.Domain.Enums;
 using Xunit;
@@ -935,5 +936,181 @@ public class SpofRuleTests
         _builder.Node("Api", NodeType.Api).Node("Db", NodeType.Database);
 
         Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
+    }
+
+    // ---- V15 B1: the balancer over one declared target ------------------------
+
+    [Fact]
+    public void ABalancerOverOneTargetThatDeclaresInstances_IsTheRedundancyMechanismToo()
+    {
+        // U2a / U2b in the V15 sweep: the same system said twice. IsRedundancyMechanism exempts
+        // the balancer so the model does not loop - you add a balancer to fix a SPOF and the
+        // balancer becomes the SPOF - and it recognised only the drawn way of saying "there are
+        // two behind it". V14 B4 gave the field, and with it the fan was back to one: fifteen
+        // points of Availability between these two drawings, and a card telling the student to
+        // bring up a second instance of a type that has no such field, behind a balancer in front
+        // of the balancer.
+        var declared = new GraphBuilder()
+            .Node("Users", NodeType.Client).Node("LB", NodeType.LoadBalancer)
+            .Node("Api", NodeType.Api, """{"instances": 2}""")
+            .Node("Db", NodeType.Database, """{"replicas": 2}""")
+            .Connect("Users", "LB").Connect("LB", "Api")
+            .Connect("Api", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+
+        var drawn = new GraphBuilder()
+            .Node("Users", NodeType.Client).Node("LB", NodeType.LoadBalancer)
+            .Nodes(NodeType.Api, "Api1", "Api2")
+            .Node("Db", NodeType.Database, """{"replicas": 2}""")
+            .Connect("Users", "LB").Connect("LB", "Api1").Connect("LB", "Api2")
+            .Connect("Api1", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
+            .Connect("Api2", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+
+        Assert.Empty(_rule.Evaluate(drawn.Build()).Findings);
+        Assert.Empty(_rule.Evaluate(declared.Build()).Findings);
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("""{"instances": 1}""")]
+    [InlineData("""{"instances": 0}""")]
+    public void ABalancerOverOneTargetThatDeclaresNothing_IsStillTheSinglePointOfFailure(string configuration)
+    {
+        // The control that says the fix has not eaten the exemption whole: one target and no
+        // declaration that amounts to two, so the balancer balances nothing and is a point of
+        // passage like any other (LoadBalancerWithASingleTarget_IsNotExempt, kept as it was).
+        _builder
+            .Node("LB", NodeType.LoadBalancer)
+            .Node("Api", NodeType.Api, configuration)
+            .Node("Db", NodeType.Database)
+            .Connect("LB", "Api").Connect("Api", "Db");
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal(_builder.NodeElement("LB"), Assert.Single(finding.Elements));
+    }
+
+    [Fact]
+    public void TheDeclarationBehindTheBalancer_HasToBeOnATypeThatOwnsTheField()
+    {
+        // A Gateway has no `instances` to declare (V3 D3.5), so the field written on one says
+        // nothing - to this rule as to every other reader of it - and the balancer in front is
+        // still balancing one box. The way out for that shape stays the topological one the
+        // gateway's own suggestion names: a second gateway.
+        _builder
+            .Node("LB", NodeType.LoadBalancer)
+            .Node("Gw", NodeType.Gateway, """{"instances": 5}""")
+            .Nodes(NodeType.Service, "Users", "Orders")
+            .Connect("LB", "Gw").Connect("Gw", "Users").Connect("Gw", "Orders");
+
+        Assert.Contains(_rule.Evaluate(_builder.Build()).Findings, f => f.Elements.Contains(_builder.NodeElement("LB")));
+    }
+
+    [Fact]
+    public void WhatTheBalancerSpreadsOver_IsTheOnlyThingItVouchesFor()
+    {
+        // The declared pair exempts the balancer exactly as a drawn pair does - and nothing else.
+        // A Service hanging from the same balancer with no declaration of its own is still graded
+        // on its own account: the same line ADeclaredComponentStillCountsAsSomebodyElsesDependent
+        // draws, seen from the balancer's side.
+        _builder
+            .Node("LB", NodeType.LoadBalancer)
+            .Node("Api", NodeType.Api, """{"instances": 2}""")
+            .Node("Svc", NodeType.Service)
+            .Nodes(NodeType.Service, "Users", "Orders")
+            .Connect("LB", "Api").Connect("LB", "Svc")
+            .Connect("Svc", "Users").Connect("Svc", "Orders");
+
+        var findings = _rule.Evaluate(_builder.Build()).Findings;
+
+        Assert.DoesNotContain(findings, f => f.Elements.Contains(_builder.NodeElement("LB")));
+        Assert.Contains(findings, f => f.Elements.Contains(_builder.NodeElement("Svc")));
+    }
+
+    // ---- V15 C2: a CDN is not graded as a single point of failure --------------
+
+    [Fact]
+    public void TheCdn_IsNotGradedAsASinglePointOfFailure()
+    {
+        // U1a in the V15 sweep: everything protected, declared and watched, and a Critical on the
+        // edge whose own suggestion opened with "you can neither replicate it nor fix it". The
+        // only drawing that cleared it was two CDNs behind a balancer, which nobody draws - while
+        // MISSING_CDN, one area over, was asking for the very box the Critical arrived on.
+        //
+        // A CDN is the provider's edge: not yours to size (IsYoursToSize), not yours to watch
+        // (IsObservable), and its redundancy is the provider's product, which nothing on this
+        // canvas can declare or wire (NodeRoles.IsProviderEdge). So it is not graded here at all.
+        // A green tick and not silence (D1.4): the rule read what hangs behind the edge and found
+        // nothing that falls alone.
+        _builder
+            .Node("Users", NodeType.Client).Node("Edge", NodeType.Cdn)
+            .Node("Api", NodeType.Api, """{"instances": 3}""")
+            .Node("Db", NodeType.Database, """{"replicas": 2}""")
+            .Connect("Users", "Edge").Connect("Edge", "Api", timeoutSeconds: 5)
+            .Connect("Api", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+
+        var result = _rule.Evaluate(_builder.Build());
+
+        Assert.True(result.IsApplicable);
+        Assert.Empty(result.Findings);
+    }
+
+    [Fact]
+    public void AddingTheCdnThatMissingCdnAsksFor_CostsNoAvailability()
+    {
+        // S3a -> S3b in the sweep: following MISSING_CDN's advice took Scalability from 80 to 100
+        // and Availability from 100 to 85, and the best architecture drawable topped out at 96
+        // because of it. Two drawings that differ only by the edge in front of the door come out
+        // of this rule identical - and out of the whole analyzer the one with the edge scores
+        // higher, which is the least a rule asking for it has to be able to promise.
+        var bare = Fronted(new GraphBuilder(), cdn: false);
+        var fronted = Fronted(new GraphBuilder(), cdn: true);
+
+        Assert.Empty(_rule.Evaluate(bare.Build()).Findings);
+        Assert.Empty(_rule.Evaluate(fronted.Build()).Findings);
+
+        var without = ReferenceArchitecture.Analyze(bare.Build());
+        var with = ReferenceArchitecture.Analyze(fronted.Build());
+
+        Assert.Equal(without.ScoreOf(Area.Availability), with.ScoreOf(Area.Availability));
+        Assert.DoesNotContain(with.Findings, f => f.Code == RuleCodes.Spof && f.Severity != Severity.Good);
+        Assert.True(with.Score > without.Score, $"with the CDN {with.Score}, without it {without.Score}");
+
+        // The `missingCdn` graph of RecordAnalyzerSentences: a busy door, so MISSING_CDN has
+        // something to ask, and everything else declared so it is the only thing it asks.
+        static GraphBuilder Fronted(GraphBuilder builder, bool cdn)
+        {
+            builder
+                .Node("Users", NodeType.Client, """{"requestsPerSecond": 3000}""")
+                .Node("Api", NodeType.Api, """{"authentication": true, "rateLimit": 9000, "instances": 20}""")
+                .Node("Db", NodeType.Database, """{"replicas": 2, "readReplicas": 40}""")
+                .Connect("Api", "Db", timeoutSeconds: 30, fallback: true, protocol: ProtocolType.Sql);
+
+            if (cdn)
+                builder.Node("Edge", NodeType.Cdn).Connect("Users", "Edge").Connect("Edge", "Api", timeoutSeconds: 30, fallback: true);
+            else
+                builder.Connect("Users", "Api");
+
+            return builder;
+        }
+    }
+
+    [Fact]
+    public void WhatTheCdnFronts_IsStillGraded()
+    {
+        // The control in negative. Leaving the edge out of the grading takes nothing out of the
+        // walk: traffic still enters through it, so the gateway behind it is the point of passage
+        // it always was, and losing it still costs every request coming in the front.
+        _builder
+            .Node("Users", NodeType.Client).Node("Edge", NodeType.Cdn).Node("Gw", NodeType.Gateway)
+            .Nodes(NodeType.Service, "Orders", "Payments")
+            .Connect("Users", "Edge").Connect("Edge", "Gw", timeoutSeconds: 5)
+            .Connect("Gw", "Orders", timeoutSeconds: 5).Connect("Gw", "Payments", timeoutSeconds: 5);
+
+        var gw = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal(_builder.NodeElement("Gw"), Assert.Single(gw.Elements));
+        Assert.Equal(Severity.Critical, gw.Severity);
+        Assert.Equal("finding.SPOF.unreachable.message(count=2, node=Gw)", gw.Message.Describe());
+        Assert.Equal("finding.SPOF.explanation.measured(affected=1, node=Gw)", gw.Explanation.Describe());
     }
 }

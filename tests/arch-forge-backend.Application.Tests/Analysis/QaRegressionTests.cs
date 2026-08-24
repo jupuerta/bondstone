@@ -754,4 +754,86 @@ public class QaRegressionTests
         var cycle = Assert.Single(new CycleRule().Evaluate(_builder.Build()).Findings);
         Assert.Equal(Severity.Critical, cycle.Severity);
     }
+
+    // ---------------------------------------------------------------------------------
+    // V15 A2 (docs/V15/QA-analisis-V15.md, C7). Under the full analyzer on purpose: what
+    // is being tested is the two phases - UNDERSIZED_COMPONENT publishes, TIMEOUT_TOO_SHORT
+    // yields - not either rule on its own.
+    // ---------------------------------------------------------------------------------
+
+    [Fact]
+    public void A2_ARaisedTimeout_IsNotTheAnswerToADrowningDatabase()
+    {
+        // S4: "Users(50.000 rps) → Api → Db, timeout de 3 s". Before: «Cuesta 33,34 s con todo
+        // funcionando … Sube el timeout por encima de 33,34 s», guided fix 67 s, two cards above
+        // the two UNDERSIZED_COMPONENT criticals saying the opposite - Resilience paying 15 for
+        // what Scalability had already charged. (Those are the QA's panel figures; this graph, with
+        // every one of the 50.000 requests reaching the database, read 100 s and offered 201 s.)
+        // Now the only cards about that call name the cause.
+        _builder
+            .Node("Users", NodeType.Client, """{"requestsPerSecond": 50000}""")
+            .Node("Api", NodeType.Api, """{"authentication": true}""")
+            .Node("Db", NodeType.Database)
+            .Connect("Users", "Api")
+            .Connect("Api", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql);
+
+        var result = ReferenceArchitecture.Analyze(_builder.Build());
+
+        // Applicable and clean - the timeout is doing its job - rather than not applicable.
+        var timeout = Assert.Single(result.Findings, f => f.Code == RuleCodes.TimeoutTooShort);
+        Assert.Equal(Severity.Good, timeout.Severity);
+
+        Assert.Contains(result.Findings, f =>
+            f.Code == RuleCodes.UndersizedComponent
+            && f.Severity == Severity.Critical
+            && f.Elements.Contains(_builder.NodeElement("Db")));
+    }
+
+    [Fact]
+    public void A2_BelowTheLine_TheTimeoutIsStillTheLesson()
+    {
+        // The control in negative. Svc and Stripe at 95 %: nothing overloaded, so no Critical from
+        // UNDERSIZED_COMPONENT and nothing for TIMEOUT_TOO_SHORT to yield to - and a 1 s timeout on
+        // a call that costs 1,2 s with every box still answering is exactly its finding. (At 80 %
+        // a single hop costs 102 ms and no valid timeout is shorter than that: the queueing factor
+        // tops out at 20 just under the line, so the control lives there, on a chain.)
+        _builder
+            .Node("Api", NodeType.Api, """{"authentication": true, "requestsPerSecond": 285}""")
+            .Node("Svc", NodeType.Service)
+            .Node("Stripe", NodeType.ExternalService)
+            .Connect("Api", "Svc", timeoutSeconds: 1)
+            .Connect("Svc", "Stripe", timeoutSeconds: 5, fallback: true);
+
+        var result = ReferenceArchitecture.Analyze(_builder.Build());
+
+        var timeout = Assert.Single(result.Findings, f => f.Code == RuleCodes.TimeoutTooShort);
+        Assert.Equal(Severity.Critical, timeout.Severity);
+        Assert.Equal(_builder.EdgeElement("Api", "Svc"), Assert.Single(timeout.Elements));
+
+        Assert.DoesNotContain(result.Findings, f => f.Code == RuleCodes.UndersizedComponent && f.Severity == Severity.Critical);
+        Assert.Contains(result.Findings, f => f.Code == RuleCodes.UndersizedComponent && f.Severity == Severity.Warning);
+    }
+
+    [Fact]
+    public void A2_TheOrderTheTwoRulesAreRegisteredIn_DoesNotMatter()
+    {
+        // Moving a rule from Consumer to Producer changes when it runs, and D5.2 says the order
+        // it was *registered* in must not matter. Both orders, same graph, same answer - and the
+        // answer is the yielded one.
+        _builder
+            .Node("Users", NodeType.Client, """{"requestsPerSecond": 50000}""")
+            .Node("Api", NodeType.Api, """{"authentication": true}""")
+            .Node("Db", NodeType.Database)
+            .Connect("Users", "Api")
+            .Connect("Api", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql);
+
+        var forwards = new ArchitectureAnalyzer([new TimeoutTooShortRule(), new UndersizedComponentRule()]).Analyze(_builder.Build());
+        var backwards = new ArchitectureAnalyzer([new UndersizedComponentRule(), new TimeoutTooShortRule()]).Analyze(_builder.Build());
+
+        Assert.Equal(Describe(forwards), Describe(backwards));
+        Assert.DoesNotContain(forwards.Findings, f => f.Code == RuleCodes.TimeoutTooShort && f.Severity != Severity.Good);
+    }
+
+    private static string Describe(AnalysisResult result) => string.Join("\n", result.Findings
+        .Select(f => $"{f.Severity} {f.Area} {f.Code} {f.Message.Describe()} {f.Explanation.Describe()}"));
 }

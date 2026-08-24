@@ -184,4 +184,77 @@ public class MissingCacheRuleTests
 
         Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
     }
+
+    // ---- V15 B2: two replicas are one consumer ----------------------------------
+
+    [Fact]
+    public void TwoReplicasBehindABalancer_AreOneConsumer()
+    {
+        // QA V15 C4 (T3): `LB -> Pedidos1, Pedidos2 -> Db` said "'Db' recibe consultas directas de 2
+        // componentes". Boxes of the same type fanned out from one LoadBalancer are the one kind of
+        // copy the model recognises, and B7's "components, not arrows" extends to them: a copy is
+        // not another consumer.
+        _builder
+            .Node("Db", NodeType.Database)
+            .Node("LB", NodeType.LoadBalancer)
+            .Nodes(NodeType.Service, "Pedidos1", "Pedidos2")
+            .Connect("LB", "Pedidos1").Connect("LB", "Pedidos2")
+            .Connect("Pedidos1", "Db").Connect("Pedidos2", "Db");
+
+        var result = _rule.Evaluate(_builder.Build());
+
+        Assert.True(result.IsApplicable);
+        Assert.Empty(result.Findings);
+    }
+
+    [Fact]
+    public void TwoServicesBehindAGateway_AreStillTwoConsumers()
+    {
+        // The V15 trap: a Gateway is a router too, and grouping by IsRouter would take
+        // MISSING_CACHE off gateway-microservices and worst-case, whose services hang from one.
+        _builder
+            .Node("Db", NodeType.Database)
+            .Node("Gw", NodeType.Gateway)
+            .Nodes(NodeType.Service, "Users", "Orders")
+            .Connect("Gw", "Users").Connect("Gw", "Orders")
+            .Connect("Users", "Db").Connect("Orders", "Db");
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal("finding.MISSING_CACHE.direct.message(count=2, node=Db)", finding.Message.Describe());
+    }
+
+    [Fact]
+    public void AReplicaSetBesideAnotherConsumer_CountsOnce_AndTheCanvasGetsEveryArrow()
+    {
+        // Two replicas of Api and a separate Service: two consumers, and all three arrows lit -
+        // B7's split between what the card counts and what the canvas shows.
+        _builder
+            .Node("Db", NodeType.Database)
+            .Node("LB", NodeType.LoadBalancer)
+            .Nodes(NodeType.Api, "Api1", "Api2")
+            .Node("Svc", NodeType.Service)
+            .Connect("LB", "Api1").Connect("LB", "Api2")
+            .Connect("Api1", "Db").Connect("Api2", "Db").Connect("Svc", "Db");
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal("finding.MISSING_CACHE.direct.message(count=2, node=Db)", finding.Message.Describe());
+        Assert.Equal(["Db", "Api1->Db", "Api2->Db", "Svc->Db"], _builder.Names(finding.Elements));
+    }
+
+    [Fact]
+    public void ABalancerOverOneBox_MakesNoCopy()
+    {
+        // Negative control on the grouping: a single target behind the balancer is not a replica
+        // set, so Users and Orders stay two consumers.
+        _builder
+            .Node("Db", NodeType.Database)
+            .Node("LB", NodeType.LoadBalancer)
+            .Nodes(NodeType.Service, "Users", "Orders")
+            .Connect("LB", "Users")
+            .Connect("Users", "Db").Connect("Orders", "Db");
+
+        Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+    }
 }

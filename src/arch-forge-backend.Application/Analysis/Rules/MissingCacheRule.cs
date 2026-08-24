@@ -65,7 +65,17 @@ public class MissingCacheRule : IArchitectureRule
             // already refused on its own side ("depending twice on the same thing is one
             // dependency"). Every arrow still goes into Elements: they are what the canvas lights
             // up, and two arrows are two things to look at even when they are one consumer.
-            var consumers = effective.Select(edge => edge.SourceNodeId).Distinct().Count();
+            //
+            // V15 B2. And services, not boxes: two replicas of an Api behind one balancer are one
+            // consumer (NodeRoles.ReplicaSetOf), for the same reason two arrows from one box were.
+            // `LB -> Pedidos1, Pedidos2 -> Db` said "recibe consultas directas de 2 componentes"
+            // about a single service and its own database.
+            var consumers = effective
+                .Select(edge => graph.NodesById.GetValueOrDefault(edge.SourceNodeId))
+                .Where(source => source is not null)
+                .Select(source => NodeRoles.ReplicaSetOf(graph, source!))
+                .Distinct()
+                .Count();
 
             if (consumers < RuleThresholds.CacheMinConsumers)
                 continue;

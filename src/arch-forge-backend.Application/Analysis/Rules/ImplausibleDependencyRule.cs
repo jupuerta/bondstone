@@ -21,10 +21,10 @@ namespace arch_forge_backend.Application.Analysis.Rules;
 /// destination. An arrow leaving one is almost always an arrow drawn backwards.</item>
 /// <item>The outside is not a destination: nothing of yours calls the Client. An outgoing
 /// webhook is drawn as an ExternalService.</item>
-/// <item>A CDN serves content; it talks to an origin - a door, a balancer, a service or a bucket -
-/// and to nothing that holds data or messages.</item>
-/// <item>A clock triggers work: a Worker, a Service, an Api, a Queue, a Gateway in front of one.
-/// It does not call the users, the CDN or a store.</item>
+/// <item>A CDN serves content; it talks to an origin - a door, a balancer, a service, a bucket or
+/// somebody else's - and to nothing that holds data or messages.</item>
+/// <item>A clock triggers work: a Worker, a Service, an Api, a third party, a Queue or a Topic, a
+/// Gateway in front of one. It does not call the users, the CDN or a store.</item>
 /// </list>
 ///
 /// <strong>What is deliberately allowed.</strong> A Cache calling anything is fine - read-through
@@ -82,7 +82,16 @@ public class ImplausibleDependencyRule : IArchitectureRule
                 LocalizedText.Of($"finding.IMPLAUSIBLE_DEPENDENCY.{mismatch.Variant}.explanation",
                     ("source", source),
                     ("target", target)),
-                LocalizedText.Of($"finding.IMPLAUSIBLE_DEPENDENCY.{mismatch.Variant}.suggestion"),
+                // V15 A1. The two names, here too. Three of the four suggestions name a box -
+                // "let that be what talks to '{target}'", "it is the user who calls '{source}'" -
+                // and this call passed no arguments at all, so the catalogue rendered the
+                // placeholder and the student read a literal `{target}` in the panel and in the
+                // exported document. `LocalizedText` says the key/placeholder pairing is checked
+                // at build time; it was not, and the check that now does it is the second half of
+                // this fix (check-catalogs.mjs).
+                LocalizedText.Of($"finding.IMPLAUSIBLE_DEPENDENCY.{mismatch.Variant}.suggestion",
+                    ("source", source),
+                    ("target", target)),
                 [FindingElement.Connection(edge.Id)]));
         }
 
@@ -127,13 +136,32 @@ public class ImplausibleDependencyRule : IArchitectureRule
         return null;
     }
 
-    /// <summary>What a CDN can stand in front of: a door, what fronts a door, or the bucket it serves.</summary>
+    /// <summary>
+    /// What a CDN can stand in front of: a door, what fronts a door, the bucket it serves, or
+    /// somebody else's origin.
+    ///
+    /// <strong>V15 C3.</strong> <see cref="NodeType.ExternalService"/> was missing, and its absence
+    /// made the one <em>Critical</em> of the four fire on an ordinary drawing: an edge in front of a
+    /// provider's origin is what half the CDNs in the world are doing. The severity of this variant
+    /// is justified as "there is no reading in which…", so a type it cannot argue about has no
+    /// business in it.
+    /// </summary>
     private static bool IsOrigin(NodeType type) =>
         type is NodeType.Api or NodeType.Gateway or NodeType.LoadBalancer
-             or NodeType.Service or NodeType.ObjectStorage;
+             or NodeType.Service or NodeType.ObjectStorage or NodeType.ExternalService;
 
-    /// <summary>What a clock can trigger: something that runs logic, or the queue that hands it to something that does.</summary>
+    /// <summary>
+    /// What a clock can trigger: something that runs logic, or the broker that hands it to something
+    /// that does.
+    ///
+    /// <strong>V15 C3.</strong> Somebody else's service runs logic too - which is the argument
+    /// <see cref="NodeRoles.IsLogicComponent"/> already makes for <c>SYNC_CHAIN</c>
+    /// (<em>"a hop out of your process, however you draw it"</em>) and the one
+    /// <see cref="NodeRoles.ProcessesMessages"/> makes for a queue's consumers. A cron reconciling
+    /// against the payment provider every night is the most ordinary shape those two types have
+    /// together, and it was coming out as work fired at nothing.
+    /// </summary>
     private static bool IsWork(NodeType type) =>
         type is NodeType.Worker or NodeType.Service or NodeType.Api
-             or NodeType.Queue or NodeType.Topic or NodeType.Gateway;
+             or NodeType.Queue or NodeType.Topic or NodeType.Gateway or NodeType.ExternalService;
 }

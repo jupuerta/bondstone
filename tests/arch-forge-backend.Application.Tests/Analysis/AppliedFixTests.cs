@@ -35,6 +35,29 @@ public class AppliedFixTests
     }
 
     [Fact]
+    public void A_synchronous_send_to_the_telemetry_is_made_asynchronous()
+    {
+        // V15 A3. The one instrumentation edge MISSING_RESILIENCE still reads, and its one answer:
+        // telemetry is fire-and-forget, so the fix is the arrow's mode - not a timeout and a
+        // fallback on a send that should never have waited, which is what the button drew until
+        // V15 (and drew just the same on a scrape, where it meant nothing at all).
+        var graph = new GraphBuilder()
+            .Node("Api", NodeType.Api)
+            .Node("Obs", NodeType.Observability)
+            .Connect("Api", "Obs")
+            .Build();
+
+        var fix = Assert.Single(new MissingResilienceRule().Evaluate(graph).Findings).Fix;
+
+        Assert.NotNull(fix);
+        Assert.Equal(FixKinds.MakeEdgeAsynchronous, fix!.Kind);
+        Assert.Equal(ElementType.Connection, fix.Element.Type);
+        Assert.Equal("fix.MISSING_RESILIENCE.makeAsynchronous", fix.Label.Describe());
+        Assert.Null(fix.TimeoutSeconds);   // the mode is the fix; nothing else on the edge is touched
+        Assert.Null(fix.Fallback);
+    }
+
+    [Fact]
     public void A_timeout_shorter_than_its_own_call_is_raised_above_it()
     {
         // Twice the measured cost, rounded up: enough headroom that applying it once is enough,

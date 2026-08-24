@@ -38,7 +38,7 @@ public sealed record AppliedFix(
 
 /// <summary>
 /// The closed catalogue of transformations, in the same spirit as <c>FaultKinds</c> and
-/// <c>RequirementKinds</c>: four shapes cover the five corrections, and anything the client does not
+/// <c>RequirementKinds</c>: six shapes cover every correction, and anything the client does not
 /// recognise it simply does not offer - the finding keeps its text, which is the fallback that makes
 /// adding a fix later a non-breaking change.
 /// </summary>
@@ -66,6 +66,13 @@ public static class FixKinds
     /// </summary>
     public const string ConnectTo = "connectTo";
 
+    /// <summary>
+    /// V15 A3. Turn a synchronous edge into an asynchronous one - today only a component's send
+    /// to the telemetry, which should never have waited for an answer. Nothing else on the edge
+    /// moves: the protocol and whatever resilience it carries stay as drawn.
+    /// </summary>
+    public const string MakeEdgeAsynchronous = "makeEdgeAsynchronous";
+
     public static bool IsKnown(string kind) => kind is
-        SetEdgeResilience or SetNodeFlag or InsertCache or RemoveNode or ConnectTo;
+        SetEdgeResilience or SetNodeFlag or InsertCache or RemoveNode or ConnectTo or MakeEdgeAsynchronous;
 }

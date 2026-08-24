@@ -66,6 +66,9 @@ public class ImplausibleDependencyRuleTests
     [InlineData(NodeType.LoadBalancer)]
     [InlineData(NodeType.Service)]
     [InlineData(NodeType.ObjectStorage)]
+    // V15 C3. Somebody else's origin is still an origin, and this variant is the one Critical of
+    // the four - it may only fire where there is no innocent reading.
+    [InlineData(NodeType.ExternalService)]
     public void ACdnInFrontOfAnOrigin_IsHowACdnIsDrawn(NodeType origin)
     {
         _builder.Node("Edge", NodeType.Cdn).Node("Origin", origin).Connect("Edge", "Origin");
@@ -78,12 +81,56 @@ public class ImplausibleDependencyRuleTests
     [InlineData(NodeType.Service)]
     [InlineData(NodeType.Api)]
     [InlineData(NodeType.Queue)]
+    [InlineData(NodeType.Topic)]
     [InlineData(NodeType.Gateway)]
+    // V15 C3. A third party's service runs logic - the argument NodeRoles.IsLogicComponent already
+    // makes for SYNC_CHAIN and ProcessesMessages for a queue's consumers - so a clock can fire at
+    // it. The nightly reconciliation against the payment provider was coming out as work fired at
+    // nothing.
+    [InlineData(NodeType.ExternalService)]
     public void AClockFiringWork_IsWhatAClockIsFor(NodeType work)
     {
         _builder.Node("Cron", NodeType.Scheduler).Node("Work", work).Connect("Cron", "Work");
 
         Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Fact]
+    public void TheTwoOrdinaryShapesOfAThirdParty_AreNoLongerFindings()
+    {
+        // V15 C3, said as the two drawings rather than as two types: a cron reconciling against
+        // the provider every night, and an edge cache in front of the provider's origin. The
+        // second was the Critical, which is the severity this rule reserves for "there is no
+        // reading in which…".
+        _builder
+            .Node("Cron", NodeType.Scheduler).Node("Stripe", NodeType.ExternalService)
+            .Node("Web", NodeType.Client).Node("Edge", NodeType.Cdn).Node("Origin", NodeType.ExternalService)
+            .Connect("Cron", "Stripe")
+            .Connect("Web", "Edge").Connect("Edge", "Origin");
+
+        var result = _rule.Evaluate(_builder.Build());
+
+        Assert.True(result.IsApplicable);
+        Assert.Empty(result.Findings);
+    }
+
+    [Fact]
+    public void WhatTheThirdPartyDoesNotBuy_IsTheStoreAndTheClientSentences()
+    {
+        // The widening is exactly two lists and nothing else: an ExternalService is a plausible
+        // *destination* for a clock and for an edge, which says nothing about the other two
+        // sentences. Without this, "add the type wherever it is missing" is the next reading.
+        _builder
+            .Node("Db", NodeType.Database).Node("Stripe", NodeType.ExternalService)
+            .Node("Cron", NodeType.Scheduler).Node("Web", NodeType.Client)
+            .Connect("Db", "Stripe")
+            .Connect("Cron", "Web");
+
+        var findings = _rule.Evaluate(_builder.Build()).Findings;
+
+        Assert.Equal(
+            new[] { "finding.IMPLAUSIBLE_DEPENDENCY.client.message", "finding.IMPLAUSIBLE_DEPENDENCY.store.message" },
+            findings.Select(f => f.Message.Key()).Order());
     }
 
     [Fact]
@@ -164,5 +211,28 @@ public class ImplausibleDependencyRuleTests
 
         Assert.Equal("Db", finding.Explanation.Arg("source"));
         Assert.Equal("Api", finding.Explanation.Arg("target"));
+    }
+
+    [Theory]
+    [InlineData(NodeType.Database, NodeType.Api)]      // store
+    [InlineData(NodeType.Service, NodeType.Client)]    // client
+    [InlineData(NodeType.Cdn, NodeType.Database)]      // cdn
+    [InlineData(NodeType.Scheduler, NodeType.Database)]// scheduler
+    public void EverySentence_CarriesBothNames(NodeType source, NodeType target)
+    {
+        // V15 A1. **The suggestion too**, and that is the whole test: it was built with
+        // `LocalizedText.Of(key)` and no arguments while three of the four templates name a box, so
+        // the panel and the exported document printed a literal `{target}` / `{source}`. Asserted
+        // over all three texts and all four variants rather than over the one that broke, because
+        // the next sentence somebody writes is the next one to forget them.
+        _builder.Node("A", source).Node("B", target).Connect("A", "B");
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        foreach (var text in new[] { finding.Message, finding.Explanation, finding.Suggestion })
+        {
+            Assert.Equal("A", text.Arg("source"));
+            Assert.Equal("B", text.Arg("target"));
+        }
     }
 }

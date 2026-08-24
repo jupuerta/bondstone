@@ -17,6 +17,14 @@ namespace arch_forge_backend.Application.Analysis.Rules;
 /// the frontier left Security without so much as a score. The code keeps its name - it is the same
 /// lesson, whose original name was merely narrower than the concept - because a code is never
 /// reused to mean something else (V2 D2.4), and this is not something else.
+///
+/// <strong>V15 C1. Except the bucket an edge cache serves.</strong> <c>Users → Cdn → Assets</c> is
+/// the static site - the cleanest drawing in the palette, and the one <c>IMPLAUSIBLE_DEPENDENCY</c>
+/// blesses on purpose ("the bucket it serves") - and this rule was calling it Critical with advice
+/// to put an API in front, which is the one thing nobody does to a static site. B3's lesson was
+/// never "a bucket is a database": a public bucket is the <em>function</em> of half the buckets
+/// anybody draws. What tells the served bucket from the open one is the CDN in front of it, not the
+/// type, so that is what the rule reads.
 /// </summary>
 public class ExposedDatabaseRule : IArchitectureRule
 {
@@ -41,21 +49,32 @@ public class ExposedDatabaseRule : IArchitectureRule
         if (stores.Count == 0)
             return RuleResult.NotApplicable;
 
-        // The frontier is everything traffic reaches before meeting an Api or a Gateway. A data
-        // store in there is data anybody can reach.
+        // The frontier is everything traffic reaches before meeting a door. A data store in there
+        // is data anybody can reach.
         var frontier = EntryPoints.Frontier(graph).Select(n => n.Id).ToHashSet();
 
+        // V15 C1. Unless it is a bucket the outside only ever reaches through an edge cache: the
+        // same walk with the CDN as a second stop says whether there is some other way in, and a
+        // bucket with none is the bucket the CDN serves, not the public bucket of V13 B3. Every
+        // path, not one of them - a direct arrow beside the CDN is still the open bucket - and
+        // buckets only: a Database behind a CDN keeps its Critical, because an edge cache serves
+        // files and not rows, and that arrow is already the one Critical IMPLAUSIBLE_DEPENDENCY
+        // asserts has no innocent reading.
+        var bare = EntryPoints.Frontier(graph, type => NodeRoles.CanAuthenticate(type) || type == NodeType.Cdn)
+            .Select(n => n.Id)
+            .ToHashSet();
+
         var findings = stores
-            .Where(db => frontier.Contains(db.Id))
-            .OrderBy(db => db.Id)
-            .Select(db => new RuleFinding(
+            .Where(store => store.Type == NodeType.ObjectStorage ? bare.Contains(store.Id) : frontier.Contains(store.Id))
+            .OrderBy(store => store.Id)
+            .Select(store => new RuleFinding(
                 Code,
                 Area,
                 DefaultSeverity,
-                LocalizedText.Of("finding.EXPOSED_DATABASE.reachable.message", ("node", db.Name)),
+                LocalizedText.Of("finding.EXPOSED_DATABASE.reachable.message", ("node", store.Name)),
                 LocalizedText.Of("finding.EXPOSED_DATABASE.reachable.explanation"),
                 LocalizedText.Of("finding.EXPOSED_DATABASE.reachable.suggestion"),
-                [FindingElement.Node(db.Id)]))
+                [FindingElement.Node(store.Id)]))
             .ToList();
 
         return RuleResult.Applicable(findings);

@@ -220,4 +220,144 @@ public class MissingResilienceRuleTests
 
         Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
     }
+
+    // ---- V15 A3: an instrumentation edge has two directions, and only one of them is a call ----
+
+    [Fact]
+    public void AScrape_IsNotACallOfYours()
+    {
+        // V15 A3 (QA V15 C2). `Obs -> Api` is the telemetry reading what it watches: it starts at
+        // the metrics sink, it is on no request path, and there is no knob on it the architect
+        // owns - a timeout on Prometheus's poll of your Api is Prometheus's, and a fallback on it
+        // means nothing. The canvas draws every new arrow synchronous and unconfigured, so wiring
+        // the telemetry the way NO_OBSERVABILITY asks used to cost a Warning per box.
+        _builder
+            .Node("Api", NodeType.Api)
+            .Node("Db", NodeType.Database)
+            .Node("Obs", NodeType.Observability)
+            .Connect("Api", "Db", timeoutSeconds: 5)
+            .Connect("Obs", "Api")
+            .Connect("Obs", "Db");
+
+        var result = _rule.Evaluate(_builder.Build());
+
+        Assert.True(result.IsApplicable);
+        Assert.Empty(result.Findings);
+    }
+
+    [Fact]
+    public void AScrapeAsTheOnlySynchronousCall_LeavesNothingToEvaluate()
+    {
+        // The same courtesy `IsNotYourCall` gets: a graph whose only synchronous arrows are the
+        // telemetry's has no call this rule can grade, so it is not applicable rather than passed.
+        _builder
+            .Node("Api", NodeType.Api)
+            .Node("Obs", NodeType.Observability)
+            .Connect("Obs", "Api");
+
+        Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
+    }
+
+    [Fact]
+    public void AScrapeTowardsACriticalSpof_IsNotTheCriticalItUsedToBe()
+    {
+        // The worst of it: `Obs -> Gw` with the gateway a Critical SPOF came out a Critical whose
+        // explanation said the gateway's fall "propagates straight back" - into the metrics
+        // collector. The escalation read the SPOF fact without asking which edge it was on.
+        _builder
+            .Node("Gw", NodeType.Gateway)
+            .Node("Svc")
+            .Node("Obs", NodeType.Observability)
+            .Connect("Gw", "Svc", timeoutSeconds: 5, fallback: true)
+            .Connect("Obs", "Gw");
+
+        var graph = _builder.Build();
+        graph.Facts.Add(new SinglePointOfFailureFact(_builder.IdOf("Gw"), Severity.Critical));
+
+        Assert.Empty(_rule.Evaluate(graph).Findings);
+    }
+
+    [Fact]
+    public void ASynchronousPushToTheTelemetry_IsStillAWarning_AndItsFixMakesTheHopAsynchronous()
+    {
+        // The half of the exception that was always justified: `Api -> Obs` synchronous is a
+        // blocking call to the metrics backend on the request path, the one thing about an
+        // instrumentation edge that is genuinely the architect's. What the student can do about it
+        // is what the doctrine names - make the hop asynchronous - not a timeout and a fallback on
+        // a fire-and-forget send, which is what the button used to draw.
+        _builder
+            .Node("Api", NodeType.Api)
+            .Node("Db", NodeType.Database)
+            .Node("Obs", NodeType.Observability)
+            .Connect("Api", "Db", timeoutSeconds: 5)
+            .Connect("Api", "Obs");
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal(Severity.Warning, finding.Severity);
+        Assert.Equal("finding.MISSING_RESILIENCE.unprotected.message(source=Api, target=Obs)", finding.Message.Describe());
+        Assert.Equal("finding.MISSING_RESILIENCE.telemetryPush.explanation(target=Obs)", finding.Explanation.Describe());
+        Assert.Equal("finding.MISSING_RESILIENCE.telemetryPush.suggestion", finding.Suggestion.Describe());
+        Assert.Equal(_builder.EdgeElement("Api", "Obs"), Assert.Single(finding.Elements));
+
+        var fix = finding.Fix;
+        Assert.NotNull(fix);
+        Assert.Equal(FixKinds.MakeEdgeAsynchronous, fix!.Kind);
+        Assert.Equal(_builder.EdgeElement("Api", "Obs"), fix.Element);
+        Assert.Equal("fix.MISSING_RESILIENCE.makeAsynchronous", fix.Label.Describe());
+        Assert.Null(fix.TimeoutSeconds);   // the mode is the fix; nothing else on the edge moves
+        Assert.Null(fix.Fallback);
+    }
+
+    [Fact]
+    public void APushToTheTelemetry_NeverEscalates()
+    {
+        // SPOF never grades the telemetry box, so in the real analyzer this fact does not exist.
+        // The rule refuses the escalation on its own anyway: a component's fall does not propagate
+        // back into its own metrics, whatever a fact says about the box.
+        _builder
+            .Node("Api", NodeType.Api)
+            .Node("Obs", NodeType.Observability)
+            .Connect("Api", "Obs");
+
+        var graph = _builder.Build();
+        graph.Facts.Add(new SinglePointOfFailureFact(_builder.IdOf("Obs"), Severity.Critical));
+
+        var finding = Assert.Single(_rule.Evaluate(graph).Findings);
+
+        Assert.Equal(Severity.Warning, finding.Severity);
+        Assert.Equal("finding.MISSING_RESILIENCE.telemetryPush.explanation", finding.Explanation.Key());
+    }
+
+    [Fact]
+    public void APushWithATimeout_Passes()
+    {
+        // Bounded is bounded: a synchronous send that cannot hang the request is the same
+        // protected call any other edge with a timeout is.
+        _builder
+            .Node("Api", NodeType.Api)
+            .Node("Obs", NodeType.Observability)
+            .Connect("Api", "Obs", timeoutSeconds: 2);
+
+        var result = _rule.Evaluate(_builder.Build());
+
+        Assert.True(result.IsApplicable);
+        Assert.Empty(result.Findings);
+    }
+
+    [Fact]
+    public void TheTwoDirectionsOfAnInstrumentationEdge_AreNotTheSameFinding()
+    {
+        // QA V15 S1a / S1b: the two used to come out letter for letter identical, with a timeout
+        // and a fallback offered on a scrape. The rule now reads the arrow.
+        var push = new GraphBuilder()
+            .Node("Api", NodeType.Api).Node("Obs", NodeType.Observability)
+            .Connect("Api", "Obs");
+        var scrape = new GraphBuilder()
+            .Node("Api", NodeType.Api).Node("Obs", NodeType.Observability)
+            .Connect("Obs", "Api");
+
+        Assert.Single(_rule.Evaluate(push.Build()).Findings);
+        Assert.Empty(_rule.Evaluate(scrape.Build()).Findings);
+    }
 }

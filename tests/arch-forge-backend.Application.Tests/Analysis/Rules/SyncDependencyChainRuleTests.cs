@@ -3,6 +3,7 @@ using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Domain.Enums;
+using arch_forge_backend.Application.Tests.Analysis.Fixtures;
 using arch_forge_backend.Application.Tests.Analysis.Rules.Support;
 using Xunit;
 
@@ -318,5 +319,107 @@ public class SyncDependencyChainRuleTests
         Assert.Equal(
             _rule.Evaluate(bare.Build()).Findings.Single().Message.Describe(),
             _rule.Evaluate(observed.Build()).Findings.Single().Message.Describe());
+    }
+
+    // ---- V15 E1: a chain that ends in a read is not told to queue it -------------
+
+    [Fact]
+    public void AChainThatEndsInARead_IsNotToldToCutItWithAQueue()
+    {
+        // S10b of the V15 pass: `Api -> B -> C -> Db` over Sql, nothing declared on the last hop.
+        // V14 B3 stopped counting the store at the end; the advice went on saying "introduce a
+        // queue", and you cannot queue a read - the request is waiting for what the store holds.
+        // The count, the head, the severity and the walk do not move. Only the sentence does.
+        _builder
+            .Node("Api", NodeType.Api).Nodes(NodeType.Service, "B", "C").Node("Db", NodeType.Database)
+            .Connect("Api", "B").Connect("B", "C").Connect("C", "Db", protocol: ProtocolType.Sql);
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal("finding.SYNC_CHAIN.long.suggestion.read", finding.Suggestion.Describe());
+        Assert.Equal("finding.SYNC_CHAIN.long.message(count=3, node=Api)", finding.Message.Describe());
+        Assert.Equal("finding.SYNC_CHAIN.long.explanation", finding.Explanation.Describe());
+        Assert.Equal(Severity.Warning, finding.Severity);
+        Assert.Equal(["Api", "Api->B", "B", "B->C", "C", "C->Db", "Db"], _builder.Names(finding.Elements));
+    }
+
+    [Fact]
+    public void DeclaringTheLastHopAWrite_BringsTheQueueBack()
+    {
+        // The negative control, and the way out the read variant names. A write path can be cut
+        // where the caller stops needing the answer, so the declaration is what changes the advice
+        // - the same field, read with the same default, as MISSING_CACHE.
+        _builder
+            .Node("Api", NodeType.Api).Nodes(NodeType.Service, "B", "C").Node("Db", NodeType.Database)
+            .Connect("Api", "B").Connect("B", "C").Connect("C", "Db", protocol: ProtocolType.Sql, access: "write");
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal("finding.SYNC_CHAIN.long.suggestion", finding.Suggestion.Describe());
+    }
+
+    [Fact]
+    public void AChainOfServices_KeepsTheQueueAdvice()
+    {
+        // The V1 calibration example ends in a service, and there the queue is the lesson - the
+        // variant is for the store at the end, not for every chain.
+        _builder
+            .Node("Api", NodeType.Api).Nodes(NodeType.Service, "Orders", "Payments")
+            .Connect("Api", "Orders").Connect("Orders", "Payments");
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal("finding.SYNC_CHAIN.long.suggestion", finding.Suggestion.Describe());
+    }
+
+    [Theory]
+    [InlineData(NodeType.Database, true)]
+    [InlineData(NodeType.ObjectStorage, true)]
+    [InlineData(NodeType.Cache, true)]
+    [InlineData(NodeType.Service, false)]
+    [InlineData(NodeType.ExternalService, false)]
+    public void WhatEndsTheChain_DecidesTheVariant(NodeType tail, bool read)
+    {
+        // Where state lives (NodeRoles.IsDataStore): a bucket or a cache at the end is a read like
+        // any other. A service or a third party at the end is one more link, and the queue stands.
+        _builder
+            .Node("Api", NodeType.Api).Nodes(NodeType.Service, "B", "C").Node("End", tail)
+            .Connect("Api", "B").Connect("B", "C").Connect("C", "End");
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal(
+            read ? "finding.SYNC_CHAIN.long.suggestion.read" : "finding.SYNC_CHAIN.long.suggestion",
+            finding.Suggestion.Describe());
+    }
+
+    [Fact]
+    public void AReadThroughACache_IsStillARead()
+    {
+        // The layered shape of B3: the walk crosses the cache and ends at the store, and the hop
+        // that decides is the last one, into the store.
+        _builder
+            .Node("Api", NodeType.Api).Nodes(NodeType.Service, "B", "C")
+            .Node("Cache", NodeType.Cache).Node("Db", NodeType.Database)
+            .Connect("Api", "B").Connect("B", "C").Connect("C", "Cache").Connect("Cache", "Db", protocol: ProtocolType.Sql);
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal("finding.SYNC_CHAIN.long.suggestion.read", finding.Suggestion.Describe());
+        Assert.Equal("Db", _builder.Names(finding.Elements).Last());
+    }
+
+    [Fact]
+    public void WorstCase_IsToldToShortenItsChainNotToQueueIt()
+    {
+        // The reference that carries a SYNC_CHAIN: `Orders -> Shipping -> Notifications -> Db`,
+        // nothing declared on the last hop. The worst architecture of the suite ends its chain in
+        // the schema four services share, so what it is told is to shorten the path - and its
+        // exported document changes this one sentence when the recordings are regenerated.
+        var finding = ReferenceArchitecture.Analyze("worst-case").Findings
+            .Single(f => f.Code == RuleCodes.SyncChain && f.Severity != Severity.Good);
+
+        Assert.Equal("finding.SYNC_CHAIN.long.suggestion.read", finding.Suggestion.Describe());
+        Assert.Equal("finding.SYNC_CHAIN.long.message(count=3, node=Orders)", finding.Message.Describe());
     }
 }

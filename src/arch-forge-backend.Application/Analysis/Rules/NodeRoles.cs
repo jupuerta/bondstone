@@ -195,13 +195,20 @@ public static class NodeRoles
     /// is one sentence: <em>wiring the telemetry costs a point nowhere except on the edge's own
     /// resilience.</em>
     ///
-    /// <strong>And that exception is <c>MISSING_RESILIENCE</c>, which is not an oversight.</strong>
-    /// A blocking call to your metrics backend on the request path is a real finding - it is the one
-    /// thing about an instrumentation edge that is genuinely the architect's, and the one the
-    /// student can act on by making the hop asynchronous, which is what the guided fix already
-    /// draws. Adding this predicate there would silence the only true thing the analyzer says about
-    /// these edges. If a later reading is tempted to "finish the job", this is the job being
-    /// finished.
+    /// <strong>And that exception is <c>MISSING_RESILIENCE</c>, which is not an oversight - but it
+    /// is half an edge wide, not a whole one (V15 A3).</strong> A blocking call to your metrics
+    /// backend on the request path is a real finding - it is the one thing about an instrumentation
+    /// edge that is genuinely the architect's, and the one the student can act on by making the hop
+    /// asynchronous, which is what the guided fix draws. That call is <see cref="IsTelemetryPush"/>:
+    /// <c>Api → Obs</c>. The other direction, <see cref="IsTelemetryScrape"/>, is the telemetry
+    /// reading what it watches - on no request path, with no knob on it that is yours - and until
+    /// V15 the rule read both the same way, so wiring the telemetry as the canvas draws it
+    /// (synchronous, unconfigured) cost Resilience a Warning per box and, towards the front door,
+    /// a Critical whose explanation said the Api's fall "propagates straight back" - into the
+    /// metrics collector. A push is graded on its timeout and never escalated on a SPOF; a scrape
+    /// is skipped here like everywhere else. If a later reading is tempted to "finish the job" on
+    /// the push as well, this is the job being finished: silencing it would silence the only true
+    /// thing the analyzer says about these edges.
     /// </summary>
     public static bool IsTelemetryEdge(ArchitectureGraph graph, Connection edge) =>
         (graph.NodesById.TryGetValue(edge.SourceNodeId, out var source) && IsTelemetry(source.Type))
@@ -237,4 +244,112 @@ public static class NodeRoles
     /// </summary>
     public static bool IsYoursToSize(NodeType type) =>
         IsObservable(type) && type is not NodeType.Scheduler;
+
+    /// <summary>
+    /// V15 C2. The provider's edge: the one component whose redundancy is neither drawn nor
+    /// declared, because it is the provider's product - an anycast edge over more points of
+    /// presence than this canvas has boxes. The analyzer already declines to size it
+    /// (<see cref="IsYoursToSize"/>) and to ask for its telemetry (<see cref="IsObservable"/>), and
+    /// <see cref="Simulation.CapacityModel"/> hands it a capacity it never reaches, all for the
+    /// reason written there: a saturated CDN is nobody's lesson. <c>SPOF</c> was the one rule still
+    /// grading it - a Critical whose own suggestion opened with "you can neither replicate it nor
+    /// fix it", cleared only by two CDNs behind a balancer, while <c>MISSING_CDN</c> asked for the
+    /// very box one area over, so following that advice cost fifteen points of Availability and the
+    /// best architecture drawable topped out at 96.
+    ///
+    /// Narrower than "somebody else's" on purpose: a third party's service and the identity
+    /// provider stay graded, because the call <em>to</em> them is the architect's and a fallback on
+    /// it is the way out their cards name. The call into the CDN is the outside's, so that way out
+    /// was never available for this type. Not graded, and not exempt either: what it fronts is
+    /// measured through it as through anything else.
+    /// </summary>
+    public static bool IsProviderEdge(NodeType type) => type is NodeType.Cdn;
+
+    /// <summary>
+    /// V15 B2. <strong>What one box is a copy of, as far as the model can tell.</strong> Two
+    /// counting rules - <c>SHARED_DATABASE</c> and <c>MISSING_CACHE</c> - ask "how many services
+    /// (consumers) meet on this store", and until V15 they counted boxes, so
+    /// <c>LB → Pedidos1, Pedidos2 → Db</c> was "'Db' es el almacén compartido de 2 servicios" with
+    /// advice to give each its own data - which splits one service's database in two. V14 B11 had
+    /// retired the "equivalent sibling" inference because it guessed wrong, and it was also the
+    /// only thing that knew two boxes were copies.
+    ///
+    /// The one kind of copy the drawing can state today is the one <see cref="SpofRule"/> already
+    /// reads for its balancer exemption: <strong>boxes of the same type fanned out from the same
+    /// <see cref="NodeType.LoadBalancer"/></strong>. The set is keyed by that balancer and that
+    /// type; a box nothing balances is a set of its own. Two, like SpofRule's
+    /// <c>RedundantInstancesMin</c>: a balancer over a single box balances nothing. A box behind
+    /// two balancers belongs to the first drawn.
+    ///
+    /// <strong><see cref="NodeType.LoadBalancer"/> alone, never <see cref="IsRouter"/>.</strong> A
+    /// gateway routes to <em>different</em> things - the services of <c>gateway-microservices</c>
+    /// and <c>worst-case</c> hang from one - and reading them as copies would erase the
+    /// integration-by-database lesson from both references and from the product.
+    ///
+    /// It is an approximation, and a known one (V14 B11, T14): two different services drawn behind
+    /// one balancer read as copies. The successor is a declared <c>replicaOf</c> / replica group on
+    /// the node, so redundancy is stated the way <c>replicas</c> and <c>instances</c> already are;
+    /// until the schema carries it, this is the drawing's only way of saying "these are the same
+    /// thing".
+    /// </summary>
+    public static (Guid Anchor, NodeType Type) ReplicaSetOf(ArchitectureGraph graph, Node node)
+    {
+        var balancer = graph.IncomingByTarget[node.Id]
+            .Select(edge => graph.NodesById.GetValueOrDefault(edge.SourceNodeId))
+            .Where(source => source is { Type: NodeType.LoadBalancer })
+            .Where(source => graph.OutgoingBySource[source!.Id]
+                .Select(edge => graph.NodesById.GetValueOrDefault(edge.TargetNodeId))
+                .Where(target => target?.Type == node.Type)
+                .Select(target => target!.Id)
+                .Distinct()
+                .Count() >= 2)
+            .OrderBy(source => source!.Id)
+            .FirstOrDefault();
+
+        return (balancer?.Id ?? node.Id, node.Type);
+    }
+
+    /// <summary>
+    /// V15 A3. The telemetry reading what it watches: <c>Obs → Api</c>. It starts at the metrics
+    /// sink and sits on no request path, so nothing about it is a call the architect configures -
+    /// a timeout on Prometheus's poll of your Api is Prometheus's, and a fallback on it means
+    /// nothing. It is the direction a student draws by hand, and the canvas makes every new arrow
+    /// synchronous and unconfigured, which is how following NO_OBSERVABILITY's advice used to
+    /// cost a <c>MISSING_RESILIENCE</c> Warning per box. The one half of
+    /// <see cref="IsTelemetryEdge"/> that the resilience of the edge is not about.
+    /// </summary>
+    public static bool IsTelemetryScrape(ArchitectureGraph graph, Connection edge) =>
+        graph.NodesById.TryGetValue(edge.SourceNodeId, out var source) && IsTelemetry(source.Type);
+
+    /// <summary>
+    /// V15 A3. A component sending its own telemetry: <c>Api → Obs</c>, the other half. Drawn
+    /// synchronous it is a blocking call to the metrics backend on the request path - the one
+    /// thing about an instrumentation edge that is genuinely the architect's, and the reason
+    /// <see cref="IsTelemetryEdge"/> keeps <c>MISSING_RESILIENCE</c> as its deliberate exception.
+    /// What the student can do about it is make the hop asynchronous: it is what the guided fix
+    /// of NO_OBSERVABILITY already draws, and what this edge's own fix now offers. Two telemetry
+    /// boxes wired to each other are neither (QA B5): that is not instrumentation.
+    /// </summary>
+    public static bool IsTelemetryPush(ArchitectureGraph graph, Connection edge) =>
+        !IsTelemetryScrape(graph, edge)
+        && graph.NodesById.TryGetValue(edge.TargetNodeId, out var target) && IsTelemetry(target.Type);
+
+    /// <summary>
+    /// V15 E5. What the outside must never reach without a door in the way: yours, takes traffic,
+    /// and cannot ask who is calling. <see cref="IsYoursToSize"/> is the first two - not the
+    /// outside, not the telemetry, not a provider's box, not a clock - and the third removes the
+    /// doors themselves (<see cref="CanAuthenticate"/>), which get the door's question instead,
+    /// and the balancer, whose whole function is to be reached and hand the request to one. What
+    /// is left is a Worker, a Cache, a Queue, a Topic and the two systems of record: the boxes
+    /// with no field to declare anything with and nothing to do about a request but take it.
+    ///
+    /// The <see cref="NodeType.Cdn"/> is out for the balancer's reason, and the
+    /// <see cref="NodeType.Scheduler"/> because it does not take a request at all: an arrow from
+    /// the users into a clock is a drawing that means nothing, not a hole in the wall. The stores
+    /// are <em>in</em> even though <c>EXPOSED_DATABASE</c> is the rule that speaks for them
+    /// (<see cref="EntryPoints.Unguarded"/> leaves them to it): this predicate is about what is
+    /// true of a type, and which rule says it is the rule's decision.
+    /// </summary>
+    public static bool MustSitBehindADoor(NodeType type) =>
+        IsYoursToSize(type) && !CanAuthenticate(type) && type is not NodeType.LoadBalancer;
 }

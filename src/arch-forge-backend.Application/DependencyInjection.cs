@@ -32,7 +32,7 @@ public static class DependencyInjection
         services.AddScoped<IArchitectureRule, OrphanNodeRule>();            // Consumer
         services.AddScoped<IArchitectureRule, QueueNoDlqRule>();            // Consumer
         services.AddScoped<IArchitectureRule, TimeoutTooShortRule>();       // Consumer
-        services.AddScoped<IArchitectureRule, UndersizedComponentRule>();   // Consumer
+        services.AddScoped<IArchitectureRule, UndersizedComponentRule>();   // Producer since V15 A2
         services.AddScoped<IArchitectureRule, NoRateLimitRule>();           // Consumer
         services.AddScoped<IArchitectureRule, ExposedDatabaseRule>();       // Consumer
         services.AddScoped<IArchitectureRule, UnauthenticatedEntryRule>();  // Consumer
@@ -57,7 +57,7 @@ public static class DependencyInjection
         services.AddScoped<IArchitectureRule, TrafficRejectedRule>();       // Consumer
         services.AddScoped<IArchitectureRule, MissingCdnRule>();            // Consumer
 
-        // V14 §4.1: with them, twenty-three - and the second one and the second one about the drawing rather than the
+        // V14 §4.1: with them, twenty-three - and the second one about the drawing rather than the
         // architecture. PROTOCOL_MISMATCH asks whether the protocol fits the far end; this one asks
         // whether the two ends can talk at all.
         services.AddScoped<IArchitectureRule, ImplausibleDependencyRule>(); // Consumer

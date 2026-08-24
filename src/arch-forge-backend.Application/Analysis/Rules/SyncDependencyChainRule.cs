@@ -95,7 +95,9 @@ public class SyncDependencyChainRule : IArchitectureRule
                     ("node", start.Name),
                     ("count", components)),
                 LocalizedText.Of("finding.SYNC_CHAIN.long.explanation"),
-                LocalizedText.Of("finding.SYNC_CHAIN.long.suggestion"),
+                LocalizedText.Of(EndsInARead(path)
+                    ? "finding.SYNC_CHAIN.long.suggestion.read"
+                    : "finding.SYNC_CHAIN.long.suggestion"),
                 Interleave(start.Id, path)));
         }
 
@@ -103,6 +105,21 @@ public class SyncDependencyChainRule : IArchitectureRule
 
         bool IsLogic(Guid nodeId) =>
             graph.NodesById.TryGetValue(nodeId, out var node) && NodeRoles.IsLogicComponent(node.Type);
+
+        // V15 E1 - the half of V14 B3 that was left written down ("por el conteo, no por la
+        // sugerencia"). B3 stopped counting the store at the end of the path; the advice went on
+        // telling the user to cut the chain with a queue, and a chain that ends in a read cannot be
+        // cut there: the request is waiting for the data, and deferring a read is not answering.
+        // The last hop decides, and it reads the field MISSING_CACHE reads with the same default -
+        // absent means both, and both includes a read - so the two rules stop contradicting each
+        // other over one arrow, one asking for a cache in front of the read and the other for a
+        // queue. Declaring the hop a write brings the queue back, which is the honest sentence for
+        // a write path and the one thing the variant asks the user to say out loud.
+        bool EndsInARead(IReadOnlyList<Connection> chain) =>
+            chain.Count > 0
+            && graph.NodesById.TryGetValue(chain[^1].TargetNodeId, out var tail)
+            && NodeRoles.IsDataStore(tail.Type)
+            && graph.ResilienceOf(chain[^1]).Reads;
 
         // chain[n] = max(chain[children]) scored in logic components, memoized: every node is
         // resolved once, so the whole walk is O(V + E). The on-path set is belt and braces - the

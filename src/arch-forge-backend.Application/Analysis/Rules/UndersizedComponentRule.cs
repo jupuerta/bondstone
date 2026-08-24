@@ -12,13 +12,20 @@ namespace arch_forge_backend.Application.Analysis.Rules;
 /// (DT.1), and that is deliberate - with no declared load there is no utilisation, so there is
 /// nothing to be under-sized for. Every architecture drawn before V4 sees this rule as
 /// "not applicable", which is the truth rather than a courtesy.
+///
+/// V15 A2 (docs/V15/QA-analisis-V15.md, C7). <strong>A Producer</strong> since then, the way SPOF
+/// is for MISSING_RESILIENCE: it publishes an <see cref="UndersizedComponentFact"/> for every
+/// component it grades, severity included, so TIMEOUT_TOO_SHORT can tell the latency of a call
+/// into a drowning component - the saturation itself, already charged here - from a timeout that
+/// is genuinely too short. It reads no fact of its own; it only writes, which is what lets it run
+/// in the first phase.
 /// </summary>
 public class UndersizedComponentRule : IArchitectureRule
 {
     public string Code => RuleCodes.UndersizedComponent;
     public Area Area => Area.Scalability;
     public Severity DefaultSeverity => Severity.Warning;
-    public RulePhase Phase => RulePhase.Consumer;
+    public RulePhase Phase => RulePhase.Producer;
 
     public LocalizedText PassedMessage => LocalizedText.Of("finding.UNDERSIZED_COMPONENT.passed.message");
     public LocalizedText PassedExplanation => LocalizedText.Of("finding.UNDERSIZED_COMPONENT.passed.explanation");
@@ -59,11 +66,16 @@ public class UndersizedComponentRule : IArchitectureRule
             // Over capacity it is not "close to the limit", it is already failing requests, and
             // the two deserve different colours: one is a risk, the other is an outage in progress.
             var overloaded = utilization > 1m;
+            var severity = overloaded ? Severity.Critical : Severity.Warning;
+
+            // V15 A2. Said once here, read by TIMEOUT_TOO_SHORT: the latency of a call into an
+            // overloaded component is this finding's number, not that rule's.
+            graph.Facts.Add(new UndersizedComponentFact(node.Id, severity));
 
             findings.Add(new RuleFinding(
                 Code,
                 Area,
-                overloaded ? Severity.Critical : Severity.Warning,
+                severity,
                 LocalizedText.Of(overloaded
                         ? "finding.UNDERSIZED_COMPONENT.overloaded.message"
                         : "finding.UNDERSIZED_COMPONENT.atCapacity.message",

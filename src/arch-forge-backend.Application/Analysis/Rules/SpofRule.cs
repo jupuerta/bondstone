@@ -59,6 +59,26 @@ namespace arch_forge_backend.Application.Analysis.Rules;
 /// from each other for sharing a gateway and an Api. Redundancy is drawn or declared, never inferred
 /// from who calls you. V14 B12: the identity provider is a SPOF with one dependent, graded by what
 /// losing it costs, because one door is every request that door admits.
+///
+/// V15 B1 (docs/V15/QA-analisis-V15-TODO.md). And B4 had reopened the loop the balancer's
+/// exemption exists to close. <see cref="IsRedundancyMechanism"/> recognised only the drawn way of
+/// saying "there are two behind it", so <c>LB → Api(instances: 2)</c> was a Critical on the
+/// balancer - fifteen points of Availability under the same system drawn as
+/// <c>LB → Api + Api2</c> - with a card asking for a second instance of a type that has no such
+/// field, and a balancer in front of the balancer as the only way out. <see cref="BalancedTypes"/>
+/// now reads both ways of saying it. The third way, inference, is still gone (B11).
+///
+/// V15 C2. <strong>A CDN is not graded as a single point of failure.</strong> It was a Critical
+/// that only two CDNs behind a balancer could clear, while <c>MISSING_CDN</c> asked for one: adding
+/// the edge that rule asks for took Availability from 100 to 85, and the best architecture drawable
+/// topped out at 96 because of it. It is the provider's edge
+/// (<see cref="NodeRoles.IsProviderEdge"/>): the analyzer already declines to size it and to ask for
+/// its telemetry, and <see cref="Simulation.CapacityModel"/> hands it a capacity it never reaches,
+/// all for the one reason written there - it is nobody's lesson. Its redundancy is the provider's
+/// product, and nothing on this canvas can declare or wire it, which is B4's doctrine broken for one
+/// type. Unlike a third party's service or the identity provider, which stay graded because the
+/// call to them is yours to cover, the call into the CDN is the outside's. What it fronts is still
+/// graded: the walk passes through it as through anything else.
 /// </summary>
 public class SpofRule : IArchitectureRule
 {
@@ -132,6 +152,13 @@ public class SpofRule : IArchitectureRule
             // The outside is not a component of yours (QA §3.1): you cannot replicate the
             // internet, and "the users are a single point of failure" is not a sentence.
             if (NodeRoles.IsTrafficOrigin(node.Type))
+                continue;
+
+            // V15 C2. Nor is the provider's edge. Its redundancy is not something this drawing can
+            // say, so grading it turned MISSING_CDN's advice into a Critical on arrival, cleared
+            // only by two CDNs behind a balancer. Skipped here and nowhere else: the walk still
+            // passes through it, and what it fronts is measured exactly as before.
+            if (NodeRoles.IsProviderEdge(node.Type))
                 continue;
 
             if (IsRedundancyMechanism(graph, node) || HasRedundancy(graph, node))
@@ -310,9 +337,11 @@ public class SpofRule : IArchitectureRule
         NodeType.ObjectStorage => "finding.SPOF.suggestion.objectStorage",
 
         // You cannot give somebody else's service more instances and you cannot fix it (V8 §6.2),
-        // so the only move left is deciding what happens when it is not there. A CDN is the same
-        // situation (QA §3.2): the honest advice is a fallback to the origin or a second provider.
-        NodeType.ExternalService or NodeType.Cdn => "finding.SPOF.suggestion.external",
+        // so the only move left is deciding what happens when it is not there. The CDN shared this
+        // sentence from QA §3.2 until V15 C2, when it stopped being graded at all: the call into it
+        // is the outside's, so the fallback this advice names was never one the architect could
+        // declare on it.
+        NodeType.ExternalService => "finding.SPOF.suggestion.external",
 
         // V14 B12. Somebody else's too, and with a way out of its own that "add an instance"
         // cannot teach: validate the token locally instead of calling on every request, and
@@ -328,6 +357,10 @@ public class SpofRule : IArchitectureRule
     /// A LoadBalancer spreading traffic over ≥2 nodes of the same type is never flagged (D4.x).
     /// It is the redundancy mechanism itself: without this exception the model loops - you add a
     /// balancer to fix a SPOF and the balancer becomes the SPOF, with no way out.
+    ///
+    /// V15 B1. "Two nodes" is two drawn <em>or</em> one that declares them
+    /// (<see cref="BalancedTypes"/>); the loop had quietly reopened along the declared path, and a
+    /// balancer has no <c>instances</c> field of its own to close it with.
     /// </summary>
     private static bool IsRedundancyMechanism(ArchitectureGraph graph, Node node) =>
         node.Type == NodeType.LoadBalancer && BalancedTypes(graph, node).Any();
@@ -382,13 +415,25 @@ public class SpofRule : IArchitectureRule
     /// left out (QA B2): copies of a stateless thing are interchangeable, two databases never are,
     /// so a balancer in front of two of them is not the redundancy mechanism - it is a router to
     /// two truths, and it earns no exemption for itself or for what hangs from it.
+    ///
+    /// <strong>V15 B1. "At least two" is read both ways the product has of saying it</strong>:
+    /// two boxes drawn, or one box that declares <see cref="NodeSettings.HasDeclaredInstances"/>.
+    /// They are the same fact - V14 B4 made the field mean "how many copies of me there are" to
+    /// this rule, and it was still meaning nothing to the balancer in front, so
+    /// <c>LB → Api(instances: 2)</c> was a Critical on the balancer while <c>LB → Api + Api2</c> was
+    /// clean. The declaration counts only where the field exists: a Gateway with <c>instances</c>
+    /// written on it has declared nothing (V3 D3.5), and the balancer over it is still balancing one
+    /// box. Not <c>Instances</c>, for the reason <c>HasDeclaredInstances</c> gives - that one
+    /// answers 1 for every type that cannot declare, and reads a database's read replicas as
+    /// copies.
     /// </summary>
     private static IEnumerable<NodeType> BalancedTypes(ArchitectureGraph graph, Node balancer) =>
         graph.OutgoingBySource[balancer.Id]
             .Select(c => graph.NodesById.GetValueOrDefault(c.TargetNodeId))
             .Where(target => target is not null && !NodeRoles.IsSystemOfRecord(target!.Type))
             .GroupBy(target => target!.Type)
-            .Where(byType => byType.Select(target => target!.Id).Distinct().Count() >= RedundantInstancesMin)
+            .Where(byType => byType.Select(target => target!.Id).Distinct().Count() >= RedundantInstancesMin
+                             || byType.Any(target => NodeSettings.HasDeclaredInstances(target!)))
             .Select(byType => byType.Key);
 
     /// <summary>

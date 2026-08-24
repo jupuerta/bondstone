@@ -23,6 +23,16 @@ namespace arch_forge_backend.Application.Analysis.Rules;
 ///
 /// The rule to compare it with is <see cref="NoRateLimitRule"/>, which has been honest since V4: no
 /// declared RPS, no opinion. This one now answers the three states separately.
+///
+/// <strong>V15 E5. And a fourth, which is not a state of the door but the absence of one.</strong>
+/// <c>Client → Cdn → Worker</c> left Security <em>without a score</em>: the three rules of the area
+/// asked only about doors, and a drawing where nothing could authenticate had none to ask about -
+/// so the area dropped out of the average and the panel said nothing, on the one drawing where the
+/// question mattered most. The observation is the obvious one, and it is this rule's: the outside
+/// reaches something of yours and there is nowhere to check who is calling. A Warning, like the
+/// undeclared door: a Worker or a queue facing the users is a shape to fix, not a decision somebody
+/// declared. What holds the data is left to <see cref="ExposedDatabaseRule"/>, which has said it
+/// under its own name since V4.
 /// </summary>
 public class UnauthenticatedEntryRule : IArchitectureRule
 {
@@ -43,7 +53,14 @@ public class UnauthenticatedEntryRule : IArchitectureRule
             .Where(node => EntryPoints.Reaches(graph, node.Id, NodeRoles.IsSystemOfRecord))
             .ToList();
 
-        if (exposed.Count == 0)
+        // V15 E5. The boxes the outside reaches that are not a door at all - and are not the way
+        // to one, not somebody else's, and not the data, which is EXPOSED_DATABASE's sentence.
+        // No "data behind" condition here, unlike the doors above: a door with only a cache behind
+        // it is a sketch the rule waits on, but a Worker facing the users cannot ask whoever comes,
+        // has no field to declare anything with, and never will - the finding is the shape.
+        var unguarded = EntryPoints.Unguarded(graph);
+
+        if (exposed.Count == 0 && unguarded.Count == 0)
             return RuleResult.NotApplicable;
 
         var findings = new List<RuleFinding>();
@@ -106,6 +123,20 @@ public class UnauthenticatedEntryRule : IArchitectureRule
                 // decision rather than the translator's (V7 D1.1).
                 LocalizedText.Of($"finding.UNAUTHENTICATED_ENTRY.{variant}.explanation"),
                 LocalizedText.Of($"finding.UNAUTHENTICATED_ENTRY.{variant}.suggestion"),
+                [FindingElement.Node(node.Id)]));
+        }
+
+        // V15 E5. The name travels in all three texts: the explanation says what the box is not
+        // (an API, a gateway, a service) and the suggestion says what to put in front of it.
+        foreach (var node in unguarded)
+        {
+            findings.Add(new RuleFinding(
+                Code,
+                Area,
+                Severity.Warning,
+                LocalizedText.Of("finding.UNAUTHENTICATED_ENTRY.unguarded.message", ("node", node.Name)),
+                LocalizedText.Of("finding.UNAUTHENTICATED_ENTRY.unguarded.explanation", ("node", node.Name)),
+                LocalizedText.Of("finding.UNAUTHENTICATED_ENTRY.unguarded.suggestion", ("node", node.Name)),
                 [FindingElement.Node(node.Id)]));
         }
 

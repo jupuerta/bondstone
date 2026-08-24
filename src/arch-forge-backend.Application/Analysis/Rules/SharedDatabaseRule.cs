@@ -28,6 +28,17 @@ namespace arch_forge_backend.Application.Analysis.Rules;
 ///
 /// A Warning with no escalation, for MISSING_CACHE's reason: it is a design smell, never an outage,
 /// and a Critical here would devalue the real ones.
+///
+/// <strong>V15 B2. Services, not boxes.</strong> Two replicas of one service behind a balancer are
+/// one service on the schema (<see cref="NodeRoles.ReplicaSetOf"/>); the card counts and names one
+/// per set and the canvas lights every arrow, the split MISSING_CACHE made in V14 B7.
+///
+/// <strong>V15 E3. Three sentences, by what the drawing declares.</strong> <c>writers</c> when two
+/// or more declare they write (V14 §4.2); <c>readers</c> when the drawing leaves at most one
+/// possible writer - the rest say <c>access: "read"</c> - because reading somebody else's schema
+/// couples too, but nobody can break anybody's data and "split the store" is the wrong advice;
+/// and <c>shared</c>, the conservative one, whenever nothing is declared. Neither strong variant is
+/// ever guessed from the default.
 /// </summary>
 public class SharedDatabaseRule : IArchitectureRule
 {
@@ -65,21 +76,48 @@ public class SharedDatabaseRule : IArchitectureRule
                 .OrderBy(pair => pair.Service.Id)
                 .ToList();
 
-            if (sharing.Count < RuleThresholds.SharedDatabaseMinServices)
+            // V15 B2. Boxes, then services: two replicas of Pedidos behind one balancer are one
+            // service on the schema, not two (NodeRoles.ReplicaSetOf). Each set is ordered by, and
+            // named after, the first box drawn - the same first-drawn rule the edge above follows.
+            var services = sharing
+                .GroupBy(pair => NodeRoles.ReplicaSetOf(graph, pair.Service))
+                .Select(set => set.OrderBy(pair => pair.Service.Id).ToList())
+                .OrderBy(set => set[0].Service.Id)
+                .ToList();
+
+            if (services.Count < RuleThresholds.SharedDatabaseMinServices)
                 continue;
 
-            // The store, then one edge per service: what the canvas lights up is the meeting point
-            // and every arrow into it, which is the shape the card describes.
+            // The store, then one edge per box: what the canvas lights up is the meeting point
+            // and every arrow into it - a replica's arrow included, because two arrows are two
+            // things to look at even when they are one service (V14 B7).
             List<FindingElement> elements = [FindingElement.Node(store.Id)];
-            elements.AddRange(sharing.Select(pair => FindingElement.Connection(pair.Edge.Id)));
+            elements.AddRange(services.SelectMany(set => set.Select(pair => FindingElement.Connection(pair.Edge.Id))));
 
             // V14 §4.2. The sentence this rule always wanted to say is "two services *writing*
             // one schema" - integration by database in its full form - and until the edge could
             // carry the claim it said the conservative one. It still does by default: the strong
             // variant needs the writes *declared* (access "write" or an explicit "both"), because
             // two undeclared edges defaulting to both is the model's guess, not the user's claim.
-            var writers = sharing.Count(pair => graph.ResilienceOf(pair.Edge).DeclaresWrite);
-            var variant = writers >= RuleThresholds.SharedDatabaseMinServices ? "writers" : "shared";
+            // A set writes if any of its boxes says so.
+            var writers = services
+                .Where(set => set.Any(pair => graph.ResilienceOf(pair.Edge).DeclaresWrite))
+                .ToList();
+
+            // V15 E3. The other declaration the edge carries. A set reads if every box says so,
+            // and the read lesson holds when the drawing leaves at most one possible writer:
+            // everybody else has said "read", so nobody can break anybody's data, and the
+            // coupling to undo is the readers' - which is why they are the ones named. Two
+            // undeclared edges are two possible writers, and stay the conservative sentence.
+            var readers = services
+                .Where(set => set.All(pair => graph.ResilienceOf(pair.Edge).DeclaresRead))
+                .ToList();
+            var possibleWriters = services.Count - readers.Count;
+
+            var (variant, named) =
+                writers.Count >= RuleThresholds.SharedDatabaseMinServices ? ("writers", writers)
+                : possibleWriters <= 1 ? ("readers", readers)
+                : ("shared", services);
 
             // D5.6: no fix. Which service owns which table is the whole of the decision.
             findings.Add(new RuleFinding(
@@ -88,8 +126,8 @@ public class SharedDatabaseRule : IArchitectureRule
                 DefaultSeverity,
                 LocalizedText.Of($"finding.SHARED_DATABASE.{variant}.message",
                     ("node", store.Name),
-                    ("count", variant == "writers" ? writers : sharing.Count),
-                    ("names", Names(sharing.Where(pair => variant == "shared" || graph.ResilienceOf(pair.Edge).DeclaresWrite).Select(pair => pair.Service)))),
+                    ("count", named.Count),
+                    ("names", Names(named.Select(set => set[0].Service)))),
                 LocalizedText.Of($"finding.SHARED_DATABASE.{variant}.explanation", ("node", store.Name)),
                 LocalizedText.Of($"finding.SHARED_DATABASE.{variant}.suggestion"),
                 elements));

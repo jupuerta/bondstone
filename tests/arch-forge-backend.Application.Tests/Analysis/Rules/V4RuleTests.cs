@@ -126,6 +126,10 @@ public class TimeoutTooShortRuleTests
         // is almost unreachable - the rule would be dead code. Under load it is a different
         // question: the database at six times its capacity costs 2,4 s, and the 1 s timeout in
         // front of it expires every single time while every component is still "up".
+        //
+        // V15 A2: that database is not "up", it is drowning, and under the analyzer the number
+        // belongs to UNDERSIZED_COMPONENT (see the V15 section below). The rule *alone* still
+        // reads it, which is what this test pins - the yielding is a fact it has to be handed.
         var idle = ApiAndDb(0);
         var loaded = ApiAndDb(1_200);
 
@@ -150,6 +154,82 @@ public class TimeoutTooShortRuleTests
         .Node("Api", NodeType.Api, rps == 0 ? "{}" : $$"""{"requestsPerSecond":{{rps}}}""")
         .Node("Db", NodeType.Database)
         .Connect("Api", "Db", timeoutSeconds: 1, protocol: ProtocolType.Sql)
+        .Build();
+
+    // ---- V15 A2: past 100 % the number is UNDERSIZED_COMPONENT's, not this rule's --------
+
+    [Fact]
+    public void A_target_marked_as_overloaded_is_not_this_rules_finding()
+    {
+        // QA V15 C7. `Users(50.000 rps) → Api → Db` with a 3 s timeout said "it costs 33,34 s with
+        // everything working" - contradicted two cards down by two UNDERSIZED_COMPONENT criticals -
+        // and offered a guided fix of 67 s. Over 100 % the latency CallCost computes *is* the
+        // saturation, already charged in Scalability, and raising the timeout over it is the one
+        // piece of advice in the panel that makes the system worse. The Producer's fact is how the
+        // rule learns whose lesson the number is - the pattern MISSING_RESILIENCE uses with SPOF.
+        var graph = ApiAndDb(1_200);
+        graph.Facts.Add(new UndersizedComponentFact(graph.Nodes.Single(n => n.Name == "Db").Id, Severity.Critical));
+
+        var result = new TimeoutTooShortRule().Evaluate(graph);
+
+        // Applicable and clean, not "not applicable": the check was made and the timeout came out
+        // doing its job - it fires because something is genuinely wrong, and that something has
+        // its own card. Same shape as MISSING_RESILIENCE over an edge RETRY_AMPLIFICATION covered.
+        Assert.True(result.IsApplicable);
+        Assert.Empty(result.Findings);
+    }
+
+    [Fact]
+    public void A_target_merely_close_to_its_limit_still_gets_its_timeout_read()
+    {
+        // The control that keeps the fix from silencing the rule outright. Below the line the
+        // queueing is a slower call, not an outage: at 95 % everything answers at twenty times its
+        // idle cost, and a short chain of it crosses a whole second while UNDERSIZED_COMPONENT has
+        // only a Warning to say. That is exactly the situation this rule exists for, so a Warning
+        // fact must not buy the edge any silence.
+        var graph = NearCapacityChain();
+        graph.Facts.Add(new UndersizedComponentFact(graph.Nodes.Single(n => n.Name == "Svc").Id, Severity.Warning));
+
+        var finding = Assert.Single(new TimeoutTooShortRule().Evaluate(graph).Findings);
+
+        Assert.Equal(Severity.Critical, finding.Severity);
+        Assert.Equal("Svc", finding.Message.Arg("target"));
+    }
+
+    [Fact]
+    public void What_the_call_waits_on_counts_as_much_as_where_it_lands()
+    {
+        // The canvas draws every edge synchronous and unconfigured, so the everyday shape of the
+        // QA's scenario is `Gw → Api → Db` with the timeout on the first hop and none on the
+        // second: the database's saturation flows up raw into the gateway's call, and the same
+        // "with everything working" card lands one box away from the one that is marked.
+        // CallCost charges a caller its whole synchronous subtree, so the walk that decides whose
+        // number it is has to cover the subtree too.
+        var graph = GatewayApiAndDrowningDb();
+
+        Assert.Single(new TimeoutTooShortRule().Evaluate(graph).Findings);   // the number is there...
+
+        graph.Facts.Add(new UndersizedComponentFact(graph.Nodes.Single(n => n.Name == "Db").Id, Severity.Critical));
+
+        Assert.Empty(new TimeoutTooShortRule().Evaluate(graph).Findings);    // ...and it is the database's
+    }
+
+    /// <summary>Api → Svc → Stripe with Svc and Stripe at 95 %: nothing overloaded, everything twenty times slower.</summary>
+    private static ArchitectureGraph NearCapacityChain() => new GraphBuilder()
+        .Node("Api", NodeType.Api, """{"requestsPerSecond":285}""")
+        .Node("Svc", NodeType.Service)
+        .Node("Stripe", NodeType.ExternalService)
+        .Connect("Api", "Svc", timeoutSeconds: 1)
+        .Connect("Svc", "Stripe", timeoutSeconds: 5, fallback: true)
+        .Build();
+
+    /// <summary>A timeout on the first hop, none on the second, and a database at 500 % behind both.</summary>
+    private static ArchitectureGraph GatewayApiAndDrowningDb() => new GraphBuilder()
+        .Node("Gw", NodeType.Gateway, """{"requestsPerSecond":1000}""")
+        .Node("Api", NodeType.Api, """{"instances":4}""")
+        .Node("Db", NodeType.Database)
+        .Connect("Gw", "Api", timeoutSeconds: 1)
+        .Connect("Api", "Db", protocol: ProtocolType.Sql)
         .Build();
 
     [Fact]
@@ -600,6 +680,288 @@ public class SecurityRuleTests
         // QA §3.4 unchanged: silence plus a wire is the wire.
         Assert.Empty(new UnauthenticatedEntryRule().Evaluate(Delegating("{}").Build()).Findings);
     }
+
+    // ---- V15 C1: the bucket behind the CDN is the bucket it serves ----------------
+
+    [Fact]
+    public void The_bucket_behind_a_cdn_is_the_bucket_it_serves()
+    {
+        // T4 of the V15 sweep, the static site: `Users -> Edge -> Assets`. IMPLAUSIBLE_DEPENDENCY
+        // blesses it on purpose - ObjectStorage is in its list of what a CDN fronts, "the bucket
+        // it serves" - and this rule called it Critical with advice to put an API in front, which
+        // is the one thing nobody does to a static site. Security 85 on the cleanest drawing in
+        // the palette, and two rules saying the opposite about one arrow.
+        var result = new ExposedDatabaseRule().Evaluate(StaticSite().Build());
+
+        Assert.True(result.IsApplicable);
+        Assert.Empty(result.Findings);
+    }
+
+    [Fact]
+    public void The_two_rules_agree_on_the_static_site()
+    {
+        // The whole analyzer, so the agreement is measured and not inferred: Security scored,
+        // at 100, with neither rule saying a word against the drawing.
+        var result = ReferenceArchitecture.Analyze(StaticSite().Build());
+
+        Assert.Equal(AreaState.Scored, result.StateOf(Area.Security));
+        Assert.Equal(100, result.ScoreOf(Area.Security));
+        Assert.DoesNotContain(result.Findings, f => f.Code == RuleCodes.ExposedDatabase && f.Severity != Severity.Good);
+        Assert.DoesNotContain(result.Findings, f => f.Code == RuleCodes.ImplausibleDependency && f.Severity != Severity.Good);
+    }
+
+    [Theory]
+    [InlineData(NodeType.Client)]
+    [InlineData(NodeType.LoadBalancer)]
+    public void The_public_bucket_of_V13_is_still_the_public_bucket(NodeType inFront)
+    {
+        // The control. What tells the served bucket from the open one is the CDN, not the type:
+        // reached straight from the users, or through a balancer, the files are the incident B3
+        // taught this rule to see.
+        var graph = new GraphBuilder()
+            .Node("Front", inFront)
+            .Node("Assets", NodeType.ObjectStorage)
+            .Connect("Front", "Assets")
+            .Build();
+
+        var finding = Assert.Single(new ExposedDatabaseRule().Evaluate(graph).Findings);
+
+        Assert.Equal(Severity.Critical, finding.Severity);
+        Assert.Equal("Assets", finding.Message.Arg("node"));
+    }
+
+    [Fact]
+    public void A_direct_arrow_beside_the_cdn_is_still_the_open_bucket()
+    {
+        // The exemption is about every path in, not about one of them: a CDN in front changes
+        // nothing if the users can also reach the bucket without it.
+        var graph = StaticSite().Connect("Users", "Assets").Build();
+
+        Assert.Single(new ExposedDatabaseRule().Evaluate(graph).Findings);
+    }
+
+    [Fact]
+    public void The_cdn_serves_files_not_rows()
+    {
+        // A Database behind a CDN keeps its Critical: the rows are as reachable as they were, and
+        // the arrow is the one IMPLAUSIBLE_DEPENDENCY asserts has no innocent reading. The
+        // exemption is for what a CDN serves, and it does not serve a database.
+        var graph = new GraphBuilder()
+            .Node("Users", NodeType.Client)
+            .Node("Edge", NodeType.Cdn)
+            .Node("Db", NodeType.Database)
+            .Connect("Users", "Edge")
+            .Connect("Edge", "Db", protocol: ProtocolType.Sql)
+            .Build();
+
+        Assert.Single(new ExposedDatabaseRule().Evaluate(graph).Findings);
+    }
+
+    [Fact]
+    public void The_served_bucket_can_have_a_door_that_writes_to_it()
+    {
+        // The ordinary shape around a static bucket: the CDN serves it, an authenticated Api
+        // uploads to it. Neither path is the outside reaching the files bare.
+        var graph = StaticSite()
+            .Node("Api", NodeType.Api, """{"authentication":true}""")
+            .Connect("Users", "Api")
+            .Connect("Api", "Assets")
+            .Build();
+
+        Assert.Empty(new ExposedDatabaseRule().Evaluate(graph).Findings);
+    }
+
+    [Fact]
+    public void Without_a_client_the_cdn_at_the_root_is_still_the_edge()
+    {
+        // B6's inference: a Cdn at the root is the internet - and the bucket behind it is still
+        // the bucket it serves, not a breach.
+        var graph = new GraphBuilder()
+            .Node("Edge", NodeType.Cdn)
+            .Node("Assets", NodeType.ObjectStorage)
+            .Connect("Edge", "Assets")
+            .Build();
+
+        var result = new ExposedDatabaseRule().Evaluate(graph);
+
+        Assert.True(result.IsApplicable);
+        Assert.Empty(result.Findings);
+    }
+
+    private static GraphBuilder StaticSite() => new GraphBuilder()
+        .Node("Users", NodeType.Client)
+        .Node("Edge", NodeType.Cdn)
+        .Node("Assets", NodeType.ObjectStorage)
+        .Connect("Users", "Edge")
+        .Connect("Edge", "Assets");
+
+    // ---- V15 E5: the outside reaching something that is not a door ----------------
+
+    [Fact]
+    public void Outside_traffic_that_finds_no_door_is_a_finding_not_a_missing_score()
+    {
+        // T9 of the V15 sweep: `Client -> Cdn -> Worker` left Security *without a score*. The
+        // three rules asked only about doors, this drawing has none, and the area went quiet on
+        // the one drawing where the question mattered most - the hole symmetric to B6.
+        var graph = new GraphBuilder()
+            .Node("Users", NodeType.Client)
+            .Node("Edge", NodeType.Cdn)
+            .Node("Worker", NodeType.Worker)
+            .Connect("Users", "Edge")
+            .Connect("Edge", "Worker")
+            .Build();
+
+        var finding = Assert.Single(new UnauthenticatedEntryRule().Evaluate(graph).Findings);
+
+        Assert.Equal(Severity.Warning, finding.Severity);
+        Assert.Equal("finding.UNAUTHENTICATED_ENTRY.unguarded.message", finding.Message.Key());
+        Assert.Equal("Worker", finding.Message.Arg("node"));
+        Assert.Equal("Worker", finding.Explanation.Arg("node"));
+        Assert.Equal("Worker", finding.Suggestion.Arg("node"));
+
+        var result = ReferenceArchitecture.Analyze(graph);
+
+        Assert.Equal(AreaState.Scored, result.StateOf(Area.Security));
+        Assert.Equal(95, result.ScoreOf(Area.Security));
+    }
+
+    [Theory]
+    [InlineData(NodeType.Worker)]
+    [InlineData(NodeType.Cache)]
+    [InlineData(NodeType.Queue)]
+    [InlineData(NodeType.Topic)]
+    public void What_takes_traffic_and_cannot_ask_must_sit_behind_a_door(NodeType type)
+    {
+        var finding = Assert.Single(new UnauthenticatedEntryRule().Evaluate(Bare(type)).Findings);
+
+        Assert.Equal("finding.UNAUTHENTICATED_ENTRY.unguarded.message", finding.Message.Key());
+        Assert.Equal("Box", finding.Message.Arg("node"));
+    }
+
+    [Theory]
+    [InlineData(NodeType.ExternalService)]   // somebody else's origin is not yours to put a door on
+    [InlineData(NodeType.IdentityProvider)]  // the users talking to the identity provider is the protocol
+    [InlineData(NodeType.Scheduler)]         // a clock does not take a request at all
+    [InlineData(NodeType.Observability)]     // nobody's lesson, and the arrow is instrumentation
+    public void What_is_not_yours_or_takes_no_traffic_is_not_asked(NodeType type)
+    {
+        Assert.False(new UnauthenticatedEntryRule().Evaluate(Bare(type)).IsApplicable);
+    }
+
+    [Theory]
+    [InlineData(NodeType.Database)]
+    [InlineData(NodeType.ObjectStorage)]
+    public void The_data_reached_bare_is_EXPOSED_DATABASEs_sentence_not_this_ones(NodeType store)
+    {
+        // One node does not get the same lesson twice under two codes: a store on the frontier
+        // is the Critical EXPOSED_DATABASE has named since V4 (and since B3 for the files).
+        Assert.False(new UnauthenticatedEntryRule().Evaluate(Bare(store)).IsApplicable);
+        Assert.Single(new ExposedDatabaseRule().Evaluate(Bare(store)).Findings);
+    }
+
+    [Fact]
+    public void The_way_in_is_not_asked_what_hangs_behind_it_is()
+    {
+        // `Client -> LB -> Worker`: the balancer's function is to be reached and hand the request
+        // on; the Worker is what it hands it to with nothing asking in between.
+        var builder = new GraphBuilder()
+            .Node("Users", NodeType.Client)
+            .Node("LB", NodeType.LoadBalancer)
+            .Node("Worker", NodeType.Worker)
+            .Connect("Users", "LB")
+            .Connect("LB", "Worker");
+
+        var finding = Assert.Single(new UnauthenticatedEntryRule().Evaluate(builder.Build()).Findings);
+
+        Assert.Equal(["Worker"], builder.Names(finding.Elements));
+    }
+
+    [Theory]
+    [InlineData(NodeType.Api)]
+    [InlineData(NodeType.Gateway)]
+    [InlineData(NodeType.Service)]
+    public void Behind_a_door_the_same_box_is_where_it_lives(NodeType door)
+    {
+        // The control that says the finding is about the missing door and nothing else: the same
+        // Worker behind an authenticated door is not a finding, and with nothing that holds data
+        // behind that door the rule has nothing to say at all - as before.
+        var graph = new GraphBuilder()
+            .Node("Users", NodeType.Client)
+            .Node("Door", door, """{"authentication":true}""")
+            .Node("Worker", NodeType.Worker)
+            .Connect("Users", "Door")
+            .Connect("Door", "Worker")
+            .Build();
+
+        Assert.False(new UnauthenticatedEntryRule().Evaluate(graph).IsApplicable);
+    }
+
+    [Fact]
+    public void A_webhook_into_a_worker_is_outside_traffic_too()
+    {
+        // B6's inference, without a Client drawn: a third party calling in is the internet.
+        var graph = new GraphBuilder()
+            .Node("Stripe", NodeType.ExternalService)
+            .Node("Worker", NodeType.Worker)
+            .Connect("Stripe", "Worker")
+            .Build();
+
+        var finding = Assert.Single(new UnauthenticatedEntryRule().Evaluate(graph).Findings);
+
+        Assert.Equal("Worker", finding.Message.Arg("node"));
+    }
+
+    [Fact]
+    public void With_data_behind_the_bare_worker_each_lesson_is_said_once()
+    {
+        // `Client -> Worker -> Db`: the rows reached bare are EXPOSED_DATABASE's Critical on the
+        // store, the Worker reached bare is this rule's Warning on the Worker. Two nodes, two
+        // sentences, neither said twice: 100 - 15 - 5.
+        var graph = new GraphBuilder()
+            .Node("Users", NodeType.Client)
+            .Node("Worker", NodeType.Worker)
+            .Node("Db", NodeType.Database)
+            .Connect("Users", "Worker")
+            .Connect("Worker", "Db", protocol: ProtocolType.Sql)
+            .Build();
+
+        var result = ReferenceArchitecture.Analyze(graph);
+
+        Assert.Equal(80, result.ScoreOf(Area.Security));
+        Assert.Single(result.Findings, f => f.Code == RuleCodes.ExposedDatabase && f.Severity == Severity.Critical);
+        Assert.Single(result.Findings, f => f.Code == RuleCodes.UnauthenticatedEntry && f.Severity == Severity.Warning);
+    }
+
+    [Fact]
+    public void The_walk_does_not_enter_through_the_instrumentation()
+    {
+        // B9's doctrine, on the one walk that had not read it. An edge cache logging to the
+        // telemetry, and the telemetry scraping a worker that lives behind the door, is not the
+        // outside reaching the worker. Before V15 the walk followed the cable and nothing waited at
+        // the other end of it; with this finding there, following it would have cost a point for
+        // wiring the telemetry - the one thing the analyzer promises never to do.
+        var graph = new GraphBuilder()
+            .Node("Users", NodeType.Client)
+            .Node("Edge", NodeType.Cdn)
+            .Node("Api", NodeType.Api, """{"authentication":true}""")
+            .Node("Worker", NodeType.Worker)
+            .Node("Obs", NodeType.Observability)
+            .Connect("Users", "Edge")
+            .Connect("Edge", "Api")
+            .Connect("Api", "Worker")
+            .Connect("Edge", "Obs", synchronous: false)
+            .Connect("Obs", "Worker", synchronous: false)
+            .Build();
+
+        Assert.False(new UnauthenticatedEntryRule().Evaluate(graph).IsApplicable);
+    }
+
+    /// <summary>The users pointing straight at one box of the given type, and nothing else.</summary>
+    private static ArchitectureGraph Bare(NodeType type) => new GraphBuilder()
+        .Node("Users", NodeType.Client)
+        .Node("Box", type)
+        .Connect("Users", "Box")
+        .Build();
 
     private static GraphBuilder Delegating(string configuration) => new GraphBuilder()
         .Node("Api", NodeType.Api, configuration)

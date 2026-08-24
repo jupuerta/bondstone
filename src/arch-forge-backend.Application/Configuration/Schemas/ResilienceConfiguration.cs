@@ -44,4 +44,12 @@ public class ResilienceConfiguration
     /// <summary>Somebody said "write" (or "both") out loud - the declared claim, not the default.</summary>
     public bool DeclaresWrite => string.Equals(Access, "write", StringComparison.OrdinalIgnoreCase)
                                  || string.Equals(Access, "both", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// V15 E3. Somebody said "read" out loud - the declared claim, never the default. Absent is
+    /// both, and both may write, so an undeclared edge is no more a reader than it is a writer.
+    /// SHARED_DATABASE reads it for its read lesson the way it reads <see cref="DeclaresWrite"/>
+    /// for its strong one.
+    /// </summary>
+    public bool DeclaresRead => string.Equals(Access, "read", StringComparison.OrdinalIgnoreCase);
 }

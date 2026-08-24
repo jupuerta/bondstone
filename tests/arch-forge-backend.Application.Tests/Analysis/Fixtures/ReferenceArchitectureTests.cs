@@ -1,6 +1,9 @@
 using arch_forge_backend.Application.Tests.TestDoubles;
 using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
+using arch_forge_backend.Application.Analysis.Rules;
+using arch_forge_backend.Domain.Entities;
+using arch_forge_backend.Domain.Enums;
 using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Analysis.Fixtures;
@@ -420,6 +423,122 @@ public class ReferenceArchitectureTests
             Assert.NotNull(finding.Elements);
         });
     }
+
+    // ---- V15 A3: wiring the telemetry costs a point nowhere but in Observability ---------------
+
+    [Theory]
+    [InlineData("minimal-api-db", false, true)]
+    [InlineData("minimal-api-db", true, false)]
+    [InlineData("resilient-async", false, true)]
+    [InlineData("resilient-async", true, false)]
+    [InlineData("gateway-microservices", false, true)]
+    [InlineData("gateway-microservices", true, false)]
+    [InlineData("worst-case", false, true)]
+    [InlineData("worst-case", true, false)]
+    public void WiringTheTelemetry_MovesObservabilityAndNothingElse(string fixture, bool push, bool synchronous)
+    {
+        // V15 A3 (QA V15 C2). The general form of the promise SpofRuleTests pins for SPOF, over
+        // the whole analyzer: two architectures that differ only by their telemetry come out with
+        // the same five scores and the same findings outside Observability. The two wirings are
+        // the two a student actually ends up with - a scrape drawn by hand, which the canvas makes
+        // synchronous and unconfigured, and the asynchronous push NO_OBSERVABILITY's guided fix
+        // draws. Until V15 the first cost Resilience a Warning per box and, towards the front
+        // door, a Critical: "the gateway's fall propagates straight back" - into the metrics
+        // collector. The reference fixtures carry no telemetry, which is what makes them the
+        // control: 98 / 90 / 80 / 69 are the same numbers with the cables on.
+        var bare = ReferenceArchitecture.Analyze(fixture);
+        var observed = ReferenceArchitecture.Analyze(Instrumented(fixture, push, synchronous));
+
+        foreach (var area in Enum.GetValues<Area>().Where(a => a != Area.Observability))
+            Assert.Equal(bare.ScoreOf(area), observed.ScoreOf(area));
+
+        Assert.Equal(
+            bare.Findings.Where(f => f.Area != Area.Observability).Select(Line),
+            observed.Findings.Where(f => f.Area != Area.Observability).Select(Line));
+
+        // And the one area the wiring is about moves the way it should: every box is watched.
+        Assert.Equal(100, observed.ScoreOf(Area.Observability));
+    }
+
+    [Theory]
+    [InlineData("minimal-api-db")]
+    [InlineData("resilient-async")]
+    [InlineData("gateway-microservices")]
+    [InlineData("worst-case")]
+    public void ASynchronousPushToTheTelemetry_IsStillChargedInResilience_AsAWarningAndOnlyThere(string fixture)
+    {
+        // The control in the negative. `Api -> Obs` drawn synchronous is a blocking call to the
+        // metrics backend on the request path - the one true thing the analyzer says about an
+        // instrumentation edge - and it stays said: a Warning per send, never a Critical, with the
+        // fix that makes the hop asynchronous. Nothing outside Resilience and Observability moves,
+        // and inside Resilience nothing but the sends themselves.
+        var bare = ReferenceArchitecture.Analyze(fixture);
+        var graph = Instrumented(fixture, push: true, synchronous: true);
+        var observed = ReferenceArchitecture.Analyze(graph);
+
+        foreach (var area in Enum.GetValues<Area>().Where(a => a is not (Area.Resilience or Area.Observability)))
+            Assert.Equal(bare.ScoreOf(area), observed.ScoreOf(area));
+
+        Assert.True(observed.ScoreOf(Area.Resilience) <= bare.ScoreOf(Area.Resilience));
+
+        var sends = graph.Connections.Where(c => NodeRoles.IsTelemetryEdge(graph, c)).Select(c => c.Id).ToHashSet();
+        var onSends = observed.Findings.Where(f => f.Elements.Any(e => sends.Contains(e.Id))).ToList();
+
+        Assert.Equal(sends.Count, onSends.Count);
+        Assert.All(onSends, f =>
+        {
+            Assert.Equal(RuleCodes.MissingResilience, f.Code);
+            Assert.Equal(Severity.Warning, f.Severity);
+            Assert.Equal("finding.MISSING_RESILIENCE.telemetryPush.explanation", f.Explanation.Key());
+            Assert.Equal(FixKinds.MakeEdgeAsynchronous, f.Fix?.Kind);
+        });
+
+        // The Good ones are left out of the comparison on purpose: MISSING_RESILIENCE's green tick
+        // is exactly what these sends take away, and that is the finding, not a side effect.
+        Assert.Equal(
+            bare.Findings.Where(f => f.Area != Area.Observability && f.Severity != Severity.Good).Select(Line),
+            observed.Findings.Where(f => f.Area != Area.Observability && f.Severity != Severity.Good && !onSends.Contains(f)).Select(Line));
+    }
+
+    /// <summary>
+    /// The fixture with a telemetry box wired to every component NO_OBSERVABILITY would ask about
+    /// (<see cref="NodeRoles.IsObservable"/>), in the direction and the mode the caller says:
+    /// <c>push</c> false is the scrape (<c>Obs → box</c>), true the send (<c>box → Obs</c>);
+    /// <c>synchronous</c> true is what the canvas defaults a hand-drawn arrow to, false what the
+    /// guided fix draws. Ids are fixed so the analysis is as deterministic as the fixture's own.
+    /// </summary>
+    private static ArchitectureGraph Instrumented(string fixture, bool push, bool synchronous)
+    {
+        var (nodes, connections) = ReferenceArchitecture.Load(fixture);
+
+        var telemetry = new Node
+        {
+            Id = Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff"),
+            Type = NodeType.Observability,
+            Name = "Obs"
+        };
+        nodes.Add(telemetry);
+
+        var wired = 0;
+        foreach (var node in nodes.Where(n => NodeRoles.IsObservable(n.Type)).ToList())
+        {
+            connections.Add(new Connection
+            {
+                Id = Guid.Parse($"ffffffff-ffff-ffff-ffff-{++wired:000000000000}"),
+                SourceNodeId = push ? node.Id : telemetry.Id,
+                TargetNodeId = push ? telemetry.Id : node.Id,
+                Protocol = ProtocolType.Http,
+                Synchronous = synchronous
+            });
+        }
+
+        return new ArchitectureGraph(nodes, connections);
+    }
+
+    /// <summary>One finding as a line - severity, area, code, sentence and elements - for a comparison of two analyses.</summary>
+    private static string Line(RuleFinding f) =>
+        $"{f.Severity} {f.Area} {f.Code} | {f.Message.Describe()} | " +
+        string.Join(",", f.Elements.Select(e => $"{e.Type}:{e.Id}"));
 
     /// <summary>
     /// The whole result as text, so the shuffling test compares everything at once instead of the

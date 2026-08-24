@@ -1,4 +1,5 @@
 using arch_forge_backend.Application.Localization;
+using arch_forge_backend.Domain.Entities;
 
 namespace arch_forge_backend.Application.Analysis.Rules;
 
@@ -8,6 +9,17 @@ namespace arch_forge_backend.Application.Analysis.Rules;
 /// This is the rule that put <c>Facts</c> into service: it needs to know whether another rule
 /// marked the destination as a single point of failure, and whether RETRY_AMPLIFICATION or
 /// EXTERNAL_NO_FALLBACK already spoke about the edge (D4.5, QA B8).
+///
+/// <strong>V15 A3. And it is the one rule that still reads an instrumentation edge - half of
+/// one.</strong> The doctrine of <see cref="NodeRoles.IsTelemetryEdge"/> keeps this rule as its
+/// deliberate exception because a blocking call to the metrics backend on the request path is a
+/// real finding. That is <c>Api → Obs</c>, a push. The rule used to fire identically on
+/// <c>Obs → Api</c> - a scrape, on no request path, with nothing on it the architect configures -
+/// and since the canvas draws every new arrow synchronous and unconfigured, wiring the telemetry
+/// the way NO_OBSERVABILITY asks cost a Warning per box and, towards the front door, a Critical
+/// whose explanation said the Api's fall "propagates straight back": into the metrics collector.
+/// A scrape is now skipped like every other instrumentation edge; a push is graded on its timeout,
+/// never escalated, and fixed the way the doctrine names - by making the hop asynchronous.
 /// </summary>
 public class MissingResilienceRule : IArchitectureRule
 {
@@ -30,9 +42,13 @@ public class MissingResilienceRule : IArchitectureRule
     {
         // The outside's edges are the requests themselves, not calls anybody configures (QA
         // §3.1): drawing a Client must not open every diagram with "your users' call has no
-        // timeout". A third party's own calls are not yours to configure either (V14 B10).
+        // timeout". A third party's own calls are not yours to configure either (V14 B10). And
+        // the telemetry's own reads are not calls at all (V15 A3): a scrape starts at the metrics
+        // sink, sits on no request path, and a timeout or a fallback on it would be nobody's.
         var synchronous = graph.Connections
-            .Where(c => c.Synchronous && !NodeRoles.IsNotYourCall(graph, c))
+            .Where(c => c.Synchronous
+                        && !NodeRoles.IsNotYourCall(graph, c)
+                        && !NodeRoles.IsTelemetryScrape(graph, c))
             .ToList();
 
         if (synchronous.Count == 0)
@@ -64,10 +80,18 @@ public class MissingResilienceRule : IArchitectureRule
             var resilience = graph.ResilienceOf(edge);
             var hasTimeout = resilience.TimeoutSeconds is not null;
 
+            // V15 A3. A component sending its telemetry synchronously is the one instrumentation
+            // edge left in the list, and it is graded on its timeout alone: the escalation below
+            // is about the destination taking the system down with it, and nothing falls with its
+            // metrics sink - SPOF never grades the telemetry box, and a fact about it would still
+            // not turn a send into a Critical.
+            var push = NodeRoles.IsTelemetryPush(graph, edge);
+
             // Asking for a circuit breaker on every synchronous edge would flag practically the
             // whole graph. Asking for it only where the destination already takes the system down
             // puts the message where the risk is (D4.4).
-            var exposedToSpof = !resilience.CircuitBreaker
+            var exposedToSpof = !push
+                                && !resilience.CircuitBreaker
                                 && !resilience.Fallback
                                 && criticalSpofs.Contains(edge.TargetNodeId);
 
@@ -77,7 +101,7 @@ public class MissingResilienceRule : IArchitectureRule
             var severity = exposedToSpof ? Severity.Critical : Severity.Warning;
             var source = graph.NodesById[edge.SourceNodeId].Name;
             var target = graph.NodesById[edge.TargetNodeId].Name;
-            var variant = Variant(hasTimeout, exposedToSpof);
+            var variant = push ? "telemetryPush" : Variant(hasTimeout, exposedToSpof);
 
             findings.Add(new RuleFinding(
                 Code,
@@ -90,18 +114,7 @@ public class MissingResilienceRule : IArchitectureRule
                 LocalizedText.Of($"finding.MISSING_RESILIENCE.{variant}.suggestion"),
                 [FindingElement.Connection(edge.Id)])
             {
-                // V4 D5.6. There is nothing to decide here: without a timeout no mechanism of the
-                // edge can act at all (D4.2), and the alternative is what stops the fall. The
-                // timeout is set well above what the call costs so the fix does not create a
-                // TIMEOUT_TOO_SHORT of its own.
-                Fix = new AppliedFix(
-                    FixKinds.SetEdgeResilience,
-                    FindingElement.Connection(edge.Id),
-                    hasTimeout
-                        ? LocalizedText.Of("fix.MISSING_RESILIENCE.addFallback")
-                        : LocalizedText.Of("fix.MISSING_RESILIENCE.timeoutAndFallback", ("seconds", FixTimeoutSeconds)),
-                    TimeoutSeconds: hasTimeout ? null : FixTimeoutSeconds,
-                    Fallback: true)
+                Fix = push ? MakeAsynchronous(edge) : Protect(edge, hasTimeout)
             });
         }
 
@@ -109,9 +122,35 @@ public class MissingResilienceRule : IArchitectureRule
     }
 
     /// <summary>
+    /// V4 D5.6. There is nothing to decide here: without a timeout no mechanism of the edge can
+    /// act at all (D4.2), and the alternative is what stops the fall. The timeout is set well
+    /// above what the call costs so the fix does not create a TIMEOUT_TOO_SHORT of its own.
+    /// </summary>
+    private static AppliedFix Protect(Connection edge, bool hasTimeout) => new(
+        FixKinds.SetEdgeResilience,
+        FindingElement.Connection(edge.Id),
+        hasTimeout
+            ? LocalizedText.Of("fix.MISSING_RESILIENCE.addFallback")
+            : LocalizedText.Of("fix.MISSING_RESILIENCE.timeoutAndFallback", ("seconds", FixTimeoutSeconds)),
+        TimeoutSeconds: hasTimeout ? null : FixTimeoutSeconds,
+        Fallback: true);
+
+    /// <summary>
+    /// V15 A3. Telemetry is fire-and-forget, so the fix for a send that waits is to stop waiting:
+    /// the arrow's mode, not a timeout and a fallback on it. It is what NO_OBSERVABILITY's own fix
+    /// draws, and the one thing the doctrine says the student can do about this edge. Nothing
+    /// else on the edge moves.
+    /// </summary>
+    private static AppliedFix MakeAsynchronous(Connection edge) => new(
+        FixKinds.MakeEdgeAsynchronous,
+        FindingElement.Connection(edge.Id),
+        LocalizedText.Of("fix.MISSING_RESILIENCE.makeAsynchronous"));
+
+    /// <summary>
     /// Which of the three situations this edge is in. The three texts of §6.1 say what happens, why
     /// it matters and what to do, so the "why" has to name the reason that actually applies here,
-    /// not the union of both.
+    /// not the union of both. (The fourth, a send to the telemetry, is chosen before this is asked:
+    /// it is never a SPOF case, and its sentence is its own - V15 A3.)
     ///
     /// <strong>Three named cases and not two flags joined with a space.</strong> Until V7 the
     /// explanation was <c>string.Join(" ", reasons)</c> over two fragments, the second of which
