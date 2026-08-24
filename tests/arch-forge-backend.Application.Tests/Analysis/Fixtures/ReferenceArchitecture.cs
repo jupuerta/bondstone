@@ -51,7 +51,9 @@ public static class ReferenceArchitecture
             new QueueNoConsumerRule(),
             new CacheAsStoreRule(),
             new SharedDatabaseRule(),
-            new ImplausibleDependencyRule()
+            new ImplausibleDependencyRule(),
+            new TrafficRejectedRule(),
+            new MissingCdnRule()
         ]);
 
         return analyzer.Analyze(graph);

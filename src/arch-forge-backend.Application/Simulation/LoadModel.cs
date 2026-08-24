@@ -39,6 +39,7 @@ namespace arch_forge_backend.Application.Simulation;
 public sealed class LoadModel
 {
     private readonly Dictionary<Guid, decimal> _nodeLoad = [];
+    private readonly Dictionary<Guid, decimal> _nodeDemand = [];
     private readonly Dictionary<Guid, decimal> _edgeLoad = [];
     private readonly Dictionary<Guid, decimal> _capacity = [];
     private readonly HashSet<Guid> _backEdges;
@@ -100,6 +101,14 @@ public sealed class LoadModel
     /// <summary>Requests per second arriving at a component.</summary>
     public decimal LoadOf(Guid nodeId) => _nodeLoad.GetValueOrDefault(nodeId);
 
+    /// <summary>
+    /// V14 §4.3. What wants to enter a node, before its rate limit turns anything away: declared
+    /// plus arriving. <see cref="LoadOf"/> is what got in; the difference is what TRAFFIC_REJECTED
+    /// has to say out loud, because a limit that sheds most of the declared demand had been making
+    /// everything behind it look healthy - the limit converting "undersized" into "fine".
+    /// </summary>
+    public decimal DemandOf(Guid nodeId) => _nodeDemand.GetValueOrDefault(nodeId);
+
     public decimal CapacityOf(Guid nodeId) => _capacity.GetValueOrDefault(nodeId, 1m);
 
     /// <summary>DT.5. Zero when nothing was declared, which is the case for every architecture drawn before V4.</summary>
@@ -145,6 +154,7 @@ public sealed class LoadModel
     private void Propagate(Func<Connection, decimal> amplification)
     {
         _nodeLoad.Clear();
+        _nodeDemand.Clear();
         _edgeLoad.Clear();
         BacklogRps = 0m;
 
@@ -160,8 +170,11 @@ public sealed class LoadModel
                 .Sum(edge => _edgeLoad.GetValueOrDefault(edge.Id));
 
             // The door admits at most its rate limit, whether the traffic was declared on it or
-            // arrived from the Client in front of it (DT.3, QA §4).
-            var load = NodeSettings.Admit(node, NodeSettings.DeclaredRps(node) + incoming);
+            // arrived from the Client in front of it (DT.3, QA §4). What wanted in is kept too
+            // (V14 §4.3): the difference between the two is the rejected traffic.
+            var demand = NodeSettings.DeclaredRps(node) + incoming;
+            var load = NodeSettings.Admit(node, demand);
+            _nodeDemand[nodeId] = demand;
             _nodeLoad[nodeId] = load;
 
             DistributeOutgoing(node, load, amplification);

@@ -73,17 +73,25 @@ public class SharedDatabaseRule : IArchitectureRule
             List<FindingElement> elements = [FindingElement.Node(store.Id)];
             elements.AddRange(sharing.Select(pair => FindingElement.Connection(pair.Edge.Id)));
 
+            // V14 §4.2. The sentence this rule always wanted to say is "two services *writing*
+            // one schema" - integration by database in its full form - and until the edge could
+            // carry the claim it said the conservative one. It still does by default: the strong
+            // variant needs the writes *declared* (access "write" or an explicit "both"), because
+            // two undeclared edges defaulting to both is the model's guess, not the user's claim.
+            var writers = sharing.Count(pair => graph.ResilienceOf(pair.Edge).DeclaresWrite);
+            var variant = writers >= RuleThresholds.SharedDatabaseMinServices ? "writers" : "shared";
+
             // D5.6: no fix. Which service owns which table is the whole of the decision.
             findings.Add(new RuleFinding(
                 Code,
                 Area,
                 DefaultSeverity,
-                LocalizedText.Of("finding.SHARED_DATABASE.shared.message",
+                LocalizedText.Of($"finding.SHARED_DATABASE.{variant}.message",
                     ("node", store.Name),
-                    ("count", sharing.Count),
-                    ("names", Names(sharing.Select(pair => pair.Service)))),
-                LocalizedText.Of("finding.SHARED_DATABASE.shared.explanation", ("node", store.Name)),
-                LocalizedText.Of("finding.SHARED_DATABASE.shared.suggestion"),
+                    ("count", variant == "writers" ? writers : sharing.Count),
+                    ("names", Names(sharing.Where(pair => variant == "shared" || graph.ResilienceOf(pair.Edge).DeclaresWrite).Select(pair => pair.Service)))),
+                LocalizedText.Of($"finding.SHARED_DATABASE.{variant}.explanation", ("node", store.Name)),
+                LocalizedText.Of($"finding.SHARED_DATABASE.{variant}.suggestion"),
                 elements));
         }
 

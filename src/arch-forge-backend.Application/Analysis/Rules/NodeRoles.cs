@@ -213,10 +213,15 @@ public static class NodeRoles
     /// (<see cref="IsTrafficOrigin"/>), a third party's service, a CDN - the same three the
     /// analyzer already declines to size or to replicate, for the same reason (V8 §6.2, QA §3.2).
     /// </summary>
+    /// V14 B12 (observación). The IdentityProvider joins the third group: it is somebody else's
+    /// service - the same reason SPOF's suggestion refuses to replicate it and CapacityModel hands
+    /// it a provider's capacity - so you neither wire Auth0 to your telemetry nor give it
+    /// instances. Through <see cref="IsYoursToSize"/> this also stops UNDERSIZED_COMPONENT from
+    /// telling anybody to scale their identity provider.
     public static bool IsObservable(NodeType type) =>
         !IsTelemetry(type)
         && !IsTrafficOrigin(type)
-        && type is not (NodeType.ExternalService or NodeType.Cdn);
+        && type is not (NodeType.ExternalService or NodeType.Cdn or NodeType.IdentityProvider);
 
     /// <summary>
     /// V14 B2. What <c>UNDERSIZED_COMPONENT</c> may tell you to grow. Every sentence that rule

@@ -98,9 +98,10 @@ public sealed record AnalysisResult(
     /// <h3>v7 - the V14 sweep (docs/V14/QA-analisis-V14.md)</h3>
     ///
     /// The second QA round, and the one whose opening table said <em>"the more architecture you
-    /// draw, the worse you score; the less sense it makes, the better"</em>. Fourteen corrections
-    /// and one rule, landed as one bump for the same reason v6 was: none of it shipped on its own,
-    /// and every one of them moves what a drawing scores.
+    /// draw, the worse you score; the less sense it makes, the better"</em>. Sixteen corrections,
+    /// three rules, one edge field and one component type, landed as one bump for the same reason
+    /// v6 was: none of it shipped on its own, and every one of them moves what a drawing scores.
+    /// Twenty rules become twenty-three.
     ///
     /// <strong>What was hiding findings.</strong> B1 - the scrape arrow took the Api out of the
     /// roots, so SPOF's walk entered through the metrics sink and the entry point's Critical
@@ -153,14 +154,39 @@ public sealed record AnalysisResult(
     /// stops scoring 98. (§4.4 travels beside it without moving a number: the card shows the
     /// denominator, and a score over fewer than four areas is labelled unevaluated.)
     ///
-    /// <strong>The four reference fixtures move, and all four upward</strong>, every point of it
-    /// B3: <c>gateway-microservices</c> 84 → 85, <c>resilient-async</c> 94 → 95, <c>worst-case</c>
-    /// 72 → 74 (its SYNC_CHAIN of five boxes is a Warning of three services, eleven Criticals
-    /// instead of twelve), <c>minimal-api-db</c> stays 98. All four gain IMPLAUSIBLE_DEPENDENCY's
-    /// green tick and none a finding, which is what a rule about drawings owes a drawing done
-    /// right. What moves further is what the sweep measured: the canonical read path loses its
-    /// false Critical, the microservices with real redundancy stop scoring below the ones without,
-    /// and the two-box nonsense stops being "solid".
+    /// <strong>B13 and the calibration.</strong> "You are not watching this box" and "you cannot
+    /// see anything" stopped being the same colour: on a diagram of three or more observable
+    /// components with no telemetry box at all, each unobserved component is Critical, so total
+    /// blindness sits at 55 instead of the 85 a Warning-only area could never go below. The other
+    /// half of the same correction is new rules where the areas were thin (Availability had one
+    /// rule, Resilience eight): TRAFFIC_REJECTED (Availability) says out loud that a rate limit
+    /// shedding most of the declared demand is turning users away, not keeping the system healthy
+    /// - the limit had been converting "undersized" into "fine" - and MISSING_CDN (Scalability)
+    /// finally gives the Cdn type the rule D3.2 demands: a public door serving a thousand
+    /// requests a second with no edge in front is asked, once, whether the edge belongs there.
+    ///
+    /// <strong>§4.2 - the edge learned what the call does with the data.</strong> <c>access</c>:
+    /// read, write, or absent - which means both, so nothing drawn before v7 changes. A declared
+    /// write no longer wants a cache (MISSING_CACHE), and SHARED_DATABASE says the sentence it
+    /// always wanted - two services <em>writing</em> one schema - when the drawing declares it,
+    /// never guessed from the default.
+    ///
+    /// <strong>§3.1 - the Topic.</strong> Publish-subscribe beside point-to-point: the load model
+    /// duplicates across its fan-out where a Queue divides (the cost lesson of events),
+    /// QUEUE_NO_CONSUMER reads it with its own sentence, HIGH_COUPLING deliberately does not count
+    /// its fan-out - broadcasting is half of why you use one - and SPOF grades the broker like any
+    /// broker. It is the one type that cleared V2 D3.2's bar on day one with rules that already
+    /// existed.
+    ///
+    /// <strong>The four reference fixtures land at 98 / 90 / 80 / 69</strong>, and the two moves
+    /// compose: B3 lifted all four (a chain measured in logic, not boxes), then B13 dropped the
+    /// three that run entirely blind - <c>resilient-async</c> 95 → 90, <c>gateway-microservices</c>
+    /// 85 → 80, <c>worst-case</c> 74 → 69, while <c>minimal-api-db</c>'s two boxes stay a sketch
+    /// and keep 98. The fixtures predate the telemetry palette, and the story they now tell is the
+    /// true one: good bones, and nobody watching. What moved further is what the sweep measured -
+    /// the canonical read path lost its false Critical, microservices with real redundancy stopped
+    /// scoring below the ones without, the two-box nonsense stopped being "solid", and the famous
+    /// SPOF finally has a card.
     /// </summary>
     public const string CurrentScoringVersion = "v7";
 }

@@ -43,7 +43,12 @@ public class HighCouplingRule : IArchitectureRule
         // doing its job, not growing responsibilities. Without this, wiring what NO_OBSERVABILITY
         // asks for would have pushed a three-dependency service over the bar.
         var coupled = graph.Nodes
-            .Where(node => !NodeRoles.IsTrafficOrigin(node.Type) && !NodeRoles.IsTelemetry(node.Type))
+            // A Topic never grades here (V14 §3.1): its fan-out is broadcast, which is half of why
+            // you use one - each subscriber is a copy of a fact, not a dependency the topic holds.
+            // The *publisher's* coupling tells the story on its own: one edge to the topic where
+            // the synchronous alternative is an edge per interested party.
+            .Where(node => !NodeRoles.IsTrafficOrigin(node.Type) && !NodeRoles.IsTelemetry(node.Type)
+                           && node.Type != NodeType.Topic)
             .Select(node => (Node: node, Edges: graph.OutgoingBySource[node.Id]
                 .Where(edge => !NodeRoles.IsTelemetryEdge(graph, edge))
                 .ToList()))

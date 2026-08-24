@@ -306,6 +306,7 @@ public class SpofRule : IArchitectureRule
         NodeType.Database => "finding.SPOF.suggestion.database",
         NodeType.Cache => "finding.SPOF.suggestion.cache",
         NodeType.Queue => "finding.SPOF.suggestion.queue",
+        NodeType.Topic => "finding.SPOF.suggestion.topic",
         NodeType.ObjectStorage => "finding.SPOF.suggestion.objectStorage",
 
         // You cannot give somebody else's service more instances and you cannot fix it (V8 §6.2),

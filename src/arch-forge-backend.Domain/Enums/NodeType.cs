@@ -73,5 +73,18 @@ public enum NodeType
     /// path of every request it is the most famous SPOF in the industry, which pattern A grades
     /// with no special case at all.
     /// </summary>
-    IdentityProvider
+    IdentityProvider,
+
+    /// <summary>
+    /// V14 §3.1. Publish-subscribe: every subscriber gets a copy of every message, where a
+    /// <see cref="Queue"/>'s consumers compete for each one. It is the difference between
+    /// spreading work and broadcasting a fact - the base of everything taught about events,
+    /// sagas and decoupling - and the model already owned the mechanism that distinguishes it:
+    /// <c>LoadModel.Basis</c> divides across a Queue's consumers and duplicates across a Topic's
+    /// subscribers, which is the cost lesson of event fan-out. It clears the V2 D3.2 bar with
+    /// rules that already exist: QUEUE_NO_CONSUMER reads it (published work nobody receives),
+    /// SPOF grades the broker like any broker, and HIGH_COUPLING deliberately does not count its
+    /// fan-out - broadcasting is the half of why you use one.
+    /// </summary>
+    Topic
 }

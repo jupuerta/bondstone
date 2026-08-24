@@ -71,7 +71,7 @@ public class ReferenceArchitectureTests
     }
 
     [Fact]
-    public void GatewayMicroservices_ScoresEightyFive()
+    public void GatewayMicroservices_ScoresEighty()
     {
         // The most important fixture: a normal microservices architecture, neither exemplary nor a
         // disaster. (75 + 60 + 100 + 95) / 4 = 82.5 -> 83.
@@ -92,8 +92,9 @@ public class ReferenceArchitectureTests
         Assert.Equal(95, result.ScoreOf(Area.Security));
 
         // Five components and nothing watching any of them: 5 + 2,5 × 4 hits the cap of 15 (QA §4,
-        // coverage). Until v6 this read 95 - one Warning for a whole system running blind.
-        Assert.Equal(85, result.ScoreOf(Area.Observability));
+        // coverage). Until v6 this read 95 - one Warning for a whole system running blind - and
+        // 85 until V14 B13, because a Warning-only rule could never say "you cannot see anything".
+        Assert.Equal(55, result.ScoreOf(Area.Observability));
 
         // **83 in v2, 85 in v4, 87 in v5, 84 in v6, 85 since V14 B3, and the architecture never
         // changed.** V4 started measuring two areas nobody was measuring; V13 D2.1 stopped reading
@@ -102,12 +103,13 @@ public class ReferenceArchitectureTests
         // chain, and `Gateway -> Orders -> Payments` is two services, under the threshold the rule
         // was calibrated on. Scores from two scoring versions are not comparable, which is what
         // `scoringVersion` is for (V2 D1.5) and why a challenge may never assert on one (V4 D1.4).
-        Assert.Equal(85, result.Score);
+        Assert.Equal(80, result.Score);
 
         // The gateway moves from the Critical column to the Warning one, so 6 · 5 becomes 5 · 6;
         // SHARED_DATABASE makes the six seven, and coverage turns one NO_OBSERVABILITY into five.
-        // V14 B3 takes SYNC_CHAIN's Warning off the count and gives the rule its green tick back.
-        Assert.Equal(new AnalysisSummary(Critical: 5, Warning: 10, Passed: 8), result.Summary);
+        // V14 B3 takes SYNC_CHAIN's Warning off the count and gives the rule its green tick back;
+        // B13 turns the five unobserved boxes Critical, because nothing here is watching anything.
+        Assert.Equal(new AnalysisSummary(Critical: 10, Warning: 5, Passed: 8), result.Summary);
     }
 
     [Fact]
@@ -135,7 +137,7 @@ public class ReferenceArchitectureTests
     }
 
     [Fact]
-    public void ResilientAsync_ScoresNinetyFive()
+    public void ResilientAsync_ScoresNinety()
     {
         var result = ReferenceArchitecture.Analyze("resilient-async");
 
@@ -163,13 +165,16 @@ public class ReferenceArchitectureTests
         // counted as a decision.
         Assert.Equal(93, result.ScoreOf(Area.Security));
 
-        // Seven components and no telemetry: the cap (QA §4, coverage). "Resilient" was never
-        // "observed", and the fixture that does everything else right still runs blind.
-        Assert.Equal(85, result.ScoreOf(Area.Observability));
+        // Seven components and no telemetry - and since V14 B13 that is no longer homework, it is
+        // blindness: with not one box watching, each unobserved component is a Critical, and the
+        // area sits at 55 instead of the 85 the Warning-only cap could never go below. This
+        // fixture predates the telemetry palette; the story it tells is now the true one.
+        Assert.Equal(55, result.ScoreOf(Area.Observability));
 
-        // 94 until V14 B3 took the chain off it. `LB -> Api -> Cache -> Db` is not four links, it
-        // is one API and the two things it stores in.
-        Assert.Equal(95, result.Score);
+        // 94 until V14 B3 took the chain off it, 95 after, 90 since B13 made running blind cost
+        // what running blind costs. The architecture the catalogue ships as the good one is good
+        // at everything except being seen - and now the card says so.
+        Assert.Equal(90, result.Score);
 
         // **Not one Critical left on the architecture the catalogue ships as the good one.** V13
         // takes two SPOFs off it (D1.1) and downgrades the two entry points (D2.1); what remains is
@@ -178,8 +183,10 @@ public class ReferenceArchitectureTests
         //
         // And three more green ticks since QA §4, all three earned: the queue has its worker, the
         // cache has the database behind it, and Orders is the only service on that database.
-        // V14 B3 turns SYNC_CHAIN's Warning into its green tick here too.
-        Assert.Equal(new AnalysisSummary(Critical: 0, Warning: 11, Passed: 13), result.Summary);
+        // V14 B3 turns SYNC_CHAIN's Warning into its green tick here too - and B13 recolours the
+        // seven unobserved boxes: "not one Critical on the architecture" held from V13 until the
+        // day total blindness stopped being a Warning, and what it grew is seven of the same one.
+        Assert.Equal(new AnalysisSummary(Critical: 7, Warning: 4, Passed: 13), result.Summary);
     }
 
     [Fact]
@@ -238,7 +245,7 @@ public class ReferenceArchitectureTests
     }
 
     [Fact]
-    public void WorstCase_ScoresSeventyFour()
+    public void WorstCase_ScoresSixtyNine()
     {
         // The fixture that pins the caps down - MISSING_RESILIENCE fires six times and only costs
         // 45 - and the only one where the rounding of an area matters: without rounding
@@ -257,21 +264,24 @@ public class ReferenceArchitectureTests
         Assert.Equal(65, result.ScoreOf(Area.Coupling));
         Assert.Equal(95, result.ScoreOf(Area.Scalability));
         Assert.Equal(95, result.ScoreOf(Area.Security));
-        Assert.Equal(85, result.ScoreOf(Area.Observability));   // ten boxes, nothing watching: the cap
+        Assert.Equal(55, result.ScoreOf(Area.Observability));   // ten boxes, nothing watching: Critical since V14 B13
 
-        // **65 in v2, 73 in v4, 75 in v5, 72 in v6, 74 since V14 B3**, and it is the worst
+        // **65 in v2, 73 in v4, 75 in v5, 72 in v6, 74 after V14 B3, 69 since B13** - the one
+        // correction of the sweep that moves it *down*, and it earns it twice over: the worst
+        // architecture in the suite is also completely blind. And it is the worst
         // architecture in the suite that gains the most. Six areas averaged without weights means
         // freshly measured ones at 95 pull a 25 upwards. Not a bug and not a calibration to fiddle
         // with (D1.2 chose the plain average on purpose) - a reason why comparing two scoring
         // versions is meaningless.
-        Assert.Equal(74, result.Score);
+        Assert.Equal(69, result.Score);
 
-        // What keeps this fixture honest: **eleven Criticals** - twelve until V14 B3 moved
-        // SYNC_CHAIN's to the Warning column, which is the one place that fix softens this fixture,
-        // and it softens it to the truth: three chained services, not five boxes. V13 lowers the
-        // floor under the small correct architectures without softening the bad one - the two moves
-        // are separate, and this is where you see it.
-        Assert.Equal(11, result.Summary.Critical);
+        // What keeps this fixture honest: **twenty-one Criticals** - twelve until V14 B3 moved
+        // SYNC_CHAIN's to the Warning column (softening it to the truth: three chained services,
+        // not five boxes), eleven after, and then B13 added the ten boxes running with no telemetry
+        // at all, each one the Critical total blindness is. V13 lowers the floor under the small
+        // correct architectures without softening the bad one - the two moves are separate, and
+        // this is where you see it.
+        Assert.Equal(21, result.Summary.Critical);
     }
 
     [Fact]
@@ -357,18 +367,20 @@ public class ReferenceArchitectureTests
                 RuleCodes.MissingResilience, RuleCodes.MissingResilience,
                 RuleCodes.RetryAmplification,
                 RuleCodes.Cycle, RuleCodes.HighCoupling,
+                // Coverage (QA §4): one per box nobody watches, and this fixture has ten - all of
+                // them Critical since V14 B13, because there is no telemetry here at all. They
+                // close the Critical block under Observability, the last area of the walk.
+                RuleCodes.NoObservability, RuleCodes.NoObservability, RuleCodes.NoObservability,
+                RuleCodes.NoObservability, RuleCodes.NoObservability, RuleCodes.NoObservability,
+                RuleCodes.NoObservability, RuleCodes.NoObservability, RuleCodes.NoObservability,
+                RuleCodes.NoObservability,
                 // Warning: same walk through the areas. UNAUTHENTICATED_ENTRY crossed over from the
                 // block above in V13 D2.1, and lands under Security exactly where the order says.
                 // SYNC_CHAIN moved down here in V14 B3: three services chained is a Warning, and
                 // the Critical of five was four boxes of infrastructure padding the count.
                 RuleCodes.Spof, RuleCodes.MissingResilience, RuleCodes.SyncChain,
                 RuleCodes.SharedDatabase, RuleCodes.MissingCache,
-                RuleCodes.UnauthenticatedEntry,
-                // Coverage (QA §4): one per box nobody watches, and this fixture has ten.
-                RuleCodes.NoObservability, RuleCodes.NoObservability, RuleCodes.NoObservability,
-                RuleCodes.NoObservability, RuleCodes.NoObservability, RuleCodes.NoObservability,
-                RuleCodes.NoObservability, RuleCodes.NoObservability, RuleCodes.NoObservability,
-                RuleCodes.NoObservability
+                RuleCodes.UnauthenticatedEntry
             ],
             result.Findings.Where(f => f.Severity != Severity.Good).Select(f => f.Code));
     }

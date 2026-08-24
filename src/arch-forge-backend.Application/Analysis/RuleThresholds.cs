@@ -32,4 +32,14 @@ public static class RuleThresholds
     /// there is no number of services at which it becomes fine.
     /// </summary>
     public const int SharedDatabaseMinServices = 2;
+    // V14 §4.3. TRAFFIC_REJECTED: below half it is a limit shedding a peak, which is the limit
+    // doing its job; from half up the limit is standing in for capacity, and from nine tenths the
+    // drawing says "we turn away nearly everyone" - which deserves the loud colour.
+    public const decimal RejectedTrafficWarning = 0.5m;
+    public const decimal RejectedTrafficCritical = 0.9m;
+
+    // V14 §4.3. MISSING_CDN: the declared traffic at which serving directly starts being the
+    // finding. Twice an Api's capacity - below that, one door handles it and a CDN is an
+    // optimisation; above it, the edge is where the first real relief lives.
+    public const int CdnWorthTraffic = 1000;
 }

@@ -39,7 +39,10 @@ public class QueueNoConsumerRule : IArchitectureRule
         // An orphan queue is ORPHAN_NODE's finding (QA B4): with no producer there is nothing to
         // drain, and a queue nobody publishes to is not a flow with no end, it is no flow.
         var queues = graph.Nodes
-            .Where(n => n.Type == NodeType.Queue && !graph.OrphanNodes.Contains(n.Id))
+            // V14 §3.1. A Topic is the same lesson with the same silence: published facts nobody
+            // subscribes to. Same code - "somebody publishes and nobody receives" is one claim,
+            // not two - with the topic's own sentence.
+            .Where(n => n.Type is NodeType.Queue or NodeType.Topic && !graph.OrphanNodes.Contains(n.Id))
             .ToList();
 
         if (queues.Count == 0)
@@ -89,7 +92,7 @@ public class QueueNoConsumerRule : IArchitectureRule
             if (NodeRoles.ProcessesMessages(target.Type))
                 return true;
 
-            if (target.Type == NodeType.Queue && HasConsumer(graph, target.Id, visited))
+            if (target.Type is NodeType.Queue or NodeType.Topic && HasConsumer(graph, target.Id, visited))
                 return true;
         }
 
@@ -114,6 +117,10 @@ public class QueueNoConsumerRule : IArchitectureRule
 
         var elements = new List<FindingElement> { FindingElement.Node(queue.Id) };
 
+        // V14 §3.1: the advice names what the box is - "wire the queue to its consumer" and
+        // "subscribe somebody to the topic" are different instructions (V13 D1.2).
+        var kind = queue.Type == NodeType.Topic ? ".topic" : "";
+
         if (backwards is null)
         {
             return new RuleFinding(
@@ -122,7 +129,7 @@ public class QueueNoConsumerRule : IArchitectureRule
                 DefaultSeverity,
                 LocalizedText.Of("finding.QUEUE_NO_CONSUMER.unconsumed.message", ("node", queue.Name)),
                 LocalizedText.Of("finding.QUEUE_NO_CONSUMER.unconsumed.explanation"),
-                LocalizedText.Of("finding.QUEUE_NO_CONSUMER.unconsumed.suggestion"),
+                LocalizedText.Of($"finding.QUEUE_NO_CONSUMER.unconsumed.suggestion{kind}"),
                 elements);
         }
 
@@ -137,7 +144,7 @@ public class QueueNoConsumerRule : IArchitectureRule
             LocalizedText.Of("finding.QUEUE_NO_CONSUMER.backwards.explanation",
                 ("node", queue.Name),
                 ("worker", backwards.Name)),
-            LocalizedText.Of("finding.QUEUE_NO_CONSUMER.backwards.suggestion",
+            LocalizedText.Of($"finding.QUEUE_NO_CONSUMER.backwards.suggestion{kind}",
                 ("node", queue.Name),
                 ("worker", backwards.Name)),
             elements);

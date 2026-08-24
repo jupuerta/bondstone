@@ -107,7 +107,8 @@ public class ProtocolMismatchRule : IArchitectureRule
 
             // AMQP with no broker at either end. Warning rather than Critical because drawing the
             // messaging without drawing the queue is a plausible shorthand rather than a slip.
-            ProtocolType.Amqp when target != NodeType.Queue && source != NodeType.Queue
+            ProtocolType.Amqp when target is not (NodeType.Queue or NodeType.Topic)
+                                   && source is not (NodeType.Queue or NodeType.Topic)
                 => ("amqp", Severity.Warning),
 
             // A database with an HTTP API exists - a document store, a search engine, a REST layer

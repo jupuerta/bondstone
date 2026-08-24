@@ -66,9 +66,19 @@ public class NoObservabilityRule : IArchitectureRule
         // which one is the decision, and with none the first step is adding it.
         var theOnlyTelemetry = telemetry.Count == 1 ? telemetry[0] : null;
 
+        // V14 B13. "You are not watching this box" and "you cannot see anything" are different
+        // claims, and until v7 they carried the same colour - which, with one Warning-only rule in
+        // the area, put a floor of 85 under it: a twenty-box system with not one line of telemetry
+        // read "aceptable", two and a half global points below a fully instrumented one. On a
+        // diagram big enough to be an architecture (the SYNC_CHAIN warning threshold, which is
+        // also where "sketch" stops being the right word) with no telemetry box at all, each
+        // unobserved component is Critical: the cap does the rest, and total blindness now sits at
+        // 55, forty points under the fully wired 100 instead of fifteen.
+        var blind = telemetry.Count == 0 && observable.Count >= RuleThresholds.SyncChainWarning;
+
         var findings = observable
             .Where(node => !IsObserved(graph, node))
-            .Select(node => Report(node, telemetry.Count, theOnlyTelemetry))
+            .Select(node => Report(node, telemetry.Count, theOnlyTelemetry, blind ? Severity.Critical : Severity.Warning))
             .ToList();
 
         return RuleResult.Applicable(findings);
@@ -80,7 +90,7 @@ public class NoObservabilityRule : IArchitectureRule
             .Concat(graph.OutgoingBySource[node.Id].Select(c => c.TargetNodeId))
             .Any(otherId => graph.NodesById.TryGetValue(otherId, out var other) && NodeRoles.IsTelemetry(other.Type));
 
-    private RuleFinding Report(Node node, int telemetryCount, Node? theOnlyTelemetry)
+    private RuleFinding Report(Node node, int telemetryCount, Node? theOnlyTelemetry, Severity severity)
     {
         // Three whole suggestions, chosen here (V7 D1.1): add telemetry and wire this to it; wire
         // this to the one there is; wire this to one of the several there are.
@@ -96,7 +106,7 @@ public class NoObservabilityRule : IArchitectureRule
         return new RuleFinding(
             Code,
             Area,
-            DefaultSeverity,
+            severity,
             LocalizedText.Of("finding.NO_OBSERVABILITY.unobserved.message", ("node", node.Name)),
             LocalizedText.Of("finding.NO_OBSERVABILITY.unobserved.explanation", ("node", node.Name)),
             suggestion,

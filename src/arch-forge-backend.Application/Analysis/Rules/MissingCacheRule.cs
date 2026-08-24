@@ -49,8 +49,13 @@ public class MissingCacheRule : IArchitectureRule
 
             // Telemetry reading the database is not a consumer whose reads want a cache (QA §4,
             // coverage): it is the wire NO_OBSERVABILITY asks for, and it must not cost a point here.
+            // V14 §4.2. A call declared write-only is not a read a cache could answer: "put a
+            // cache in front" was being said to Workers that only ever write (T11, P10). Absent
+            // means both, so every edge drawn before v7 still counts - it is the declaration
+            // that changes the sentence, never a guess.
             var direct = graph.IncomingByTarget[database.Id]
                 .Where(c => c.Synchronous && !NodeRoles.IsTelemetryEdge(graph, c))
+                .Where(c => graph.ResilienceOf(c).Reads)
                 .ToList();
             var effective = direct.Where(edge => IsEffectiveConsumer(graph, edge.SourceNodeId, database.Id)).ToList();
 

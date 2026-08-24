@@ -1,3 +1,4 @@
+using System;
 namespace arch_forge_backend.Application.Configuration.Schemas;
 
 /// <summary>
@@ -21,4 +22,26 @@ public class ResilienceConfiguration
     public int? Retries { get; set; }
     public bool CircuitBreaker { get; set; }
     public bool Fallback { get; set; }
+
+    /// <summary>
+    /// V14 §4.2. What the call does with the data at the far end: <c>"read"</c>, <c>"write"</c>,
+    /// or absent - which means <em>both</em>, the DT.6 trick again ("absent changes nothing"), so
+    /// every edge drawn before v7 behaves exactly as it did. It is the one addition to the edge
+    /// that unlocks several rules at once: MISSING_CACHE stops advising a cache in front of
+    /// declared writes, and SHARED_DATABASE can say the real sentence - two services *writing*
+    /// one schema - when the drawing declares it. A string and not an enum for the same reason
+    /// the protocol travels as one: the schema is JSON somebody typed, and an unknown value must
+    /// read as "nothing declared", never as a failed save.
+    /// </summary>
+    public string? Access { get; set; }
+
+    /// <summary>The call reads (declared, or nothing declared - both includes read).</summary>
+    public bool Reads => !string.Equals(Access, "write", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The call writes (declared, or nothing declared - both includes write).</summary>
+    public bool Writes => !string.Equals(Access, "read", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Somebody said "write" (or "both") out loud - the declared claim, not the default.</summary>
+    public bool DeclaresWrite => string.Equals(Access, "write", StringComparison.OrdinalIgnoreCase)
+                                 || string.Equals(Access, "both", StringComparison.OrdinalIgnoreCase);
 }

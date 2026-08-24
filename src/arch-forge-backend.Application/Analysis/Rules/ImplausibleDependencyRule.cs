@@ -135,5 +135,5 @@ public class ImplausibleDependencyRule : IArchitectureRule
     /// <summary>What a clock can trigger: something that runs logic, or the queue that hands it to something that does.</summary>
     private static bool IsWork(NodeType type) =>
         type is NodeType.Worker or NodeType.Service or NodeType.Api
-             or NodeType.Queue or NodeType.Gateway;
+             or NodeType.Queue or NodeType.Topic or NodeType.Gateway;
 }

@@ -52,7 +52,12 @@ public static class DependencyInjection
         services.AddScoped<IArchitectureRule, CacheAsStoreRule>();          // Consumer
         services.AddScoped<IArchitectureRule, SharedDatabaseRule>();        // Consumer
 
-        // V14 §4.1: the twenty-first, and the second one about the drawing rather than the
+        // V14 §4.3: the two that balance the areas B13 found lopsided. TRAFFIC_REJECTED gives
+        // Availability its second rule; MISSING_CDN gives the Cdn type the rule that justifies it.
+        services.AddScoped<IArchitectureRule, TrafficRejectedRule>();       // Consumer
+        services.AddScoped<IArchitectureRule, MissingCdnRule>();            // Consumer
+
+        // V14 §4.1: with them, twenty-three - and the second one and the second one about the drawing rather than the
         // architecture. PROTOCOL_MISMATCH asks whether the protocol fits the far end; this one asks
         // whether the two ends can talk at all.
         services.AddScoped<IArchitectureRule, ImplausibleDependencyRule>(); // Consumer
@@ -88,6 +93,7 @@ public static class DependencyInjection
         services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<CdnConfiguration>(NodeType.Cdn));
         services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<SchedulerConfiguration>(NodeType.Scheduler));
         services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<IdentityProviderConfiguration>(NodeType.IdentityProvider));
+        services.AddSingleton<INodeConfigurationProvider>(new NodeConfigurationProvider<TopicConfiguration>(NodeType.Topic));
         services.AddSingleton<NodeConfigurationRegistry>();
 
         services.AddScoped<IValidator<CreateArchitectureCommand>, CreateArchitectureCommandValidator>();

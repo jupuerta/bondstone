@@ -22,6 +22,9 @@ public static class CapacityModel
     public const int Api = 500;
     public const int Gateway = 2_000;
     public const int Queue = 5_000;
+
+    /// <summary>V14 §3.1: the same broker hardware as a Queue - what differs is what it does with the fan-out, not what it can take.</summary>
+    public const int Topic = 5_000;
     public const int Cache = 5_000;
     public const int LoadBalancer = 10_000;
     public const int Worker = 200;
@@ -80,6 +83,7 @@ public static class CapacityModel
         NodeType.Api => Api,
         NodeType.Gateway => Gateway,
         NodeType.Queue => Queue,
+        NodeType.Topic => Topic,
         NodeType.Cache => Cache,
         NodeType.LoadBalancer => LoadBalancer,
         NodeType.Worker => Worker,

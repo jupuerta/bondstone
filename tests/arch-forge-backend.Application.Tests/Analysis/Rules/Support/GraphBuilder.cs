@@ -48,7 +48,8 @@ public class GraphBuilder
         int? retries = null,
         bool circuitBreaker = false,
         bool fallback = false,
-        ProtocolType protocol = ProtocolType.Http)
+        ProtocolType protocol = ProtocolType.Http,
+        string? access = null)
     {
         _connections.Add((source, target, new Connection
         {
@@ -57,7 +58,7 @@ public class GraphBuilder
             TargetNodeId = IdOf(target),
             Protocol = protocol,
             Synchronous = synchronous,
-            Configuration = Resilience(timeoutSeconds, retries, circuitBreaker, fallback)
+            Configuration = Resilience(timeoutSeconds, retries, circuitBreaker, fallback, access)
         }));
 
         return this;
@@ -86,7 +87,7 @@ public class GraphBuilder
 
     private Guid NextId() => new($"00000000-0000-0000-0000-{++_nextId:000000000000}");
 
-    private static string Resilience(int? timeoutSeconds, int? retries, bool circuitBreaker, bool fallback)
+    private static string Resilience(int? timeoutSeconds, int? retries, bool circuitBreaker, bool fallback, string? access = null)
     {
         var fields = new List<string>();
 
@@ -98,6 +99,11 @@ public class GraphBuilder
 
         fields.Add($"\"circuitBreaker\":{(circuitBreaker ? "true" : "false")}");
         fields.Add($"\"fallback\":{(fallback ? "true" : "false")}");
+
+        // V14 §4.2: only when declared - absent means both, and the tests that say nothing must
+        // keep drawing the edges everybody drew before v7.
+        if (access is not null)
+            fields.Add($"\"access\":\"{access}\"");
 
         return $"{{{string.Join(",", fields)}}}";
     }

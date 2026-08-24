@@ -41,6 +41,14 @@ public static class RuleCodes
     public const string CacheAsStore = "CACHE_AS_STORE";
     public const string SharedDatabase = "SHARED_DATABASE";
 
+    // V14 §4.3 (docs/V14/QA-analisis-V14.md). The two rules that balance the areas B13 found
+    // lopsided - Availability had one rule and Scalability two while Resilience had eight - and
+    // each one is a lesson the model could already measure. TRAFFIC_REJECTED: a rate limit
+    // shedding most of the declared demand had been making everything behind it look healthy.
+    // MISSING_CDN: the rule that finally justifies the Cdn type the way D3.2 demands.
+    public const string TrafficRejected = "TRAFFIC_REJECTED";
+    public const string MissingCdn = "MISSING_CDN";
+
     // V14 §4.1 (docs/V14/QA-analisis-V14.md). PROTOCOL_MISMATCH's idea applied to the ends of the
     // arrow instead of to its protocol: whether the two types it joins describe a call that can
     // happen at all. The second rule whose findings are about the drawing, and the one that
