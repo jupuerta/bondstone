@@ -45,14 +45,19 @@ public class ArchitectureAnalyzer
             Warning: findings.Count(f => f.Severity == Severity.Warning),
             Passed: findings.Count(f => f.Severity == Severity.Good));
 
+        // One walk for both readings: the boxes and the arrows are two halves of the same
+        // measurement, and computing it twice would let them disagree by a rounding.
+        var load = LoadModel.Of(graph);
+
         return new AnalysisResult(
             AnalysisResult.CurrentScoringVersion,
             score.Score,
             score.Areas,
             summary,
             Order(findings, Positions(graph)),
-            Load(graph),
-            Coverage(outcomes));
+            Load(graph, load),
+            Coverage(outcomes),
+            CallLoad(graph, load));
     }
 
     /// <summary>
@@ -65,10 +70,8 @@ public class ArchitectureAnalyzer
     /// entry per component, in the canonical order of <see cref="ArchitectureGraph.Nodes"/> - which
     /// is contract (V6 D1.1), and the order the export already lists the components in.
     /// </summary>
-    private static IReadOnlyList<ComponentLoad> Load(ArchitectureGraph graph)
+    private static IReadOnlyList<ComponentLoad> Load(ArchitectureGraph graph, LoadModel load)
     {
-        var load = LoadModel.Of(graph);
-
         if (load.IsIdle)
             return [];
 
@@ -78,6 +81,29 @@ public class ArchitectureAnalyzer
                 Math.Round(load.LoadOf(node.Id), 2),
                 load.CapacityOf(node.Id),
                 Math.Round(load.UtilizationOf(node.Id), 2)))
+            .ToList();
+    }
+
+    /// <summary>
+    /// V17 D3. The same axis one level down, on the arrows. <c>LoadModel</c> has written the rps of
+    /// every call since V4 DT.3 and nothing outside it ever read them: the <c>×24</c> the panel
+    /// reports happens on these edges, and the figure that says where was thrown away the line after
+    /// it was computed.
+    ///
+    /// Same silence and same order as <see cref="Load"/>: nothing at all when nobody declared any
+    /// traffic, and otherwise one entry per call in the canonical order of
+    /// <see cref="ArchitectureGraph.Connections"/> - which is contract (V6 D1.1) and the order the
+    /// export already lists the calls in. Zeros are listed: an arrow that carries nothing on a
+    /// drawing that does declare traffic is saying something (it instruments, or it closes a cycle),
+    /// and a client that cannot find an arrow would have to guess which kind of nothing it is.
+    /// </summary>
+    private static IReadOnlyList<ConnectionLoad> CallLoad(ArchitectureGraph graph, LoadModel load)
+    {
+        if (load.IsIdle)
+            return [];
+
+        return graph.Connections
+            .Select(edge => new ConnectionLoad(edge.Id, Math.Round(load.CallLoadOf(edge.Id), 2)))
             .ToList();
     }
 

@@ -15,6 +15,7 @@ namespace arch_forge_backend.Application.Simulation;
 ///    ↓  phase A               monotone fixed point towards dependents, double buffered, ≤ V rounds
 ///    ↓  phase B               reachability, only if some `down` fault was injected
 ///    ↓  cost under fault      the same walk, now with states and injected latencies
+///    ↓  critical path         that same walk told back as the path it took (V17 D1)
 ///    ↓  metrics · canonical order
 /// </code>
 ///
@@ -72,12 +73,25 @@ public class SimulationEngine
         // 5. Now the states are final, the cost can be measured for real.
         var faulted = CallCost.Of(graph, faults.AsCostInputs(elements.NodeStates()) with { QueueingFactors = queueing });
 
+        // 6. V17 D1. The same walk, told back as the path it took. Measured over the entry points
+        //    that are still doors - the set FaultedLatencyMs is measured over - so the last hop's
+        //    running total is that figure and not a second opinion about it.
+        var live = LiveRoots(graph, faults);
+
         return new SimulationResult(
             SimulationResult.CurrentSimulationVersion,
             elements.ToOrderedList(graph, load),
-            Measure(graph, faults, elements, load, nominal, faulted),
-            discarded);
+            Measure(graph, faults, elements, load, nominal, faulted, live),
+            discarded,
+            faulted.CriticalPathFrom(live));
     }
+
+    /// <summary>
+    /// An entry point with a fault injected on it is not an entry point any more: there is no path
+    /// left to measure, which is a different thing from a path that costs zero (plan técnico §2).
+    /// </summary>
+    private static IReadOnlyList<Node> LiveRoots(ArchitectureGraph graph, InjectedFaults faults) =>
+        graph.RootNodes.Where(n => !faults.IsDown(n.Id)).ToList();
 
     // -------------------------------------------------------------------------------------------
     // Phase A - the monotone fixed point of D1.5, propagating towards dependents.
@@ -396,7 +410,8 @@ public class SimulationEngine
         PropagationState elements,
         LoadModel load,
         CallCost nominal,
-        CallCost faulted)
+        CallCost faulted,
+        IReadOnlyList<Node> live)
     {
         var states = elements.NodeStates();
         var down = states.Values.Count(s => s == HealthState.Down);
@@ -406,10 +421,6 @@ public class SimulationEngine
         // D3.2: any entry point that does not end up Healthy. A degraded one is serving worse, and
         // saying it is unaffected would be saying nothing happens to the user.
         var affected = graph.RootNodes.Count(n => states[n.Id] != HealthState.Healthy);
-
-        // An entry point with a fault injected on it is not an entry point any more: there is no
-        // path left to measure, which is a different thing from a path that costs zero.
-        var live = graph.RootNodes.Where(n => !faults.IsDown(n.Id)).ToList();
 
         // DT.7 and plan técnico §5.4: the *complete* yield - capacity, expiring calls and fault
         // states - which is a different one from the capacity-only yield that fed the retry

@@ -12,6 +12,14 @@ namespace arch_forge_backend.Application.Analysis;
 /// utilisation, and a list of zeros would say "idle" where the truth is "not measured" - the same
 /// distinction <see cref="Simulation.ElementState.Utilization"/> makes with a null.
 /// </param>
+/// <param name="CallLoad">
+/// V17 D3. How much traffic each call carries - see <see cref="ConnectionLoad"/>. The twin of
+/// <paramref name="Load"/> on the arrows instead of on the boxes, with the same criterion and the
+/// same silence: <strong>empty when nobody declared any traffic</strong>, because a list of zeros
+/// would say "no requests" where the truth is "nobody said". When it is present it lists
+/// <em>every</em> call, zeros included, since a zero on one arrow of a drawing that does declare
+/// traffic is a fact about that arrow - it instruments, or it closes a cycle.
+/// </param>
 /// <param name="Coverage">
 /// V16 C7a. One line per registered rule and what it did here - fired, passed, or never applied -
 /// see <see cref="RuleCoverage"/>. Ordered by area and then by code, so the catalogue that reads it
@@ -26,10 +34,14 @@ public sealed record AnalysisResult(
     AnalysisSummary Summary,
     IReadOnlyList<RuleFinding> Findings,
     IReadOnlyList<ComponentLoad>? Load = null,
-    IReadOnlyList<RuleCoverage>? Coverage = null)
+    IReadOnlyList<RuleCoverage>? Coverage = null,
+    IReadOnlyList<ConnectionLoad>? CallLoad = null)
 {
     /// <summary>V16 C5. Empty rather than null on a drawing with no declared traffic.</summary>
     public IReadOnlyList<ComponentLoad> Load { get; init; } = Load ?? [];
+
+    /// <summary>V17 D3. Empty rather than null, on the same drawings and for the same reason.</summary>
+    public IReadOnlyList<ConnectionLoad> CallLoad { get; init; } = CallLoad ?? [];
 
     /// <summary>V16 C7a. One entry per registered rule, in (area, code) order.</summary>
     public IReadOnlyList<RuleCoverage> Coverage { get; init; } = Coverage ?? [];
@@ -283,6 +295,14 @@ public sealed record AnalysisResult(
     /// (V2 D1.5). A scoring version says what the analyzer <em>found</em>; it is not a shape
     /// number, and bumping it here would tell every stored history that its figures had aged when
     /// nothing about them moved.
+    ///
+    /// <h3>v8 stays v8 again - V17 D3 (docs/V17/ArchForge_lectura_visual_V17.md)</h3>
+    ///
+    /// <see cref="CallLoad"/> is the third field of that same kind, and the smallest of the three:
+    /// <c>LoadModel</c> has written the rps of every call on both of its passes since V4 DT.3, and
+    /// the only thing that changes is that they now leave the analyzer. No rule reads it, no
+    /// threshold moves, and <strong>the four reference fixtures stay at 98 / 92 / 83 / 70</strong> -
+    /// all four of them with the field empty, because none declares any traffic.
     /// </summary>
     public const string CurrentScoringVersion = "v8";
 }

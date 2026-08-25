@@ -111,6 +111,17 @@ public sealed class LoadModel
 
     public decimal CapacityOf(Guid nodeId) => _capacity.GetValueOrDefault(nodeId, 1m);
 
+    /// <summary>
+    /// V17 D3. Requests per second one call carries - the number <see cref="DistributeOutgoing"/>
+    /// has written on every edge since V4 DT.3 and that nothing outside this class ever read.
+    ///
+    /// Zero is a real answer and means the call carries nothing: an instrumentation edge (QA §4) and
+    /// the edge that closes a cycle (DT.3) are both set to 0 on purpose, and so is anything hanging
+    /// off a node no declared traffic reaches. Whether the architecture declared any traffic at all
+    /// is <see cref="IsIdle"/>'s question, not this one's.
+    /// </summary>
+    public decimal CallLoadOf(Guid connectionId) => _edgeLoad.GetValueOrDefault(connectionId);
+
     /// <summary>DT.5. Zero when nothing was declared, which is the case for every architecture drawn before V4.</summary>
     public decimal UtilizationOf(Guid nodeId)
     {

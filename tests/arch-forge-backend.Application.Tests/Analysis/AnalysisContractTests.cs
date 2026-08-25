@@ -369,6 +369,105 @@ public class AnalysisContractTests
     }
 
     // -------------------------------------------------------------------------------------------
+    // V17 D3 - the same meter on the arrows
+    // -------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void CallLoad_says_nothing_when_nobody_declared_traffic()
+    {
+        // The same silence as the meter on the boxes, and for the same reason: a list of zeros over
+        // every arrow of every drawing made before V4 would say "no requests" where the truth is
+        // "nobody said".
+        foreach (var name in References)
+            Assert.Empty(ReferenceArchitecture.Analyze(name).CallLoad);
+    }
+
+    [Fact]
+    public void CallLoad_is_where_the_amplification_the_panel_reports_actually_happens()
+    {
+        // Anexo B, and the reason D1 and D3 are worth more together than apart: **the load sums
+        // what the latency takes the maximum of**. One request enters the Api and two leave it, one
+        // down each branch, and the database receives both - so the two arrows out of the Api carry
+        // 300 rps each and the two into the database carry 300 each, summing to the 600 the box
+        // reads. The number was computed for every one of those arrows since V4 and no reader
+        // outside LoadModel had ever seen it.
+        var graph = new GraphBuilder()
+            .Node("Api", NodeType.Api, "{\"requestsPerSecond\":300,\"authentication\":true}")
+            .Node("A", NodeType.Service)
+            .Node("B", NodeType.Service)
+            .Node("Db", NodeType.Database, "{\"replicas\":2}")
+            .Connect("Api", "A", timeoutSeconds: 3)
+            .Connect("Api", "B", timeoutSeconds: 3)
+            .Connect("A", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql)
+            .Connect("B", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql)
+            .Build();
+
+        var result = ReferenceArchitecture.Analyze(graph);
+
+        Assert.Equal(300m, CallLoadOf(result, graph, "Api", "A"));
+        Assert.Equal(300m, CallLoadOf(result, graph, "Api", "B"));
+        Assert.Equal(300m, CallLoadOf(result, graph, "A", "Db"));
+        Assert.Equal(300m, CallLoadOf(result, graph, "B", "Db"));
+
+        // And the arrows add up to the box, which is the property that stops a thick arrow from
+        // arriving at a box whose meter disagrees with it.
+        Assert.Equal(600m, result.Load.Single(entry => entry.NodeId == graph.NodeId("Db")).Rps);
+    }
+
+    [Fact]
+    public void CallLoad_carries_the_split_the_source_makes_and_not_the_load_it_received()
+    {
+        // The four rules of the split, on the arrow where each of them happens: a cache lets
+        // through what it misses (DT.3), and a gateway routes rather than duplicates (V14 B5). The
+        // panel has been able to say "×24" for three versions; this is the first time the figure
+        // sits on the edge where the division was made.
+        var graph = new GraphBuilder()
+            .Node("Users", NodeType.Client, "{\"requestsPerSecond\":1000}")
+            .Node("Gw", NodeType.Gateway, "{\"authentication\":true}")
+            .Node("A", NodeType.Service)
+            .Node("B", NodeType.Service)
+            .Node("Cache", NodeType.Cache)
+            .Node("Db", NodeType.Database, "{\"replicas\":2}")
+            .Connect("Users", "Gw")
+            .Connect("Gw", "A", timeoutSeconds: 3)
+            .Connect("Gw", "B", timeoutSeconds: 3)
+            .Connect("A", "Cache", timeoutSeconds: 3)
+            .Connect("B", "Cache", timeoutSeconds: 3)
+            .Connect("Cache", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql)
+            .Build();
+
+        var result = ReferenceArchitecture.Analyze(graph);
+
+        // The gateway sends each request down one route: 500 and 500, not 1 000 and 1 000.
+        Assert.Equal(500m, CallLoadOf(result, graph, "Gw", "A"));
+        Assert.Equal(500m, CallLoadOf(result, graph, "Gw", "B"));
+
+        // The cache receives both halves and passes on the fifth it misses.
+        Assert.Equal(200m, CallLoadOf(result, graph, "Cache", "Db"));
+    }
+
+    [Fact]
+    public void CallLoad_lists_every_call_including_the_ones_that_carry_nothing()
+    {
+        // A zero on one arrow of a drawing that *does* declare traffic is a fact about that arrow -
+        // here, that a scrape is not traffic (QA §4). Leaving it out would make the list disagree
+        // with the drawing and force the client to guess which kind of nothing it is looking at.
+        var graph = new GraphBuilder()
+            .Node("Users", NodeType.Client, "{\"requestsPerSecond\":100}")
+            .Node("Api", NodeType.Api, "{\"authentication\":true}")
+            .Node("Obs", NodeType.Observability)
+            .Connect("Users", "Api")
+            .Connect("Obs", "Api", timeoutSeconds: 5, fallback: true)
+            .Build();
+
+        var result = ReferenceArchitecture.Analyze(graph);
+
+        Assert.Equal(graph.Connections.Select(c => c.Id), result.CallLoad.Select(entry => entry.ConnectionId));
+        Assert.Equal(100m, CallLoadOf(result, graph, "Users", "Api"));
+        Assert.Equal(0m, CallLoadOf(result, graph, "Obs", "Api"));
+    }
+
+    // -------------------------------------------------------------------------------------------
 
     private static LocalizedText ReasonOf(AnalysisResult result, string code) =>
         result.Coverage.Single(rule => rule.Code == code).Reason!;
@@ -378,4 +477,7 @@ public class AnalysisContractTests
 
     private static ComponentLoad LoadOf(AnalysisResult result, ArchitectureGraph graph, string name) =>
         result.Load.Single(entry => entry.NodeId == graph.NodeId(name));
+
+    private static decimal CallLoadOf(AnalysisResult result, ArchitectureGraph graph, string source, string target) =>
+        result.CallLoad.Single(entry => entry.ConnectionId == graph.EdgeId(source, target)).Rps;
 }
