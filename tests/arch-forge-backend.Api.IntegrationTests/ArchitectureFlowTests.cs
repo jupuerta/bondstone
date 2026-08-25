@@ -484,6 +484,19 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
         // Adding the timeout silences MISSING_RESILIENCE, so Resilience recovers and the average
         // with it: the number went up because the architecture got better.
         Assert.True(history[1]!["score"]!.GetValue<int>() > history[0]!["score"]!.GetValue<int>());
+
+        // V16 C11, over the wire and over a real database, which is the only place the new jsonb
+        // column and its default actually exist. The two saves above improve two axes on purpose,
+        // so this is the assertion the whole proposal is for: the history can now say *which*.
+        var before = history[0]!["areas"]!.AsObject();
+        var after = history[1]!["areas"]!.AsObject();
+
+        Assert.True(after["Resilience"]!.GetValue<int>() > before["Resilience"]!.GetValue<int>());
+        Assert.True(after["Security"]!.GetValue<int>() > before["Security"]!.GetValue<int>());
+
+        // And the areas the two saves did not touch did not move, which is what makes the two above
+        // a reading of this edit rather than of the deploy.
+        Assert.Equal(before["Coupling"]!.GetValue<int>(), after["Coupling"]!.GetValue<int>());
     }
 
     [Fact]

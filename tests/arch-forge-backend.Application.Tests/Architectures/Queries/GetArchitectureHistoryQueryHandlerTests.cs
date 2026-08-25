@@ -1,5 +1,6 @@
 using System.Text.Json;
 using arch_forge_backend.Application.Analysis;
+using arch_forge_backend.Application.Architectures;
 using arch_forge_backend.Application.Architectures.Queries;
 using arch_forge_backend.Application.Tests.TestDoubles;
 using arch_forge_backend.Domain.Entities;
@@ -32,7 +33,12 @@ public class GetArchitectureHistoryQueryHandlerTests
         _repository.Seed(_architecture);
     }
 
-    private void Record(int version, int? score, string scoringVersion = Scoring, string? summary = null)
+    private void Record(
+        int version,
+        int? score,
+        string scoringVersion = Scoring,
+        string? summary = null,
+        string? areas = null)
         => _repository.Snapshots.Add(new ArchitectureSnapshot
         {
             Id = Guid.NewGuid(),
@@ -41,6 +47,7 @@ public class GetArchitectureHistoryQueryHandlerTests
             ScoringVersion = scoringVersion,
             Score = score,
             Summary = summary ?? JsonSerializer.Serialize(new AnalysisSummary(1, 2, 9)),
+            Areas = areas ?? SnapshotAreas.Empty,
             CreatedAt = new DateTime(2026, 8, 22, 0, 0, 0, DateTimeKind.Utc).AddMinutes(version),
         });
 
@@ -196,4 +203,72 @@ public class GetArchitectureHistoryQueryHandlerTests
         Assert.Equal(151, result[^1].Version);
         Assert.Equal(78, result[^1].Score);
     }
+
+    // ---- V16 C11. The breakdown, which is what turns "you improved" into "you improved here" ----
+
+    [Fact]
+    public async Task Handle_Areas_TravelWithEachPoint()
+    {
+        Record(1, 61, areas: SnapshotAreas.Write([
+            Scored(Area.Availability, 70),
+            Scored(Area.Resilience, 52),
+        ]));
+        Record(2, 78, areas: SnapshotAreas.Write([
+            Scored(Area.Availability, 70),
+            Scored(Area.Resilience, 86),
+        ]));
+
+        var result = (await Handle())!;
+
+        Assert.Equal(52, result[0].Areas![Area.Resilience]);
+        Assert.Equal(86, result[1].Areas![Area.Resilience]);
+        // Both ends carry it, which is the pair the home page subtracts: Resilience is where the
+        // seventeen points came from, and Availability did not move.
+        Assert.Equal(70, result[0].Areas![Area.Availability]);
+        Assert.Equal(70, result[1].Areas![Area.Availability]);
+    }
+
+    [Fact]
+    public async Task Handle_UnscoredArea_IsAbsentAndNotAZero()
+    {
+        // The distinction the whole score already makes (V2 D1.2), made once per axis: an area no
+        // rule could grade did not score nothing, it was not measured. A zero would read as the
+        // worst possible result and would then "improve" to 70 the moment a rule started applying.
+        Record(1, 61, areas: SnapshotAreas.Write([
+            Scored(Area.Availability, 70),
+            new AreaScore(Area.Observability, null, AreaState.NoRules),
+            new AreaScore(Area.Security, null, AreaState.NotApplicable),
+        ]));
+
+        var areas = Assert.Single((await Handle())!).Areas!;
+
+        Assert.Equal([Area.Availability], areas.Keys);
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("")]
+    [InlineData("no soy json")]
+    public async Task Handle_AreasThatSayNothing_IsNullAndNotSixZeroes(string stored)
+    {
+        // Same argument as the summary above, and the case that matters most: every row written
+        // before the column existed carries '{}', and reporting those as six zeroes would invent an
+        // improvement out of the deploy that added the column.
+        Record(1, 61, areas: stored);
+
+        Assert.Null(Assert.Single((await Handle())!).Areas);
+    }
+
+    [Fact]
+    public async Task Handle_AreaNames_AreWhatIsStored()
+    {
+        // Stored by name and not by ordinal, so a seventh area inserted into the middle of the enum
+        // does not silently re-label every row already in the table.
+        Record(1, 61, areas: SnapshotAreas.Write([Scored(Area.Coupling, 74)]));
+
+        Assert.Contains("\"Coupling\":74", _repository.Snapshots[0].Areas);
+        Assert.Equal(74, Assert.Single((await Handle())!).Areas![Area.Coupling]);
+    }
+
+    private static AreaScore Scored(Area area, int score) => new(area, score, AreaState.Scored);
 }

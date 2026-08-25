@@ -75,6 +75,12 @@ namespace arch_forge_backend.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ArchitectureId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Areas")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasDefaultValueSql("'{}'::jsonb");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 

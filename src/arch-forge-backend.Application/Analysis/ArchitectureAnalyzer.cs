@@ -1,5 +1,6 @@
 using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Application.Analysis.Scoring;
+using arch_forge_backend.Application.Simulation;
 
 namespace arch_forge_backend.Application.Analysis;
 
@@ -49,8 +50,60 @@ public class ArchitectureAnalyzer
             score.Score,
             score.Areas,
             summary,
-            Order(findings, Positions(graph)));
+            Order(findings, Positions(graph)),
+            Load(graph),
+            Coverage(outcomes));
     }
+
+    /// <summary>
+    /// V16 C5. The load axis, published instead of consumed. <see cref="LoadModel"/> is computed
+    /// here for the same reason five rules already compute it - it is a pure function of the graph
+    /// and nothing carries it between them - and the one thing that is new is that the numbers
+    /// leave the analyzer instead of ending inside <c>UNDERSIZED_COMPONENT</c>'s verdict.
+    ///
+    /// Nothing at all when nobody declared traffic: see <see cref="AnalysisResult.Load"/>. One
+    /// entry per component, in the canonical order of <see cref="ArchitectureGraph.Nodes"/> - which
+    /// is contract (V6 D1.1), and the order the export already lists the components in.
+    /// </summary>
+    private static IReadOnlyList<ComponentLoad> Load(ArchitectureGraph graph)
+    {
+        var load = LoadModel.Of(graph);
+
+        if (load.IsIdle)
+            return [];
+
+        return graph.Nodes
+            .Select(node => new ComponentLoad(
+                node.Id,
+                Math.Round(load.LoadOf(node.Id), 2),
+                load.CapacityOf(node.Id),
+                Math.Round(load.UtilizationOf(node.Id), 2)))
+            .ToList();
+    }
+
+    /// <summary>
+    /// V16 C7a. What every registered rule did here, including the ones that had nothing to look
+    /// at - which is the state the user never got to see, and the one that says what their drawing
+    /// is missing.
+    ///
+    /// The three states are read off the outcome the analyzer already built: not applicable is
+    /// <see cref="RuleResult.IsApplicable"/>, and among those that did apply the split is the same
+    /// one <see cref="AnalysisSummary.Passed"/> counts - the synthesized <see cref="Severity.Good"/>
+    /// finding of <see cref="Evaluate"/> means the rule ran and found nothing.
+    ///
+    /// Ordered by area and then by code so the catalogue reads the same however the rules were
+    /// registered, which is the same reason the findings are ordered (D2.1, rule 4).
+    /// </summary>
+    private static IReadOnlyList<RuleCoverage> Coverage(IEnumerable<RuleOutcome> outcomes) => outcomes
+        .Select(outcome => new RuleCoverage(
+            outcome.Code,
+            outcome.Area,
+            !outcome.IsApplicable ? RuleState.NotApplicable
+                : outcome.Findings.All(f => f.Severity == Severity.Good) ? RuleState.Passed
+                : RuleState.Fired))
+        .OrderBy(rule => rule.Area)
+        .ThenBy(rule => rule.Code, StringComparer.Ordinal)
+        .ToList();
 
     private static RuleOutcome Evaluate(IArchitectureRule rule, ArchitectureGraph graph)
     {

@@ -12,6 +12,10 @@ public class ArchitectureSnapshotConfiguration : IEntityTypeConfiguration<Archit
         builder.Property(s => s.ScoringVersion).IsRequired().HasMaxLength(10);
         builder.Property(s => s.Summary).HasColumnType("jsonb").IsRequired().HasDefaultValueSql("'{}'::jsonb");
 
+        // V16 C11. Same shape and same default as Summary, for the same reason: the rows that
+        // predate the column are not making a claim about the areas, and '{}' is how they say so.
+        builder.Property(s => s.Areas).HasColumnType("jsonb").IsRequired().HasDefaultValueSql("'{}'::jsonb");
+
         // What makes writing on every save idempotent: the autosave may retry, and (architecture,
         // version) already identifies the graph without ambiguity (D5.4).
         builder.HasIndex(s => new { s.ArchitectureId, s.Version }).IsUnique();

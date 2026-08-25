@@ -5,13 +5,35 @@ namespace arch_forge_backend.Application.Analysis;
 /// </summary>
 /// <param name="ScoringVersion">Which scoring model produced this result (V2 D1.5).</param>
 /// <param name="Score">Null when no area is scorable - an empty architecture is not a 100.</param>
+/// <param name="Load">
+/// V16 C5. How full each component is, measured while the architecture is drawn rather than
+/// simulated - see <see cref="ComponentLoad"/>. <strong>Empty when nobody declared any traffic</strong>,
+/// which is most drawings and every one made before V4: with no declared load there is no
+/// utilisation, and a list of zeros would say "idle" where the truth is "not measured" - the same
+/// distinction <see cref="Simulation.ElementState.Utilization"/> makes with a null.
+/// </param>
+/// <param name="Coverage">
+/// V16 C7a. One line per registered rule and what it did here - fired, passed, or never applied -
+/// see <see cref="RuleCoverage"/>. Ordered by area and then by code, so the catalogue that reads it
+/// is grouped the way the panel groups everything else. Always the whole list: unlike
+/// <see cref="Load"/> there is no architecture for which it says nothing, because "no rule of this
+/// kind had anything to look at" is precisely what it is for.
+/// </param>
 public sealed record AnalysisResult(
     string ScoringVersion,
     int? Score,
     IReadOnlyList<AreaScore> Areas,
     AnalysisSummary Summary,
-    IReadOnlyList<RuleFinding> Findings)
+    IReadOnlyList<RuleFinding> Findings,
+    IReadOnlyList<ComponentLoad>? Load = null,
+    IReadOnlyList<RuleCoverage>? Coverage = null)
 {
+    /// <summary>V16 C5. Empty rather than null on a drawing with no declared traffic.</summary>
+    public IReadOnlyList<ComponentLoad> Load { get; init; } = Load ?? [];
+
+    /// <summary>V16 C7a. One entry per registered rule, in (area, code) order.</summary>
+    public IReadOnlyList<RuleCoverage> Coverage { get; init; } = Coverage ?? [];
+
     /// <summary>
     /// The QA round of docs/QA-analisis.md, landed as one bump because none of it shipped
     /// separately. Eight corrections travel in it:
@@ -250,6 +272,17 @@ public sealed record AnalysisResult(
     /// what it measured: the best architecture the palette can draw scores 100 (it was 96, and
     /// the Critical was the CDN), and the two-box nonsense of V14's opening table no longer
     /// outscores it with a word next to the number.
+    ///
+    /// <h3>v8 stays v8 - the V16 contract (docs/V16/ArchForge_contenido_didactico_V16.md)</h3>
+    ///
+    /// <see cref="Load"/> and <see cref="Coverage"/> widen the payload without touching the
+    /// analyzer: both are numbers it already had and threw away - the utilisation
+    /// <c>UNDERSIZED_COMPONENT</c> grades on, and the applicability every rule already declares -
+    /// so <strong>the four reference fixtures stay at 98 / 92 / 83 / 70</strong> and two results
+    /// produced before and after remain comparable, which is the whole reason this field travels
+    /// (V2 D1.5). A scoring version says what the analyzer <em>found</em>; it is not a shape
+    /// number, and bumping it here would tell every stored history that its figures had aged when
+    /// nothing about them moved.
     /// </summary>
     public const string CurrentScoringVersion = "v8";
 }

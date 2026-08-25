@@ -1,4 +1,5 @@
 using System.Text.Json;
+using arch_forge_backend.Application.Architectures;
 using arch_forge_backend.Application.Architectures.Commands;
 using arch_forge_backend.Application.Architectures.DTOs;
 using arch_forge_backend.Application.Common.Exceptions;
@@ -560,6 +561,29 @@ public class UpdateArchitectureCommandHandlerTests
         Assert.Equal(architecture.Id, snapshot.ArchitectureId);
         Assert.Equal(2, snapshot.Version);
         Assert.Equal("v8", snapshot.ScoringVersion);
+    }
+
+    [Fact]
+    public async Task Handle_RecordsTheAreasBehindTheNumberAndNotOnlyTheNumber()
+    {
+        // V16 C11, and the debt V13 §11 wrote down: with the whole alone the history can say that
+        // you improved and never in what. The breakdown is written from the same analysis the score
+        // comes from, so the two can never be one save apart.
+        var architecture = Seed();
+
+        await _handler.Handle(Command(architecture, "Api on a database"));
+
+        var snapshot = Assert.Single(_repository.Snapshots);
+        var stored = SnapshotAreas.Read(snapshot.Areas);
+
+        Assert.NotNull(stored);
+
+        // Exactly the three areas this fixture registers a rule for. The other three are absent
+        // rather than zero: no rule of theirs ran, so nothing about them was measured, and a zero
+        // would both read as the worst possible result and "improve" on its own the day a rule of
+        // that area starts applying.
+        Assert.Equal([Area.Availability, Area.Resilience, Area.Observability], stored.Keys);
+        Assert.All(stored.Values, score => Assert.InRange(score, 0, 100));
     }
 
     [Fact]

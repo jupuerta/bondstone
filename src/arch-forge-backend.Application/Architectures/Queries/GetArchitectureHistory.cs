@@ -15,12 +15,21 @@ public class GetArchitectureHistoryQuery
 /// What the analysis found at that version. Null where the snapshot never carried counts, which is
 /// not the same claim as a version that found nothing.
 /// </param>
+/// <param name="Areas">
+/// V16 C11. What each scored area read at that version, keyed by area. Null where the snapshot
+/// never carried the breakdown - every row written before the column existed - and the areas that
+/// were not scorable are absent rather than zero (see <see cref="SnapshotAreas"/>).
+///
+/// It is what turns the history from <em>"you went from 61 to 78"</em> into <em>"you went from 61
+/// to 78, and it was Resilience"</em>, which is the debt V13 §11 wrote down.
+/// </param>
 public sealed record ArchitectureSnapshotDto(
     int Version,
     string ScoringVersion,
     int? Score,
     AnalysisSummary? Summary,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    IReadOnlyDictionary<Area, int>? Areas = null);
 
 /// <summary>
 /// V4 D5.4, and the debt V2 wrote as <em>"la narrativa <c>61 → 78</c> entre sesiones"</em>.
@@ -67,7 +76,8 @@ public class GetArchitectureHistoryQueryHandler
                 s.ScoringVersion,
                 s.Score,
                 ReadSummary(s.Summary),
-                s.CreatedAt))
+                s.CreatedAt,
+                SnapshotAreas.Read(s.Areas)))
             .ToList();
     }
 
@@ -80,6 +90,12 @@ public class GetArchitectureHistoryQueryHandler
     /// itself worth seeing on an "Improve" screen. A change of scoring version counts as different
     /// at the same number — two scoring versions are not comparable (V2 D1.5), so the moment the
     /// model changed is exactly a moment the reader needs.
+    ///
+    /// V16 C11 leaves the predicate alone on purpose. The breakdown could move while the total
+    /// stands still - one area up and another down by the same amount - but the question the
+    /// breakdown was added for is asked of the two ends, and the two ends are the two this always
+    /// keeps. Widening it here would add points to the line the panel draws to answer a question
+    /// nobody asks of the middle of it.
     /// </summary>
     private static List<ArchitectureSnapshot> Collapse(IReadOnlyList<ArchitectureSnapshot> snapshots)
     {

@@ -124,6 +124,9 @@ public class UpdateArchitectureCommandHandler
                 ScoringVersion = analysis.ScoringVersion,
                 Score = analysis.Score,
                 Summary = JsonSerializer.Serialize(analysis.Summary),
+                // V16 C11. Written here and nowhere else, from the same analysis the number comes
+                // from, so the breakdown and the whole it breaks down are never one save apart.
+                Areas = SnapshotAreas.Write(analysis.Areas),
                 CreatedAt = architecture.UpdatedAt
             }, cancellationToken);
         }

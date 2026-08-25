@@ -30,5 +30,17 @@ public class ArchitectureSnapshot
     /// <summary>The counts, as the JSON of <c>AnalysisSummary</c>. Enough to tell a story without storing every finding.</summary>
     public string Summary { get; set; } = "{}";
 
+    /// <summary>
+    /// V16 C11, and the debt V13 §11 wrote down: the number on its own can say <em>that</em> you
+    /// improved and never <em>in what</em>.
+    ///
+    /// The scored areas and what each of them read, as the JSON of an area-keyed map -
+    /// <c>{"Availability": 90, "Coupling": 74}</c>. <strong>An area that was not scorable is
+    /// absent, never a zero</strong>: the same distinction <see cref="Score"/>'s nullability makes
+    /// for the whole, made once more per axis. So an empty map is a version with nothing to break
+    /// down, which is also what every row written before this column existed carries.
+    /// </summary>
+    public string Areas { get; set; } = "{}";
+
     public DateTime CreatedAt { get; set; }
 }
