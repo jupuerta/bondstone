@@ -61,7 +61,7 @@ public class UnauthenticatedEntryRule : IArchitectureRule
         var unguarded = EntryPoints.Unguarded(graph);
 
         if (exposed.Count == 0 && unguarded.Count == 0)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.UNAUTHENTICATED_ENTRY.nothingExposed");
 
         var findings = new List<RuleFinding>();
 

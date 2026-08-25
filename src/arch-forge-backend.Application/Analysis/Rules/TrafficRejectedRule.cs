@@ -39,7 +39,7 @@ public class TrafficRejectedRule : IArchitectureRule
     {
         var load = LoadModel.Of(graph);
         if (load.IsIdle)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.TRAFFIC_REJECTED.noLoad");
 
         // Only doors with a limit have anything to reject; a door without one lets everything
         // through, and what happens then is UNDERSIZED_COMPONENT's story.
@@ -49,7 +49,7 @@ public class TrafficRejectedRule : IArchitectureRule
             .ToList();
 
         if (limited.Count == 0)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.TRAFFIC_REJECTED.noLimit");
 
         var findings = new List<RuleFinding>();
 

@@ -43,7 +43,7 @@ public class SyncDependencyChainRule : IArchitectureRule
             .ToList();
 
         if (synchronous.Count == 0)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.SYNC_CHAIN.noSyncCall");
 
         // A cycle is already reported as a cycle; describing it again as a chain would be the same
         // fact under two codes (D4.5).

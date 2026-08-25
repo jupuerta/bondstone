@@ -56,7 +56,7 @@ public class HighCouplingRule : IArchitectureRule
             .ToList();
 
         if (coupled.Count == 0)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.HIGH_COUPLING.noCalls");
 
         var findings = new List<RuleFinding>();
 

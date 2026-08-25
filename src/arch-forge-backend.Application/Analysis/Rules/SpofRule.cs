@@ -138,7 +138,7 @@ public class SpofRule : IArchitectureRule
         // not on the hard ones: an architecture wired entirely with queues has been checked and
         // came out clean, which is a passed check and not silence (D1.4).
         if (!dependentsByNode.Values.Any(dependents => dependents.Count > 0))
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.SPOF.noDependency");
 
         var reachableFromRoots = ReachableFromRoots(graph, excluded: null);
 

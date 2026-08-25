@@ -252,6 +252,19 @@ public class ArchitectureAnalyzerTests
     }
 
     [Fact]
+    public void Analyze_RuleNotApplicableWithoutSayingWhy_Throws()
+    {
+        // V16 C7b. The catalogue paints the reason on the card, so a rule that stands down in
+        // silence is a blank line where the screen's most useful sentence goes. `RuleResult`'s
+        // factory asks for one; this is what catches the rule that builds the record by hand.
+        var analyzer = new ArchitectureAnalyzer([new SilentRule()]);
+
+        var exception = Assert.Throws<InvalidOperationException>(() => analyzer.Analyze(EmptyGraph));
+
+        Assert.Contains(RuleCodes.Spof, exception.Message);
+    }
+
+    [Fact]
     public void Analyze_RuleEmittingAFindingUnderAnotherCode_Throws()
     {
         // Penalties are grouped by the rule's code and area; a finding that disagrees would be
@@ -345,7 +358,7 @@ public class ArchitectureAnalyzerTests
         public RuleResult Evaluate(ArchitectureGraph graph)
         {
             if (!_isApplicable)
-                return RuleResult.NotApplicable;
+                return RuleResult.NotApplicable($"{Code} had nothing to look at.");
 
             return RuleResult.Applicable(_findings
                 .Select(f => new RuleFinding(Code, Area, f.Severity, LocalizedText.Of(f.Message), LocalizedText.Of("explanation"), LocalizedText.Of("suggestion"), []))
@@ -410,6 +423,19 @@ public class ArchitectureAnalyzerTests
                     [FindingElement.Node(fact.NodeId)]))
                 .ToList());
         }
+    }
+
+    /// <summary>V16 C7b. Not applicable, and not a word about why.</summary>
+    private sealed class SilentRule : IArchitectureRule
+    {
+        public string Code => RuleCodes.Spof;
+        public Area Area => Area.Availability;
+        public Severity DefaultSeverity => Severity.Warning;
+        public RulePhase Phase => RulePhase.Producer;
+        public LocalizedText PassedMessage => LocalizedText.Of("passed");
+        public LocalizedText PassedExplanation => LocalizedText.Of("checked");
+
+        public RuleResult Evaluate(ArchitectureGraph graph) => new(false, []);
     }
 
     private sealed class MisbehavingRule(bool applicable, bool matchingCode) : IArchitectureRule

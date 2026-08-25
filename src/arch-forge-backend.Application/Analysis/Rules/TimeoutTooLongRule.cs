@@ -55,7 +55,7 @@ public class TimeoutTooLongRule : IArchitectureRule
             .ToList();
 
         if (timed.Count == 0)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.TIMEOUT_TOO_LONG.noTimeout");
 
         var criticalSpofs = graph.Facts
             .OfType<SinglePointOfFailureFact>()

@@ -47,7 +47,7 @@ public class ExposedDatabaseRule : IArchitectureRule
             .ToList();
 
         if (stores.Count == 0)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.EXPOSED_DATABASE.noStore");
 
         // The frontier is everything traffic reaches before meeting a door. A data store in there
         // is data anybody can reach.

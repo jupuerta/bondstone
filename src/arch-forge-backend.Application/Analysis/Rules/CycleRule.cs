@@ -32,7 +32,7 @@ public class CycleRule : IArchitectureRule
         // V14 B9. Nothing to check on a graph made only of instrumentation - and that is silence,
         // not a clean bill of health (D1.4).
         if (!graph.Connections.Any(edge => !NodeRoles.IsTelemetryEdge(graph, edge)))
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.CYCLE.noCalls");
 
         var findings = new List<RuleFinding>();
 

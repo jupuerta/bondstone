@@ -46,7 +46,7 @@ public class QueueNoConsumerRule : IArchitectureRule
             .ToList();
 
         if (queues.Count == 0)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.QUEUE_NO_CONSUMER.noQueue");
 
         var findings = queues
             .Where(queue => !HasConsumer(graph, queue))

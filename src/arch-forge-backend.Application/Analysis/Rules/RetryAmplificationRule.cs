@@ -35,7 +35,7 @@ public class RetryAmplificationRule : IArchitectureRule
 
         // Nothing to amplify while nobody retries.
         if (!synchronous.Any(c => graph.ResilienceOf(c).Retries >= 1))
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.RETRY_AMPLIFICATION.noRetries");
 
         var findings = new List<RuleFinding>();
 

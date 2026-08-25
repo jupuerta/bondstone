@@ -3,8 +3,18 @@ namespace arch_forge_backend.Application.Analysis.Scoring;
 /// <summary>
 /// What one rule had to say about one architecture: which area it feeds, whether it had anything
 /// to check here (D1.4), and what it found.
+///
+/// V16 C7b. <see cref="NotApplicableReason"/> travels with it and the scoring never reads it: a
+/// rule that stood down weighs nothing either way (D1.4), and the reason exists for the catalogue
+/// on the other side of <see cref="AnalysisResult.Coverage"/>. Optional, because a scoring test
+/// builds these by hand and has no sentence to give.
 /// </summary>
-public sealed record RuleOutcome(Area Area, string Code, bool IsApplicable, IReadOnlyList<RuleFinding> Findings);
+public sealed record RuleOutcome(
+    Area Area,
+    string Code,
+    bool IsApplicable,
+    IReadOnlyList<RuleFinding> Findings,
+    Localization.LocalizedText? NotApplicableReason = null);
 
 public sealed record ScoreResult(int? Score, IReadOnlyList<AreaScore> Areas);
 

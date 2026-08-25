@@ -60,7 +60,7 @@ public class SharedDatabaseRule : IArchitectureRule
             .ToList();
 
         if (stores.Count == 0)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.SHARED_DATABASE.noStore");
 
         var findings = new List<RuleFinding>();
 

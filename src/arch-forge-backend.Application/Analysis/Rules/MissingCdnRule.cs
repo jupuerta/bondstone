@@ -36,7 +36,7 @@ public class MissingCdnRule : IArchitectureRule
     {
         var load = LoadModel.Of(graph);
         if (load.IsIdle)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.MISSING_CDN.noLoad");
 
         // The doors the outside actually reaches (B6's notion, not this rule's own), carrying
         // enough traffic for the edge to be the lesson rather than a nicety.
@@ -46,7 +46,11 @@ public class MissingCdnRule : IArchitectureRule
             .ToList();
 
         if (busy.Count == 0)
-            return RuleResult.NotApplicable;
+            // The number comes from the threshold and not from the sentence: the prose says "this
+            // much traffic" once, in the catalogue, and the figure it names is the one the rule
+            // actually compares against.
+            return RuleResult.NotApplicable(LocalizedText.Of(
+                "rule.na.MISSING_CDN.lowTraffic", ("traffic", RuleThresholds.CdnWorthTraffic)));
 
         var findings = busy
             .Where(door => !HasCdnUpstream(graph, door))

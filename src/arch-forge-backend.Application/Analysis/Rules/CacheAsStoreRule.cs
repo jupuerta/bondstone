@@ -45,7 +45,7 @@ public class CacheAsStoreRule : IArchitectureRule
             .ToList();
 
         if (caches.Count == 0)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.CACHE_AS_STORE.noCache");
 
         var findings = caches
             .Where(cache => !HasAnOrigin(graph, cache))

@@ -44,7 +44,7 @@ public class NoRateLimitRule : IArchitectureRule
             .ToList();
 
         if (doors.Count == 0)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.NO_RATE_LIMIT.noTrafficAtDoor");
 
         var findings = doors
             .Where(door => NodeSettings.RateLimitOf(door) is not > 0)

@@ -57,7 +57,7 @@ public class ImplausibleDependencyRule : IArchitectureRule
             .ToList();
 
         if (edges.Count == 0)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.IMPLAUSIBLE_DEPENDENCY.noCalls");
 
         var findings = new List<RuleFinding>();
 

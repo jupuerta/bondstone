@@ -74,7 +74,7 @@ public class NoObservabilityRule : IArchitectureRule
         // A single component is a sketch, not an architecture: asking it for telemetry would be
         // noise on the first thing anybody drags onto the canvas.
         if (graph.Nodes.Count < 2)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.NO_OBSERVABILITY.singleComponent");
 
         // A disconnected box is ORPHAN_NODE's (QA B4): asking it to be observed would charge the
         // same leftover twice.
@@ -84,7 +84,7 @@ public class NoObservabilityRule : IArchitectureRule
             .ToList();
 
         if (observable.Count == 0)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.NO_OBSERVABILITY.nothingToWatch");
 
         var telemetry = graph.Nodes.Where(n => NodeRoles.IsTelemetry(n.Type)).OrderBy(n => n.Id).ToList();
 

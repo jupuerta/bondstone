@@ -93,6 +93,10 @@ public class ArchitectureAnalyzer
     ///
     /// Ordered by area and then by code so the catalogue reads the same however the rules were
     /// registered, which is the same reason the findings are ordered (D2.1, rule 4).
+    ///
+    /// V16 C7b. The not-applicable ones carry the sentence their rule stood down with. The other
+    /// two states carry none: a rule that ran has its findings to speak with, and a "why not" on
+    /// something that did apply would be a sentence about a question nobody asked.
     /// </summary>
     private static IReadOnlyList<RuleCoverage> Coverage(IEnumerable<RuleOutcome> outcomes) => outcomes
         .Select(outcome => new RuleCoverage(
@@ -100,7 +104,8 @@ public class ArchitectureAnalyzer
             outcome.Area,
             !outcome.IsApplicable ? RuleState.NotApplicable
                 : outcome.Findings.All(f => f.Severity == Severity.Good) ? RuleState.Passed
-                : RuleState.Fired))
+                : RuleState.Fired,
+            outcome.NotApplicableReason))
         .OrderBy(rule => rule.Area)
         .ThenBy(rule => rule.Code, StringComparer.Ordinal)
         .ToList();
@@ -115,6 +120,14 @@ public class ArchitectureAnalyzer
         if (!result.IsApplicable && result.Findings.Count > 0)
             throw new InvalidOperationException(
                 $"Rule '{rule.Code}' reported findings while declaring itself not applicable.");
+
+        // V16 C7b. A rule that stands down owes the user a reason, and the catalogue of C7 paints
+        // it on the card. Checked here rather than trusted to <see cref="RuleResult.NotApplicable"/>
+        // because a rule can also build the record directly, and a silent not-applicable is a blank
+        // line on a screen instead of the sentence that says what the drawing is missing.
+        if (!result.IsApplicable && result.NotApplicableReason is null)
+            throw new InvalidOperationException(
+                $"Rule '{rule.Code}' declared itself not applicable without saying why.");
 
         foreach (var finding in result.Findings)
         {
@@ -132,7 +145,7 @@ public class ArchitectureAnalyzer
             ? [Passed(rule)]
             : result.Findings;
 
-        return new RuleOutcome(rule.Area, rule.Code, result.IsApplicable, findings);
+        return new RuleOutcome(rule.Area, rule.Code, result.IsApplicable, findings, result.NotApplicableReason);
     }
 
     private static RuleFinding Passed(IArchitectureRule rule) => new(

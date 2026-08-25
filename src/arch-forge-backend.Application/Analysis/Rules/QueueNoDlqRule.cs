@@ -36,7 +36,7 @@ public class QueueNoDlqRule : IArchitectureRule
             .ToList();
 
         if (queues.Count == 0)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.QUEUE_NO_DLQ.noQueue");
 
         // And a queue nobody drains is QUEUE_NO_CONSUMER's (QA §4): a message that is never
         // processed can never fail processing, so there is nothing for a dead-letter queue to

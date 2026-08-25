@@ -58,7 +58,7 @@ public class ExternalNoFallbackRule : IArchitectureRule
             .ToList();
 
         if (calls.Count == 0)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.EXTERNAL_NO_FALLBACK.noExternalCall");
 
         var findings = new List<RuleFinding>();
 

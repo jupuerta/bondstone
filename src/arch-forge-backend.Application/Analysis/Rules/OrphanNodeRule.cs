@@ -24,7 +24,7 @@ public class OrphanNodeRule : IArchitectureRule
         // is unfinished, not wrong, and saying so on the first thing anybody drags in would make
         // the analyzer noise from the very first second.
         if (graph.Nodes.Count < 2)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.ORPHAN_NODE.singleComponent");
 
         // The set lives on the graph (QA B4) because this rule's promise - "every other rule will
         // simply ignore it" - needs the other rules to agree on what an orphan is.

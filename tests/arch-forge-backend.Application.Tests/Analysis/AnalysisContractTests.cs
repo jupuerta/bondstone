@@ -1,4 +1,5 @@
 using arch_forge_backend.Application.Analysis;
+using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Simulation;
 using arch_forge_backend.Application.Tests.Analysis.Fixtures;
 using arch_forge_backend.Application.Tests.Analysis.Rules.Support;
@@ -145,6 +146,92 @@ public class AnalysisContractTests
     }
 
     // -------------------------------------------------------------------------------------------
+    // C7b - the reason a rule never got to look
+    // -------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void Every_rule_that_stood_down_says_why_and_says_it_in_its_own_name()
+    {
+        // The two halves of C7b that can rot separately. A missing sentence is a blank line on the
+        // catalogue's most valuable state, and a sentence filed under another rule's name is worse
+        // than blank: the card would answer a question the user did not ask of it. The key names
+        // the code it belongs to, so copying a line from a neighbouring rule shows up here.
+        foreach (var name in References)
+        {
+            foreach (var rule in ReferenceArchitecture.Analyze(name).Coverage)
+            {
+                if (rule.State != RuleState.NotApplicable)
+                {
+                    // Nothing to explain: the rule ran, and its findings do the talking.
+                    Assert.Null(rule.Reason);
+                    continue;
+                }
+
+                Assert.NotNull(rule.Reason);
+                Assert.StartsWith($"rule.na.{rule.Code}.", rule.Reason!.Key, StringComparison.Ordinal);
+            }
+        }
+    }
+
+    [Fact]
+    public void The_empty_canvas_gets_twenty_four_different_sentences()
+    {
+        // Nothing drawn stands every rule down at once, which makes this the one graph that reaches
+        // all twenty-four sentences - and the screen where they matter most, because a user looking
+        // at twenty-four grey cards is a user who has drawn nothing yet.
+        //
+        // Twenty-four *distinct* keys, deliberately: one sentence reused across rules would be a
+        // sentence too vague to act on, which is the failure C7b exists to avoid.
+        var coverage = ReferenceArchitecture.Analyze(new GraphBuilder().Build()).Coverage;
+
+        Assert.All(coverage, rule => Assert.Equal(RuleState.NotApplicable, rule.State));
+        Assert.Equal(24, coverage.Select(rule => rule.Reason!.Key).Distinct(StringComparer.Ordinal).Count());
+    }
+
+    [Fact]
+    public void A_rule_that_stands_down_twice_for_different_reasons_says_two_different_things()
+    {
+        // One key per *situation*, not per rule. MISSING_CDN is the clearest of the three that do
+        // this: "you have not declared any load" and "no door of yours is busy enough" are two
+        // different things to go and draw, and a single sentence covering both would name neither.
+        var idle = ReferenceArchitecture.Analyze(new GraphBuilder()
+            .Node("Users", NodeType.Client).Node("Api", NodeType.Api)
+            .Connect("Users", "Api")
+            .Build());
+
+        var quiet = ReferenceArchitecture.Analyze(new GraphBuilder()
+            .Node("Users", NodeType.Client, "{\"requestsPerSecond\":10}").Node("Api", NodeType.Api)
+            .Connect("Users", "Api")
+            .Build());
+
+        Assert.Equal("rule.na.MISSING_CDN.noLoad", ReasonOf(idle, RuleCodes.MissingCdn).Key);
+        Assert.Equal("rule.na.MISSING_CDN.lowTraffic", ReasonOf(quiet, RuleCodes.MissingCdn).Key);
+
+        // And the number in that sentence is the threshold the rule compares against, sent as an
+        // argument rather than written into the prose: two copies of 1 000 is one of them going
+        // stale the day the threshold moves.
+        Assert.Equal(
+            RuleThresholds.CdnWorthTraffic,
+            ReasonOf(quiet, RuleCodes.MissingCdn).Args!["traffic"]);
+    }
+
+    [Fact]
+    public void The_reason_goes_away_the_moment_the_drawing_answers_it()
+    {
+        // The pair QUEUE_NO_DLQ makes on the two graphs of `Coverage_moves_with_the_drawing`: the
+        // sentence is about *this* drawing, so it has to disappear when the drawing changes, not
+        // linger next to a finding.
+        var withQueue = ReferenceArchitecture.Analyze(new GraphBuilder()
+            .Node("Api", NodeType.Api).Node("Cola", NodeType.Queue).Node("W", NodeType.Worker)
+            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Cola", "W", synchronous: false, protocol: ProtocolType.Amqp)
+            .Build());
+
+        Assert.Equal(RuleState.Fired, StateOf(withQueue, RuleCodes.QueueNoDlq));
+        Assert.Null(withQueue.Coverage.Single(rule => rule.Code == RuleCodes.QueueNoDlq).Reason);
+    }
+
+    // -------------------------------------------------------------------------------------------
     // C5 - the load meter
     // -------------------------------------------------------------------------------------------
 
@@ -282,6 +369,9 @@ public class AnalysisContractTests
     }
 
     // -------------------------------------------------------------------------------------------
+
+    private static LocalizedText ReasonOf(AnalysisResult result, string code) =>
+        result.Coverage.Single(rule => rule.Code == code).Reason!;
 
     private static RuleState StateOf(AnalysisResult result, string code) =>
         result.Coverage.Single(rule => rule.Code == code).State;

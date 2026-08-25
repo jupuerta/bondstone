@@ -23,9 +23,12 @@ namespace arch_forge_backend.Application.Tests.Analysis;
 ///
 /// <strong>Skipped on purpose.</strong> It writes into the other repository, which is not something
 /// a test run should do. Remove the <c>Skip</c> and run it when a rule gains, loses or renames a
-/// sentence; <c>check-catalogs.mjs</c> prints how many of the catalogue's <c>finding.*</c> keys the
-/// recording currently reaches, so the moment it falls behind is visible without anybody
-/// remembering this file exists.
+/// sentence; <c>check-catalogs.mjs</c> prints how many of the catalogue's <c>finding.*</c> and
+/// <c>rule.na.*</c> keys the recording currently reaches, so the moment it falls behind is visible
+/// without anybody remembering this file exists.
+///
+/// V16 C7b. It records the <em>not applicable</em> sentences too, which is why the battery opens
+/// with an empty canvas: nothing drawn stands all twenty-four rules down at once.
 ///
 /// The battery below is not an architecture. It is a set of small graphs chosen so that between
 /// them every variant of every rule fires at least once — including the <c>passed</c> of each,
@@ -43,13 +46,22 @@ public class RecordAnalyzerSentences
     {
         foreach (var (name, builder) in Scenarios())
         {
-            foreach (var finding in ReferenceArchitecture.Analyze(builder.Build()).Findings)
+            var result = ReferenceArchitecture.Analyze(builder.Build());
+
+            foreach (var finding in result.Findings)
             {
                 Add(name, finding.Message);
                 Add(name, finding.Explanation);
                 Add(name, finding.Suggestion);
                 Add(name, finding.Fix?.Label);
             }
+
+            // V16 C7b. The sentences a rule stands down with are sent by the analyzer like any
+            // other, so they are checked like any other - and one of them carries an argument
+            // (MISSING_CDN's threshold), which is exactly the shape of the bug that made this
+            // recording exist.
+            foreach (var rule in result.Coverage)
+                Add(name, rule.Reason);
         }
 
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true };
@@ -95,6 +107,10 @@ public class RecordAnalyzerSentences
 
     private static IEnumerable<(string, GraphBuilder)> Scenarios()
     {
+        // V16 C7b. Nothing drawn: the one graph that stands all twenty-four rules down at once, and
+        // therefore the one that reaches every "why not" sentence there is bar the variants below.
+        yield return ("empty", new GraphBuilder());
+
         yield return ("minimal", new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Db", NodeType.Database)
             .Connect("Api", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql));
@@ -357,6 +373,16 @@ public class RecordAnalyzerSentences
         yield return ("allCycleNoRoot", new GraphBuilder()
             .Nodes(NodeType.Service, "L1", "L2")
             .Connect("L1", "L2", timeoutSeconds: 3).Connect("L2", "L1", timeoutSeconds: 3));
+
+        // V16 C7b. The second sentence of the three rules that stand down for two different
+        // reasons: a door with traffic declared but not enough of it, a load with no limit anywhere
+        // to reject it, and two nodes of which neither is anything to watch.
+        yield return ("quietDoor", new GraphBuilder()
+            .Node("Users", NodeType.Client, "{\"requestsPerSecond\":10}").Node("Api", NodeType.Api, "{\"authentication\":true}")
+            .Connect("Users", "Api"));
+
+        yield return ("nothingToWatch", new GraphBuilder()
+            .Nodes(NodeType.Observability, "Metrics", "Logs"));
 
         // V15 A3. A component sending its telemetry synchronously: the one instrumentation edge
         // MISSING_RESILIENCE still reads, with its own sentence and the fix that makes it async.

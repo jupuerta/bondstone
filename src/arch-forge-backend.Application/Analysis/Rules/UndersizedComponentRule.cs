@@ -34,7 +34,7 @@ public class UndersizedComponentRule : IArchitectureRule
     {
         var load = LoadModel.Of(graph);
         if (load.IsIdle)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.UNDERSIZED_COMPONENT.noLoad");
 
         var findings = new List<RuleFinding>();
 

@@ -41,12 +41,24 @@ public enum RuleState
 /// was invisible by construction. It is the state that says what the drawing is missing for the
 /// product to be able to have an opinion.
 ///
-/// <strong>What is deliberately not here yet.</strong> The <em>reason</em> a rule did not apply -
-/// "you have not declared any load", "there is no queue drawn" - is a sentence per rule and lives
-/// in the twenty-four rule files, not here (V16 C7b). It arrives as a field on this record when
-/// somebody writes those sentences; the shape is ready for it and the screen that reads this can
-/// ship before they exist.
+/// <strong>And the reason it did not apply</strong> - "you have not declared any load", "there is
+/// no queue drawn" - is V16 C7b, written rule by rule where each one stands down and carried here
+/// unchanged. It is what turns the third state from a shrug into the one line on this screen that
+/// tells the user what to draw next.
 /// </summary>
 /// <param name="Code">The rule's code, the same string <see cref="RuleFinding.Code"/> carries.</param>
 /// <param name="Area">The area it feeds. A rule belongs to exactly one (D1.2).</param>
-public sealed record RuleCoverage(string Code, Area Area, RuleState State);
+/// <param name="State">Which of the three things it did here.</param>
+/// <param name="Reason">
+/// V16 C7b. Why it had nothing to look at, as a catalogue key and its arguments like every other
+/// sentence (V7 D1.1). Null on <see cref="RuleState.Fired"/> and <see cref="RuleState.Passed"/> -
+/// a rule that ran has its findings to speak with - and never null on
+/// <see cref="RuleState.NotApplicable"/>, which <see cref="ArchitectureAnalyzer"/> enforces at the
+/// only place a rule can stand down. Optional on the wire all the same: a payload recorded before
+/// C7b does not carry it, and a card without it is a card without a second line.
+/// </param>
+public sealed record RuleCoverage(
+    string Code,
+    Area Area,
+    RuleState State,
+    Localization.LocalizedText? Reason = null);

@@ -38,7 +38,7 @@ public class MissingCacheRule : IArchitectureRule
             .ToList();
 
         if (databases.Count == 0)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.MISSING_CACHE.noDatabase");
 
         var findings = new List<RuleFinding>();
 

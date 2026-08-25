@@ -52,7 +52,7 @@ public class MissingResilienceRule : IArchitectureRule
             .ToList();
 
         if (synchronous.Count == 0)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.MISSING_RESILIENCE.noSyncCall");
 
         // Escalation asks for a Critical SPOF, not just any SPOF: with severity now graded by
         // blast radius, requiring only "is a SPOF" flagged every call to any component shared by

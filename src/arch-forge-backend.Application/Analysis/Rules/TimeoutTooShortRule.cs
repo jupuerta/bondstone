@@ -51,7 +51,7 @@ public class TimeoutTooShortRule : IArchitectureRule
             .ToList();
 
         if (timed.Count == 0)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.TIMEOUT_TOO_SHORT.noTimeout");
 
         // V15 A2. Where UNDERSIZED_COMPONENT has already said "it is drowning", the cost of a call
         // into it is that finding's number, not this rule's. Critical only: at capacity (Warning)

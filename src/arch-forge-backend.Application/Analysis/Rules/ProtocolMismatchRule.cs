@@ -44,7 +44,7 @@ public class ProtocolMismatchRule : IArchitectureRule
         var edges = graph.Connections.Where(edge => !NodeRoles.IsTelemetryEdge(graph, edge)).ToList();
 
         if (edges.Count == 0)
-            return RuleResult.NotApplicable;
+            return RuleResult.NotApplicable("rule.na.PROTOCOL_MISMATCH.noCalls");
 
         var findings = new List<RuleFinding>();
 
