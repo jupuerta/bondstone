@@ -33,6 +33,60 @@ public class ChallengeDefinitionsTests
         Assert.NotEmpty(ChallengeHarness.Catalog.All);
     }
 
+    // ---- V17 D1. The one operand that travels -----------------------------------------------
+
+    [Fact]
+    public void Only_a_latency_ceiling_over_an_empty_scenario_publishes_its_budget()
+    {
+        // The four conditions of ChallengeRequirementDto.LatencyBudgetMs, read off the real
+        // catalogue rather than a hand-built requirement: what this has to be true about is the
+        // thirteen definitions that ship, not a fixture that agrees with the mapper.
+        var published = ChallengeHarness.Catalog.All
+            .Select(c => c.ToDetailDto())
+            .SelectMany(d => d.Requirements.Concat(d.OptionalGoals).Select(r => (d.Slug, r)))
+            .Where(pair => pair.r.LatencyBudgetMs is not null)
+            .Select(pair => (pair.Slug, pair.r.Kind, Budget: pair.r.LatencyBudgetMs!.Value))
+            .ToList();
+
+        Assert.Equal(
+            [
+                ("latency-budget", RequirementKinds.UnderScenario, 100),
+                ("latency-budget", RequirementKinds.UnderScenario, 75),
+                ("no-new-hardware", RequirementKinds.UnderScenario, 60),
+            ],
+            published);
+    }
+
+    [Fact]
+    public void A_budget_graded_under_injected_faults_publishes_nothing()
+    {
+        // `retry-storm` and `third-party-outage` both cap `faultedLatencyMs` - under a fault. The
+        // cascade on screen is the walk of whatever scenario the user has set, and the client has
+        // no way to know it is the same one: a challenge's faults point at components by name and
+        // the canvas holds ids. So the line is not drawn, rather than drawn against the wrong walk.
+        foreach (var slug in new[] { "retry-storm", "third-party-outage" })
+        {
+            var detail = ChallengeHarness.Catalog.Find(slug)!.ToDetailDto();
+            var latency = detail.Requirements.Concat(detail.OptionalGoals)
+                .Where(r => r.Kind == RequirementKinds.UnderScenario)
+                .ToList();
+
+            Assert.NotEmpty(latency);
+            Assert.All(latency, r => Assert.Null(r.LatencyBudgetMs));
+        }
+    }
+
+    [Fact]
+    public void Nothing_else_a_requirement_knows_travels_with_it()
+    {
+        // D3.6 is why the checklist is a kind and a label: the client renders it and never gets
+        // close to evaluating it. The budget is the single exception because it is drawn and not
+        // decided, so this is the test that keeps the exception single.
+        var fields = typeof(ChallengeRequirementDto).GetProperties().Select(p => p.Name).ToList();
+
+        Assert.Equal(["Kind", "Label", "LatencyBudgetMs"], fields);
+    }
+
     [Theory]
     [MemberData(nameof(Slugs))]
     public void The_reference_solution_passes(string slug)
