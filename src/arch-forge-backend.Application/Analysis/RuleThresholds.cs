@@ -42,4 +42,12 @@ public static class RuleThresholds
     // finding. Twice an Api's capacity - below that, one door handles it and a CDN is an
     // optimisation; above it, the edge is where the first real relief lives.
     public const int CdnWorthTraffic = 1000;
+
+    /// <summary>
+    /// V15 E2. TIMEOUT_TOO_LONG: from here up a timeout is a wait, not a limit. Not a number of
+    /// this rule's own - it is what the simulator has charged a call with no timeout since V3
+    /// (<see cref="Simulation.LatencyModel.UnboundedWait"/>, D4.2), so the line is "protects as
+    /// much as none". Held here as the alias so the arguable numbers stay in one file (D5.6).
+    /// </summary>
+    public const int TimeoutUnboundedMs = Simulation.LatencyModel.UnboundedWait;
 }

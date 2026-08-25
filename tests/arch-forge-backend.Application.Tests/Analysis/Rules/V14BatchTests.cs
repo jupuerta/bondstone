@@ -3,6 +3,7 @@ using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Application.Simulation;
+using arch_forge_backend.Application.Tests.Analysis.Fixtures;
 using arch_forge_backend.Application.Tests.Analysis.Rules.Support;
 using arch_forge_backend.Domain.Enums;
 using Xunit;
@@ -13,14 +14,21 @@ namespace arch_forge_backend.Application.Tests.Analysis.Rules;
 /// V14 B13. "You are not watching this box" and "you cannot see anything" are different claims,
 /// and with one Warning-only rule in the area the second one could never cost more than fifteen
 /// points: total blindness read "aceptable".
+///
+/// V15 D2. And they are two <em>findings</em> now, not one finding in two colours. B13 made the
+/// second claim by turning every instance of the first into a Critical, which handed Observability
+/// the biggest hammer in the analyzer and made its colour depend on counting boxes. The blind
+/// system is one Critical, said once; every unobserved box is the Warning it always was.
 /// </summary>
 public class ObservabilityFloorTests
 {
     private readonly NoObservabilityRule _rule = new();
 
     [Fact]
-    public void TotalBlindness_OnARealDiagram_IsCritical()
+    public void TotalBlindness_OnARealDiagram_IsOneCriticalAndAWarningPerBox()
     {
+        // Flipped for V15 D2: three Criticals until then, one now. The Critical is about the
+        // system and points at every box in it; the three Warnings are the coverage, box by box.
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Svc", NodeType.Service).Node("Db", NodeType.Database)
             .Connect("Api", "Svc").Connect("Svc", "Db", protocol: ProtocolType.Sql)
@@ -28,15 +36,51 @@ public class ObservabilityFloorTests
 
         var findings = _rule.Evaluate(graph).Findings;
 
-        Assert.Equal(3, findings.Count);
-        Assert.All(findings, f => Assert.Equal(Severity.Critical, f.Severity));
+        var blind = Assert.Single(findings, f => f.Severity == Severity.Critical);
+        Assert.Equal("finding.NO_OBSERVABILITY.blind.message(count=3)", blind.Message.Describe());
+        Assert.Equal("finding.NO_OBSERVABILITY.blind.suggestion.absent", blind.Suggestion.Key());
+        Assert.Null(blind.Fix);
+        Assert.Equal(3, blind.Elements.Count);
+
+        Assert.Equal(3, findings.Count(f => f.Severity == Severity.Warning));
+        Assert.All(findings.Where(f => f.Severity == Severity.Warning),
+            f => Assert.Equal("finding.NO_OBSERVABILITY.unobserved.message", f.Message.Key()));
     }
 
     [Fact]
-    public void OneTelemetryBox_TurnsTheRestBackIntoHomework()
+    public void TheColourOfTheArea_DoesNotDependOnCountingBoxes()
     {
-        // The moment anything is watching, the claim changes back to "this box is not": the same
-        // wiring gap, the Warning it always was.
+        // The V15 sweep's example: an Api behind a balancer, then the same Api split into two
+        // replicas. Until D2 the first ran blind as two Warnings and the second as three Criticals
+        // - Observability turned red without one wire changing. Now the split adds one Warning,
+        // which is one more box nobody watches, and nothing changes colour.
+        static GraphBuilder Behind(params string[] apis)
+        {
+            var b = new GraphBuilder().Node("Web", NodeType.Client).Node("LB", NodeType.LoadBalancer)
+                .Nodes(NodeType.Api, apis).Node("Db", NodeType.Database)
+                .Connect("Web", "LB");
+            foreach (var api in apis)
+                b.Connect("LB", api, timeoutSeconds: 3, fallback: true).Connect(api, "Db", timeoutSeconds: 3, fallback: true, protocol: ProtocolType.Sql);
+            return b;
+        }
+
+        var one = _rule.Evaluate(Behind("Api").Build()).Findings;
+        var two = _rule.Evaluate(Behind("Api1", "Api2").Build()).Findings;
+
+        // Three observables either way (the balancer counts), so both are blind: one Critical each.
+        Assert.Single(one, f => f.Severity == Severity.Critical);
+        Assert.Single(two, f => f.Severity == Severity.Critical);
+
+        // And the split costs exactly one more Warning - the box it added.
+        Assert.Equal(3, one.Count(f => f.Severity == Severity.Warning));
+        Assert.Equal(4, two.Count(f => f.Severity == Severity.Warning));
+    }
+
+    [Fact]
+    public void OneWire_LiftsTheBlindnessAndLeavesTheHomework()
+    {
+        // The moment anything is watching, the system can be seen: the Critical goes, and what is
+        // left is one Warning per box still running unobserved.
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Svc", NodeType.Service).Node("Db", NodeType.Database)
             .Node("Obs", NodeType.Observability)
@@ -51,16 +95,60 @@ public class ObservabilityFloorTests
     }
 
     [Fact]
+    public void ATelemetryBoxNothingReaches_DoesNotLiftTheBlindness()
+    {
+        // V15 D2 closes the hole B13 left: "blind" used to be "no telemetry box on the canvas", so
+        // dragging one in and wiring it to nothing turned every Critical back into a Warning. An
+        // observability component with no wire into it observes nothing (QA B5, one step on), and
+        // the card says so by name.
+        var graph = new GraphBuilder()
+            .Node("Api", NodeType.Api).Node("Svc", NodeType.Service).Node("Db", NodeType.Database)
+            .Node("Obs", NodeType.Observability)
+            .Connect("Api", "Svc").Connect("Svc", "Db", protocol: ProtocolType.Sql)
+            .Build();
+
+        var findings = _rule.Evaluate(graph).Findings;
+
+        var blind = Assert.Single(findings, f => f.Severity == Severity.Critical);
+        Assert.Equal("finding.NO_OBSERVABILITY.blind.suggestion.present(telemetry=Obs)", blind.Suggestion.Describe());
+        Assert.Equal(3, findings.Count(f => f.Severity == Severity.Warning));
+    }
+
+    [Fact]
     public void TwoBoxes_AreASketchAndKeepTheWarning()
     {
-        // Below three observables the diagram is a sketch (the SYNC_CHAIN threshold), and a
-        // sketch with no telemetry is homework, not an incident - minimal-api-db must not open red.
+        // Below three observables the diagram is a sketch (the SYNC_CHAIN threshold, which since
+        // V15 D1 is also where the client stops labelling the score), and a sketch with no
+        // telemetry is homework, not an incident - minimal-api-db must not open red.
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Db", NodeType.Database)
             .Connect("Api", "Db", protocol: ProtocolType.Sql)
             .Build();
 
-        Assert.All(_rule.Evaluate(graph).Findings, f => Assert.Equal(Severity.Warning, f.Severity));
+        var findings = _rule.Evaluate(graph).Findings;
+
+        Assert.Equal(2, findings.Count);
+        Assert.All(findings, f => Assert.Equal(Severity.Warning, f.Severity));
+    }
+
+    [Fact]
+    public void WhatTotalBlindnessCosts_GrowsWithTheSystem()
+    {
+        // The numbers of the class summary, pinned: 15 for the Critical, 2,5 per unobserved box,
+        // the cap of 45 from twelve boxes. A bigger blind system pays more - which is what coverage
+        // means - and the floor B13 set stays where it was, at 55.
+        static int Blind(int services)
+        {
+            var b = new GraphBuilder().Node("Gw", NodeType.Gateway);
+            for (var i = 1; i < services; i++)
+                b.Node($"S{i}", NodeType.Service).Connect("Gw", $"S{i}", timeoutSeconds: 3, fallback: true);
+            return ReferenceArchitecture.Analyze(b.Build()).ScoreOf(Area.Observability)!.Value;
+        }
+
+        Assert.Equal(78, Blind(3));    // 100 - (15 + 3 × 2,5) = 77,5 -> 78
+        Assert.Equal(60, Blind(10));   // 100 - (15 + 10 × 2,5) = 60
+        Assert.Equal(55, Blind(12));   // 15 + 12 × 2,5 = 45, the cap
+        Assert.Equal(55, Blind(20));   // still the cap
     }
 
     [Fact]

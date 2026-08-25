@@ -54,4 +54,10 @@ public static class RuleCodes
     // happen at all. The second rule whose findings are about the drawing, and the one that
     // stops `Db -> Client` scoring 98.
     public const string ImplausibleDependency = "IMPLAUSIBLE_DEPENDENCY";
+
+    // V15 E2 (docs/V15/QA-analisis-V15.md). TIMEOUT_TOO_SHORT's twin, and the rule
+    // ConfigurationRanges.MaxTimeoutSeconds said was still owed: a timeout at or above what the
+    // simulator already treats as an unbounded wait protects exactly as much as no timeout at all.
+    // Twenty-four rules.
+    public const string TimeoutTooLong = "TIMEOUT_TOO_LONG";
 }

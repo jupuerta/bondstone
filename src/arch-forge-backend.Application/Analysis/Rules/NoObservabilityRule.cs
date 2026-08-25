@@ -32,6 +32,32 @@ namespace arch_forge_backend.Application.Analysis.Rules;
 /// and QUEUE_NO_CONSUMER read <see cref="NodeRoles.IsTelemetryEdge"/> - because a rule that asks
 /// you to wire every component to the telemetry cannot have three other rules charging you for
 /// each wire.
+///
+/// <strong>V15 D2. Two claims, two findings.</strong> V14 B13 was right that "you are not watching
+/// this box" and "you cannot see anything" are different claims - and then made the second one by
+/// recolouring every instance of the first: on a diagram with no telemetry, each unobserved box
+/// became a Critical. That gave the area the biggest hammer in the analyzer (forty-five points, the
+/// cap, from one rule) and made the colour of a whole area depend on <em>counting boxes</em>:
+/// two observables ran blind as two Warnings, three as three Criticals, so splitting an Api into a
+/// pair of replicas turned Observability red without a single wire changing.
+///
+/// The second claim is now its own finding, said once: <strong>the system is blind</strong> - one
+/// Critical, when nothing observable is observed. The per-component findings go back to being what
+/// they say, a Warning each, and the arithmetic of D1.1 composes the two the way it composes any
+/// rule: the Critical at full weight, every unobserved box at half a Warning, the cap at three
+/// Criticals. Total blindness costs 15 + 2,5 per box - 78 for three boxes, 60 for ten, the floor of
+/// 55 from twelve up - so a bigger blind system pays more, which is what coverage means, and the
+/// colour never depends on how many boxes there are.
+///
+/// <strong>Blind means nothing is watched, not that the box is missing.</strong> Until v7 the test
+/// was "no telemetry component on the canvas", so dragging one in and wiring it to nothing turned
+/// every Critical back into a Warning. An observability box nothing reaches observes nothing (QA
+/// B5, one step further), and the verdict reads the wiring.
+///
+/// What stays is the sketch line: below <see cref="RuleThresholds.SyncChainWarning"/> observable
+/// components a diagram is not yet an architecture, and the analyzer neither calls it blind here
+/// nor labels its score on the client (V15 D1 reads the same threshold). Two boxes with no
+/// telemetry are homework; three are a system nobody can see.
 /// </summary>
 public class NoObservabilityRule : IArchitectureRule
 {
@@ -66,22 +92,46 @@ public class NoObservabilityRule : IArchitectureRule
         // which one is the decision, and with none the first step is adding it.
         var theOnlyTelemetry = telemetry.Count == 1 ? telemetry[0] : null;
 
-        // V14 B13. "You are not watching this box" and "you cannot see anything" are different
-        // claims, and until v7 they carried the same colour - which, with one Warning-only rule in
-        // the area, put a floor of 85 under it: a twenty-box system with not one line of telemetry
-        // read "aceptable", two and a half global points below a fully instrumented one. On a
-        // diagram big enough to be an architecture (the SYNC_CHAIN warning threshold, which is
-        // also where "sketch" stops being the right word) with no telemetry box at all, each
-        // unobserved component is Critical: the cap does the rest, and total blindness now sits at
-        // 55, forty points under the fully wired 100 instead of fifteen.
-        var blind = telemetry.Count == 0 && observable.Count >= RuleThresholds.SyncChainWarning;
+        var unobserved = observable.Where(node => !IsObserved(graph, node)).ToList();
 
-        var findings = observable
-            .Where(node => !IsObserved(graph, node))
-            .Select(node => Report(node, telemetry.Count, theOnlyTelemetry, blind ? Severity.Critical : Severity.Warning))
-            .ToList();
+        // V15 D2. The system is blind when nothing observable is observed - the wiring, not the
+        // palette: a telemetry box nothing reaches watches nothing. Said once, as its own Critical,
+        // on a diagram big enough to be a system; the per-box findings below stay the Warnings they
+        // are, and D1.1 adds the two up (see the class summary for the numbers).
+        var blind = unobserved.Count == observable.Count && observable.Count >= RuleThresholds.SyncChainWarning;
+
+        var findings = new List<RuleFinding>();
+
+        if (blind)
+            findings.Add(Blind(unobserved, telemetry, theOnlyTelemetry));
+
+        findings.AddRange(unobserved.Select(node => Report(node, telemetry.Count, theOnlyTelemetry)));
 
         return RuleResult.Applicable(findings);
+    }
+
+    /// <summary>
+    /// V15 D2. The one Critical: nothing in the system is observed. It points at every unobserved
+    /// component, because that is what it is about - click it and the whole canvas lights up,
+    /// which is the picture the sentence paints. No fix: "add a box and wire everything" is not one
+    /// local edit, and the per-component cards underneath each carry theirs.
+    /// </summary>
+    private RuleFinding Blind(IReadOnlyList<Node> unobserved, IReadOnlyList<Node> telemetry, Node? theOnlyTelemetry)
+    {
+        var suggestion = theOnlyTelemetry is not null
+            ? LocalizedText.Of("finding.NO_OBSERVABILITY.blind.suggestion.present", ("telemetry", theOnlyTelemetry.Name))
+            : LocalizedText.Of(telemetry.Count == 0
+                ? "finding.NO_OBSERVABILITY.blind.suggestion.absent"
+                : "finding.NO_OBSERVABILITY.blind.suggestion.several");
+
+        return new RuleFinding(
+            Code,
+            Area,
+            Severity.Critical,
+            LocalizedText.Of("finding.NO_OBSERVABILITY.blind.message", ("count", unobserved.Count)),
+            LocalizedText.Of("finding.NO_OBSERVABILITY.blind.explanation"),
+            suggestion,
+            unobserved.Select(node => FindingElement.Node(node.Id)).ToList());
     }
 
     /// <summary>An edge, either way, between the component and something that is telemetry.</summary>
@@ -90,7 +140,7 @@ public class NoObservabilityRule : IArchitectureRule
             .Concat(graph.OutgoingBySource[node.Id].Select(c => c.TargetNodeId))
             .Any(otherId => graph.NodesById.TryGetValue(otherId, out var other) && NodeRoles.IsTelemetry(other.Type));
 
-    private RuleFinding Report(Node node, int telemetryCount, Node? theOnlyTelemetry, Severity severity)
+    private RuleFinding Report(Node node, int telemetryCount, Node? theOnlyTelemetry)
     {
         // Three whole suggestions, chosen here (V7 D1.1): add telemetry and wire this to it; wire
         // this to the one there is; wire this to one of the several there are.
@@ -106,7 +156,9 @@ public class NoObservabilityRule : IArchitectureRule
         return new RuleFinding(
             Code,
             Area,
-            severity,
+            // Always the Warning it says it is (V15 D2): "this box is not watched" is homework,
+            // and the claim that outranks it has its own finding above.
+            Severity.Warning,
             LocalizedText.Of("finding.NO_OBSERVABILITY.unobserved.message", ("node", node.Name)),
             LocalizedText.Of("finding.NO_OBSERVABILITY.unobserved.explanation", ("node", node.Name)),
             suggestion,

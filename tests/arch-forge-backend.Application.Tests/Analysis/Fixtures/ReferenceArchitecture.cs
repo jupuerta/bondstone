@@ -24,7 +24,7 @@ public static class ReferenceArchitecture
     public static AnalysisResult Analyze(string fixtureName) => Analyze(Graph(fixtureName));
 
     /// <summary>
-    /// The twenty rules over a graph the caller built - which is how the shuffling test feeds the
+    /// The twenty-four rules over a graph the caller built - which is how the shuffling test feeds the
     /// same fixture in a different order (V6 D1.1).
     /// </summary>
     public static AnalysisResult Analyze(ArchitectureGraph graph)
@@ -53,7 +53,8 @@ public static class ReferenceArchitecture
             new SharedDatabaseRule(),
             new ImplausibleDependencyRule(),
             new TrafficRejectedRule(),
-            new MissingCdnRule()
+            new MissingCdnRule(),
+            new TimeoutTooLongRule()
         ]);
 
         return analyzer.Analyze(graph);

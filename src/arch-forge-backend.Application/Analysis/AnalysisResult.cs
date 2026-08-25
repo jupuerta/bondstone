@@ -187,6 +187,69 @@ public sealed record AnalysisResult(
     /// the canonical read path lost its false Critical, microservices with real redundancy stopped
     /// scoring below the ones without, the two-box nonsense stopped being "solid", and the famous
     /// SPOF finally has a card.
+    ///
+    /// <h3>v8 - the V15 sweep (docs/V15/QA-analisis-V15.md)</h3>
+    ///
+    /// The third round, run over v7 with V14 verified closed first, and the one that found the
+    /// analyzer's remaining lies were mostly <em>pairs</em>: two drawings that differed in one
+    /// correct thing and scored as if they differed in a mistake. Fourteen corrections and one rule,
+    /// landed as one bump for the reason the last two were. Twenty-three rules become twenty-four.
+    ///
+    /// <strong>What the user could photograph.</strong> A1 - three of IMPLAUSIBLE_DEPENDENCY's
+    /// suggestions printed a literal <c>{target}</c>, in the panel and in the exported document,
+    /// because nothing ever compared a template's placeholders with the arguments the backend
+    /// sends - the check <c>LocalizedText</c>'s summary always claimed existed. It exists now
+    /// (<c>check-catalogs.mjs</c>, sixth check) over a generated recording of every sentence every
+    /// rule can say (<c>RecordAnalyzerSentences</c>); four dead keys fell out of the catalogue on
+    /// the way. A2 - TIMEOUT_TOO_SHORT stopped advising a 67 s timeout on a call into a database
+    /// at 8 000 % of its capacity: over a component UNDERSIZED_COMPONENT has marked, the number is
+    /// Scalability's (a Producer fact, the MISSING_RESILIENCE pattern). A3 - wiring the telemetry
+    /// the way the canvas draws it no longer costs Resilience: a scrape is not a call the
+    /// architect configures, and the one instrumentation edge that is - a synchronous push to the
+    /// metrics sink - is a Warning whose fix makes it asynchronous, never a Critical about the
+    /// outage "propagating" into the sink.
+    ///
+    /// <strong>Pairs that scored as if one of them were wrong.</strong> B1 - <c>instances: 2</c>
+    /// behind a balancer is the same fact as two boxes behind it; the balancer stops being a
+    /// Critical SPOF for the field V14 B4 added. B2 - two replicas of a service behind a
+    /// balancer are one service on its database, not integration by database; SHARED_DATABASE
+    /// and MISSING_CACHE group what hangs from one balancer with one type (the known limit of
+    /// the convention, pinned), and E3 gives SHARED_DATABASE a <c>readers</c> sentence for a
+    /// schema declared read-only. C2 - the Cdn is not graded as a single point of failure, for
+    /// the reason it is not sized or watched: adding the edge MISSING_CDN asks for now raises the
+    /// score instead of trading 20 points of Scalability for 15 of Availability. C1 -
+    /// <c>Client → Cdn → ObjectStorage</c>, the static site, is what IMPLAUSIBLE_DEPENDENCY
+    /// blesses and EXPOSED_DATABASE no longer marks Critical. C3 - a third party's service is an
+    /// origin a CDN can front and work a clock can fire. E5 - outside traffic reaching something
+    /// that cannot authenticate is UNAUTHENTICATED_ENTRY's <c>unguarded</c> finding, not an area
+    /// with no score.
+    ///
+    /// <strong>The calibration.</strong> D2 - "the system is blind" is one Critical, said once,
+    /// and every unobserved box is the Warning it says it is; B13 had made the second claim by
+    /// recolouring every instance of the first, which handed Observability the biggest hammer in
+    /// the analyzer and made its colour depend on counting boxes. Blind means nothing is watched,
+    /// not that the box is missing. Total blindness now costs 15 plus 2,5 per box - 78 for three,
+    /// 60 for ten, the floor of 55 from twelve up - so a bigger blind system pays more, which is
+    /// what coverage means. D1 travels beside it on the client: the word next to the number needs
+    /// five scored areas <em>and</em> three connected components, so a two-box sketch is
+    /// "unevaluated" whichever areas apply - which V14's threshold of areas alone could no longer
+    /// say once its own rules made five areas apply to everything.
+    ///
+    /// <strong>And E2, the twenty-fourth rule.</strong> TIMEOUT_TOO_LONG: a timeout at or above
+    /// the simulator's unbounded wait (<c>LatencyModel.UnboundedWait</c>, 30 s) protects exactly
+    /// as much as no timeout at all, and the drawing B14's own ceiling allowed - 600 s on
+    /// <c>Api → Db</c> - stops scoring 99. Graded the way MISSING_RESILIENCE grades a missing one:
+    /// Critical when held open, uncovered, on a Critical SPOF. (E1 gives SYNC_CHAIN a suggestion
+    /// for a read path that does not propose a queue; E4 groups thousands from five digits.)
+    ///
+    /// <strong>The four reference fixtures land at 98 / 92 / 83 / 70.</strong> Only D2 moved them:
+    /// <c>resilient-async</c> 90 → 92 (one Critical instead of seven, and the right one),
+    /// <c>gateway-microservices</c> 80 → 83, <c>worst-case</c> 69 → 70; <c>minimal-api-db</c>
+    /// stays a sketch at 98 and is now labelled one. Every other correction of the sweep left
+    /// all four exactly where they were, which was the control the sweep ran on. What moved is
+    /// what it measured: the best architecture the palette can draw scores 100 (it was 96, and
+    /// the Critical was the CDN), and the two-box nonsense of V14's opening table no longer
+    /// outscores it with a word next to the number.
     /// </summary>
-    public const string CurrentScoringVersion = "v7";
+    public const string CurrentScoringVersion = "v8";
 }

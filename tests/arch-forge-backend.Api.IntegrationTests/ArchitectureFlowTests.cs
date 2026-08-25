@@ -68,7 +68,7 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
         Assert.True(analysis["score"]!.GetValue<int>() is >= 0 and <= 100);
 
         // V2 D2.1: the six areas always travel, in enum order; what varies is their state.
-        Assert.Equal("v7", analysis["scoringVersion"]!.GetValue<string>());
+        Assert.Equal("v8", analysis["scoringVersion"]!.GetValue<string>());
         Assert.Equal(
             ["Availability", "Resilience", "Coupling", "Scalability", "Security", "Observability"],
             analysis["areas"]!.AsArray().Select(a => a!["area"]!.GetValue<string>()));
@@ -479,7 +479,7 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
         // Oldest first, one per version, each carrying the model that produced it.
         Assert.Equal(2, history[0]!["version"]!.GetValue<int>());
         Assert.Equal(3, history[1]!["version"]!.GetValue<int>());
-        Assert.All(history, entry => Assert.Equal("v7", entry!["scoringVersion"]!.GetValue<string>()));
+        Assert.All(history, entry => Assert.Equal("v8", entry!["scoringVersion"]!.GetValue<string>()));
 
         // Adding the timeout silences MISSING_RESILIENCE, so Resilience recovers and the average
         // with it: the number went up because the architecture got better.

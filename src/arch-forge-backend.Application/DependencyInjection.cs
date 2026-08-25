@@ -61,6 +61,10 @@ public static class DependencyInjection
         // architecture. PROTOCOL_MISMATCH asks whether the protocol fits the far end; this one asks
         // whether the two ends can talk at all.
         services.AddScoped<IArchitectureRule, ImplausibleDependencyRule>(); // Consumer
+
+        // V15 E2: twenty-four. TIMEOUT_TOO_SHORT's twin - a timeout at or above the simulator's
+        // unbounded wait is a wait, not a limit. A Consumer of SPOF, like MISSING_RESILIENCE.
+        services.AddScoped<IArchitectureRule, TimeoutTooLongRule>();        // Consumer
         services.AddScoped<ArchitectureAnalyzer>();
 
         // V3 D5.1: next to the analyzer and not inside it. Not a list of registered pieces either -

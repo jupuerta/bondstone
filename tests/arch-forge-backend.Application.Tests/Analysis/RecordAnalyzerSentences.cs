@@ -331,6 +331,29 @@ public class RecordAnalyzerSentences
             .Connect("Users", "Edge").Connect("Edge", "Api", timeoutSeconds: 60, fallback: true)
             .Connect("Api", "Db", timeoutSeconds: 60, fallback: true, protocol: ProtocolType.Sql));
 
+        // V15 D2: the blind system, in its three tellings - no telemetry box, one wired to nothing,
+        // several wired to nothing.
+        yield return ("blindWithOneIdleBox", new GraphBuilder()
+            .Node("Gw", NodeType.Gateway).Nodes(NodeType.Service, "B1", "B2").Node("Obs", NodeType.Observability)
+            .Connect("Gw", "B1", timeoutSeconds: 3, fallback: true).Connect("Gw", "B2", timeoutSeconds: 3, fallback: true));
+
+        yield return ("blindWithSeveralIdleBoxes", new GraphBuilder()
+            .Node("Gw", NodeType.Gateway).Nodes(NodeType.Service, "C1", "C2").Nodes(NodeType.Observability, "Metrics", "Logs")
+            .Connect("Gw", "C1", timeoutSeconds: 3, fallback: true).Connect("Gw", "C2", timeoutSeconds: 3, fallback: true));
+
+        // V15 E2: the wait that is not a limit, in its two tellings - a covered call, and one held
+        // open on a Critical SPOF.
+        yield return ("timeoutTooLong", new GraphBuilder()
+            .Node("Api", NodeType.Api, "{\"authentication\":true,\"rateLimit\":1000}").Node("Db", NodeType.Database, "{\"replicas\":2}")
+            .Connect("Api", "Db", timeoutSeconds: 600, fallback: true, protocol: ProtocolType.Sql));
+
+        yield return ("timeoutTooLongOnSpof", new GraphBuilder()
+            .Node("Gw", NodeType.Gateway, "{\"authentication\":true,\"rateLimit\":1000}").Node("Api", NodeType.Api)
+            .Node("Db", NodeType.Database, "{\"replicas\":2}").Node("Cache", NodeType.Cache)
+            .Connect("Gw", "Api", timeoutSeconds: 600)
+            .Connect("Api", "Db", timeoutSeconds: 3, fallback: true, protocol: ProtocolType.Sql)
+            .Connect("Api", "Cache", timeoutSeconds: 1, fallback: true));
+
         yield return ("allCycleNoRoot", new GraphBuilder()
             .Nodes(NodeType.Service, "L1", "L2")
             .Connect("L1", "L2", timeoutSeconds: 3).Connect("L2", "L1", timeoutSeconds: 3));
