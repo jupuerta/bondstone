@@ -35,9 +35,6 @@ public class ArchitectureRepository : IArchitectureRepository
     public async Task AddAsync(Architecture architecture, CancellationToken cancellationToken = default) =>
         await _context.Architectures.AddAsync(architecture, cancellationToken);
 
-    // The cascade on Architecture -> Nodes -> Connections does the rest, in one statement and one
-    // transaction. Removing the children here as well would issue deletes for rows the database is
-    // about to remove anyway, and would make the code look as if the cascade were not trusted.
     public void Remove(Architecture architecture) =>
         _context.Architectures.Remove(architecture);
 
@@ -49,9 +46,6 @@ public class ArchitectureRepository : IArchitectureRepository
     {
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
 
-        // Delete the current graph first. It goes in the same SaveChanges as the Architecture
-        // UPDATE, which is where the Version concurrency token is checked - so a stale write is
-        // rejected before anything is inserted.
         _context.Connections.RemoveRange(architecture.Connections);
         _context.Nodes.RemoveRange(architecture.Nodes);
         architecture.Connections.Clear();
@@ -59,9 +53,6 @@ public class ArchitectureRepository : IArchitectureRepository
 
         await SaveChangesAsync(cancellationToken);
 
-        // Insert through the DbSet, not through architecture.Nodes/Connections: the incoming
-        // entities carry client-generated keys, and change tracking would read a set key on an
-        // untracked entity as Modified, issuing an UPDATE against rows that do not exist.
         await _context.Nodes.AddRangeAsync(nodes, cancellationToken);
         await _context.Connections.AddRangeAsync(connections, cancellationToken);
 
@@ -70,10 +61,6 @@ public class ArchitectureRepository : IArchitectureRepository
         await transaction.CommitAsync(cancellationToken);
     }
 
-    /// <summary>
-    /// V4 D5.4. Idempotent by the unique index on (architecture, version): the autosave may retry a
-    /// save, and a second snapshot of the same version would be the same fact recorded twice.
-    /// </summary>
     public async Task RecordSnapshotAsync(ArchitectureSnapshot snapshot, CancellationToken cancellationToken = default)
     {
         var exists = await _context.ArchitectureSnapshots

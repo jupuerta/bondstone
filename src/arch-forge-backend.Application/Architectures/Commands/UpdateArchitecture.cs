@@ -12,7 +12,6 @@ namespace arch_forge_backend.Application.Architectures.Commands;
 
 public class UpdateArchitectureCommand
 {
-    /// <summary>The write handle. Resolved through it and nothing else - see <see cref="Domain.Entities.Architecture.EditToken"/>.</summary>
     public string EditToken { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public int Version { get; set; }
@@ -44,9 +43,6 @@ public class UpdateArchitectureCommandValidator : AbstractValidator<UpdateArchit
             connection.RuleFor(c => c.Id).NotEmpty().WithMessage("Each connection must carry a client-generated id.");
             connection.RuleFor(c => c.Protocol).IsInEnum();
 
-            // V2 D3.4: a self-loop represents no real architecture and would falsify every
-            // traversal, so it is structural corruption rather than something to have an opinion
-            // about. Cycles of length >= 2, by contrast, are analyzed, not rejected.
             connection.RuleFor(c => c.TargetNodeId)
                 .NotEqual(c => c.SourceNodeId)
                 .WithMessage("A connection cannot point at its own source node.");
@@ -56,8 +52,6 @@ public class UpdateArchitectureCommandValidator : AbstractValidator<UpdateArchit
             .Must(HaveUniqueIds)
             .WithMessage("Connection ids must be unique within an architecture.");
 
-        // The PUT carries a full snapshot, so every edge has to resolve against the nodes in the
-        // same payload - otherwise it would be persisted pointing at a node that does not exist.
         RuleFor(c => c.Connections)
             .Must((command, connections) =>
             {
@@ -98,14 +92,6 @@ public class UpdateArchitectureCommandHandler
         _analyzer = analyzer;
     }
 
-    /// <summary>
-    /// V4 D5.4. On save and not on analysis: the live analysis fires on a debounce while you type,
-    /// so recording it there would fill the table with half-finished edits. <c>Version</c> already
-    /// identifies the graph without ambiguity and only moves when something reached the database.
-    ///
-    /// It never takes a save down with it. The architecture is already persisted by this point, and
-    /// a history entry is worth strictly less than the edit it describes.
-    /// </summary>
     private async Task RecordSnapshot(
         Architecture architecture,
         IReadOnlyCollection<Node> nodes,
@@ -124,15 +110,12 @@ public class UpdateArchitectureCommandHandler
                 ScoringVersion = analysis.ScoringVersion,
                 Score = analysis.Score,
                 Summary = JsonSerializer.Serialize(analysis.Summary),
-                // V16 C11. Written here and nowhere else, from the same analysis the number comes
-                // from, so the breakdown and the whole it breaks down are never one save apart.
                 Areas = SnapshotAreas.Write(analysis.Areas),
                 CreatedAt = architecture.UpdatedAt
             }, cancellationToken);
         }
         catch (Exception)
         {
-            // Deliberately swallowed, and the only place in the codebase that does this.
         }
     }
 
@@ -182,16 +165,11 @@ public class UpdateArchitectureCommandHandler
         return new UpdateArchitectureResult { Version = architecture.Version, UpdatedAt = architecture.UpdatedAt };
     }
 
-    // The column is jsonb not null (Technical_Design_V1 §5.1): a node the client sends without
-    // configuration is stored as an empty object rather than NULL.
     private static string ToStoredConfiguration(JsonElement? configuration) =>
         configuration is { } value && value.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined)
             ? value.GetRawText()
             : Node.EmptyConfiguration;
 
-    // An edge has a single schema regardless of protocol (V2 D3.1), so it is deserialized
-    // directly instead of going through the node registry. Validation happens on save, as it
-    // already does for nodes.
     private static void ValidateConnectionConfigurations(List<ConnectionDto> connections)
     {
         foreach (var connection in connections)
@@ -216,8 +194,6 @@ public class UpdateArchitectureCommandHandler
                 throw new InvalidConnectionConfigurationException(connection.Id, ex.Message);
             }
 
-            // V14 B14: the guards this method carried since V2 moved to the table the nodes now
-            // share, and the timeout gained the ceiling it never had.
             if (ConfigurationRanges.Violation(resilience) is { } violation)
                 throw new InvalidConnectionConfigurationException(connection.Id, violation);
         }
@@ -233,8 +209,6 @@ public class UpdateArchitectureCommandHandler
             if (configuration.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
                 continue;
 
-            // Guards the jsonb column: anything that is not an object would either fail at the
-            // database or make the typed schema meaningless.
             if (configuration.ValueKind != JsonValueKind.Object)
                 throw new InvalidNodeConfigurationException(node.Name, "configuration must be a JSON object.");
 
@@ -251,9 +225,6 @@ public class UpdateArchitectureCommandHandler
                 throw new InvalidNodeConfigurationException(node.Name, ex.Message);
             }
 
-            // V14 B14. Deserializing was the whole check until V14, so a node could be saved with
-            // instances: -3 and requestsPerSecond: -5000 and score a hundred. Same guards the edge
-            // has had since V2, same 400 (ConfigurationRanges).
             if (ConfigurationRanges.Violation(parsed) is { } violation)
                 throw new InvalidNodeConfigurationException(node.Name, violation);
         }

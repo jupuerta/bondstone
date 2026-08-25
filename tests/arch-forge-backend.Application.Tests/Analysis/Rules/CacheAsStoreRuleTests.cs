@@ -7,9 +7,6 @@ using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Analysis.Rules;
 
-/// <summary>
-/// QA §4. The mirror of MISSING_CACHE: a cache in front of nothing is the only place the data is.
-/// </summary>
 public class CacheAsStoreRuleTests
 {
     private readonly CacheAsStoreRule _rule = new();
@@ -18,8 +15,6 @@ public class CacheAsStoreRuleTests
     [Fact]
     public void A_cache_with_nothing_behind_it_is_the_store()
     {
-        // The QA scenario: an Api that only talks to a cache, with no system of record anywhere
-        // its data could come back from. It used to score 96 and nobody said a word.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Cache", NodeType.Cache)
@@ -40,7 +35,6 @@ public class CacheAsStoreRuleTests
     [Fact]
     public void Read_through_is_a_cache()
     {
-        // Challenge #004's shape: the database behind the cache is the origin.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Cache", NodeType.Cache)
@@ -57,8 +51,6 @@ public class CacheAsStoreRuleTests
     [Fact]
     public void Cache_aside_is_a_cache()
     {
-        // The origin beside the cache rather than behind it: the Api reads the cache and falls to
-        // the database itself.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Cache", NodeType.Cache)
@@ -72,8 +64,6 @@ public class CacheAsStoreRuleTests
     [Fact]
     public void A_worker_warming_it_from_the_database_is_an_origin()
     {
-        // The Api only ever reads the cache; the worker fills it from the truth. Any user of the
-        // cache reaching a system of record is enough - the data has somewhere to come back from.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Cache", NodeType.Cache)
@@ -119,8 +109,6 @@ public class CacheAsStoreRuleTests
     [Fact]
     public void A_database_nobody_who_uses_the_cache_can_reach_is_not_its_origin()
     {
-        // The question is "does this cache's data have an origin", not "is there a database on the
-        // canvas": a store in an unrelated flow does not keep this cache's state.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Cache", NodeType.Cache)
@@ -136,7 +124,6 @@ public class CacheAsStoreRuleTests
     [Fact]
     public void A_cache_nobody_uses_is_not_this_rules_finding()
     {
-        // QA B4: the leftover box is ORPHAN_NODE's.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)

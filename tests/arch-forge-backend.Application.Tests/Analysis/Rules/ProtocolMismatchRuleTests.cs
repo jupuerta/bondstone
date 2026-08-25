@@ -8,11 +8,6 @@ using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Analysis.Rules;
 
-/// <summary>
-/// V13 D3.1. Half of these tests are about what the rule <strong>does not</strong> say, and that is
-/// the point: a coherence rule that fires on a legitimate drawing is worse than no coherence rule,
-/// because it teaches people to stop reading the panel.
-/// </summary>
 public class ProtocolMismatchRuleTests
 {
     private readonly ProtocolMismatchRule _rule = new();
@@ -21,8 +16,6 @@ public class ProtocolMismatchRuleTests
     [Fact]
     public void SqlIntoSomethingThatIsNotADatabase_IsCritical()
     {
-        // The example the review opened with. There is no architecture in which this line is what
-        // its author meant, so it is the one Critical of the three.
         _builder
             .Node("Orders", NodeType.Service)
             .Node("Queue", NodeType.Queue)
@@ -54,8 +47,6 @@ public class ProtocolMismatchRuleTests
     [Fact]
     public void HttpIntoADatabase_IsOnlyAWarning()
     {
-        // The one of the three with an innocent reading - a document store, a search engine, a REST
-        // layer somebody did not draw - so it asks rather than asserts.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
@@ -94,8 +85,6 @@ public class ProtocolMismatchRuleTests
     [Fact]
     public void AmqpLeavingAQueue_IsTheBrokerDelivering()
     {
-        // The shape this analyzer spends its time recommending. Reading only the destination would
-        // have flagged the second half of every asynchronous pipeline in the catalogue.
         _builder
             .Node("Queue", NodeType.Queue)
             .Node("Worker", NodeType.Worker)
@@ -104,13 +93,10 @@ public class ProtocolMismatchRuleTests
         Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
     }
 
-    // ---- What it deliberately allows (D3.1) -----------------------------------
 
     [Fact]
     public void HttpIntoAQueue_IsAHostedQueueAndNotAMistake()
     {
-        // A queue with an HTTP API is the most ordinary thing there is. Being strict here would be
-        // a false positive on a real and common design.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Queue", NodeType.Queue)
@@ -122,8 +108,6 @@ public class ProtocolMismatchRuleTests
     [Fact]
     public void HttpIntoACache_IsNotChecked()
     {
-        // The model has three protocols and Http is the general one. Demanding a fourth for every
-        // store would fire on half the diagrams to say nothing.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Cache", NodeType.Cache)
@@ -135,10 +119,6 @@ public class ProtocolMismatchRuleTests
     [Fact]
     public void AnAmqpEdgeMarkedSynchronous_IsNotAFinding()
     {
-        // **The case the review asked for and this rule refuses to make.** The manual says where it
-        // explains the field that "RPC sobre una cola" exists and is why synchrony is marked by
-        // hand, so request/reply over a broker is a pattern the product teaches. A rule forbidding
-        // it would contradict its own documentation to flag a legitimate design.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Queue", NodeType.Queue)
@@ -150,8 +130,6 @@ public class ProtocolMismatchRuleTests
     [Fact]
     public void OneFindingPerEdge_AndTheEdgeIsTheElement()
     {
-        // Granularity (D4.5): the subject is the call, never the component at either end - the same
-        // Database can be reached correctly by one edge and wrongly by another.
         _builder
             .Nodes(NodeType.Service, "Orders", "Billing")
             .Node("Db", NodeType.Database)
@@ -171,14 +149,10 @@ public class ProtocolMismatchRuleTests
         Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
     }
 
-    // ---- V14 B9: the protocol of a scrape is not the architect's claim -------
 
     [Fact]
     public void TheTelemetrysOwnProtocol_IsNotJudged()
     {
-        // T1b/T1c. `Obs -> Db` over Http was told to consider Sql: advice to make the metrics
-        // backend speak the database's wire protocol, about an arrow that is not a call in the
-        // architecture's sense.
         _builder
             .Node("Db", NodeType.Database)
             .Node("Obs", NodeType.Observability)

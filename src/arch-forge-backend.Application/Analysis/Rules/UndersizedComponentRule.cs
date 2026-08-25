@@ -4,22 +4,6 @@ using arch_forge_backend.Application.Localization;
 
 namespace arch_forge_backend.Application.Analysis.Rules;
 
-/// <summary>
-/// V4 D5.2 and bloque DT. <strong>The MISSING_CACHE of traffic</strong>: the rule that turns the
-/// new axis into advice before the user simulates anything.
-///
-/// It only has something to say once somebody declares how much traffic comes in the front door
-/// (DT.1), and that is deliberate - with no declared load there is no utilisation, so there is
-/// nothing to be under-sized for. Every architecture drawn before V4 sees this rule as
-/// "not applicable", which is the truth rather than a courtesy.
-///
-/// V15 A2 (docs/V15/QA-analisis-V15.md, C7). <strong>A Producer</strong> since then, the way SPOF
-/// is for MISSING_RESILIENCE: it publishes an <see cref="UndersizedComponentFact"/> for every
-/// component it grades, severity included, so TIMEOUT_TOO_SHORT can tell the latency of a call
-/// into a drowning component - the saturation itself, already charged here - from a timeout that
-/// is genuinely too short. It reads no fact of its own; it only writes, which is what lets it run
-/// in the first phase.
-/// </summary>
 public class UndersizedComponentRule : IArchitectureRule
 {
     public string Code => RuleCodes.UndersizedComponent;
@@ -40,22 +24,9 @@ public class UndersizedComponentRule : IArchitectureRule
 
         foreach (var node in graph.Nodes.OrderBy(n => n.Id))
         {
-            // A disconnected box serves no flow, whatever RPS its configuration declares: sizing
-            // it is ORPHAN_NODE's problem to raise, not this rule's (QA B4).
             if (graph.OrphanNodes.Contains(node.Id))
                 continue;
 
-            // V8 §6.2. Somebody else's service is left out on purpose. Every sentence this rule
-            // knows how to say - add instances, add replicas, share the work - is an instruction
-            // to do something you cannot do here, and a finding whose suggestion is impossible is
-            // worse than no finding. What there *is* to say about an external call under load is
-            // said by EXTERNAL_NO_FALLBACK, on the call rather than on the box.
-            //
-            // V14 B2. And that argument was never about one type. "Give your users more
-            // instances", "scale the CDN", "add a replica of the cron" are the same impossible
-            // sentence, and the enormous capacity CapacityModel hands those boxes so they never
-            // saturate was no guard against a declared load of two million. The exclusion is a
-            // predicate now, and it names all five.
             if (!NodeRoles.IsYoursToSize(node.Type))
                 continue;
 
@@ -63,13 +34,9 @@ public class UndersizedComponentRule : IArchitectureRule
             if (utilization < CapacityModel.SaturationWarning)
                 continue;
 
-            // Over capacity it is not "close to the limit", it is already failing requests, and
-            // the two deserve different colours: one is a risk, the other is an outage in progress.
             var overloaded = utilization > 1m;
             var severity = overloaded ? Severity.Critical : Severity.Warning;
 
-            // V15 A2. Said once here, read by TIMEOUT_TOO_SHORT: the latency of a call into an
-            // overloaded component is this finding's number, not that rule's.
             graph.Facts.Add(new UndersizedComponentFact(node.Id, severity));
 
             findings.Add(new RuleFinding(
@@ -81,10 +48,6 @@ public class UndersizedComponentRule : IArchitectureRule
                         : "finding.UNDERSIZED_COMPONENT.atCapacity.message",
                     ("node", node.Name)),
 
-                // Whole sentences, not a shared prefix plus a tail. Concatenating fragments is the
-                // localization bug that survives review: the join reads fine in the language it
-                // was written in and falls apart in the next one, where the clause order moves
-                // (V7 D1.1). The numbers travel raw and the catalogue formats them.
                 LocalizedText.Of(Explanation(graph, node, overloaded),
                     ("loadRps", load.LoadOf(node.Id)),
                     ("capacityRps", load.CapacityOf(node.Id)),
@@ -97,16 +60,6 @@ public class UndersizedComponentRule : IArchitectureRule
         return RuleResult.Applicable(findings);
     }
 
-    /// <summary>
-    /// QA B9. The overloaded sentence used to say "what does not fit is rejected", and the model
-    /// does not reject: a saturated component passes its whole load on to what it calls (see
-    /// <see cref="LoadModel"/>, "saturation sheds nothing"). So a component that has dependencies
-    /// gets the sentence that says so - the database behind an Api at 200 % is about to show up
-    /// in this same list, and the card should be the one to explain why - and a component with
-    /// nothing behind it gets the one without the clause it would have no use for. The telemetry
-    /// edge does not count: what reaches an Observability node is not the traffic the lesson is
-    /// about.
-    /// </summary>
     private static string Explanation(ArchitectureGraph graph, Domain.Entities.Node node, bool overloaded)
     {
         if (!overloaded)

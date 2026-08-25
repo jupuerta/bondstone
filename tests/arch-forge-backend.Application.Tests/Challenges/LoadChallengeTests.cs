@@ -8,11 +8,6 @@ using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Challenges;
 
-/// <summary>
-/// V4 VS4. The three challenges that need the load axis, and the numbers each one teaches. Worked
-/// out by hand from the model before the files existed - which is why `latency-budget` opens at
-/// 820 ms and not at some number that happened to come out of a run.
-/// </summary>
 public class DatabaseOverloadTests
 {
     private const string Slug = "database-overload";
@@ -22,8 +17,6 @@ public class DatabaseOverloadTests
     {
         var run = Figures(ChallengeHarness.Catalog.StarterOf(Slug)!);
 
-        // 300 rps into a database that takes 200: 150 % of its capacity, a third of the requests
-        // rejected, and half a second to answer the rest.
         Assert.Equal(1.5m, run.Utilization("Db"));
         Assert.Equal(0.3333m, run.Metrics.RequestsAffected);
         Assert.Equal(615, run.Metrics.NominalLatencyMs);
@@ -34,7 +27,6 @@ public class DatabaseOverloadTests
     {
         var run = Figures(ChallengeHarness.Catalog.ReferenceSolutionOf(Slug)!);
 
-        // The same 300 rps arrive; a fifth of them reach the database. Nothing was made bigger.
         Assert.Equal(0.3m, run.Utilization("Db"));
         Assert.Equal(0m, run.Metrics.RequestsAffected);
         Assert.Equal(50, run.Metrics.NominalLatencyMs);
@@ -43,8 +35,6 @@ public class DatabaseOverloadTests
     [Fact]
     public void Declaring_less_traffic_is_not_a_solution()
     {
-        // The anti-cheese of `declaresLoad`: traffic is a property of the architecture (DT.1), so
-        // the box is editable, and without this the challenge is passed by typing 1 into it.
         var quiet = WithLoad(ChallengeHarness.Catalog.StarterOf(Slug)!, 1);
         var result = ChallengeHarness.Evaluate(Slug, quiet);
 
@@ -57,8 +47,6 @@ public class DatabaseOverloadTests
     [Fact]
     public void The_optional_goal_asks_for_the_lesson_of_the_previous_challenge()
     {
-        // The cache stops the database being a bottleneck; the fallback stops it being a single
-        // point of failure. Two different problems, and the reference solution answers both.
         var result = ChallengeHarness.Evaluate(Slug, ChallengeHarness.Catalog.ReferenceSolutionOf(Slug)!);
 
         Assert.All(result.OptionalGoals, goal => Assert.True(goal.Met, goal.Detail.Describe()));
@@ -97,8 +85,6 @@ public class LatencyBudgetTests
     {
         var run = LoadFigures.Of(ChallengeHarness.Catalog.StarterOf(Slug)!);
 
-        // Storefront 13 + Http 5 + Catalog 200 + Sql 2 + Db 600. The 800 ms of §12, and none of it
-        // is a constant somebody typed: it is what being at 100 % and at 150 % costs (DT.6).
         Assert.Equal(820, run.Metrics.NominalLatencyMs);
         Assert.Equal(1m, run.Utilization("Catalog"));
         Assert.Equal(1.5m, run.Utilization("Db"));
@@ -109,8 +95,6 @@ public class LatencyBudgetTests
     {
         var run = LoadFigures.Of(ChallengeHarness.Catalog.ReferenceSolutionOf(Slug)!);
 
-        // 820 → 69 ms without touching a single latency constant. Two instances of each service
-        // halve their utilisation, and the cache takes the database off the hot path.
         Assert.Equal(69, run.Metrics.NominalLatencyMs);
         Assert.Equal(0.5m, run.Utilization("Catalog"));
         Assert.Equal(0.3m, run.Utilization("Db"));
@@ -119,8 +103,6 @@ public class LatencyBudgetTests
     [Fact]
     public void Deleting_the_database_is_not_a_way_to_go_faster()
     {
-        // The obvious cheat on a latency challenge, and the reason `containsNode Database` is one
-        // of the three requirements rather than an afterthought.
         var starter = ChallengeHarness.Catalog.StarterOf(Slug)!;
         var withoutDb = new ArchitectureBlueprint
         {
@@ -145,22 +127,13 @@ public class MillionADayTests
     {
         var result = ChallengeHarness.Evaluate(Slug, ChallengeHarness.Catalog.StarterOf(Slug)!);
 
-        // Three of the five: no authentication, nowhere to put files, nothing running in the
-        // background. At 116 rps nothing is short yet - that comes later, and it is the point.
         Assert.Equal(3, result.Requirements.Count(r => !r.Met));
-        // V7 D1.1: a requirement is picked out by its key, not by a word in its label. The label's
-        // prose lives in the client's catalogue - the backend never renders challenge text - so
-        // matching on "capacidad" would be matching on something this side no longer has.
         Assert.True(Capacity(result).Met);
     }
 
     [Fact]
     public void Adding_what_the_brief_asked_for_is_what_puts_the_database_over_capacity()
     {
-        // **The arc of the challenge.** The background worker queries the same database as the API,
-        // so honouring the brief takes it from 116 rps to 232 - past the 200 it takes. You do what
-        // you were told and *that* is what breaks it, which is how capacity problems actually
-        // arrive.
         var honest = WithoutReadReplicas(ChallengeHarness.Catalog.ReferenceSolutionOf(Slug)!);
         var run = LoadFigures.Of(honest);
 
@@ -172,7 +145,6 @@ public class MillionADayTests
         Assert.False(Capacity(result).Met);
     }
 
-    /// <summary>The "no component goes over 80 % of its capacity at peak" requirement.</summary>
     private static ChallengeRequirementResult Capacity(ChallengeResult result) =>
         Assert.Single(result.Requirements, r => r.Label.Key == $"challenge.{Slug}.requirement.5");
 
@@ -181,14 +153,12 @@ public class MillionADayTests
     {
         var run = LoadFigures.Of(ChallengeHarness.Catalog.ReferenceSolutionOf(Slug)!);
 
-        // The same 232 rps against 400 of capacity: 58 %, with room for the next peak.
         Assert.Equal(232m, run.LoadRps("Db"));
         Assert.Equal(0.58m, run.Utilization("Db"));
 
         var result = ChallengeHarness.Evaluate(Slug, ChallengeHarness.Catalog.ReferenceSolutionOf(Slug)!);
         Assert.True(result.Passed);
 
-        // And both extras: a rate limit at the door and something watching (D5.2's new rules).
         Assert.All(result.OptionalGoals, goal => Assert.True(goal.Met, goal.Detail.Describe()));
     }
 
@@ -207,7 +177,6 @@ public class MillionADayTests
     };
 }
 
-/// <summary>Runs the engine over a blueprint and lets the assertions read by component name.</summary>
 internal sealed class LoadFigures
 {
     private LoadFigures(ArchitectureGraph graph, LoadModel load, SimulationMetrics metrics)

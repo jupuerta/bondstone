@@ -7,7 +7,6 @@ public class FakeArchitectureRepository : IArchitectureRepository
 {
     private readonly Dictionary<Guid, Architecture> _store = new();
 
-    /// <summary>Puts an architecture in the store without going through AddAsync.</summary>
     public void Seed(Architecture architecture) => _store[architecture.Id] = architecture;
 
     public Task<Architecture?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
@@ -25,8 +24,6 @@ public class FakeArchitectureRepository : IArchitectureRepository
         return Task.CompletedTask;
     }
 
-    // The real one leans on the database cascade; here dropping the entry drops the graph with it,
-    // because the nodes and connections hang off the Architecture object.
     public void Remove(Architecture architecture) => _store.Remove(architecture.Id);
 
     public Task ReplaceGraphAsync(
@@ -41,7 +38,6 @@ public class FakeArchitectureRepository : IArchitectureRepository
         return Task.CompletedTask;
     }
 
-    /// <summary>V4 D5.4: recorded in memory so a handler test can assert what was written.</summary>
     public List<ArchitectureSnapshot> Snapshots { get; } = [];
 
     public Task RecordSnapshotAsync(ArchitectureSnapshot snapshot, CancellationToken cancellationToken = default)

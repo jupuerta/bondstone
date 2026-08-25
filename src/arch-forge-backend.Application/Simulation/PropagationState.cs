@@ -2,12 +2,6 @@ using arch_forge_backend.Application.Analysis;
 
 namespace arch_forge_backend.Application.Simulation;
 
-/// <summary>
-/// The board the fixed point plays on: one record per element of the graph, and the rules that stop
-/// the iteration order of a dictionary from leaking into the answer (D5.6). Every element is here
-/// from the start, healthy ones included - a green that does not travel in the contract cannot be
-/// painted (D2.2).
-/// </summary>
 public sealed class PropagationState
 {
     private sealed class Record
@@ -46,11 +40,6 @@ public sealed class PropagationState
         }
     }
 
-    /// <summary>
-    /// Applies one cause to one element and answers whether anything moved. Monotone by
-    /// construction: a state can only go up, which is what makes the iteration converge over a
-    /// finite lattice and cycles resolve themselves (D1.5).
-    /// </summary>
     public bool Raise(
         FindingElement element,
         HealthState state,
@@ -70,9 +59,6 @@ public sealed class PropagationState
             return true;
         }
 
-        // Same severity from a second dependency. A cause that did not contain beats one that did:
-        // the element is degraded for a real reason as well, so the containment no longer holds and
-        // the degradation has to keep climbing.
         if (record.Contains && !contains)
         {
             Assign(record, state, record.Step, false, null, reason, causedBy, context);
@@ -82,19 +68,12 @@ public sealed class PropagationState
         if (!record.Contains && contains)
             return false;
 
-        // D2.2: with several causes of the same severity, the one that got there first wins - lower
-        // PropagationStep, and on a tie, lower id. Deterministic, and it means what it should:
-        // what knocked this over.
         if (step < record.Step || (step == record.Step && IsBefore(causedBy, record.CausedBy)))
             Assign(record, state, Math.Min(step, record.Step), contains, mechanism, reason, causedBy, context);
 
         return false;
     }
 
-    /// <summary>
-    /// The photograph round n+1 is computed over. Taking it makes the order nodes are walked in
-    /// within a round irrelevant by construction, rather than by care (D5.6).
-    /// </summary>
     public Dictionary<Guid, (HealthState State, bool Contains)> Snapshot()
     {
         var snapshot = new Dictionary<Guid, (HealthState, bool)>();
@@ -114,15 +93,6 @@ public sealed class PropagationState
 
     public HealthState StateOf(FindingElement element) => _records[element].State;
 
-    /// <summary>
-    /// Ordered by <c>(PropagationStep, Type, Id)</c>, so the list already reads as the order of
-    /// propagation and the animation of D6.3 only has to replay it.
-    /// </summary>
-    /// <param name="load">
-    /// V4 DT.5. Stamps each node with how full it is. Passed in rather than read from the records
-    /// because utilisation is not something the fixed point produces - it is the other axis, and
-    /// only the elements the caller already computed it for can carry it.
-    /// </param>
     public IReadOnlyList<ElementState> ToOrderedList(ArchitectureGraph graph, LoadModel? load = null) => _records
         .Select(entry => new ElementState(
             entry.Key.Type,
@@ -134,8 +104,6 @@ public sealed class PropagationState
             entry.Value.Mechanism,
             entry.Value.CausedBy,
             entry.Value.Step,
-            // Null on edges and on an architecture nobody declared traffic for: no load, no
-            // utilisation, and a 0 would read as "idle" rather than "not measured".
             load is null || load.IsIdle || entry.Key.Type != ElementType.Node
                 ? null
                 : Math.Round(load.UtilizationOf(entry.Key.Id), 2)))

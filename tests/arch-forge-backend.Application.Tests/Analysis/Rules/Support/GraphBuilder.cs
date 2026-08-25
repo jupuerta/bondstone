@@ -4,17 +4,10 @@ using arch_forge_backend.Domain.Enums;
 
 namespace arch_forge_backend.Application.Tests.Analysis.Rules.Support;
 
-/// <summary>
-/// Builds graphs by name so a rule test reads like the architecture it describes. Ids are
-/// sequential and deterministic: two runs produce the same graph, and declaration order is id
-/// order, which is what makes CYCLE's canonical form predictable in a test.
-/// </summary>
 public class GraphBuilder
 {
     private readonly Dictionary<string, Node> _nodes = [];
 
-    // A list, not a dictionary: two components can be connected twice, and HIGH_COUPLING has to
-    // count that as one dependency.
     private readonly List<(string Source, string Target, Connection Connection)> _connections = [];
     private int _nextId;
 
@@ -39,7 +32,6 @@ public class GraphBuilder
         return this;
     }
 
-    /// <summary>Source depends on target - the invariant of D3.3, and the direction of every edge.</summary>
     public GraphBuilder Connect(
         string source,
         string target,
@@ -73,7 +65,6 @@ public class GraphBuilder
 
     public FindingElement EdgeElement(string source, string target) => FindingElement.Connection(EdgeId(source, target));
 
-    /// <summary>Resolves the elements of a finding back to names, so assertions read as a walk.</summary>
     public IEnumerable<string> Names(IEnumerable<FindingElement> elements) => elements.Select(element =>
     {
         if (element.Type == ElementType.Node)
@@ -100,8 +91,6 @@ public class GraphBuilder
         fields.Add($"\"circuitBreaker\":{(circuitBreaker ? "true" : "false")}");
         fields.Add($"\"fallback\":{(fallback ? "true" : "false")}");
 
-        // V14 §4.2: only when declared - absent means both, and the tests that say nothing must
-        // keep drawing the edges everybody drew before v7.
         if (access is not null)
             fields.Add($"\"access\":\"{access}\"");
 

@@ -48,7 +48,6 @@ public class HighCouplingRuleTests
     [Fact]
     public void OneFindingPerCoupledNode_WithAllItsEdgesInside()
     {
-        // D4.5, granularity: one finding per culprit element, never one per dependency.
         Star("Orders", 4);
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
@@ -61,8 +60,6 @@ public class HighCouplingRuleTests
     [Fact]
     public void AsynchronousDependenciesCountToo()
     {
-        // Fan-out measures how many pieces a component needs, whatever the protocol - unlike the
-        // resilience rules, which are guided exclusively by Synchronous.
         _builder.Node("Orders").Nodes(default, "A", "B", "C", "D");
         _builder.Connect("Orders", "A").Connect("Orders", "B", synchronous: false);
         _builder.Connect("Orders", "C").Connect("Orders", "D", synchronous: false);
@@ -88,7 +85,6 @@ public class HighCouplingRuleTests
         Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
     }
 
-    // ---- V13 D1.2: the same count, three different things to say --------------
 
     [Theory]
     [InlineData(NodeType.Gateway, "finding.HIGH_COUPLING.fanOut.suggestion.route")]
@@ -99,20 +95,15 @@ public class HighCouplingRuleTests
     [InlineData(NodeType.Database, "finding.HIGH_COUPLING.fanOut.suggestion.review")]
     public void TheSuggestionIsPickedByType(NodeType type, string expected)
     {
-        // Enough fan-out to fire under either bar (D2.2), so this test is about the sentence and
-        // nothing else.
         Star("Front", 12, type, distinctTargetTypes: true);
 
         Assert.Equal(expected, Assert.Single(_rule.Evaluate(_builder.Build()).Findings).Suggestion.Key());
     }
 
-    // ---- V13 D2.2: fanning out is a router's job ------------------------------
 
     [Fact]
     public void AGatewayWithSevenRoutes_IsNotFlaggedAtAll()
     {
-        // Seven is Critical on a Service and silence on a Gateway, and that is the decision: a
-        // gateway with seven services behind it is a gateway with seven routes.
         Star("Edge", 7, NodeType.Gateway);
 
         Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
@@ -129,8 +120,6 @@ public class HighCouplingRuleTests
     [Fact]
     public void AGatewayWithTwelveRoutes_IsStillCritical()
     {
-        // Doubling the bar is not removing it: twelve things behind one door is the front of a
-        // monolith, and the rule can still say so.
         Star("Edge", 12, NodeType.Gateway);
 
         Assert.Equal(Severity.Critical, Assert.Single(_rule.Evaluate(_builder.Build()).Findings).Severity);
@@ -139,10 +128,6 @@ public class HighCouplingRuleTests
     [Fact]
     public void ABalancerOverManyReplicas_CountsOneDependency()
     {
-        // **The rule punishing its own advice.** Twelve instances of the same Api behind a balancer
-        // is the redundancy this analyzer spends its time recommending, drawn twelve times. SPOF has
-        // exempted "the redundancy mechanism itself" since V2 D4.x; this is that sentence applied to
-        // fan-out.
         Star("Front", 12, NodeType.LoadBalancer);
 
         Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
@@ -151,8 +136,6 @@ public class HighCouplingRuleTests
     [Fact]
     public void ABalancerOverManyKindsOfThing_IsFlagged()
     {
-        // The other half: a balancer in front of eight different kinds of component is not
-        // balancing anything, and counting kinds is what lets the rule tell the two apart.
         Star("Front", 8, NodeType.LoadBalancer, distinctTargetTypes: true);
 
         Assert.Equal(Severity.Warning, Assert.Single(_rule.Evaluate(_builder.Build()).Findings).Severity);
@@ -161,17 +144,11 @@ public class HighCouplingRuleTests
     [Fact]
     public void AGatewayCountsRoutesAndNotKinds()
     {
-        // The balancer's rule is not extended to the gateway: two Services behind a gateway are two
-        // routes, not two copies of anything.
         Star("Edge", 8, NodeType.Gateway);
 
         Assert.Equal("8", Assert.Single(_rule.Evaluate(_builder.Build()).Findings).Message.Arg("count"));
     }
 
-    /// <summary>
-    /// Eight types that are not <see cref="NodeType.LoadBalancer"/>, so a balancer fronting them
-    /// counts eight kinds rather than eight copies (D2.2).
-    /// </summary>
     private static readonly NodeType[] DistinctTypes =
     [
         NodeType.Api, NodeType.Service, NodeType.Worker, NodeType.Database,

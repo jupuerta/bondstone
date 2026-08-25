@@ -5,10 +5,6 @@ using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Challenges;
 
-/// <summary>
-/// How a starter opens. Every assertion here reads the architecture the endpoint hands back, not
-/// the layout class - where a component lands is only worth testing as the thing somebody sees.
-/// </summary>
 public class BlueprintLayoutTests
 {
     [Fact]
@@ -22,11 +18,6 @@ public class BlueprintLayoutTests
         Assert.Equal(2, drawing.Row("Db"));
     }
 
-    /// <summary>
-    /// The reason depth is the longest path and not the shortest. The API calls the database
-    /// directly <em>and</em> through a queue and a worker: counting hops would draw the database
-    /// beside the worker with an arrow pointing sideways into it.
-    /// </summary>
     [Fact]
     public void A_component_reached_from_two_depths_is_drawn_under_the_deeper_one()
     {
@@ -37,11 +28,6 @@ public class BlueprintLayoutTests
         Assert.True(drawing.Row("Jobs") > drawing.Row("Api"));
     }
 
-    /// <summary>
-    /// Every call in the catalogue points downwards, in every starter and every reference
-    /// solution - which is the whole promise, and the only way to keep fourteen hand-written files
-    /// from each opening whichever way they were last edited.
-    /// </summary>
     [Theory]
     [MemberData(nameof(EveryBlueprint))]
     public void Every_call_in_an_acyclic_blueprint_points_downwards(string slug, string which)
@@ -57,11 +43,6 @@ public class BlueprintLayoutTests
                 $"'{slug}' ({which}) draws {call.From} -> {call.To} sideways or upwards.");
     }
 
-    /// <summary>
-    /// The one blueprint with a ring in it, and the reason a ring does not break the drawing: it is
-    /// opened at the component everything returns to, so the only arrows pointing back up are the
-    /// two that make it a god service - which is what that challenge is asking the reader to see.
-    /// </summary>
     [Fact]
     public void A_ring_is_opened_at_the_component_everything_returns_to()
     {
@@ -79,10 +60,6 @@ public class BlueprintLayoutTests
         Assert.Equal(1, drawing.Row("Core"));
     }
 
-    /// <summary>
-    /// A component nobody calls and that calls nothing is not an entry point, so it is not drawn in
-    /// the row that means "this is where traffic arrives".
-    /// </summary>
     [Fact]
     public void A_component_nothing_wires_is_drawn_under_the_graph()
     {
@@ -91,10 +68,6 @@ public class BlueprintLayoutTests
         Assert.True(drawing.Row("Legacy") > drawing.Row("Users"));
     }
 
-    /// <summary>
-    /// What the <c>x</c> and <c>y</c> in the file still decide: Payments was written above Db, so
-    /// it is drawn to the left of it.
-    /// </summary>
     [Fact]
     public void Siblings_keep_the_order_the_file_gives_them()
     {
@@ -105,10 +78,6 @@ public class BlueprintLayoutTests
         Assert.True(drawing.X("Payments") < drawing.X("Db"));
     }
 
-    /// <summary>
-    /// Two people starting the same challenge see the same drawing, and so do two deploys. The
-    /// layout walks dictionaries, and a dictionary does not promise an order.
-    /// </summary>
     [Theory]
     [MemberData(nameof(EveryBlueprint))]
     public void The_same_blueprint_is_always_drawn_the_same_way(string slug, string which)
@@ -124,7 +93,6 @@ public class BlueprintLayoutTests
         }
     }
 
-    /// <summary>Rows never overlap, so a component is never drawn on top of another.</summary>
     [Theory]
     [MemberData(nameof(EveryBlueprint))]
     public void No_two_components_share_a_spot(string slug, string which)
@@ -148,7 +116,6 @@ public class BlueprintLayoutTests
         return data;
     }
 
-    // ------------------------------------------------------------------------
 
     private static ArchitectureBlueprint Blueprint(string slug, string which) =>
         which == "starter"
@@ -157,7 +124,6 @@ public class BlueprintLayoutTests
 
     private static Drawing Draw(ArchitectureBlueprint blueprint) => new(blueprint.Instantiate("test"));
 
-    /// <summary>Reads a laid-out architecture the way somebody looking at it would: rows and columns.</summary>
     private sealed class Drawing(Architecture architecture)
     {
         private readonly Dictionary<string, Node> _byName =
@@ -166,13 +132,11 @@ public class BlueprintLayoutTests
         private readonly List<double> _rows =
             architecture.Nodes.Select(node => node.PositionY).Distinct().OrderBy(y => y).ToList();
 
-        /// <summary>Which row down the component is drawn in, counting the entry points as zero.</summary>
         public int Row(string name) => _rows.IndexOf(_byName[name].PositionY);
 
         public double X(string name) => _byName[name].PositionX;
     }
 
-    /// <summary>Whether the calls in the blueprint can be walked without ever coming back.</summary>
     private static bool IsAcyclic(ArchitectureBlueprint blueprint)
     {
         var callees = blueprint.Nodes.ToDictionary(node => node.Name, _ => new List<string>(), StringComparer.Ordinal);

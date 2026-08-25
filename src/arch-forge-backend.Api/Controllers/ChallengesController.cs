@@ -3,11 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace arch_forge_backend.Api.Controllers;
 
-/// <summary>
-/// V4 D1.1. Three endpoints and none of them writes a challenge: the catalogue is content in the
-/// repo (D1.5), the veredicto is recomputed and never stored (D3.4), and there is no identity to
-/// attach progress to (D2.1) - so what a client keeps is a slug in <c>localStorage</c>.
-/// </summary>
 [ApiController]
 [Route("api/challenges")]
 public class ChallengesController : ControllerBase
@@ -40,12 +35,6 @@ public class ChallengesController : ControllerBase
         return definition is null ? NotFound() : Ok(definition.ToDetailDto());
     }
 
-    /// <summary>
-    /// Instantiates the starter architecture and answers like <c>POST /architectures</c> does - the
-    /// attempt is an ordinary architecture with an ordinary pair of tokens (D2.2), which is why the
-    /// client can hand it straight to <c>/e/{editToken}</c>: starting a challenge is claiming an
-    /// attempt, so this is one of the three responses that carries an edit token at all.
-    /// </summary>
     [HttpPost("{slug}/start")]
     public async Task<IActionResult> Start(string slug, [FromBody] NameRequest? request, CancellationToken cancellationToken)
     {
@@ -53,14 +42,6 @@ public class ChallengesController : ControllerBase
         return result is null ? NotFound() : Created($"/api/architectures/edit/{result.EditToken}", result);
     }
 
-    /// <summary>
-    /// D6.2: explicit, not live. It costs one analysis and up to three simulations (D3.2), and the
-    /// moment of the veredicto is a moment - a checklist that turns green on its own while you type
-    /// eats it.
-    ///
-    /// 404 when the slug or the architecture is gone; there is nothing here that can be a 400,
-    /// because the requirements come from the repo and not from the request.
-    /// </summary>
     [HttpPost("{slug}/evaluate")]
     public async Task<IActionResult> Evaluate(string slug, [FromBody] EvaluateRequest request, CancellationToken cancellationToken)
     {
@@ -69,14 +50,6 @@ public class ChallengesController : ControllerBase
         return result is null ? NotFound() : Ok(result);
     }
 
-    /// <summary>
-    /// D3.5. Instantiates the reference solution as an architecture of its own and answers like
-    /// <c>/start</c> does, so the client opens it in another tab and the two sit side by side -
-    /// which is all "soluciones comparables" of §17 ever needed to be (D6.4).
-    ///
-    /// Not gated on having passed: there is no identity to gate it with (D2.1), and D3.6 already
-    /// decided that a user who goes looking for the answer is a user learning at their own pace.
-    /// </summary>
     [HttpPost("{slug}/solution")]
     public async Task<IActionResult> Solution(string slug, [FromBody] NameRequest? request, CancellationToken cancellationToken)
     {
@@ -89,13 +62,6 @@ public class ChallengesController : ControllerBase
         public string ShareToken { get; set; } = string.Empty;
     }
 
-    /// <summary>
-    /// V7 D2.1. What to call the architecture this creates.
-    ///
-    /// It travels in the body because it is <strong>text</strong>, and after V7 the backend holds
-    /// none: the client renders the challenge's title from its own catalogue and sends the words it
-    /// just put on screen. Optional — an old client, or a call made by hand, gets the slug.
-    /// </summary>
     public class NameRequest
     {
         public string? Name { get; set; }

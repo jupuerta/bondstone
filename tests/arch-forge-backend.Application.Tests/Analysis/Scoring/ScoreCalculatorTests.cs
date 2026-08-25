@@ -10,7 +10,6 @@ public class ScoreCalculatorTests
     [Fact]
     public void Calculate_FirstFindingOfACodeCostsFullWeightAndTheRestHalf()
     {
-        // D1.1: 100 - 15 - 7.5 - 7.5 = 70, the worked example of the decisions document.
         var result = Calculate(Outcome(Area.Availability, RuleCodes.Spof,
             Severity.Critical, Severity.Critical, Severity.Critical));
 
@@ -20,8 +19,6 @@ public class ScoreCalculatorTests
     [Fact]
     public void Calculate_CapsPenaltyAtThreeTimesTheBaseWeight()
     {
-        // Six criticals would be 52.5; the cap leaves 45. Without a cap a big architecture with
-        // many findings would lose more than the area has to give (D1.1).
         var result = Calculate(Outcome(Area.Resilience, RuleCodes.MissingResilience,
             Enumerable.Repeat(Severity.Critical, 6).ToArray()));
 
@@ -31,23 +28,18 @@ public class ScoreCalculatorTests
     [Fact]
     public void Calculate_CapIsPerRuleCodeNotPerArea()
     {
-        // Resilience is fed by three rules; each one caps on its own, which is what lets an area
-        // actually reach the floor.
         var result = Calculate(
             Outcome(Area.Resilience, RuleCodes.SyncChain, Severity.Critical),
             Outcome(Area.Resilience, RuleCodes.RetryAmplification, Severity.Critical),
             Outcome(Area.Resilience, RuleCodes.MissingResilience,
                 Enumerable.Repeat(Severity.Critical, 6).ToArray()));
 
-        // 100 - 15 - 15 - 45 = 25, the Resilience of worst-case.json.
         Assert.Equal(25, ScoreOf(result, Area.Resilience));
     }
 
     [Fact]
     public void Calculate_MixedSeverities_PenalizesWorstFirst()
     {
-        // D1.1: descending severity, first at full weight. 100 - 15 - 7.5 - 2.5 = 75, the
-        // Availability of gateway-microservices.json.
         var result = Calculate(Outcome(Area.Availability, RuleCodes.Spof,
             Severity.Warning, Severity.Critical, Severity.Critical));
 
@@ -77,9 +69,6 @@ public class ScoreCalculatorTests
     [Fact]
     public void Calculate_RoundsEachAreaBeforeAveraging()
     {
-        // The four numbers the user sees are the ones that add up to the big one (D1.1). These are
-        // the areas of worst-case.json: Availability is 67.5, and averaging it unrounded would
-        // give 64 instead of 65.
         var result = Calculate(
             Outcome(Area.Availability, RuleCodes.Spof,
                 Severity.Critical, Severity.Critical, Severity.Critical, Severity.Warning),
@@ -100,8 +89,6 @@ public class ScoreCalculatorTests
     [Fact]
     public void Calculate_AreaWithNoRules_IsNoRulesAndStaysOutOfTheAverage()
     {
-        // Security and Observability in V2: a 100 nobody checked is exactly the decorative number
-        // D1.2 exists to avoid.
         var result = Calculate(Outcome(Area.Availability, RuleCodes.Spof, Severity.Critical));
 
         Assert.Equal(new AreaScore(Area.Security, null, AreaState.NoRules), AreaOf(result, Area.Security));
@@ -134,7 +121,6 @@ public class ScoreCalculatorTests
     [Fact]
     public void Calculate_AlwaysReturnsTheSixAreasInEnumOrder()
     {
-        // D2.1, rule 1: the six areas always travel, what varies is their state.
         var result = ScoreCalculator.Calculate([]);
 
         Assert.Equal(Enum.GetValues<Area>(), result.Areas.Select(a => a.Area));
@@ -143,9 +129,6 @@ public class ScoreCalculatorTests
     [Fact]
     public void Calculate_WritesTheArithmeticOutPerCode()
     {
-        // QA §4, "explica esta nota": the number was always reconstructible by hand from the
-        // source; now the lines that add up to it travel with it, one per code that cost something,
-        // in code order, with the cap named when it is what the number is.
         var result = Calculate(
             Outcome(Area.Resilience, RuleCodes.SyncChain, Severity.Warning),
             Outcome(Area.Resilience, RuleCodes.RetryAmplification, Severity.Good),
@@ -154,7 +137,7 @@ public class ScoreCalculatorTests
 
         var area = AreaOf(result, Area.Resilience);
 
-        Assert.Equal(50, area.Score);   // 100 - 45 - 5
+        Assert.Equal(50, area.Score);
         Assert.Equal(
             [
                 new PenaltyLine(RuleCodes.MissingResilience, Severity.Critical, Findings: 6, Penalty: 45m, Capped: true),

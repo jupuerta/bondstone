@@ -5,10 +5,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace arch_forge_backend.Infrastructure.Persistence.Migrations
 {
-    /// <inheritdoc />
     public partial class AddVersioningAndJsonbConfiguration : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql(
@@ -29,7 +27,6 @@ namespace arch_forge_backend.Infrastructure.Persistence.Migrations
                 defaultValue: 0);
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(

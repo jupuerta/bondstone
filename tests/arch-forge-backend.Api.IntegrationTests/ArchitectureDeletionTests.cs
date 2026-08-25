@@ -5,10 +5,6 @@ using Xunit;
 
 namespace arch_forge_backend.Api.IntegrationTests;
 
-/// <summary>
-/// The only tests that check the thing that actually does the work: the cascade lives in the
-/// database, so a unit test with a fake repository can only assert the intent. Here the rows go.
-/// </summary>
 public class ArchitectureDeletionTests : IClassFixture<PostgresApiFactory>
 {
     private readonly HttpClient _client;
@@ -26,11 +22,8 @@ public class ArchitectureDeletionTests : IClassFixture<PostgresApiFactory>
         var response = await _client.DeleteAsync($"/api/architectures/edit/{editToken}");
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
 
-        // Gone through both handles: the token the writes use and the one the link uses.
         Assert.Equal(HttpStatusCode.NotFound, (await _client.GetAsync($"/api/architectures/{shareToken}")).StatusCode);
 
-        // And the nodes and connections went with it. If the cascade were not declared, this would
-        // be a foreign key violation on the DELETE rather than a clean 404 here.
         var orphaned = await _client.PostAsync($"/api/architectures/{shareToken}/analyze", null);
         Assert.Equal(HttpStatusCode.NotFound, orphaned.StatusCode);
     }
@@ -38,9 +31,6 @@ public class ArchitectureDeletionTests : IClassFixture<PostgresApiFactory>
     [Fact]
     public async Task Delete_DoesNotNeedTheVersion_EvenAfterSomebodyElseEdited()
     {
-        // Unlike the PUT, which answers 409 to a stale snapshot. A delete has nothing to merge:
-        // the intent is "this should not exist", and somebody having moved a box a second earlier
-        // does not make it less true.
         var (editToken, _) = await SeedGraphAsync();
 
         var edit = await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", new
@@ -72,11 +62,6 @@ public class ArchitectureDeletionTests : IClassFixture<PostgresApiFactory>
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    /// <summary>
-    /// A share token has never granted a write, but this is the test that would have caught it if
-    /// it ever did: hitting the write route with the read handle must 404, the same as any other
-    /// value that is not somebody's edit token.
-    /// </summary>
     [Fact]
     public async Task Delete_WithAShareTokenInstead_ReturnsNotFound()
     {

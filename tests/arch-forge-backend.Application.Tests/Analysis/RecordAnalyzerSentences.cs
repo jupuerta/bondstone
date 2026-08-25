@@ -9,31 +9,6 @@ using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Analysis;
 
-/// <summary>
-/// V15 A1. <strong>The generator of <c>arch-forge-frontend/src/export/__fixtures__/analyzer-sentences.json</c></strong>,
-/// which is what lets <c>check-catalogs.mjs</c> verify that every sentence the analyzer sends
-/// carries the values its template asks for.
-///
-/// <strong>Why a recording and not a test.</strong> D2.1 moved every word to the client, so this
-/// side cannot read the catalogue and cannot answer "does this template need a <c>{target}</c>".
-/// The client can, and does — but only about payloads it has on disk, and the four reference
-/// architectures it had were all clean, so almost no <em>error</em> sentence had ever been checked.
-/// That is how three of the four <c>IMPLAUSIBLE_DEPENDENCY</c> suggestions shipped built with no
-/// arguments at all, printing a literal <c>{target}</c> in the panel and in the exported document.
-///
-/// <strong>Skipped on purpose.</strong> It writes into the other repository, which is not something
-/// a test run should do. Remove the <c>Skip</c> and run it when a rule gains, loses or renames a
-/// sentence; <c>check-catalogs.mjs</c> prints how many of the catalogue's <c>finding.*</c> and
-/// <c>rule.na.*</c> keys the recording currently reaches, so the moment it falls behind is visible
-/// without anybody remembering this file exists.
-///
-/// V16 C7b. It records the <em>not applicable</em> sentences too, which is why the battery opens
-/// with an empty canvas: nothing drawn stands all twenty-four rules down at once.
-///
-/// The battery below is not an architecture. It is a set of small graphs chosen so that between
-/// them every variant of every rule fires at least once — including the <c>passed</c> of each,
-/// which is a sentence like any other.
-/// </summary>
 public class RecordAnalyzerSentences
 {
     private const string Recording =
@@ -56,10 +31,6 @@ public class RecordAnalyzerSentences
                 Add(name, finding.Fix?.Label);
             }
 
-            // V16 C7b. The sentences a rule stands down with are sent by the analyzer like any
-            // other, so they are checked like any other - and one of them carries an argument
-            // (MISSING_CDN's threshold), which is exactly the shape of the bug that made this
-            // recording exist.
             foreach (var rule in result.Coverage)
                 Add(name, rule.Reason);
         }
@@ -81,11 +52,6 @@ public class RecordAnalyzerSentences
         File.WriteAllText(Path.GetFullPath(Recording), JsonSerializer.Serialize(payload, options) + "\n");
     }
 
-    /// <summary>
-    /// One entry per (key, argument names). A second finding of the same shape adds nothing the
-    /// check can use, and keeping them all would make the recording grow with the battery rather
-    /// than with the catalogue.
-    /// </summary>
     private void Add(string scenario, LocalizedText? text)
     {
         if (text is null)
@@ -96,8 +62,6 @@ public class RecordAnalyzerSentences
 
         _collected.Add((scenario, text));
 
-        // A text can carry another one - a challenge quoting the finding that failed it - and the
-        // nested one is rendered by the same code, so it is checked the same way.
         foreach (var nested in (text.Args ?? new Dictionary<string, object>()).Values.OfType<LocalizedText>())
             Add(scenario, nested);
     }
@@ -107,8 +71,6 @@ public class RecordAnalyzerSentences
 
     private static IEnumerable<(string, GraphBuilder)> Scenarios()
     {
-        // V16 C7b. Nothing drawn: the one graph that stands all twenty-four rules down at once, and
-        // therefore the one that reaches every "why not" sentence there is bar the variants below.
         yield return ("empty", new GraphBuilder());
 
         yield return ("minimal", new GraphBuilder()
@@ -244,8 +206,6 @@ public class RecordAnalyzerSentences
             .Connect("Api", "C1", timeoutSeconds: 3).Connect("C1", "C2", timeoutSeconds: 3)
             .Connect("C2", "C3", timeoutSeconds: 3).Connect("C3", "C4", timeoutSeconds: 3));
 
-        // V15 E1. The same chain ending in a store nobody declared a write on: the read variant of
-        // the suggestion, which is the one sentence the battery above never reached.
         yield return ("syncChainRead", new GraphBuilder()
             .Node("Api", NodeType.Api).Nodes(NodeType.Service, "B", "C").Node("Db", NodeType.Database)
             .Connect("Api", "B", timeoutSeconds: 3).Connect("B", "C", timeoutSeconds: 3)
@@ -271,9 +231,6 @@ public class RecordAnalyzerSentences
             .Node("Api", NodeType.Api).Node("Db", NodeType.Database)
             .Connect("Api", "Db", timeoutSeconds: 3, protocol: ProtocolType.Http));
 
-        // V15 A2: a database at 1000 % is UNDERSIZED_COMPONENT's finding and TIMEOUT_TOO_SHORT
-        // yields to it, so this graph no longer fires the timeout sentences. It stays for the
-        // drowning-database ones; the timeout ones come from the chain below the line after it.
         yield return ("drowningDb", new GraphBuilder()
             .Node("Users", NodeType.Client, "{\"requestsPerSecond\":6000}")
             .Node("Api", NodeType.Api, "{\"authentication\":true,\"rateLimit\":9000,\"instances\":40}")
@@ -347,8 +304,6 @@ public class RecordAnalyzerSentences
             .Connect("Users", "Edge").Connect("Edge", "Api", timeoutSeconds: 60, fallback: true)
             .Connect("Api", "Db", timeoutSeconds: 60, fallback: true, protocol: ProtocolType.Sql));
 
-        // V15 D2: the blind system, in its three tellings - no telemetry box, one wired to nothing,
-        // several wired to nothing.
         yield return ("blindWithOneIdleBox", new GraphBuilder()
             .Node("Gw", NodeType.Gateway).Nodes(NodeType.Service, "B1", "B2").Node("Obs", NodeType.Observability)
             .Connect("Gw", "B1", timeoutSeconds: 3, fallback: true).Connect("Gw", "B2", timeoutSeconds: 3, fallback: true));
@@ -357,8 +312,6 @@ public class RecordAnalyzerSentences
             .Node("Gw", NodeType.Gateway).Nodes(NodeType.Service, "C1", "C2").Nodes(NodeType.Observability, "Metrics", "Logs")
             .Connect("Gw", "C1", timeoutSeconds: 3, fallback: true).Connect("Gw", "C2", timeoutSeconds: 3, fallback: true));
 
-        // V15 E2: the wait that is not a limit, in its two tellings - a covered call, and one held
-        // open on a Critical SPOF.
         yield return ("timeoutTooLong", new GraphBuilder()
             .Node("Api", NodeType.Api, "{\"authentication\":true,\"rateLimit\":1000}").Node("Db", NodeType.Database, "{\"replicas\":2}")
             .Connect("Api", "Db", timeoutSeconds: 600, fallback: true, protocol: ProtocolType.Sql));
@@ -374,9 +327,6 @@ public class RecordAnalyzerSentences
             .Nodes(NodeType.Service, "L1", "L2")
             .Connect("L1", "L2", timeoutSeconds: 3).Connect("L2", "L1", timeoutSeconds: 3));
 
-        // V16 C7b. The second sentence of the three rules that stand down for two different
-        // reasons: a door with traffic declared but not enough of it, a load with no limit anywhere
-        // to reject it, and two nodes of which neither is anything to watch.
         yield return ("quietDoor", new GraphBuilder()
             .Node("Users", NodeType.Client, "{\"requestsPerSecond\":10}").Node("Api", NodeType.Api, "{\"authentication\":true}")
             .Connect("Users", "Api"));
@@ -384,14 +334,10 @@ public class RecordAnalyzerSentences
         yield return ("nothingToWatch", new GraphBuilder()
             .Nodes(NodeType.Observability, "Metrics", "Logs"));
 
-        // V15 A3. A component sending its telemetry synchronously: the one instrumentation edge
-        // MISSING_RESILIENCE still reads, with its own sentence and the fix that makes it async.
         yield return ("telemetryPush", new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Db", NodeType.Database).Node("Obs", NodeType.Observability)
             .Connect("Api", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql)
             .Connect("Api", "Obs"));
-        // V15 E3. One declared owner and two declared readers on one schema: the read lesson of
-        // SHARED_DATABASE, which names the readers and never fires from the default.
         yield return ("sharedReaders", new GraphBuilder()
             .Node("Gw", NodeType.Gateway).Nodes(NodeType.Service, "Owner", "R1", "R2").Node("Db", NodeType.Database)
             .Connect("Gw", "Owner", timeoutSeconds: 3).Connect("Gw", "R1", timeoutSeconds: 3).Connect("Gw", "R2", timeoutSeconds: 3)
@@ -399,9 +345,6 @@ public class RecordAnalyzerSentences
             .Connect("R1", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql, access: "read")
             .Connect("R2", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql, access: "read"));
 
-        // V15 E5. The outside reaching something that is not a door: T9 of the sweep, the drawing
-        // that left Security without a score. The Worker cannot ask who is calling and nothing in
-        // front of it can either - the one sentence of UNAUTHENTICATED_ENTRY that is not about a door.
         yield return ("unguarded", new GraphBuilder()
             .Node("Users", NodeType.Client).Node("Edge", NodeType.Cdn).Node("W", NodeType.Worker)
             .Connect("Users", "Edge").Connect("Edge", "W"));

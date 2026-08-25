@@ -8,33 +8,15 @@ using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Analysis;
 
-/// <summary>
-/// V16 C5 and C7a. The two fields <c>/analyze</c> gained, and they are both the same kind of
-/// change: <strong>numbers the analyzer already had and threw away</strong>. Nothing here is about
-/// what the analyzer finds - the four reference architectures are still 98 / 92 / 83 / 70, pinned
-/// where they always were in <see cref="ReferenceArchitectureTests"/> - and everything here is
-/// about what leaves the analyzer.
-///
-/// The risk each half runs is different, which is why they are tested differently. Coverage can
-/// only be wrong by <em>disagreeing with the findings beside it in the same payload</em>, so it is
-/// checked against them over all four references at once. The load meter can only be wrong by
-/// reporting a number the rule that grades it does not recognize, so it is checked on a graph
-/// whose arithmetic is written out by hand.
-/// </summary>
 public class AnalysisContractTests
 {
     private static readonly string[] References =
         ["minimal-api-db", "resilient-async", "gateway-microservices", "worst-case"];
 
-    // -------------------------------------------------------------------------------------------
-    // C7a - the coverage of the twenty-four
-    // -------------------------------------------------------------------------------------------
 
     [Fact]
     public void Coverage_names_every_registered_rule_exactly_once()
     {
-        // The whole point of the field: a rule exists whether or not it had anything to say here.
-        // Twenty-four lines on every architecture, the empty one included.
         foreach (var name in References)
         {
             var coverage = ReferenceArchitecture.Analyze(name).Coverage;
@@ -47,9 +29,6 @@ public class AnalysisContractTests
     [Fact]
     public void Coverage_is_ordered_by_area_and_then_by_code()
     {
-        // D2.1, rule 4, applied to the catalogue: the screen reading this groups by area, and the
-        // order must be a property of the payload rather than of the order Program.cs registers
-        // the rules in.
         var coverage = ReferenceArchitecture.Analyze("worst-case").Coverage;
 
         Assert.Equal(
@@ -60,9 +39,6 @@ public class AnalysisContractTests
     [Fact]
     public void Coverage_says_the_same_thing_as_the_findings_beside_it()
     {
-        // Two readings of one analysis travel in the same payload, and a screen that showed a rule
-        // as "passed" while its Critical sits in the panel would be worse than not showing it. The
-        // three states are exactly the three shapes the findings of a code can have.
         foreach (var name in References)
         {
             var result = ReferenceArchitecture.Analyze(name);
@@ -83,8 +59,6 @@ public class AnalysisContractTests
                         break;
 
                     case RuleState.NotApplicable:
-                        // Nothing at all: not applicable is not a pass, and D1.4 says it costs the
-                        // area nothing either.
                         Assert.Empty(findings);
                         break;
                 }
@@ -97,9 +71,6 @@ public class AnalysisContractTests
     [Fact]
     public void Coverage_counts_the_passed_of_the_summary()
     {
-        // AnalysisSummary.Passed has counted "applicable rules that found nothing" since V2 D1.4.
-        // The catalogue paints one tick per rule; the summary prints the total. Two numbers that
-        // disagree on the same screen is the failure this pins.
         foreach (var name in References)
         {
             var result = ReferenceArchitecture.Analyze(name);
@@ -113,23 +84,17 @@ public class AnalysisContractTests
     [Fact]
     public void Coverage_separates_the_rule_that_had_nothing_to_look_at_from_the_one_that_passed()
     {
-        // The state C7 calls the most valuable of the three, on the smallest correct drawing there
-        // is. Nobody declared any traffic, so UNDERSIZED_COMPONENT never ran - which is a different
-        // statement from "your components are the right size", and until now the product could not
-        // make it.
         var result = ReferenceArchitecture.Analyze("minimal-api-db");
 
         Assert.Equal(RuleState.NotApplicable, StateOf(result, RuleCodes.UndersizedComponent));
-        Assert.Equal(RuleState.NotApplicable, StateOf(result, RuleCodes.QueueNoDlq));      // no queue drawn
-        Assert.Equal(RuleState.Passed, StateOf(result, RuleCodes.Spof));                   // it ran, and found none
-        Assert.Equal(RuleState.Fired, StateOf(result, RuleCodes.NoObservability));         // nothing is watching
+        Assert.Equal(RuleState.NotApplicable, StateOf(result, RuleCodes.QueueNoDlq));
+        Assert.Equal(RuleState.Passed, StateOf(result, RuleCodes.Spof));
+        Assert.Equal(RuleState.Fired, StateOf(result, RuleCodes.NoObservability));
     }
 
     [Fact]
     public void Coverage_moves_with_the_drawing()
     {
-        // The same rule, the two states that are easy to confuse. Draw the queue and
-        // QUEUE_NO_DLQ stops being "not applicable" and starts being an answer.
         var withoutQueue = ReferenceArchitecture.Analyze(new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Db", NodeType.Database)
             .Connect("Api", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql)
@@ -145,24 +110,16 @@ public class AnalysisContractTests
         Assert.Equal(RuleState.Fired, StateOf(withQueue, RuleCodes.QueueNoDlq));
     }
 
-    // -------------------------------------------------------------------------------------------
-    // C7b - the reason a rule never got to look
-    // -------------------------------------------------------------------------------------------
 
     [Fact]
     public void Every_rule_that_stood_down_says_why_and_says_it_in_its_own_name()
     {
-        // The two halves of C7b that can rot separately. A missing sentence is a blank line on the
-        // catalogue's most valuable state, and a sentence filed under another rule's name is worse
-        // than blank: the card would answer a question the user did not ask of it. The key names
-        // the code it belongs to, so copying a line from a neighbouring rule shows up here.
         foreach (var name in References)
         {
             foreach (var rule in ReferenceArchitecture.Analyze(name).Coverage)
             {
                 if (rule.State != RuleState.NotApplicable)
                 {
-                    // Nothing to explain: the rule ran, and its findings do the talking.
                     Assert.Null(rule.Reason);
                     continue;
                 }
@@ -176,12 +133,6 @@ public class AnalysisContractTests
     [Fact]
     public void The_empty_canvas_gets_twenty_four_different_sentences()
     {
-        // Nothing drawn stands every rule down at once, which makes this the one graph that reaches
-        // all twenty-four sentences - and the screen where they matter most, because a user looking
-        // at twenty-four grey cards is a user who has drawn nothing yet.
-        //
-        // Twenty-four *distinct* keys, deliberately: one sentence reused across rules would be a
-        // sentence too vague to act on, which is the failure C7b exists to avoid.
         var coverage = ReferenceArchitecture.Analyze(new GraphBuilder().Build()).Coverage;
 
         Assert.All(coverage, rule => Assert.Equal(RuleState.NotApplicable, rule.State));
@@ -191,9 +142,6 @@ public class AnalysisContractTests
     [Fact]
     public void A_rule_that_stands_down_twice_for_different_reasons_says_two_different_things()
     {
-        // One key per *situation*, not per rule. MISSING_CDN is the clearest of the three that do
-        // this: "you have not declared any load" and "no door of yours is busy enough" are two
-        // different things to go and draw, and a single sentence covering both would name neither.
         var idle = ReferenceArchitecture.Analyze(new GraphBuilder()
             .Node("Users", NodeType.Client).Node("Api", NodeType.Api)
             .Connect("Users", "Api")
@@ -207,9 +155,6 @@ public class AnalysisContractTests
         Assert.Equal("rule.na.MISSING_CDN.noLoad", ReasonOf(idle, RuleCodes.MissingCdn).Key);
         Assert.Equal("rule.na.MISSING_CDN.lowTraffic", ReasonOf(quiet, RuleCodes.MissingCdn).Key);
 
-        // And the number in that sentence is the threshold the rule compares against, sent as an
-        // argument rather than written into the prose: two copies of 1 000 is one of them going
-        // stale the day the threshold moves.
         Assert.Equal(
             RuleThresholds.CdnWorthTraffic,
             ReasonOf(quiet, RuleCodes.MissingCdn).Args!["traffic"]);
@@ -218,9 +163,6 @@ public class AnalysisContractTests
     [Fact]
     public void The_reason_goes_away_the_moment_the_drawing_answers_it()
     {
-        // The pair QUEUE_NO_DLQ makes on the two graphs of `Coverage_moves_with_the_drawing`: the
-        // sentence is about *this* drawing, so it has to disappear when the drawing changes, not
-        // linger next to a finding.
         var withQueue = ReferenceArchitecture.Analyze(new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Cola", NodeType.Queue).Node("W", NodeType.Worker)
             .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
@@ -231,16 +173,10 @@ public class AnalysisContractTests
         Assert.Null(withQueue.Coverage.Single(rule => rule.Code == RuleCodes.QueueNoDlq).Reason);
     }
 
-    // -------------------------------------------------------------------------------------------
-    // C5 - the load meter
-    // -------------------------------------------------------------------------------------------
 
     [Fact]
     public void Load_says_nothing_when_nobody_declared_traffic()
     {
-        // "Not measured" is not "idle" - the distinction ElementState.Utilization makes with a
-        // null, made here by an empty list. Every drawing made before V4 is in this case, and so
-        // are all four references.
         foreach (var name in References)
             Assert.Empty(ReferenceArchitecture.Analyze(name).Load);
     }
@@ -248,14 +184,6 @@ public class AnalysisContractTests
     [Fact]
     public void Load_publishes_the_utilisation_the_rule_grades_on()
     {
-        // 340 rps into an Api that can take 500, and on into a database that can take 200. The
-        // arithmetic is CapacityModel's and it is done here by hand on purpose: 340/500 = 0,68 and
-        // 340/200 = 1,7.
-        //
-        // **And this is the whole of C5 in one assertion**: the Api reads 68 % and
-        // UNDERSIZED_COMPONENT has nothing to say about it, because the rule only speaks from 80 %.
-        // The meter is what lets the user see the bar filling three edits before the finding
-        // appears.
         var graph = new GraphBuilder()
             .Node("Users", NodeType.Client, "{\"requestsPerSecond\":340}")
             .Node("Api", NodeType.Api, "{\"authentication\":true}")
@@ -278,8 +206,6 @@ public class AnalysisContractTests
         Assert.Equal(CapacityModel.Database, db.CapacityRps);
         Assert.Equal(1.7m, db.Utilization);
 
-        // The rule and the meter read the same number: over capacity is a Critical, and it is the
-        // database's.
         var finding = result.Findings.Single(f => f.Code == RuleCodes.UndersizedComponent);
         Assert.Equal(Severity.Critical, finding.Severity);
         Assert.Equal(graph.NodeId("Db"), finding.Elements[0].Id);
@@ -288,10 +214,6 @@ public class AnalysisContractTests
     [Fact]
     public void Load_covers_every_component_including_the_ones_nobody_can_size()
     {
-        // One entry per box, in the graph's canonical order. The Client is here with the enormous
-        // capacity CapacityModel hands it *so that it never saturates*: what to paint over a box
-        // like that is the canvas's decision, and it is not made by leaving it out of the
-        // measurement.
         var graph = new GraphBuilder()
             .Node("Users", NodeType.Client, "{\"requestsPerSecond\":340}")
             .Node("Api", NodeType.Api)
@@ -306,15 +228,12 @@ public class AnalysisContractTests
 
         var users = LoadOf(result, graph, "Users");
         Assert.Equal(CapacityModel.Client, users.CapacityRps);
-        Assert.Equal(0m, users.Utilization);    // 340 over a million, which is what "not yours to size" looks like
+        Assert.Equal(0m, users.Utilization);
     }
 
     [Fact]
     public void Load_reads_the_instances_declared_on_the_component()
     {
-        // The lever of the product: capacity is per instance times the instances declared, and the
-        // meter has to move when the user pulls it - otherwise the bar contradicts the fix the
-        // finding just offered.
         var graph = new GraphBuilder()
             .Node("Users", NodeType.Client, "{\"requestsPerSecond\":900}")
             .Node("Api", NodeType.Api, "{\"authentication\":true,\"instances\":3}")
@@ -330,9 +249,6 @@ public class AnalysisContractTests
     [Fact]
     public void Load_reports_what_got_in_and_not_what_wanted_in()
     {
-        // DT.3 and V14 §4.3: a rate limit rejects at the door. The meter is a meter of the
-        // component, so it shows the 100 rps the Api is actually serving - the 4 000 that were
-        // turned away are TRAFFIC_REJECTED's sentence and not a bar on a box.
         var graph = new GraphBuilder()
             .Node("Users", NodeType.Client, "{\"requestsPerSecond\":4000}")
             .Node("Api", NodeType.Api, "{\"authentication\":true,\"rateLimit\":100}")
@@ -348,8 +264,6 @@ public class AnalysisContractTests
     [Fact]
     public void Load_and_the_simulator_report_the_same_component_at_the_same_percentage()
     {
-        // The two axes read one LoadModel and round it the same way, which is the property that
-        // stops the canvas from painting 68 % while you draw and 67,5 % the moment you simulate.
         var graph = new GraphBuilder()
             .Node("Users", NodeType.Client, "{\"requestsPerSecond\":340}")
             .Node("Api", NodeType.Api, "{\"authentication\":true}")
@@ -368,16 +282,10 @@ public class AnalysisContractTests
         }
     }
 
-    // -------------------------------------------------------------------------------------------
-    // V17 D3 - the same meter on the arrows
-    // -------------------------------------------------------------------------------------------
 
     [Fact]
     public void CallLoad_says_nothing_when_nobody_declared_traffic()
     {
-        // The same silence as the meter on the boxes, and for the same reason: a list of zeros over
-        // every arrow of every drawing made before V4 would say "no requests" where the truth is
-        // "nobody said".
         foreach (var name in References)
             Assert.Empty(ReferenceArchitecture.Analyze(name).CallLoad);
     }
@@ -385,12 +293,6 @@ public class AnalysisContractTests
     [Fact]
     public void CallLoad_is_where_the_amplification_the_panel_reports_actually_happens()
     {
-        // Anexo B, and the reason D1 and D3 are worth more together than apart: **the load sums
-        // what the latency takes the maximum of**. One request enters the Api and two leave it, one
-        // down each branch, and the database receives both - so the two arrows out of the Api carry
-        // 300 rps each and the two into the database carry 300 each, summing to the 600 the box
-        // reads. The number was computed for every one of those arrows since V4 and no reader
-        // outside LoadModel had ever seen it.
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api, "{\"requestsPerSecond\":300,\"authentication\":true}")
             .Node("A", NodeType.Service)
@@ -409,18 +311,12 @@ public class AnalysisContractTests
         Assert.Equal(300m, CallLoadOf(result, graph, "A", "Db"));
         Assert.Equal(300m, CallLoadOf(result, graph, "B", "Db"));
 
-        // And the arrows add up to the box, which is the property that stops a thick arrow from
-        // arriving at a box whose meter disagrees with it.
         Assert.Equal(600m, result.Load.Single(entry => entry.NodeId == graph.NodeId("Db")).Rps);
     }
 
     [Fact]
     public void CallLoad_carries_the_split_the_source_makes_and_not_the_load_it_received()
     {
-        // The four rules of the split, on the arrow where each of them happens: a cache lets
-        // through what it misses (DT.3), and a gateway routes rather than duplicates (V14 B5). The
-        // panel has been able to say "×24" for three versions; this is the first time the figure
-        // sits on the edge where the division was made.
         var graph = new GraphBuilder()
             .Node("Users", NodeType.Client, "{\"requestsPerSecond\":1000}")
             .Node("Gw", NodeType.Gateway, "{\"authentication\":true}")
@@ -438,20 +334,15 @@ public class AnalysisContractTests
 
         var result = ReferenceArchitecture.Analyze(graph);
 
-        // The gateway sends each request down one route: 500 and 500, not 1 000 and 1 000.
         Assert.Equal(500m, CallLoadOf(result, graph, "Gw", "A"));
         Assert.Equal(500m, CallLoadOf(result, graph, "Gw", "B"));
 
-        // The cache receives both halves and passes on the fifth it misses.
         Assert.Equal(200m, CallLoadOf(result, graph, "Cache", "Db"));
     }
 
     [Fact]
     public void CallLoad_lists_every_call_including_the_ones_that_carry_nothing()
     {
-        // A zero on one arrow of a drawing that *does* declare traffic is a fact about that arrow -
-        // here, that a scrape is not traffic (QA §4). Leaving it out would make the list disagree
-        // with the drawing and force the client to guess which kind of nothing it is looking at.
         var graph = new GraphBuilder()
             .Node("Users", NodeType.Client, "{\"requestsPerSecond\":100}")
             .Node("Api", NodeType.Api, "{\"authentication\":true}")
@@ -467,7 +358,6 @@ public class AnalysisContractTests
         Assert.Equal(0m, CallLoadOf(result, graph, "Obs", "Api"));
     }
 
-    // -------------------------------------------------------------------------------------------
 
     private static LocalizedText ReasonOf(AnalysisResult result, string code) =>
         result.Coverage.Single(rule => rule.Code == code).Reason!;

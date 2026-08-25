@@ -5,25 +5,12 @@ using arch_forge_backend.Domain.Enums;
 
 namespace arch_forge_backend.Application.Challenges;
 
-/// <summary>
-/// A hand-authored architecture: the starter of a challenge and its reference solution.
-///
-/// <strong>Nodes are wired by name, not by id.</strong> Instantiating one mints fresh
-/// <see cref="Guid"/>s, so an id written in a file would refer to nothing the moment two people
-/// start the same challenge - and it would be a worse thing to hand-write. Names are already the
-/// contract of a starter, because <see cref="ScenarioFault"/> points that way too.
-/// </summary>
 public sealed class ArchitectureBlueprint
 {
     public string Name { get; set; } = string.Empty;
     public List<BlueprintNode> Nodes { get; set; } = [];
     public List<BlueprintConnection> Connections { get; set; } = [];
 
-    /// <summary>
-    /// Turns the blueprint into a real architecture. Same shape a <c>POST /architectures</c>
-    /// produces, so what comes back is an ordinary architecture with an ordinary share token -
-    /// an attempt is not a special kind of thing (D2.2).
-    /// </summary>
     public Architecture Instantiate(string name)
     {
         var now = DateTime.UtcNow;
@@ -77,7 +64,6 @@ public sealed class ArchitectureBlueprint
         return architecture;
     }
 
-    /// <summary>Every failure a hand-written file can have, checked once at startup (D1.5).</summary>
     public IEnumerable<string> Validate()
     {
         if (Nodes.Count == 0)
@@ -112,17 +98,8 @@ public sealed class BlueprintNode
     public string Name { get; set; } = string.Empty;
     public NodeType Type { get; set; }
 
-    /// <summary>
-    /// <strong>Not a position.</strong> Where a component lands is computed by
-    /// <see cref="BlueprintLayout"/> - entry point on top, one row per depth level, the database
-    /// at the bottom - because which way a starter reads should not depend on whoever last edited
-    /// the file. These two survive as the only thing the layout cannot work out on its own: which
-    /// of two components sharing a row goes before the other, read across the axis the file was
-    /// authored on (<c>y</c> first, then <c>x</c>).
-    /// </summary>
     public double X { get; set; }
 
-    /// <inheritdoc cref="X"/>
     public double Y { get; set; }
 
     [JsonPropertyName("configuration")]

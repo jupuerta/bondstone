@@ -5,14 +5,6 @@ using Xunit;
 
 namespace arch_forge_backend.Api.IntegrationTests;
 
-/// <summary>
-/// V4 VS1 over the wire: the loop a user actually walks. Start a challenge, get a real architecture
-/// with a real share token, evaluate it as it comes, and get told exactly why it does not pass.
-///
-/// The evaluator itself is covered without HTTP in <c>Application.Tests/Challenges</c>. What these
-/// add is the part only the wire can break: that starting persists an ordinary architecture (D2.2),
-/// that the verdict travels whole, and that the two 404s are 404s.
-/// </summary>
 public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
 {
     private readonly HttpClient _client;
@@ -35,21 +27,16 @@ public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
     [Fact]
     public async Task The_detail_carries_the_requirements_before_anything_is_evaluated()
     {
-        // D3.6: without a ranking, building while looking at the checklist is learning, not
-        // cheating - the checklist is the enunciado broken into pieces.
         var body = await _client.GetFromJsonAsync<JsonObject>("/api/challenges/payments-friday");
 
         Assert.NotNull(body);
         Assert.NotEmpty(body!["requirements"]!.AsArray());
-        // V7 D1.1: a label is a catalogue key. The prose behind it lives in the client's
-        // catalogue - the backend renders no challenge text - so what travels here is the pointer.
         Assert.All(body["requirements"]!.AsArray(), requirement =>
             Assert.StartsWith("challenge.payments-friday.", requirement!["label"]!["key"]!.GetValue<string>()));
 
         Assert.Equal("challenge.payments-friday.title", body["title"]!["key"]!.GetValue<string>());
         Assert.Equal("challenge.payments-friday.story", body["story"]!["key"]!.GetValue<string>());
 
-        // And the reference solution is not reachable by guessing a path (D3.5).
         Assert.Null(body["referenceSolution"]);
         Assert.Null(body["starter"]);
     }
@@ -59,8 +46,6 @@ public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
     {
         var started = await StartAsync();
 
-        // D2.2: an attempt is not a special kind of thing. It has a share token and it loads through
-        // the same endpoint as anything else, which is why the client can hand it to /a/{token}.
         var reloaded = await _client.GetFromJsonAsync<JsonObject>(
             $"/api/architectures/{started["shareToken"]!.GetValue<string>()}");
 
@@ -81,7 +66,6 @@ public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
         var body = await response.Content.ReadFromJsonAsync<JsonObject>();
         Assert.False(body!["passed"]!.GetValue<bool>());
 
-        // D3.3: whatever is not met carries a reason, and the elements the canvas lights up.
         var unmet = body["requirements"]!.AsArray().Where(r => !r!["met"]!.GetValue<bool>()).ToList();
         Assert.NotEmpty(unmet);
         Assert.All(unmet, requirement =>
@@ -104,8 +88,6 @@ public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
         Assert.Equal(1, fork["version"]!.GetValue<int>());
         Assert.Equal(4, fork["nodes"]!.AsArray().Count);
 
-        // Fresh ids for every node: they are primary keys, so two architectures cannot share them.
-        // That is precisely why a challenge's faults point at components by name (D2.3).
         var originalIds = started["nodes"]!.AsArray().Select(n => n!["id"]!.GetValue<string>()).ToHashSet();
         Assert.All(fork["nodes"]!.AsArray(), node => Assert.DoesNotContain(node!["id"]!.GetValue<string>(), originalIds));
     }
@@ -134,11 +116,6 @@ public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
     [Fact]
     public async Task The_reference_solution_opens_as_an_architecture_that_passes()
     {
-        // D3.5 and D6.4: not a picture - an architecture with its own token, so it opens in the
-        // editor next to the attempt and can be analysed, simulated and taken apart.
-        // V7 D2.1: the name travels in the body, because the backend holds no text. Named so it
-        // cannot be mistaken for the attempt it is being compared against — two tabs of the same
-        // editor with the same title would be a trap.
         var response = await _client.PostAsJsonAsync(
             "/api/challenges/payments-friday/solution",
             new { name = "Los viernes — solución de referencia" });
@@ -148,9 +125,6 @@ public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
         var solution = (await response.Content.ReadFromJsonAsync<JsonObject>())!;
         Assert.Equal("Los viernes — solución de referencia", solution["name"]!.GetValue<string>());
 
-        // Read-only by construction: the row has an edit token like every architecture does, but
-        // this response is never the one that hands it out - not even to the person who just
-        // opened the reference solution.
         Assert.Null(solution["editToken"]);
 
         var evaluated = await _client.PostAsJsonAsync(
@@ -164,7 +138,6 @@ public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
     [Fact]
     public async Task Opening_the_solution_gives_everyone_their_own_copy()
     {
-        // Taking the author's solution apart must not change what the next person is shown.
         var first = await _client.PostAsync("/api/challenges/payments-friday/solution", null);
         var second = await _client.PostAsync("/api/challenges/payments-friday/solution", null);
 
@@ -182,10 +155,6 @@ public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
         return (await response.Content.ReadFromJsonAsync<JsonObject>())!;
     }
 
-    /// <summary>
-    /// V7 D2.1. The name is the client's, and a call that sends none still gets a readable one —
-    /// the slug — rather than an empty column or a catalogue key nobody can read.
-    /// </summary>
     [Fact]
     public async Task Starting_without_a_name_falls_back_to_the_slug()
     {

@@ -32,8 +32,6 @@ public class UpdateArchitectureCommandHandlerTests
             new NodeConfigurationProvider<LoadBalancerConfiguration>(NodeType.LoadBalancer)
         ]);
 
-        // The real seven-plus-eight analyzer: V4 D5.4 records what the architecture scored on
-        // every save, so this handler now runs it.
         _handler = new UpdateArchitectureCommandHandler(
             _repository,
             registry,
@@ -234,10 +232,6 @@ public class UpdateArchitectureCommandHandlerTests
     [Fact]
     public async Task Handle_ConfigurationWithFieldsRetiredInV3_IsStoredUntouched()
     {
-        // V3 plan técnico §4, and the whole reason the 16 fields cost no migration: the schema is
-        // permissive with unknown properties (NodeConfigurationProvider, no UnmappedMemberHandling
-        // .Disallow) and ToStoredConfiguration keeps the JSON exactly as it arrived. A row written
-        // before V3 keeps durable and deadLetterQueue, nobody reads them, and nothing breaks.
         var architecture = await SeedArchitecture();
         var node = Node(NodeType.Queue, "Orders queue");
         const string legacy = """{"durable":true,"deadLetterQueue":false,"maxRetries":3}""";
@@ -260,8 +254,6 @@ public class UpdateArchitectureCommandHandlerTests
     [Fact]
     public async Task Handle_ConnectionResilienceConfiguration_IsPersistedAsGiven()
     {
-        // V2 D3.1: timeoutSeconds and retries live inside the edge's jsonb, next to the three
-        // mechanisms that used to have nowhere to go.
         var architecture = await SeedArchitecture();
         var api = Node(NodeType.Api, "Api");
         var database = Node(NodeType.Database, "Db");
@@ -339,13 +331,10 @@ public class UpdateArchitectureCommandHandlerTests
         await Assert.ThrowsAsync<InvalidConnectionConfigurationException>(() => _handler.Handle(command));
     }
 
-    // ---- V14 B14: the nodes get the range guards the edges had ----------------------
 
     [Fact]
     public async Task Handle_NegativeInstances_ThrowsInvalidNodeConfigurationException()
     {
-        // QA V14 U1: `instances: -3` and `requestsPerSecond: -5000` saved without a word and
-        // scored a hundred, with the whole load axis silently switched off.
         var architecture = await SeedArchitecture();
         var api = Node(NodeType.Api, "Api");
         api.Configuration = Json("""{"instances":-3}""");
@@ -392,7 +381,6 @@ public class UpdateArchitectureCommandHandlerTests
     [Fact]
     public async Task Handle_NodeValuesAtTheEdgeOfTheirRange_Succeed()
     {
-        // Zero load, one instance, an empty cache and no replicas are all real declarations.
         var architecture = await SeedArchitecture();
         var api = Node(NodeType.Api, "Api");
         api.Configuration = Json("""{"instances":1,"requestsPerSecond":0,"rateLimit":1}""");
@@ -409,7 +397,6 @@ public class UpdateArchitectureCommandHandlerTests
     [Fact]
     public async Task Handle_TimeoutOverTheCeiling_Throws()
     {
-        // QA V14 T6: a timeout of twenty-seven hours was valid and counted as protection.
         var architecture = await SeedArchitecture();
         var api = Node(NodeType.Api, "Api");
         var database = Node(NodeType.Database, "Db");
@@ -458,8 +445,6 @@ public class UpdateArchitectureCommandHandlerTests
     [Fact]
     public async Task Handle_SelfLoop_IsRejected()
     {
-        // V2 D3.4: a self-loop corrupts the graph, so it is rejected on save. A cycle between two
-        // or more nodes is not - that one the analyzer has an opinion about.
         var architecture = await SeedArchitecture();
         var service = Node(NodeType.Service, "Orders");
 
@@ -551,8 +536,6 @@ public class UpdateArchitectureCommandHandlerTests
     [Fact]
     public async Task Handle_RecordsWhatTheArchitectureScoredAtThisVersion()
     {
-        // V4 D5.4. On save and not on analysis: the live analysis fires on a debounce while you
-        // type, and recording there would fill the table with half-finished edits.
         var architecture = Seed();
 
         await _handler.Handle(Command(architecture, "Two boxes"));
@@ -566,9 +549,6 @@ public class UpdateArchitectureCommandHandlerTests
     [Fact]
     public async Task Handle_RecordsTheAreasBehindTheNumberAndNotOnlyTheNumber()
     {
-        // V16 C11, and the debt V13 §11 wrote down: with the whole alone the history can say that
-        // you improved and never in what. The breakdown is written from the same analysis the score
-        // comes from, so the two can never be one save apart.
         var architecture = Seed();
 
         await _handler.Handle(Command(architecture, "Api on a database"));
@@ -578,10 +558,6 @@ public class UpdateArchitectureCommandHandlerTests
 
         Assert.NotNull(stored);
 
-        // Exactly the three areas this fixture registers a rule for. The other three are absent
-        // rather than zero: no rule of theirs ran, so nothing about them was measured, and a zero
-        // would both read as the worst possible result and "improve" on its own the day a rule of
-        // that area starts applying.
         Assert.Equal([Area.Availability, Area.Resilience, Area.Observability], stored.Keys);
         Assert.All(stored.Values, score => Assert.InRange(score, 0, 100));
     }
@@ -589,8 +565,6 @@ public class UpdateArchitectureCommandHandlerTests
     [Fact]
     public async Task Handle_SavingTheSameVersionTwiceRecordsItOnce()
     {
-        // The autosave can retry, and a snapshot is a fact about a version rather than about an
-        // attempt to save it - which is what the unique index on (architecture, version) enforces.
         var architecture = Seed();
 
         await _handler.Handle(Command(architecture, "Once"));

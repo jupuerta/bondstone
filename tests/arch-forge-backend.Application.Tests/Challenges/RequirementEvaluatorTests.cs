@@ -7,10 +7,6 @@ using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Challenges;
 
-/// <summary>
-/// The catalogue of D3.1, kind by kind, over blueprints small enough to read. These are the tests
-/// that let a challenge author trust a requirement means what its label says.
-/// </summary>
 public class RequirementEvaluatorTests
 {
     private static ArchitectureBlueprint ApiCacheDb() => Blueprint.Of(
@@ -63,8 +59,6 @@ public class RequirementEvaluatorTests
     [Fact]
     public void AllEdgesTo_ignores_asynchronous_calls()
     {
-        // V3 D4.2: on an asynchronous edge nobody waits, so there is no error for a timeout to
-        // catch. Demanding one there would be asking for a checkbox.
         var blueprint = Blueprint.Of(
             [("Api", NodeType.Api), ("Queue", NodeType.Queue), ("Db", NodeType.Database)],
             [("Api", "Queue", ProtocolType.Amqp, false, "{}"),
@@ -103,15 +97,9 @@ public class RequirementEvaluatorTests
 
         Assert.True(Run(new ChallengeRequirement { Kind = RequirementKinds.PathExists, LabelKey = "x", FromType = NodeType.Api, ToType = NodeType.Database }, blueprint).Met);
 
-        // The other way round there is no path: source depends on target, never the reverse (D3.3 of V2).
         Assert.False(Run(new ChallengeRequirement { Kind = RequirementKinds.PathExists, LabelKey = "x", FromType = NodeType.Database, ToType = NodeType.Api }, blueprint).Met);
     }
 
-    /// <summary>
-    /// The analyzer synthesizes a <c>Good</c> finding carrying the rule's own code when the rule
-    /// passes (V2 D1.4). Counting those would make <c>noFinding</c> unsatisfiable: it would fail
-    /// exactly when the rule is happy.
-    /// </summary>
     [Fact]
     public void NoFinding_ignores_the_Good_finding_a_passing_rule_produces()
     {
@@ -141,7 +129,6 @@ public class RequirementEvaluatorTests
 
         var context = ChallengeHarness.Context(ApiCacheDb(), analysis);
 
-        // Asking for "no warnings" while a critical slipped past would be a checklist that lies.
         Assert.False(RequirementEvaluator.Evaluate(
             new ChallengeRequirement { Kind = RequirementKinds.NoSeverity, LabelKey = "x", Severity = Severity.Warning }, context).Met);
 
@@ -169,8 +156,6 @@ public class RequirementEvaluatorTests
     [Fact]
     public void Requirements_over_the_same_scenario_share_one_simulation()
     {
-        // D3.2. Three requirements over "with Db down" cost one run, not three - which is what makes
-        // the cap of three scenarios per challenge a cap on distinct scenarios.
         var context = ChallengeHarness.Context(ApiCacheDb());
 
         ChallengeRequirement Over(string metric) => new()
@@ -190,12 +175,6 @@ public class RequirementEvaluatorTests
         Assert.Equal(1, context.SimulationsRun);
     }
 
-    /// <summary>
-    /// <strong>D1.4, and this is the test that keeps it true.</strong> V4 adds seven rules and two
-    /// areas that scored nothing start scoring, so every existing score moves. If any predicate read
-    /// the score, challenges would un-pass themselves on deploy - so the same architecture and the
-    /// same findings, with a wildly different score, must produce an identical verdict.
-    /// </summary>
     [Fact]
     public void No_requirement_reads_the_score()
     {
@@ -239,12 +218,6 @@ public class RequirementEvaluatorTests
     }
 }
 
-/// <summary>Blueprints small enough that the assertion above them reads on its own.</summary>
-/// <summary>
-/// V8 §6.1 and §6.4. The three kinds that were added when the catalogue grew past four challenges:
-/// the two caps that stop a load challenge being passed by buying hardware, and the requirement
-/// that can talk about one concrete call.
-/// </summary>
 public class NewRequirementKindsTests
 {
     private static ChallengeRequirementResult Run(ChallengeRequirement requirement, ArchitectureBlueprint blueprint) =>
@@ -268,8 +241,6 @@ public class NewRequirementKindsTests
     [Fact]
     public void MaxInstances_reads_the_same_copies_the_capacity_model_reads()
     {
-        // A database's read replicas are copies for CapacityModel, so they are copies here too -
-        // otherwise the cap would forbid the lever it is meant to cap and allow the other one.
         var scaled = ApiDb(dbConfiguration: """{"readReplicas":3}""");
 
         var capped = Run(new ChallengeRequirement { Kind = RequirementKinds.MaxInstances, LabelKey = "x", NodeType = NodeType.Database, Max = 1 }, scaled);
@@ -291,8 +262,6 @@ public class NewRequirementKindsTests
     [Fact]
     public void Edge_asks_about_one_call_and_says_so_when_it_is_gone()
     {
-        // The anti-cheese: deleting the call is not a way of making it asynchronous, and the
-        // sentence that comes back names both ends rather than saying "not met".
         var missing = Run(
             new ChallengeRequirement { Kind = RequirementKinds.Edge, LabelKey = "x", From = "Api", To = "Mailer", Synchronous = false },
             ApiDb());
@@ -326,8 +295,6 @@ public class NewRequirementKindsTests
             [("Api", "Db", ProtocolType.Sql, true, """{"timeoutSeconds":5}"""),
              ("Api", "Cache", ProtocolType.Http, true, "{}")]);
 
-        // 'Api → Cache' carries nothing at all, and this requirement does not care: it is about
-        // the other call. That is the whole difference with allEdgesTo.
         Assert.True(Run(new ChallengeRequirement
         {
             Kind = RequirementKinds.Edge, LabelKey = "x", From = "Api", To = "Db", Mechanism = RequirementMechanisms.Timeout
@@ -350,7 +317,6 @@ internal static class Blueprint
         (string From, string To, ProtocolType Protocol, bool Synchronous, string Configuration)[] edges) =>
         Of(nodes.Select(n => (n.Name, n.Type, "{}")).ToArray(), edges);
 
-    /// <summary>The same, with the node's own configuration - what <c>maxInstances</c> reads.</summary>
     public static ArchitectureBlueprint Of(
         (string Name, NodeType Type, string Configuration)[] nodes,
         (string From, string To, ProtocolType Protocol, bool Synchronous, string Configuration)[] edges) => new()

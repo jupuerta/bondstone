@@ -24,8 +24,6 @@ public class CreateArchitectureCommandHandlerTests
         Assert.Equal(1, result.Version);
         Assert.NotEmpty(result.ShareToken);
         Assert.NotEmpty(result.EditToken);
-        // The one thing this pair exists to keep apart: whoever has the read handle must not be
-        // able to derive the write one from it.
         Assert.NotEqual(result.ShareToken, result.EditToken);
         Assert.Equal(result.CreatedAt, result.UpdatedAt);
     }

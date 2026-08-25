@@ -6,11 +6,6 @@ using arch_forge_backend.Domain.Entities;
 
 namespace arch_forge_backend.Application.Tests.Challenges;
 
-/// <summary>
-/// Runs the real evaluator over a blueprint, with the real seven rules and the real engine behind
-/// it. Nothing is stubbed: the point of V4 D3.1 is that a requirement is a comparison over two
-/// contracts that already work, so a test that faked those two would be testing nothing.
-/// </summary>
 public static class ChallengeHarness
 {
     public static readonly ChallengeCatalog Catalog = new();
@@ -25,10 +20,6 @@ public static class ChallengeHarness
 
     public static ChallengeResult Evaluate(ChallengeDefinition definition, ArchitectureBlueprint blueprint)
     {
-        // Instantiated once and shared by every graph the evaluation builds. Instantiating per call
-        // would mint fresh ids each time, and a fault resolved against one instance would point at
-        // nothing in the next - which is exactly how this harness found the discarded-fault hole in
-        // RequirementEvaluator.UnderScenario.
         var architecture = blueprint.Instantiate("test");
         return Handler().Evaluate(definition, () => new ArchitectureGraph(architecture.Nodes, architecture.Connections));
     }
@@ -42,7 +33,6 @@ public static class ChallengeHarness
         return new ArchitectureGraph(architecture.Nodes, architecture.Connections);
     }
 
-    /// <summary>A context over a graph with an analysis the caller controls - what the D1.4 test needs.</summary>
     public static EvaluationContext Context(ArchitectureBlueprint blueprint, AnalysisResult analysis)
     {
         var architecture = blueprint.Instantiate("test");
@@ -60,7 +50,6 @@ public static class ChallengeHarness
     private static EvaluateChallengeQueryHandler Handler() =>
         new(new NullRepository(), Catalog, Analyzer(), new SimulationEngine());
 
-    // Registered in the same order as Program.cs, and deliberately not in execution order.
     private static ArchitectureAnalyzer Analyzer() => new([
         new SpofRule(),
         new CycleRule(),
@@ -87,7 +76,6 @@ public static class ChallengeHarness
         new MissingCdnRule()
     ]);
 
-    /// <summary>The handler's repository is only touched by <c>Handle</c>; these tests call <c>Evaluate</c>.</summary>
     private sealed class NullRepository : Application.Common.Interfaces.IArchitectureRepository
     {
         public Task<Architecture?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>

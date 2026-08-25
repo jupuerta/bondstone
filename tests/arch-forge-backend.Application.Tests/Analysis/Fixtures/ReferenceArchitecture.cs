@@ -7,12 +7,6 @@ using arch_forge_backend.Domain.Enums;
 
 namespace arch_forge_backend.Application.Tests.Analysis.Fixtures;
 
-/// <summary>
-/// Loads one of the reference architectures and runs the real twenty rules over it (D5.5). With
-/// twenty rules, precedences and shared facts, the interaction is where the risk lives: changing a
-/// HIGH_COUPLING threshold moves the score of architectures that have nothing to do with coupling,
-/// and no unit test notices.
-/// </summary>
 public static class ReferenceArchitecture
 {
     private static readonly JsonSerializerOptions Options = new()
@@ -23,13 +17,8 @@ public static class ReferenceArchitecture
 
     public static AnalysisResult Analyze(string fixtureName) => Analyze(Graph(fixtureName));
 
-    /// <summary>
-    /// The twenty-four rules over a graph the caller built - which is how the shuffling test feeds the
-    /// same fixture in a different order (V6 D1.1).
-    /// </summary>
     public static AnalysisResult Analyze(ArchitectureGraph graph)
     {
-        // Registered in the same order as Program.cs, and deliberately not in execution order.
         var analyzer = new ArchitectureAnalyzer([
             new SpofRule(),
             new CycleRule(),
@@ -60,11 +49,6 @@ public static class ReferenceArchitecture
         return analyzer.Analyze(graph);
     }
 
-    /// <summary>
-    /// The same four fixtures with no rule run over them, which is what the simulator gets (V3
-    /// D5.2): <c>Facts</c> is the producer-to-consumer channel between rules, and a simulation that
-    /// read from it would change its answer depending on which rules happen to be registered.
-    /// </summary>
     public static ArchitectureGraph Graph(string fixtureName)
     {
         var (nodes, connections) = Load(fixtureName);

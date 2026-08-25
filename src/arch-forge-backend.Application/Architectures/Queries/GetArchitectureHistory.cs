@@ -10,19 +10,6 @@ public class GetArchitectureHistoryQuery
     public string ShareToken { get; set; } = string.Empty;
 }
 
-/// <param name="Score">Null when no area was scorable at that version.</param>
-/// <param name="Summary">
-/// What the analysis found at that version. Null where the snapshot never carried counts, which is
-/// not the same claim as a version that found nothing.
-/// </param>
-/// <param name="Areas">
-/// V16 C11. What each scored area read at that version, keyed by area. Null where the snapshot
-/// never carried the breakdown - every row written before the column existed - and the areas that
-/// were not scorable are absent rather than zero (see <see cref="SnapshotAreas"/>).
-///
-/// It is what turns the history from <em>"you went from 61 to 78"</em> into <em>"you went from 61
-/// to 78, and it was Resilience"</em>, which is the debt V13 §11 wrote down.
-/// </param>
 public sealed record ArchitectureSnapshotDto(
     int Version,
     string ScoringVersion,
@@ -31,26 +18,8 @@ public sealed record ArchitectureSnapshotDto(
     DateTime CreatedAt,
     IReadOnlyDictionary<Area, int>? Areas = null);
 
-/// <summary>
-/// V4 D5.4, and the debt V2 wrote as <em>"la narrativa <c>61 → 78</c> entre sesiones"</em>.
-///
-/// One point per <em>change</em> of score, never one per save. The autosave writes a snapshot a
-/// second after every edit, so most versions carry the number the one before them already carried:
-/// moving a node or renaming it writes a version and does not move the score. Collapsing those runs
-/// is what turns a hundred saves into the handful of moments where the architecture actually got
-/// better or worse — the shape the panel draws — and it leaves every point a real event, which
-/// matters because each point is also the hit target for reading that version's detail.
-/// </summary>
 public class GetArchitectureHistoryQueryHandler
 {
-    /// <summary>
-    /// A ceiling on what is returned, not on what is read. The collapse has to see every version to
-    /// know which ones are changes, and capping the read is what the previous
-    /// <c>OrderBy(Version).Take(100)</c> got wrong in both directions: it dropped the newest
-    /// versions, so the line stopped at v100 and the current score was never in it, while reversing
-    /// the order would instead have dropped the oldest — the entry <c>61 →</c> is measured from.
-    /// After collapsing this almost never binds: it takes sixty score changes to reach it.
-    /// </summary>
     public const int MaxPoints = 60;
 
     private readonly IArchitectureRepository _repository;
@@ -81,22 +50,6 @@ public class GetArchitectureHistoryQueryHandler
             .ToList();
     }
 
-    /// <summary>
-    /// Keeps a snapshot when it is the first, when it is the last, or when it says something the
-    /// last kept one did not.
-    ///
-    /// The last is kept even when it repeats: it is the version on screen right now, so it is where
-    /// the panel puts the current-score marker, and a run of saves that did not move the number is
-    /// itself worth seeing on an "Improve" screen. A change of scoring version counts as different
-    /// at the same number — two scoring versions are not comparable (V2 D1.5), so the moment the
-    /// model changed is exactly a moment the reader needs.
-    ///
-    /// V16 C11 leaves the predicate alone on purpose. The breakdown could move while the total
-    /// stands still - one area up and another down by the same amount - but the question the
-    /// breakdown was added for is asked of the two ends, and the two ends are the two this always
-    /// keeps. Widening it here would add points to the line the panel draws to answer a question
-    /// nobody asks of the middle of it.
-    /// </summary>
     private static List<ArchitectureSnapshot> Collapse(IReadOnlyList<ArchitectureSnapshot> snapshots)
     {
         var kept = new List<ArchitectureSnapshot>();
@@ -119,21 +72,11 @@ public class GetArchitectureHistoryQueryHandler
         return kept;
     }
 
-    /// <summary>
-    /// If sixty changes were not enough, keep the first — the anchor the narrative is measured
-    /// from — and the most recent ones, which is where the work is.
-    /// </summary>
     private static IReadOnlyList<ArchitectureSnapshot> Cap(List<ArchitectureSnapshot> points) =>
         points.Count <= MaxPoints
             ? points
             : [points[0], .. points.Skip(points.Count - (MaxPoints - 1))];
 
-    /// <summary>
-    /// The counts as <c>UpdateArchitecture</c> wrote them. Null rather than zeroes when there is
-    /// nothing to read: the column defaults to <c>'{}'</c> and rows written before it carried
-    /// anything still hold that, and "0 critical, 0 warnings, 0 passed" is a claim about the
-    /// architecture that those rows are not making.
-    /// </summary>
     private static AnalysisSummary? ReadSummary(string? json)
     {
         if (string.IsNullOrWhiteSpace(json) || json == "{}")
@@ -145,8 +88,6 @@ public class GetArchitectureHistoryQueryHandler
         }
         catch (JsonException)
         {
-            // A snapshot with unreadable counts still has a version and a score, and those are what
-            // the line is drawn from. Losing the detail beats losing the point.
             return null;
         }
     }

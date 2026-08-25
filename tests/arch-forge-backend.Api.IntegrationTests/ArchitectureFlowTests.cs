@@ -67,14 +67,10 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
         Assert.Contains(findings, f => f!["code"]!.GetValue<string>() == "SYNC_CHAIN");
         Assert.True(analysis["score"]!.GetValue<int>() is >= 0 and <= 100);
 
-        // V2 D2.1: the six areas always travel, in enum order; what varies is their state.
         Assert.Equal("v8", analysis["scoringVersion"]!.GetValue<string>());
         Assert.Equal(
             ["Availability", "Resilience", "Coupling", "Scalability", "Security", "Observability"],
             analysis["areas"]!.AsArray().Select(a => a!["area"]!.GetValue<string>()));
-        // V4 D5.2: Security stopped being an area nobody evaluates. On this two-node graph its three
-        // rules are all "not applicable" - no database behind the door, no declared traffic - which
-        // is a different sentence from "nobody is asking", and the panel paints them differently.
         Assert.Equal("NotApplicable", analysis["areas"]!.AsArray()
             .Single(a => a!["area"]!.GetValue<string>() == "Security")!["state"]!.GetValue<string>());
         Assert.DoesNotContain(
@@ -86,8 +82,6 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
     [Fact]
     public async Task Put_ConnectionConfiguration_RoundTripsAsJsonObject()
     {
-        // V2 D3.1: resilience moved into the edge's jsonb, so it has to survive the round trip
-        // the same way a node's configuration does.
         var (editToken, shareToken) = await CreateArchitectureAsync("Resilient edge");
         var apiNodeId = Guid.NewGuid();
         var databaseNodeId = Guid.NewGuid();
@@ -155,7 +149,6 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
     [Fact]
     public async Task Put_SelfLoop_ReturnsBadRequest()
     {
-        // V2 D3.4: structural corruption, rejected on save. Cycles of length >= 2 are not.
         var (editToken, _) = await CreateArchitectureAsync("Self loop");
         var nodeId = Guid.NewGuid();
 
@@ -179,7 +172,6 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
     [Fact]
     public async Task Put_GatewayAndLoadBalancerNodes_RoundTrip()
     {
-        // V2 D3.2: the two new types persist as text in the NodeType enum, no data migration.
         var (editToken, shareToken) = await CreateArchitectureAsync("Edge tier");
 
         var response = await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", new
@@ -212,7 +204,6 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
     [Fact]
     public async Task Put_RepeatedWithSameNodeIds_KeepsSavingAndBumpsVersion()
     {
-        // The autosave loop re-sends the same client-generated ids on every flush.
         var (editToken, shareToken) = await CreateArchitectureAsync("Autosave");
 
         var apiNodeId = Guid.NewGuid();
@@ -270,8 +261,6 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
                     type = "Queue",
                     name = "Orders queue",
                     position = new { x = 10, y = 20 },
-                    // durable and deadLetterQueue were retired in V3 D3.5; they still round-trip
-                    // untouched, which is why retiring 16 fields cost no migration (§4).
                     configuration = new { durable = true, deadLetterQueue = false, maxRetries = 3 }
                 }
             },
@@ -288,7 +277,6 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
     [Fact]
     public async Task Put_NodeWithoutConfiguration_RoundTripsAsEmptyObject()
     {
-        // §5.1: the column is jsonb NOT NULL, so an unconfigured node reads back as {}, not null.
         var (editToken, shareToken) = await CreateArchitectureAsync("Unconfigured");
 
         var response = await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", new
@@ -411,10 +399,6 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
         return (created["editToken"]!.GetValue<string>(), created["shareToken"]!.GetValue<string>());
     }
 
-    /// <summary>
-    /// V4 D5.4, over the wire and over a real database - which is where the unique index on
-    /// (architecture, version) actually lives, and it is what makes recording on every save safe.
-    /// </summary>
     [Fact]
     public async Task History_RecordsOneEntryPerSavedVersion()
     {
@@ -438,8 +422,6 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
                     type = "Api",
                     name = "Api",
                     position = new { x = 0, y = 0 },
-                    // V13 D2.1 travelling over the wire: absent on the first save is the undeclared
-                    // third state, and this is the only test that round-trips it through the API.
                     configuration = fixedUp ? new { authentication = true } : null
                 },
                 new { id = db, type = "Database", name = "Db", position = new { x = 200, y = 0 } }
@@ -458,16 +440,6 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
             }
         };
 
-        // Two saves: one that says nothing about the call's timeout nor about the door's
-        // authentication, then one that answers both. The second scores better, which is the
-        // `61 → 78` narrative the debt was written as.
-        //
-        // **Both things, and not only the timeout.** Until V13 the timeout alone moved the global
-        // score across a rounding boundary; with UNAUTHENTICATED_ENTRY no longer taking fifteen
-        // points off a diagram that simply had not said (D2.1), one area recovering five is 0,83 of
-        // a global point and both versions round to the same number. The assertion was always one
-        // bucket away from meaning nothing - a history entry carries the global score and nothing
-        // else - so the fixture improves two axes and clears it by a whole point.
         await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", Snapshot(1, fixedUp: false));
         await _client.PutAsJsonAsync($"/api/architectures/edit/{editToken}", Snapshot(2, fixedUp: true));
 
@@ -476,26 +448,18 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
         Assert.NotNull(history);
         Assert.Equal(2, history!.Count);
 
-        // Oldest first, one per version, each carrying the model that produced it.
         Assert.Equal(2, history[0]!["version"]!.GetValue<int>());
         Assert.Equal(3, history[1]!["version"]!.GetValue<int>());
         Assert.All(history, entry => Assert.Equal("v8", entry!["scoringVersion"]!.GetValue<string>()));
 
-        // Adding the timeout silences MISSING_RESILIENCE, so Resilience recovers and the average
-        // with it: the number went up because the architecture got better.
         Assert.True(history[1]!["score"]!.GetValue<int>() > history[0]!["score"]!.GetValue<int>());
 
-        // V16 C11, over the wire and over a real database, which is the only place the new jsonb
-        // column and its default actually exist. The two saves above improve two axes on purpose,
-        // so this is the assertion the whole proposal is for: the history can now say *which*.
         var before = history[0]!["areas"]!.AsObject();
         var after = history[1]!["areas"]!.AsObject();
 
         Assert.True(after["Resilience"]!.GetValue<int>() > before["Resilience"]!.GetValue<int>());
         Assert.True(after["Security"]!.GetValue<int>() > before["Security"]!.GetValue<int>());
 
-        // And the areas the two saves did not touch did not move, which is what makes the two above
-        // a reading of this edit rather than of the deploy.
         Assert.Equal(before["Coupling"]!.GetValue<int>(), after["Coupling"]!.GetValue<int>());
     }
 

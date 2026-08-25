@@ -10,10 +10,6 @@ using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Analysis.Rules;
 
-/// <summary>
-/// V4 D5.2, the eight rules that pay the debt V2 wrote down and V3 pushed twice - one section each,
-/// over graphs small enough that what is being asserted is obvious.
-/// </summary>
 public class OrphanNodeRuleTests
 {
     [Fact]
@@ -36,7 +32,6 @@ public class OrphanNodeRuleTests
     [Fact]
     public void A_single_component_is_unfinished_rather_than_wrong()
     {
-        // Firing on the first thing anybody drags onto the canvas is how an analyzer becomes noise.
         var graph = new GraphBuilder().Node("Api", NodeType.Api).Build();
 
         Assert.False(new OrphanNodeRule().Evaluate(graph).IsApplicable);
@@ -58,8 +53,6 @@ public class QueueNoDlqRuleTests
     [Fact]
     public void The_field_that_came_back_with_this_rule_silences_it()
     {
-        // V3 D6.6 promised DeadLetterQueue would come back "with the rule that justifies it".
-        // This is the assertion that the two arrived together.
         Assert.Empty(new QueueNoDlqRule().Evaluate(Queue("""{"deadLetterQueue":true}""")).Findings);
     }
 
@@ -74,9 +67,6 @@ public class QueueNoDlqRuleTests
     [Fact]
     public void A_queue_nobody_drains_is_not_asked_for_its_dead_letter_queue_yet()
     {
-        // QA §4: a message that is never processed cannot fail processing, so the DLQ has nothing
-        // to catch. QUEUE_NO_CONSUMER owns that box until the consumer is drawn - one lesson at a
-        // time, under one code (D4.5).
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Q", NodeType.Queue)
@@ -92,8 +82,6 @@ public class QueueNoDlqRuleTests
     [Fact]
     public void A_queue_delivering_only_to_a_database_is_not_asked_either()
     {
-        // V14 B8. The arrow to the database used to pass for a consumer, so this rule spoke and
-        // QUEUE_NO_CONSUMER did not: the second-level advice handed out over the missing first.
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Q", NodeType.Queue)
@@ -106,7 +94,6 @@ public class QueueNoDlqRuleTests
         Assert.Single(new QueueNoConsumerRule().Evaluate(graph).Findings);
     }
 
-    // A queue with a producer and a consumer: the flow this rule has something to say about.
     private static ArchitectureGraph Queue(string configuration) => new GraphBuilder()
         .Node("Api", NodeType.Api)
         .Node("Q", NodeType.Queue, configuration)
@@ -121,15 +108,6 @@ public class TimeoutTooShortRuleTests
     [Fact]
     public void Traffic_is_what_makes_a_timeout_too_short()
     {
-        // **The reason this rule needed V4 and not just V3.** Timeouts are whole seconds and an
-        // idle architecture answers in tens of milliseconds, so a timeout shorter than an idle call
-        // is almost unreachable - the rule would be dead code. Under load it is a different
-        // question: the database at six times its capacity costs 2,4 s, and the 1 s timeout in
-        // front of it expires every single time while every component is still "up".
-        //
-        // V15 A2: that database is not "up", it is drowning, and under the analyzer the number
-        // belongs to UNDERSIZED_COMPONENT (see the V15 section below). The rule *alone* still
-        // reads it, which is what this test pins - the yielding is a fact it has to be handed.
         var idle = ApiAndDb(0);
         var loaded = ApiAndDb(1_200);
 
@@ -143,8 +121,6 @@ public class TimeoutTooShortRuleTests
     [Fact]
     public void It_needs_CallCost_which_is_why_V2_could_not_have_it()
     {
-        // The debt was not deferred out of laziness: knowing what a call costs is exactly what V3
-        // wrote CallCost for. The suggestion quotes that figure back.
         var finding = Assert.Single(new TimeoutTooShortRule().Evaluate(ApiAndDb(1_200)).Findings);
 
         Assert.Equal("finding.TIMEOUT_TOO_SHORT.expires.suggestion", finding.Suggestion.Key());
@@ -156,25 +132,15 @@ public class TimeoutTooShortRuleTests
         .Connect("Api", "Db", timeoutSeconds: 1, protocol: ProtocolType.Sql)
         .Build();
 
-    // ---- V15 A2: past 100 % the number is UNDERSIZED_COMPONENT's, not this rule's --------
 
     [Fact]
     public void A_target_marked_as_overloaded_is_not_this_rules_finding()
     {
-        // QA V15 C7. `Users(50.000 rps) → Api → Db` with a 3 s timeout said "it costs 33,34 s with
-        // everything working" - contradicted two cards down by two UNDERSIZED_COMPONENT criticals -
-        // and offered a guided fix of 67 s. Over 100 % the latency CallCost computes *is* the
-        // saturation, already charged in Scalability, and raising the timeout over it is the one
-        // piece of advice in the panel that makes the system worse. The Producer's fact is how the
-        // rule learns whose lesson the number is - the pattern MISSING_RESILIENCE uses with SPOF.
         var graph = ApiAndDb(1_200);
         graph.Facts.Add(new UndersizedComponentFact(graph.Nodes.Single(n => n.Name == "Db").Id, Severity.Critical));
 
         var result = new TimeoutTooShortRule().Evaluate(graph);
 
-        // Applicable and clean, not "not applicable": the check was made and the timeout came out
-        // doing its job - it fires because something is genuinely wrong, and that something has
-        // its own card. Same shape as MISSING_RESILIENCE over an edge RETRY_AMPLIFICATION covered.
         Assert.True(result.IsApplicable);
         Assert.Empty(result.Findings);
     }
@@ -182,11 +148,6 @@ public class TimeoutTooShortRuleTests
     [Fact]
     public void A_target_merely_close_to_its_limit_still_gets_its_timeout_read()
     {
-        // The control that keeps the fix from silencing the rule outright. Below the line the
-        // queueing is a slower call, not an outage: at 95 % everything answers at twenty times its
-        // idle cost, and a short chain of it crosses a whole second while UNDERSIZED_COMPONENT has
-        // only a Warning to say. That is exactly the situation this rule exists for, so a Warning
-        // fact must not buy the edge any silence.
         var graph = NearCapacityChain();
         graph.Facts.Add(new UndersizedComponentFact(graph.Nodes.Single(n => n.Name == "Svc").Id, Severity.Warning));
 
@@ -199,22 +160,15 @@ public class TimeoutTooShortRuleTests
     [Fact]
     public void What_the_call_waits_on_counts_as_much_as_where_it_lands()
     {
-        // The canvas draws every edge synchronous and unconfigured, so the everyday shape of the
-        // QA's scenario is `Gw → Api → Db` with the timeout on the first hop and none on the
-        // second: the database's saturation flows up raw into the gateway's call, and the same
-        // "with everything working" card lands one box away from the one that is marked.
-        // CallCost charges a caller its whole synchronous subtree, so the walk that decides whose
-        // number it is has to cover the subtree too.
         var graph = GatewayApiAndDrowningDb();
 
-        Assert.Single(new TimeoutTooShortRule().Evaluate(graph).Findings);   // the number is there...
+        Assert.Single(new TimeoutTooShortRule().Evaluate(graph).Findings);
 
         graph.Facts.Add(new UndersizedComponentFact(graph.Nodes.Single(n => n.Name == "Db").Id, Severity.Critical));
 
-        Assert.Empty(new TimeoutTooShortRule().Evaluate(graph).Findings);    // ...and it is the database's
+        Assert.Empty(new TimeoutTooShortRule().Evaluate(graph).Findings);
     }
 
-    /// <summary>Api → Svc → Stripe with Svc and Stripe at 95 %: nothing overloaded, everything twenty times slower.</summary>
     private static ArchitectureGraph NearCapacityChain() => new GraphBuilder()
         .Node("Api", NodeType.Api, """{"requestsPerSecond":285}""")
         .Node("Svc", NodeType.Service)
@@ -223,7 +177,6 @@ public class TimeoutTooShortRuleTests
         .Connect("Svc", "Stripe", timeoutSeconds: 5, fallback: true)
         .Build();
 
-    /// <summary>A timeout on the first hop, none on the second, and a database at 500 % behind both.</summary>
     private static ArchitectureGraph GatewayApiAndDrowningDb() => new GraphBuilder()
         .Node("Gw", NodeType.Gateway, """{"requestsPerSecond":1000}""")
         .Node("Api", NodeType.Api, """{"instances":4}""")
@@ -235,10 +188,6 @@ public class TimeoutTooShortRuleTests
     [Fact]
     public void A_providers_own_timeout_is_not_the_architects_knob()
     {
-        // V14 B10. Whatever Stripe set on its call to Maps expires or does not on Stripe's side:
-        // a one-second timeout on the provider's hop, under a load that would make it expire, is
-        // not an edge this rule has anything to say about. Your own call, with a generous
-        // timeout, is the one it reads - and finds fine.
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api, """{"requestsPerSecond":1200}""")
             .Node("Stripe", NodeType.ExternalService)
@@ -271,8 +220,6 @@ public class UndersizedComponentRuleTests
     [Fact]
     public void Says_nothing_until_somebody_declares_how_much_traffic_comes_in()
     {
-        // DT.1: with no declared load there is no utilisation, so there is nothing to be
-        // under-sized for. Every architecture drawn before V4 sees this as "not applicable".
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
@@ -285,7 +232,6 @@ public class UndersizedComponentRuleTests
     [Fact]
     public void Over_capacity_is_critical_and_close_to_it_is_a_warning()
     {
-        // Db takes 200 rps. At 300 it is rejecting; at 180 it is one peak away.
         var overloaded = Loaded(300);
         var tight = Loaded(180);
 
@@ -303,7 +249,6 @@ public class UndersizedComponentRuleTests
     {
         var finding = Assert.Single(new UndersizedComponentRule().Evaluate(Loaded(300)).Findings);
 
-        // The two numbers that let you fix it travel raw; the sentence around them is the client's.
         Assert.Equal("300", finding.Explanation.Arg("loadRps"));
         Assert.Equal("200", finding.Explanation.Arg("capacityRps"));
         Assert.Equal("finding.UNDERSIZED_COMPONENT.suggestion.database", finding.Suggestion.Key());
@@ -312,8 +257,6 @@ public class UndersizedComponentRuleTests
     [Fact]
     public void The_telemetry_edge_does_not_make_an_overloaded_leaf_a_relay()
     {
-        // QA B9: the clause about "what is behind" is for dependencies. An Api whose only outgoing
-        // edge is its telemetry has nothing behind it in the sense the lesson means.
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api, """{"requestsPerSecond":1000}""")
             .Node("Obs", NodeType.Observability)
@@ -325,17 +268,12 @@ public class UndersizedComponentRuleTests
         Assert.Equal("finding.UNDERSIZED_COMPONENT.overloaded.explanation", finding.Explanation.Key());
     }
 
-    // ---- V14 B2: the exclusion is a predicate, and it names five --------------
 
     [Theory]
     [InlineData(NodeType.Client, """{"requestsPerSecond":2000000}""")]
     [InlineData(NodeType.Scheduler, """{"jobsPerSecond":5000}""")]
     public void What_is_not_yours_to_size_is_never_told_to_grow(NodeType type, string configuration)
     {
-        // T9. "Give your users more instances" and "add a replica of the cron" are the same
-        // impossible sentence UNDERSIZED_COMPONENT already refuses to say about a third party. The
-        // enormous capacity CapacityModel hands these boxes so they never saturate was no guard
-        // against a declared load big enough to get past it.
         var graph = new GraphBuilder()
             .Node("Origin", type, configuration)
             .Node("Worker", NodeType.Worker, """{"instances":1000}""")
@@ -351,8 +289,6 @@ public class UndersizedComponentRuleTests
     [Fact]
     public void The_cdn_is_a_providers_edge_not_a_box_you_scale()
     {
-        // T9's third: a CDN with every request missing, under two million of them. "Spread its
-        // work over several components" was the advice - for somebody else's edge.
         var graph = new GraphBuilder()
             .Node("Web", NodeType.Client, """{"requestsPerSecond":2000000}""")
             .Node("Edge", NodeType.Cdn, """{"hitRatio":0}""")
@@ -369,8 +305,6 @@ public class UndersizedComponentRuleTests
     [Fact]
     public void What_is_yours_behind_them_is_still_sized()
     {
-        // The guard: leaving the origin out does not leave out what it floods. The worker behind
-        // the cron is yours, and it is drowning.
         var graph = new GraphBuilder()
             .Node("Cron", NodeType.Scheduler, """{"jobsPerSecond":5000}""")
             .Node("Worker", NodeType.Worker)
@@ -394,8 +328,6 @@ public class SecurityRuleTests
     [Fact]
     public void An_entry_point_that_declares_no_authentication_is_critical()
     {
-        // V13 D2.1. Critical is now reserved for the *declared* no: somebody looked at a door with a
-        // database behind it and said it asks nobody anything.
         var finding = Assert.Single(
             new UnauthenticatedEntryRule().Evaluate(ApiAndDb("""{"authentication":false}""")).Findings);
 
@@ -407,9 +339,6 @@ public class SecurityRuleTests
     [Fact]
     public void An_entry_point_that_never_declared_it_is_only_a_warning()
     {
-        // V13 D2.1, and the measurement that forced it: this is `minimal-api-db`, two boxes and an
-        // arrow, which used to open with a red critical because an undeclared field and a declared
-        // "no" were the same `false`.
         var finding = Assert.Single(new UnauthenticatedEntryRule().Evaluate(ApiAndDb("{}")).Findings);
 
         Assert.Equal(Severity.Warning, finding.Severity);
@@ -426,8 +355,6 @@ public class SecurityRuleTests
     [Fact]
     public void With_no_data_behind_the_door_there_is_nothing_to_protect()
     {
-        // Without this, every new diagram would open with a red critical before the user had
-        // finished drawing it - the "todo rojo" this project has spent three versions avoiding.
         var sketch = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Cache", NodeType.Cache)
@@ -440,8 +367,6 @@ public class SecurityRuleTests
     [Fact]
     public void Everything_a_balancer_fronts_is_public_too()
     {
-        // Traffic entering through a balancer reaches the APIs behind it without meeting anything
-        // that could ask who is calling, so they are as exposed as the balancer is.
         var graph = new GraphBuilder()
             .Node("LB", NodeType.LoadBalancer)
             .Node("Api1", NodeType.Api)
@@ -496,9 +421,6 @@ public class SecurityRuleTests
     [Fact]
     public void An_api_that_is_the_door_is_asked_the_same_question()
     {
-        // QA §4. Until the field existed, an Api with a thousand declared requests a second was a
-        // door this rule could never speak to. The advice is the door's: limit here, or put a
-        // gateway in front that does.
         var unlimited = Assert.Single(new NoRateLimitRule().Evaluate(ApiAndDb("""{"requestsPerSecond":1000}""")).Findings);
         Assert.Equal("finding.NO_RATE_LIMIT.unlimited.suggestion.api", unlimited.Suggestion.Key());
 
@@ -508,8 +430,6 @@ public class SecurityRuleTests
     [Fact]
     public void The_volume_is_what_reaches_the_door_not_what_it_declares()
     {
-        // The users' traffic lives on the Client since QA §3.1; a gateway with a Client in front
-        // receives every one of those requests whether or not it declared any itself.
         var graph = new GraphBuilder()
             .Node("Web", NodeType.Client, """{"requestsPerSecond":1000}""")
             .Node("Gw", NodeType.Gateway)
@@ -522,7 +442,6 @@ public class SecurityRuleTests
         Assert.Equal("Gw", finding.Message.Arg("node"));
     }
 
-    // ---- V14 B6: a root is a door only if the outside could reach it ----------
 
     [Theory]
     [InlineData(NodeType.Queue)]
@@ -531,10 +450,6 @@ public class SecurityRuleTests
     [InlineData(NodeType.Database)]
     public void A_root_the_outside_could_not_reach_is_not_the_internet(NodeType type)
     {
-        // T2a, T2b, U2. Drawing only part of a system puts a queue, a cache or a service at the
-        // top of the flow, and "every root is a door except three types" read each of them as the
-        // internet - so the data behind it was a breach. A store or a broker at the root is a
-        // diagram that starts in the middle.
         var graph = new GraphBuilder()
             .Node("Root", type)
             .Node("Db", NodeType.Database)
@@ -553,8 +468,6 @@ public class SecurityRuleTests
     [InlineData(NodeType.ExternalService)]
     public void A_root_the_outside_reaches_is_still_a_door(NodeType type)
     {
-        // The guard: the edge, the balancer and a third party calling in (a webhook is outside
-        // traffic) keep inferring "internet" without a Client drawn.
         var graph = new GraphBuilder()
             .Node("Root", type)
             .Node("Db", NodeType.Database)
@@ -567,10 +480,6 @@ public class SecurityRuleTests
     [Fact]
     public void Two_services_on_their_own_databases_are_not_two_breaches()
     {
-        // The scenario V13 documented its B2 with, rerun in the V14 sweep: the two SPOF Warnings
-        // it promised were there, and beside them two Critical EXPOSED_DATABASE nobody had
-        // promised, because the two services were roots. Security 78 on the canonical
-        // microservices drawing with no gateway drawn.
         var graph = new GraphBuilder()
             .Nodes(NodeType.Service, "Users", "Orders")
             .Node("users-db", NodeType.Database).Node("orders-db", NodeType.Database)
@@ -584,10 +493,6 @@ public class SecurityRuleTests
     [Fact]
     public void The_scrape_does_not_take_the_door_out_of_Securitys_sight()
     {
-        // The B1 bug, one area over, and one the sweep did not catch: `Obs -> Api` took the Api
-        // out of RootNodes, the old inference found no origin at all, and every door rule went
-        // quiet - EXPOSED_DATABASE green, the other two not applicable - the moment the telemetry
-        // was wired the way NO_OBSERVABILITY asks. Origins are read over TrafficRoots now.
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api, """{"requestsPerSecond":100}""")
             .Node("Db", NodeType.Database)
@@ -601,14 +506,10 @@ public class SecurityRuleTests
         Assert.Single(new NoRateLimitRule().Evaluate(graph).Findings);
     }
 
-    // ---- V14 B6 (N12): a Service facing the outside is a door ------------------
 
     [Fact]
     public void A_bff_is_a_door_and_gets_the_doors_question_not_a_shape_error()
     {
-        // `Client -> Bff(Service) -> Db`, an ordinary BFF. The frontier walked through the
-        // service and called the database exposed, with advice to put "an API or a gateway" in
-        // front - that is, to rename the box. The right finding is the one every door gets.
         var graph = new GraphBuilder()
             .Node("Web", NodeType.Client)
             .Node("Bff", NodeType.Service)
@@ -627,8 +528,6 @@ public class SecurityRuleTests
     [Fact]
     public void A_bff_can_answer_the_question()
     {
-        // The field that closes the loop, on the type that did not have it: declared "yes"
-        // clears it, declared "no" is the Critical it has always been on an Api.
         Assert.Empty(new UnauthenticatedEntryRule().Evaluate(Bff("""{"authentication":true}""")).Findings);
 
         Assert.Equal(
@@ -639,22 +538,15 @@ public class SecurityRuleTests
     [Fact]
     public void A_bff_cannot_limit_so_its_advice_is_the_gateway()
     {
-        // NO_RATE_LIMIT asks every door. A Service has no limit to set, so the generic sentence
-        // would point at a field it does not have - the B4 mistake - and the advice is the only
-        // move it has (V13 D1.2).
         var finding = Assert.Single(new NoRateLimitRule().Evaluate(Bff("{}", rps: 100)).Findings);
 
         Assert.Equal("finding.NO_RATE_LIMIT.unlimited.suggestion.service", finding.Suggestion.Key());
     }
 
-    // ---- V14 B15: two declarations that contradict each other --------------------
 
     [Fact]
     public void A_door_that_declares_no_and_wires_an_identity_provider_is_told_to_decide()
     {
-        // QA V14 N15. "The drawing is the stronger claim" settles silence against a wire; it does
-        // not settle a declared "no" against a wire, and choosing one quietly was the analyzer
-        // making the user's decision. A Warning naming both, pointing at the door and the wire.
         var builder = Delegating("""{"authentication":false}""");
 
         var finding = Assert.Single(new UnauthenticatedEntryRule().Evaluate(builder.Build()).Findings);
@@ -677,20 +569,13 @@ public class SecurityRuleTests
     [Fact]
     public void An_undeclared_door_with_a_wired_identity_provider_is_still_the_delegation()
     {
-        // QA §3.4 unchanged: silence plus a wire is the wire.
         Assert.Empty(new UnauthenticatedEntryRule().Evaluate(Delegating("{}").Build()).Findings);
     }
 
-    // ---- V15 C1: the bucket behind the CDN is the bucket it serves ----------------
 
     [Fact]
     public void The_bucket_behind_a_cdn_is_the_bucket_it_serves()
     {
-        // T4 of the V15 sweep, the static site: `Users -> Edge -> Assets`. IMPLAUSIBLE_DEPENDENCY
-        // blesses it on purpose - ObjectStorage is in its list of what a CDN fronts, "the bucket
-        // it serves" - and this rule called it Critical with advice to put an API in front, which
-        // is the one thing nobody does to a static site. Security 85 on the cleanest drawing in
-        // the palette, and two rules saying the opposite about one arrow.
         var result = new ExposedDatabaseRule().Evaluate(StaticSite().Build());
 
         Assert.True(result.IsApplicable);
@@ -700,8 +585,6 @@ public class SecurityRuleTests
     [Fact]
     public void The_two_rules_agree_on_the_static_site()
     {
-        // The whole analyzer, so the agreement is measured and not inferred: Security scored,
-        // at 100, with neither rule saying a word against the drawing.
         var result = ReferenceArchitecture.Analyze(StaticSite().Build());
 
         Assert.Equal(AreaState.Scored, result.StateOf(Area.Security));
@@ -715,9 +598,6 @@ public class SecurityRuleTests
     [InlineData(NodeType.LoadBalancer)]
     public void The_public_bucket_of_V13_is_still_the_public_bucket(NodeType inFront)
     {
-        // The control. What tells the served bucket from the open one is the CDN, not the type:
-        // reached straight from the users, or through a balancer, the files are the incident B3
-        // taught this rule to see.
         var graph = new GraphBuilder()
             .Node("Front", inFront)
             .Node("Assets", NodeType.ObjectStorage)
@@ -733,8 +613,6 @@ public class SecurityRuleTests
     [Fact]
     public void A_direct_arrow_beside_the_cdn_is_still_the_open_bucket()
     {
-        // The exemption is about every path in, not about one of them: a CDN in front changes
-        // nothing if the users can also reach the bucket without it.
         var graph = StaticSite().Connect("Users", "Assets").Build();
 
         Assert.Single(new ExposedDatabaseRule().Evaluate(graph).Findings);
@@ -743,9 +621,6 @@ public class SecurityRuleTests
     [Fact]
     public void The_cdn_serves_files_not_rows()
     {
-        // A Database behind a CDN keeps its Critical: the rows are as reachable as they were, and
-        // the arrow is the one IMPLAUSIBLE_DEPENDENCY asserts has no innocent reading. The
-        // exemption is for what a CDN serves, and it does not serve a database.
         var graph = new GraphBuilder()
             .Node("Users", NodeType.Client)
             .Node("Edge", NodeType.Cdn)
@@ -760,8 +635,6 @@ public class SecurityRuleTests
     [Fact]
     public void The_served_bucket_can_have_a_door_that_writes_to_it()
     {
-        // The ordinary shape around a static bucket: the CDN serves it, an authenticated Api
-        // uploads to it. Neither path is the outside reaching the files bare.
         var graph = StaticSite()
             .Node("Api", NodeType.Api, """{"authentication":true}""")
             .Connect("Users", "Api")
@@ -774,8 +647,6 @@ public class SecurityRuleTests
     [Fact]
     public void Without_a_client_the_cdn_at_the_root_is_still_the_edge()
     {
-        // B6's inference: a Cdn at the root is the internet - and the bucket behind it is still
-        // the bucket it serves, not a breach.
         var graph = new GraphBuilder()
             .Node("Edge", NodeType.Cdn)
             .Node("Assets", NodeType.ObjectStorage)
@@ -795,14 +666,10 @@ public class SecurityRuleTests
         .Connect("Users", "Edge")
         .Connect("Edge", "Assets");
 
-    // ---- V15 E5: the outside reaching something that is not a door ----------------
 
     [Fact]
     public void Outside_traffic_that_finds_no_door_is_a_finding_not_a_missing_score()
     {
-        // T9 of the V15 sweep: `Client -> Cdn -> Worker` left Security *without a score*. The
-        // three rules asked only about doors, this drawing has none, and the area went quiet on
-        // the one drawing where the question mattered most - the hole symmetric to B6.
         var graph = new GraphBuilder()
             .Node("Users", NodeType.Client)
             .Node("Edge", NodeType.Cdn)
@@ -839,10 +706,10 @@ public class SecurityRuleTests
     }
 
     [Theory]
-    [InlineData(NodeType.ExternalService)]   // somebody else's origin is not yours to put a door on
-    [InlineData(NodeType.IdentityProvider)]  // the users talking to the identity provider is the protocol
-    [InlineData(NodeType.Scheduler)]         // a clock does not take a request at all
-    [InlineData(NodeType.Observability)]     // nobody's lesson, and the arrow is instrumentation
+    [InlineData(NodeType.ExternalService)]
+    [InlineData(NodeType.IdentityProvider)]
+    [InlineData(NodeType.Scheduler)]
+    [InlineData(NodeType.Observability)]
     public void What_is_not_yours_or_takes_no_traffic_is_not_asked(NodeType type)
     {
         Assert.False(new UnauthenticatedEntryRule().Evaluate(Bare(type)).IsApplicable);
@@ -853,8 +720,6 @@ public class SecurityRuleTests
     [InlineData(NodeType.ObjectStorage)]
     public void The_data_reached_bare_is_EXPOSED_DATABASEs_sentence_not_this_ones(NodeType store)
     {
-        // One node does not get the same lesson twice under two codes: a store on the frontier
-        // is the Critical EXPOSED_DATABASE has named since V4 (and since B3 for the files).
         Assert.False(new UnauthenticatedEntryRule().Evaluate(Bare(store)).IsApplicable);
         Assert.Single(new ExposedDatabaseRule().Evaluate(Bare(store)).Findings);
     }
@@ -862,8 +727,6 @@ public class SecurityRuleTests
     [Fact]
     public void The_way_in_is_not_asked_what_hangs_behind_it_is()
     {
-        // `Client -> LB -> Worker`: the balancer's function is to be reached and hand the request
-        // on; the Worker is what it hands it to with nothing asking in between.
         var builder = new GraphBuilder()
             .Node("Users", NodeType.Client)
             .Node("LB", NodeType.LoadBalancer)
@@ -882,9 +745,6 @@ public class SecurityRuleTests
     [InlineData(NodeType.Service)]
     public void Behind_a_door_the_same_box_is_where_it_lives(NodeType door)
     {
-        // The control that says the finding is about the missing door and nothing else: the same
-        // Worker behind an authenticated door is not a finding, and with nothing that holds data
-        // behind that door the rule has nothing to say at all - as before.
         var graph = new GraphBuilder()
             .Node("Users", NodeType.Client)
             .Node("Door", door, """{"authentication":true}""")
@@ -899,7 +759,6 @@ public class SecurityRuleTests
     [Fact]
     public void A_webhook_into_a_worker_is_outside_traffic_too()
     {
-        // B6's inference, without a Client drawn: a third party calling in is the internet.
         var graph = new GraphBuilder()
             .Node("Stripe", NodeType.ExternalService)
             .Node("Worker", NodeType.Worker)
@@ -914,9 +773,6 @@ public class SecurityRuleTests
     [Fact]
     public void With_data_behind_the_bare_worker_each_lesson_is_said_once()
     {
-        // `Client -> Worker -> Db`: the rows reached bare are EXPOSED_DATABASE's Critical on the
-        // store, the Worker reached bare is this rule's Warning on the Worker. Two nodes, two
-        // sentences, neither said twice: 100 - 15 - 5.
         var graph = new GraphBuilder()
             .Node("Users", NodeType.Client)
             .Node("Worker", NodeType.Worker)
@@ -935,11 +791,6 @@ public class SecurityRuleTests
     [Fact]
     public void The_walk_does_not_enter_through_the_instrumentation()
     {
-        // B9's doctrine, on the one walk that had not read it. An edge cache logging to the
-        // telemetry, and the telemetry scraping a worker that lives behind the door, is not the
-        // outside reaching the worker. Before V15 the walk followed the cable and nothing waited at
-        // the other end of it; with this finding there, following it would have cost a point for
-        // wiring the telemetry - the one thing the analyzer promises never to do.
         var graph = new GraphBuilder()
             .Node("Users", NodeType.Client)
             .Node("Edge", NodeType.Cdn)
@@ -956,7 +807,6 @@ public class SecurityRuleTests
         Assert.False(new UnauthenticatedEntryRule().Evaluate(graph).IsApplicable);
     }
 
-    /// <summary>The users pointing straight at one box of the given type, and nothing else.</summary>
     private static ArchitectureGraph Bare(NodeType type) => new GraphBuilder()
         .Node("Users", NodeType.Client)
         .Node("Box", type)
@@ -996,16 +846,12 @@ public class NoObservabilityRuleTests
     [Fact]
     public void Every_component_nobody_watches_is_a_finding()
     {
-        // QA §4, coverage. Nothing watching used to be one Warning; it is now one per component
-        // that is yours to watch, which is what lets the area climb as the wiring does.
         var findings = new NoObservabilityRule().Evaluate(Base().Build()).Findings;
 
         Assert.Equal(2, findings.Count);
         Assert.All(findings, f => Assert.Equal("finding.NO_OBSERVABILITY.unobserved.message", f.Message.Key()));
         Assert.Equal(["Api", "Db"], findings.Select(f => f.Message.Arg("node")));
 
-        // With no telemetry on the canvas the advice starts with adding it, and there is nothing
-        // to offer a button for.
         Assert.All(findings, f => Assert.Equal("finding.NO_OBSERVABILITY.unobserved.suggestion.absent", f.Suggestion.Key()));
         Assert.All(findings, f => Assert.Null(f.Fix));
     }
@@ -1013,9 +859,6 @@ public class NoObservabilityRuleTests
     [Fact]
     public void Wiring_one_component_clears_that_component_and_no_other()
     {
-        // The chain D5.3 had to walk whole: without a component there is no rule, and without a
-        // rule the area stays empty. This is the far end of it - and the grain QA §4 gave it: the
-        // Api is watched, the database is not, and the card says which.
         var graph = Base()
             .Node("Telemetry", NodeType.Observability)
             .Connect("Api", "Telemetry", synchronous: false)
@@ -1026,7 +869,6 @@ public class NoObservabilityRuleTests
         Assert.Equal("Db", finding.Message.Arg("node"));
         Assert.Equal("finding.NO_OBSERVABILITY.unobserved.suggestion.present(node=Db, telemetry=Telemetry)", finding.Suggestion.Describe());
 
-        // D5.6: with exactly one telemetry box there is nothing to decide, so the card has a button.
         Assert.NotNull(finding.Fix);
         Assert.Equal(FixKinds.ConnectTo, finding.Fix!.Kind);
         Assert.Equal(graph.NodeId("Db"), finding.Fix.Element.Id);
@@ -1036,7 +878,6 @@ public class NoObservabilityRuleTests
     [Fact]
     public void Either_direction_counts_as_watching()
     {
-        // Telemetry scraping the database and the Api pushing to the telemetry are both wiring.
         var graph = Base()
             .Node("Telemetry", NodeType.Observability)
             .Connect("Api", "Telemetry", synchronous: false)
@@ -1077,8 +918,6 @@ public class NoObservabilityRuleTests
     [Fact]
     public void What_is_not_yours_to_instrument_is_not_asked_for()
     {
-        // The outside, a third party and the CDN: the same three the analyzer declines to size or
-        // to replicate, for the same reason. The orphan box is ORPHAN_NODE's.
         var graph = new GraphBuilder()
             .Node("Web", NodeType.Client)
             .Node("Edge", NodeType.Cdn)
@@ -1101,9 +940,6 @@ public class NoObservabilityRuleTests
     [Fact]
     public void Wiring_the_telemetry_costs_nothing_in_the_structural_rules()
     {
-        // The rule asks for one wire per component; HIGH_COUPLING, MISSING_CACHE and
-        // QUEUE_NO_CONSUMER must not charge for any of them - or for the telemetry's own fan-out.
-        // Three dependencies on the Api - two services and the queue - one under the bar of four.
         var bare = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Nodes(NodeType.Service, "A", "B")
@@ -1127,15 +963,11 @@ public class NoObservabilityRuleTests
             .Connect("Telemetry", "Db")
             .Connect("Cola", "Telemetry", synchronous: false);
 
-        // The Api has three dependencies in both drawings: the fourth edge is instrumentation,
-        // and the telemetry's own four edges are its job.
         Assert.Empty(new HighCouplingRule().Evaluate(bare.Build()).Findings);
         Assert.Empty(new HighCouplingRule().Evaluate(wired.Build()).Findings);
 
-        // The telemetry reading the database is not a reader that wants a cache.
         Assert.Empty(new MissingCacheRule().Evaluate(wired.Build()).Findings);
 
-        // And the telemetry watching the queue is not draining it.
         Assert.Single(new QueueNoConsumerRule().Evaluate(bare.Build()).Findings);
         Assert.Single(new QueueNoConsumerRule().Evaluate(wired.Build()).Findings);
     }

@@ -4,10 +4,6 @@ using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Configuration;
 
-/// <summary>
-/// V14 B14. The table, row by row: every floor, the one ceiling, and the meaning of each - zero
-/// instances is none, zero replicas is a declaration, a ratio is a ratio.
-/// </summary>
 public class ConfigurationRangesTests
 {
     public static TheoryData<string, object> OutOfRange => new()
@@ -65,8 +61,6 @@ public class ConfigurationRangesTests
     [Fact]
     public void Undeclared_is_not_out_of_range()
     {
-        // Absent is "nobody said" everywhere in the schema (V4 DT.6, V13 D2.1), and a guard that
-        // rejected silence would reject every diagram drawn before the field existed.
         Assert.Null(ConfigurationRanges.Violation(new ApiConfiguration()));
         Assert.Null(ConfigurationRanges.Violation(new ResilienceConfiguration()));
         Assert.Null(ConfigurationRanges.Violation(new ExternalServiceConfiguration()));
@@ -75,7 +69,6 @@ public class ConfigurationRangesTests
     [Fact]
     public void The_first_violation_is_the_one_reported()
     {
-        // One sentence per 400, in field order - the same shape the edge's guards had since V2.
         Assert.Equal(
             "instances must be 1 or greater.",
             ConfigurationRanges.Violation(new ApiConfiguration { Instances = 0, RequestsPerSecond = -1 }));

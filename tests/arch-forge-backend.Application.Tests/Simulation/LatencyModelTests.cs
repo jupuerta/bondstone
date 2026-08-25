@@ -5,19 +5,6 @@ using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Simulation;
 
-/// <summary>
-/// V16 Anexo B. The bug this file exists for was not a wrong number: it was a number nobody chose.
-///
-/// <see cref="LatencyModel.Processing"/> listed fifteen of the sixteen node types, so a
-/// <see cref="NodeType.Topic"/> fell through <c>_ =&gt; Service</c> and cost 10 ms — five times its
-/// twin the <see cref="NodeType.Queue"/>, which <see cref="CapacityModel"/> says in as many words is
-/// the same broker hardware. Nothing was broken and nothing failed; the switch simply had a default
-/// and the enum grew past it, and a default is exactly the shape a decision does not have.
-///
-/// So what is asserted here is <strong>totality</strong>, not values. Every type must own a named
-/// constant and the switch must return it, which means the seventeenth type cannot be given a
-/// latency by accident: it either gets a figure somebody wrote down, or this fails.
-/// </summary>
 public class LatencyModelTests
 {
     [Fact]
@@ -39,7 +26,6 @@ public class LatencyModelTests
     [Fact]
     public void Every_protocol_has_a_hop_somebody_chose()
     {
-        // The same default sits under Hop(). Three protocols today, and the fourth is when it bites.
         foreach (var protocol in Enum.GetValues<ProtocolType>())
         {
             var chosen = ConstantOf(protocol.ToString());
@@ -52,9 +38,6 @@ public class LatencyModelTests
     [Fact]
     public void A_topic_costs_what_a_queue_costs()
     {
-        // V14 §3.1, which CapacityModel already applies to the same pair: same broker, and what
-        // differs is what it does with the fan-out. Written as the equality it is rather than as
-        // "2", so the two can never be given different answers to the same question.
         Assert.Equal(LatencyModel.Queue, LatencyModel.Topic);
         Assert.Equal(CapacityModel.Queue, CapacityModel.Topic);
     }

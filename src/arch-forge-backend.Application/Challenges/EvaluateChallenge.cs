@@ -10,11 +10,6 @@ public class EvaluateChallengeQuery
     public string ShareToken { get; set; } = string.Empty;
 }
 
-/// <summary>
-/// V4 D1.2 and D3.4. A query, like <c>/analyze</c> and <c>/simulate</c> and for the same reason:
-/// it persists nothing. Whether a challenge is passed is a function of a saved architecture and a
-/// definition in the repo, so storing it would only create something that can go stale (D1.4).
-/// </summary>
 public class EvaluateChallengeQueryHandler
 {
     private readonly IArchitectureRepository _repository;
@@ -47,13 +42,6 @@ public class EvaluateChallengeQueryHandler
         return Evaluate(definition, () => new ArchitectureGraph(architecture.Nodes, architecture.Connections));
     }
 
-    /// <summary>
-    /// Takes a factory rather than a graph so <strong>every engine gets its own</strong>. The
-    /// analyzer publishes into <see cref="ArchitectureGraph.Facts"/> as it runs, and V3 D5.2 is
-    /// explicit that a simulation must not depend on which rules happen to have run - handing the
-    /// same instance to both would make that invariant a matter of trust instead of construction.
-    /// The tests reuse this entry point, which is why it is not private.
-    /// </summary>
     public ChallengeResult Evaluate(ChallengeDefinition definition, Func<ArchitectureGraph> graph)
     {
         var analysis = _analyzer.Analyze(graph());

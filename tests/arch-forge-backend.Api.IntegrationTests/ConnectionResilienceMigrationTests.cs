@@ -8,12 +8,6 @@ using Xunit;
 
 namespace arch_forge_backend.Api.IntegrationTests;
 
-/// <summary>
-/// The one irreversible step of V2: <c>MoveConnectionResilienceToJsonb</c> drops two columns.
-/// Scaffolding put the drops first, which would have thrown away the resilience configuration of
-/// everything already stored (V2 plan técnico §4), and an empty database cannot tell the two
-/// orders apart - so this runs the migration over rows that actually have data.
-/// </summary>
 public class ConnectionResilienceMigrationTests : IAsyncLifetime
 {
     private const string MigrationBeforeTheMove = "20260810145852_EnforceConfigurationNotNullAndVersionDefault";
@@ -67,13 +61,10 @@ public class ConnectionResilienceMigrationTests : IAsyncLifetime
         var configured = await ReadConfigurationAsync(configuredId);
         var bare = await ReadConfigurationAsync(bareId);
 
-        // The values survive the drop of the two columns...
         Assert.Contains("\"timeoutSeconds\": 5", configured);
         Assert.Contains("\"retries\": 2", configured);
         Assert.Contains("\"circuitBreaker\": false", configured);
 
-        // ...and an edge that had nothing configured keeps "nothing", instead of gaining a null
-        // timeout that every rule would then have to distinguish from an absent one.
         Assert.DoesNotContain("timeoutSeconds", bare);
         Assert.Contains("\"fallback\": false", bare);
     }

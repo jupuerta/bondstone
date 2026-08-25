@@ -17,7 +17,6 @@ public class SyncDependencyChainRuleTests
     [Fact]
     public void ThreeComponentChain_IsAWarning()
     {
-        // ArchForge_decisiones_arquitectura_V1_1.md §3.1: API -> Orders -> Payments is length 3.
         _builder
             .Nodes(default, "API", "Orders", "Payments")
             .Connect("API", "Orders")
@@ -34,7 +33,6 @@ public class SyncDependencyChainRuleTests
     [Fact]
     public void FiveComponentChain_EscalatesToCritical()
     {
-        // The cut at 5 is the literal example of §8.1 of the ideas document (D4.2).
         _builder.Nodes(default, "A", "B", "C", "D", "E")
             .Connect("A", "B").Connect("B", "C").Connect("C", "D").Connect("D", "E");
 
@@ -58,7 +56,6 @@ public class SyncDependencyChainRuleTests
     [Fact]
     public void Chain_ElementsInterleaveTheWalk()
     {
-        // D2.2: node, edge, node, edge... so the canvas highlights by iterating.
         _builder.Nodes(default, "A", "B", "C")
             .Connect("A", "B").Connect("B", "C");
 
@@ -82,7 +79,6 @@ public class SyncDependencyChainRuleTests
     [Fact]
     public void AsynchronousHopBreaksTheChain()
     {
-        // A long asynchronous chain is not a problem - it is what the analyzer recommends.
         _builder.Nodes(default, "A", "B", "C", "D")
             .Connect("A", "B")
             .Connect("B", "C", synchronous: false)
@@ -94,8 +90,6 @@ public class SyncDependencyChainRuleTests
     [Fact]
     public void EdgesInACycle_AreExcludedFromTheChain()
     {
-        // D4.5: a cycle is already reported as a cycle. Without excluding those edges it would be
-        // reported again as a chain, and the walk would not even be over a DAG (D5.4).
         _builder.Nodes(default, "A", "B", "C")
             .Connect("A", "B").Connect("B", "C").Connect("C", "A");
 
@@ -126,9 +120,6 @@ public class SyncDependencyChainRuleTests
     [Fact]
     public void DiamondGraph_IsWalkedOnceNotOncePerPath()
     {
-        // The shape that made V1's backtracking blow up: every diamond doubles the number of
-        // paths. Twenty-four of them in a row is over sixteen million walks the old way, and
-        // seventy-three nodes visited once this way (D5.4).
         _builder.Node("Start");
         for (var i = 0; i < 24; i++)
         {
@@ -164,14 +155,10 @@ public class SyncDependencyChainRuleTests
         Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
     }
 
-    // ---- V14 B3: the chain is measured in logic, not in boxes ----------------
 
     [Fact]
     public void TheCanonicalReadPath_IsNotAChain()
     {
-        // T8: the read path of every layered web application, protected on every hop. It came out
-        // a *Critical* of six components advising a queue in the middle of a read - which you
-        // cannot do. Two of those six run logic; the other four are the layers the call crosses.
         _builder
             .Node("Web", NodeType.Client).Node("Edge", NodeType.Cdn).Node("Gw", NodeType.Gateway)
             .Node("Api", NodeType.Api).Node("Svc", NodeType.Service)
@@ -185,8 +172,6 @@ public class SyncDependencyChainRuleTests
     [Fact]
     public void TheCalibrationExample_StillCountsThree()
     {
-        // The sentence the threshold was set on in V1, and the one that must not move: three places
-        // where business logic runs is a chain of three, with or without the palette around it.
         _builder
             .Node("Api", NodeType.Api).Nodes(NodeType.Service, "Orders", "Payments")
             .Connect("Api", "Orders").Connect("Orders", "Payments");
@@ -194,8 +179,6 @@ public class SyncDependencyChainRuleTests
         var bare = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
         Assert.Equal("finding.SYNC_CHAIN.long.message(count=3, node=Api)", bare.Message.Describe());
 
-        // And it stays three when the same three are drawn inside a realistic diagram. This is the
-        // whole of B3 in one assertion: the layers around the chain are not links of it.
         var layered = new GraphBuilder()
             .Node("Edge", NodeType.Cdn).Node("Gw", NodeType.Gateway)
             .Node("Api", NodeType.Api).Nodes(NodeType.Service, "Orders", "Payments")
@@ -212,8 +195,6 @@ public class SyncDependencyChainRuleTests
     [Fact]
     public void TheFindingStartsAtTheFirstComponentItCounts()
     {
-        // Naming the load balancer as the head of a chain of services it is not one of was the same
-        // confusion said out loud, and it is what the highlighted walk starts from too.
         _builder
             .Node("LB", NodeType.LoadBalancer)
             .Node("Api", NodeType.Api).Nodes(NodeType.Service, "Orders", "Payments")
@@ -229,8 +210,6 @@ public class SyncDependencyChainRuleTests
     [Fact]
     public void TwoDoorsIntoTheSameChain_AreOneFinding()
     {
-        // Consequence of starting at the first component counted: without the guard, two gateways
-        // in front of the same chain reported it twice, identically.
         _builder
             .Nodes(NodeType.Gateway, "Gw1", "Gw2")
             .Node("Api", NodeType.Api).Nodes(NodeType.Service, "Orders", "Payments")
@@ -243,8 +222,6 @@ public class SyncDependencyChainRuleTests
     [Fact]
     public void AChainOfInfrastructureAlone_IsNeverAChain()
     {
-        // The degenerate end of the same argument: five layers in a row and nothing that decides
-        // anything. There is no chain of calls here, there is one call crossing five things.
         _builder
             .Node("Edge", NodeType.Cdn).Node("Gw", NodeType.Gateway).Node("LB", NodeType.LoadBalancer)
             .Node("Cache", NodeType.Cache).Node("Db", NodeType.Database)
@@ -256,9 +233,6 @@ public class SyncDependencyChainRuleTests
     [Fact]
     public void SomebodyElsesServiceIsALinkLikeAnyOther()
     {
-        // An ExternalService and an IdentityProvider are a hop out of your process however they are
-        // drawn, so they count - which is the other half of the distinction, and the reason it is
-        // not "components I deployed".
         _builder
             .Node("Api", NodeType.Api)
             .Node("Auth", NodeType.IdentityProvider)
@@ -273,8 +247,6 @@ public class SyncDependencyChainRuleTests
     [Fact]
     public void AProvidersOwnHop_IsNotALinkOfYourChain()
     {
-        // V14 B10. `Api -> Stripe -> Maps` is a chain of two from where this architect stands;
-        // what Stripe does with the call is Stripe's chain. It used to count three and warn.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Stripe", NodeType.ExternalService)
@@ -284,14 +256,10 @@ public class SyncDependencyChainRuleTests
         Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
     }
 
-    // ---- V14 B9: instrumentation is not a link either -------------------------
 
     [Fact]
     public void TheTelemetryDoesNotJoinTwoChainsIntoOne()
     {
-        // What skipping instrumentation buys this rule now that B3 counts logic: two short chains
-        // that only meet at the metrics sink - the services push, the collector scrapes - were read
-        // as one chain of four and warned about. Neither half waits on the other.
         _builder
             .Nodes(NodeType.Service, "A", "B", "C", "D")
             .Node("Obs", NodeType.Observability)
@@ -304,8 +272,6 @@ public class SyncDependencyChainRuleTests
     [Fact]
     public void InstrumentingAChain_ChangesNothingAboutIt()
     {
-        // And the durable form: the same three services, with and without telemetry all over them,
-        // produce the same finding down to the sentence.
         var bare = new GraphBuilder()
             .Node("Api", NodeType.Api).Nodes(NodeType.Service, "Orders", "Payments")
             .Connect("Api", "Orders").Connect("Orders", "Payments");
@@ -321,15 +287,10 @@ public class SyncDependencyChainRuleTests
             _rule.Evaluate(observed.Build()).Findings.Single().Message.Describe());
     }
 
-    // ---- V15 E1: a chain that ends in a read is not told to queue it -------------
 
     [Fact]
     public void AChainThatEndsInARead_IsNotToldToCutItWithAQueue()
     {
-        // S10b of the V15 pass: `Api -> B -> C -> Db` over Sql, nothing declared on the last hop.
-        // V14 B3 stopped counting the store at the end; the advice went on saying "introduce a
-        // queue", and you cannot queue a read - the request is waiting for what the store holds.
-        // The count, the head, the severity and the walk do not move. Only the sentence does.
         _builder
             .Node("Api", NodeType.Api).Nodes(NodeType.Service, "B", "C").Node("Db", NodeType.Database)
             .Connect("Api", "B").Connect("B", "C").Connect("C", "Db", protocol: ProtocolType.Sql);
@@ -346,9 +307,6 @@ public class SyncDependencyChainRuleTests
     [Fact]
     public void DeclaringTheLastHopAWrite_BringsTheQueueBack()
     {
-        // The negative control, and the way out the read variant names. A write path can be cut
-        // where the caller stops needing the answer, so the declaration is what changes the advice
-        // - the same field, read with the same default, as MISSING_CACHE.
         _builder
             .Node("Api", NodeType.Api).Nodes(NodeType.Service, "B", "C").Node("Db", NodeType.Database)
             .Connect("Api", "B").Connect("B", "C").Connect("C", "Db", protocol: ProtocolType.Sql, access: "write");
@@ -361,8 +319,6 @@ public class SyncDependencyChainRuleTests
     [Fact]
     public void AChainOfServices_KeepsTheQueueAdvice()
     {
-        // The V1 calibration example ends in a service, and there the queue is the lesson - the
-        // variant is for the store at the end, not for every chain.
         _builder
             .Node("Api", NodeType.Api).Nodes(NodeType.Service, "Orders", "Payments")
             .Connect("Api", "Orders").Connect("Orders", "Payments");
@@ -380,8 +336,6 @@ public class SyncDependencyChainRuleTests
     [InlineData(NodeType.ExternalService, false)]
     public void WhatEndsTheChain_DecidesTheVariant(NodeType tail, bool read)
     {
-        // Where state lives (NodeRoles.IsDataStore): a bucket or a cache at the end is a read like
-        // any other. A service or a third party at the end is one more link, and the queue stands.
         _builder
             .Node("Api", NodeType.Api).Nodes(NodeType.Service, "B", "C").Node("End", tail)
             .Connect("Api", "B").Connect("B", "C").Connect("C", "End");
@@ -396,8 +350,6 @@ public class SyncDependencyChainRuleTests
     [Fact]
     public void AReadThroughACache_IsStillARead()
     {
-        // The layered shape of B3: the walk crosses the cache and ends at the store, and the hop
-        // that decides is the last one, into the store.
         _builder
             .Node("Api", NodeType.Api).Nodes(NodeType.Service, "B", "C")
             .Node("Cache", NodeType.Cache).Node("Db", NodeType.Database)
@@ -412,10 +364,6 @@ public class SyncDependencyChainRuleTests
     [Fact]
     public void WorstCase_IsToldToShortenItsChainNotToQueueIt()
     {
-        // The reference that carries a SYNC_CHAIN: `Orders -> Shipping -> Notifications -> Db`,
-        // nothing declared on the last hop. The worst architecture of the suite ends its chain in
-        // the schema four services share, so what it is told is to shorten the path - and its
-        // exported document changes this one sentence when the recordings are regenerated.
         var finding = ReferenceArchitecture.Analyze("worst-case").Findings
             .Single(f => f.Code == RuleCodes.SyncChain && f.Severity != Severity.Good);
 

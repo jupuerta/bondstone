@@ -5,19 +5,6 @@ using arch_forge_backend.Application.Simulation;
 
 namespace arch_forge_backend.Application.Challenges;
 
-/// <summary>
-/// V4 D1.5. Loads every challenge definition and its two blueprints once, at startup, and
-/// <strong>refuses to start if any of them is malformed</strong>.
-///
-/// Failing loudly at boot rather than at evaluation time is the whole point of the catalogue being
-/// a closed one: a kind that does not exist, a metric that is not in
-/// <see cref="RequirementMetrics"/>, a starter that wires an edge to a node nobody declared - all
-/// of those are mistakes made while writing content, and the person who can fix them is looking at
-/// a deploy, not at a challenge that mysteriously cannot be passed.
-///
-/// The files are embedded resources rather than copied content: a definition that is missing at
-/// runtime is not a state this class should be able to reach.
-/// </summary>
 public sealed class ChallengeCatalog
 {
     private const string Prefix = "arch_forge_backend.Application.Challenges.Definitions.";
@@ -53,12 +40,6 @@ public sealed class ChallengeCatalog
         _bySlug = loaded.ToDictionary(c => c.Definition.Slug, StringComparer.Ordinal);
     }
 
-    /// <summary>
-    /// V8 §6.5. Ordered as an itinerary - difficulty band first, then the author's <c>order</c>
-    /// inside the band, then the slug so two deploys never disagree. It used to be by slug alone,
-    /// which with four challenges was arbitrary and harmless and with fourteen puts the advanced
-    /// one first.
-    /// </summary>
     public IReadOnlyList<ChallengeDefinition> All =>
         _bySlug.Values.Select(c => c.Definition)
             .OrderBy(d => Difficulties.Rank(d.Difficulty))
@@ -72,15 +53,9 @@ public sealed class ChallengeCatalog
     public ArchitectureBlueprint? StarterOf(string slug) =>
         _bySlug.TryGetValue(slug, out var loaded) ? loaded.Starter : null;
 
-    /// <summary>
-    /// The regression net of D3.5 - the tests evaluate it on every build - and, since it is handed
-    /// to whoever passes the challenge (<see cref="OpenChallengeSolutionCommandHandler"/>), the one
-    /// piece of content that is verified to work before anybody reads it.
-    /// </summary>
     public ArchitectureBlueprint? ReferenceSolutionOf(string slug) =>
         _bySlug.TryGetValue(slug, out var loaded) ? loaded.Solution : null;
 
-    // ------------------------------------------------------------------------
 
     private static void Validate(ChallengeDefinition definition, ArchitectureBlueprint starter, ArchitectureBlueprint solution)
     {
@@ -103,8 +78,6 @@ public sealed class ChallengeCatalog
         foreach (var requirement in definition.Requirements.Concat(definition.OptionalGoals))
             Validate(definition.Slug, requirement);
 
-        // D3.2: three scenarios per challenge, counted here and not at run time. Requirements
-        // sharing a scenario share one simulation, so what is capped is distinct scenarios.
         var scenarios = definition.Requirements.Concat(definition.OptionalGoals)
             .Where(r => r.Kind == RequirementKinds.UnderScenario)
             .Select(r => ScenarioKey(r.Faults!))
@@ -146,8 +119,6 @@ public sealed class ChallengeCatalog
                 break;
 
             case RequirementKinds.MaxInstances:
-                // No nodeType means every component, which is how "nothing is scaled out" is said
-                // in one line instead of ten.
                 Require(requirement.Max is >= 1, "needs a max of 1 or more");
                 break;
 
@@ -185,9 +156,6 @@ public sealed class ChallengeCatalog
                 break;
 
             case RequirementKinds.UnderScenario:
-                // An empty list is allowed and means the architecture as it stands, under its
-                // declared load: V3 D2.1 already settled that the empty scenario is a valid
-                // scenario, and a latency budget is asked without breaking anything.
                 Require(requirement.Faults is not null, "needs a list of faults, even an empty one");
                 Require(requirement.Metric is not null && RequirementMetrics.IsKnown(requirement.Metric),
                     "needs a known metric");
@@ -235,5 +203,4 @@ public sealed class ChallengeCatalog
         ArchitectureBlueprint Solution);
 }
 
-/// <summary>Thrown while the catalogue loads, which means at startup. It is never an HTTP status.</summary>
 public sealed class InvalidChallengeDefinitionException(string message) : Exception(message);

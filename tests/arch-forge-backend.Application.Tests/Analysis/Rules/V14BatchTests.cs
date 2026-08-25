@@ -10,16 +10,6 @@ using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Analysis.Rules;
 
-/// <summary>
-/// V14 B13. "You are not watching this box" and "you cannot see anything" are different claims,
-/// and with one Warning-only rule in the area the second one could never cost more than fifteen
-/// points: total blindness read "aceptable".
-///
-/// V15 D2. And they are two <em>findings</em> now, not one finding in two colours. B13 made the
-/// second claim by turning every instance of the first into a Critical, which handed Observability
-/// the biggest hammer in the analyzer and made its colour depend on counting boxes. The blind
-/// system is one Critical, said once; every unobserved box is the Warning it always was.
-/// </summary>
 public class ObservabilityFloorTests
 {
     private readonly NoObservabilityRule _rule = new();
@@ -27,8 +17,6 @@ public class ObservabilityFloorTests
     [Fact]
     public void TotalBlindness_OnARealDiagram_IsOneCriticalAndAWarningPerBox()
     {
-        // Flipped for V15 D2: three Criticals until then, one now. The Critical is about the
-        // system and points at every box in it; the three Warnings are the coverage, box by box.
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Svc", NodeType.Service).Node("Db", NodeType.Database)
             .Connect("Api", "Svc").Connect("Svc", "Db", protocol: ProtocolType.Sql)
@@ -50,10 +38,6 @@ public class ObservabilityFloorTests
     [Fact]
     public void TheColourOfTheArea_DoesNotDependOnCountingBoxes()
     {
-        // The V15 sweep's example: an Api behind a balancer, then the same Api split into two
-        // replicas. Until D2 the first ran blind as two Warnings and the second as three Criticals
-        // - Observability turned red without one wire changing. Now the split adds one Warning,
-        // which is one more box nobody watches, and nothing changes colour.
         static GraphBuilder Behind(params string[] apis)
         {
             var b = new GraphBuilder().Node("Web", NodeType.Client).Node("LB", NodeType.LoadBalancer)
@@ -67,11 +51,9 @@ public class ObservabilityFloorTests
         var one = _rule.Evaluate(Behind("Api").Build()).Findings;
         var two = _rule.Evaluate(Behind("Api1", "Api2").Build()).Findings;
 
-        // Three observables either way (the balancer counts), so both are blind: one Critical each.
         Assert.Single(one, f => f.Severity == Severity.Critical);
         Assert.Single(two, f => f.Severity == Severity.Critical);
 
-        // And the split costs exactly one more Warning - the box it added.
         Assert.Equal(3, one.Count(f => f.Severity == Severity.Warning));
         Assert.Equal(4, two.Count(f => f.Severity == Severity.Warning));
     }
@@ -79,8 +61,6 @@ public class ObservabilityFloorTests
     [Fact]
     public void OneWire_LiftsTheBlindnessAndLeavesTheHomework()
     {
-        // The moment anything is watching, the system can be seen: the Critical goes, and what is
-        // left is one Warning per box still running unobserved.
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Svc", NodeType.Service).Node("Db", NodeType.Database)
             .Node("Obs", NodeType.Observability)
@@ -97,10 +77,6 @@ public class ObservabilityFloorTests
     [Fact]
     public void ATelemetryBoxNothingReaches_DoesNotLiftTheBlindness()
     {
-        // V15 D2 closes the hole B13 left: "blind" used to be "no telemetry box on the canvas", so
-        // dragging one in and wiring it to nothing turned every Critical back into a Warning. An
-        // observability component with no wire into it observes nothing (QA B5, one step on), and
-        // the card says so by name.
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Svc", NodeType.Service).Node("Db", NodeType.Database)
             .Node("Obs", NodeType.Observability)
@@ -117,9 +93,6 @@ public class ObservabilityFloorTests
     [Fact]
     public void TwoBoxes_AreASketchAndKeepTheWarning()
     {
-        // Below three observables the diagram is a sketch (the SYNC_CHAIN threshold, which since
-        // V15 D1 is also where the client stops labelling the score), and a sketch with no
-        // telemetry is homework, not an incident - minimal-api-db must not open red.
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Db", NodeType.Database)
             .Connect("Api", "Db", protocol: ProtocolType.Sql)
@@ -134,9 +107,6 @@ public class ObservabilityFloorTests
     [Fact]
     public void WhatTotalBlindnessCosts_GrowsWithTheSystem()
     {
-        // The numbers of the class summary, pinned: 15 for the Critical, 2,5 per unobserved box,
-        // the cap of 45 from twelve boxes. A bigger blind system pays more - which is what coverage
-        // means - and the floor B13 set stays where it was, at 55.
         static int Blind(int services)
         {
             var b = new GraphBuilder().Node("Gw", NodeType.Gateway);
@@ -145,17 +115,15 @@ public class ObservabilityFloorTests
             return ReferenceArchitecture.Analyze(b.Build()).ScoreOf(Area.Observability)!.Value;
         }
 
-        Assert.Equal(78, Blind(3));    // 100 - (15 + 3 × 2,5) = 77,5 -> 78
-        Assert.Equal(60, Blind(10));   // 100 - (15 + 10 × 2,5) = 60
-        Assert.Equal(55, Blind(12));   // 15 + 12 × 2,5 = 45, the cap
-        Assert.Equal(55, Blind(20));   // still the cap
+        Assert.Equal(78, Blind(3));
+        Assert.Equal(60, Blind(10));
+        Assert.Equal(55, Blind(12));
+        Assert.Equal(55, Blind(20));
     }
 
     [Fact]
     public void TheIdentityProvider_IsNotYoursToWatch()
     {
-        // V14 B12 (observación). Auth0 is somebody else's service: you neither wire it to your
-        // telemetry nor give it instances - the same third group as ExternalService and the Cdn.
         var graph = new GraphBuilder()
             .Node("Gw", NodeType.Gateway).Node("Auth", NodeType.IdentityProvider).Node("Db", NodeType.Database)
             .Node("Obs", NodeType.Observability)
@@ -169,11 +137,6 @@ public class ObservabilityFloorTests
     }
 }
 
-/// <summary>
-/// V14 §4.3. C4 in the sweep: a Client declaring a million rps in front of a rate limit of 100,
-/// and everything behind the door came out perfect - the limit had converted "your system cannot
-/// serve your users" into "your system is healthy".
-/// </summary>
 public class TrafficRejectedRuleTests
 {
     private readonly TrafficRejectedRule _rule = new();
@@ -193,7 +156,6 @@ public class TrafficRejectedRuleTests
         Assert.Equal(Severity.Critical, finding.Severity);
         Assert.Equal(Area.Availability, finding.Area);
         Assert.Equal("finding.TRAFFIC_REJECTED.shedding.message", finding.Message.Key());
-        // The two figures travel raw so the card can be redone by hand.
         Assert.Equal("1000000", finding.Explanation.Arg("demandRps"));
         Assert.Equal("100", finding.Explanation.Arg("admittedRps"));
     }
@@ -201,15 +163,12 @@ public class TrafficRejectedRuleTests
     [Fact]
     public void StandingInForCapacity_IsAWarning()
     {
-        // 1000 declared, 300 admitted: 70 % turned away - the limit is no longer shedding a peak.
         Assert.Equal(Severity.Warning, Assert.Single(_rule.Evaluate(Door(1_000, 300)).Findings).Severity);
     }
 
     [Fact]
     public void SheddingAPeak_IsTheLimitDoingItsJob()
     {
-        // 40 % over capacity rejected at the door is what NO_RATE_LIMIT asks the door to be able
-        // to do; flagging it would be the two rules contradicting each other.
         var result = _rule.Evaluate(Door(500, 300));
 
         Assert.True(result.IsApplicable);
@@ -237,7 +196,6 @@ public class TrafficRejectedRuleTests
     }
 }
 
-/// <summary>V14 §4.3, the debt of §3.3: the rule that justifies the Cdn type (V2 D3.2).</summary>
 public class MissingCdnRuleTests
 {
     private readonly MissingCdnRule _rule = new();
@@ -262,8 +220,6 @@ public class MissingCdnRuleTests
     [Fact]
     public void ACdnInFront_IsTheAnswer_TwiceOver()
     {
-        // With its default hit ratio the CDN absorbs enough that the door drops below the
-        // threshold - the load model answers before the rule has to look.
         var absorbing = new GraphBuilder()
             .Node("Web", NodeType.Client, """{"requestsPerSecond":2000}""")
             .Node("Edge", NodeType.Cdn)
@@ -273,8 +229,6 @@ public class MissingCdnRuleTests
 
         Assert.False(_rule.Evaluate(absorbing).IsApplicable);
 
-        // And when everything misses, the door is still busy - and still clean, because the rule
-        // asks whether the edge exists, not whether it is performing today.
         var missing = new GraphBuilder()
             .Node("Web", NodeType.Client, """{"requestsPerSecond":2000}""")
             .Node("Edge", NodeType.Cdn, """{"hitRatio":0}""")
@@ -291,8 +245,6 @@ public class MissingCdnRuleTests
     [Fact]
     public void ModestTraffic_IsNobodysScolding()
     {
-        // Below the threshold one door handles it and a CDN is an optimisation. Not applicable
-        // rather than passed: nothing was checked.
         var graph = new GraphBuilder()
             .Node("Web", NodeType.Client, """{"requestsPerSecond":300}""")
             .Node("Gw", NodeType.Gateway)
@@ -303,14 +255,11 @@ public class MissingCdnRuleTests
     }
 }
 
-/// <summary>V14 §4.2. What the call does with the data changes what the rules may say about it.</summary>
 public class EdgeAccessTests
 {
     [Fact]
     public void ADeclaredWrite_DoesNotWantACache()
     {
-        // T11: an Api and a Worker both writing. "Put a cache in front" was the advice, and a
-        // cache answers reads - there is nothing of these calls it could absorb.
         var writers = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Worker", NodeType.Worker).Node("Db", NodeType.Database)
             .Connect("Api", "Db", protocol: ProtocolType.Sql, access: "write")
@@ -323,7 +272,6 @@ public class EdgeAccessTests
     [Fact]
     public void UndeclaredEdges_StillCount()
     {
-        // Absent means both (DT.6): every edge drawn before v7 behaves exactly as it did.
         var undeclared = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Svc", NodeType.Service).Node("Db", NodeType.Database)
             .Connect("Api", "Db", protocol: ProtocolType.Sql)
@@ -336,8 +284,6 @@ public class EdgeAccessTests
     [Fact]
     public void DeclaredWriters_GetTheRealSentence()
     {
-        // The sentence SHARED_DATABASE always wanted to say - two services *writing* one schema -
-        // said only when the drawing declares it, never guessed from the default.
         var declared = new GraphBuilder()
             .Node("Users", NodeType.Service).Node("Orders", NodeType.Service).Node("Db", NodeType.Database)
             .Connect("Users", "Db", protocol: ProtocolType.Sql, access: "write")
@@ -358,17 +304,11 @@ public class EdgeAccessTests
     }
 }
 
-/// <summary>
-/// V14 §3.1. Publish-subscribe beside point-to-point: every subscriber gets a copy where a
-/// queue's consumers compete - the difference between spreading work and broadcasting a fact.
-/// </summary>
 public class TopicTests
 {
     [Fact]
     public void ATopicDuplicatesWhereAQueueDivides()
     {
-        // The cost lesson of event fan-out, and the mechanism the model already owned: 300 rps
-        // published to a queue is 100 per competing consumer; to a topic it is 300 per subscriber.
         var queue = Brokered(NodeType.Queue);
         var topic = Brokered(NodeType.Topic);
 
@@ -395,8 +335,6 @@ public class TopicTests
     [Fact]
     public void ATopicsFanOut_IsNotCoupling()
     {
-        // Broadcasting is half of why you use one: eight subscribers are eight copies of a fact,
-        // not eight dependencies the topic holds.
         var builder = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Events", NodeType.Topic)
             .Nodes(NodeType.Worker, "W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8")
@@ -425,8 +363,6 @@ public class TopicTests
     [Fact]
     public void TheStagedPipelineWorksThroughTopicsToo()
     {
-        // Queue -> Topic -> Worker: routing between brokers ends in somebody who does the work,
-        // exactly as B8 established for queue chains.
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Cola", NodeType.Queue).Node("Events", NodeType.Topic)
             .Node("Worker", NodeType.Worker)

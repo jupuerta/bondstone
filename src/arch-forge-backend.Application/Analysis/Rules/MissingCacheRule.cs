@@ -7,11 +7,6 @@ using arch_forge_backend.Application.Localization;
 
 namespace arch_forge_backend.Application.Analysis.Rules;
 
-/// <summary>
-/// V2 D4.3. Three conditions at once, never one: the permissive version ("any route to a database
-/// without a cache") would flag <c>Api → Database</c>, the most common correct small architecture
-/// there is. An analyzer that penalizes what is right loses all credibility on the first screen.
-/// </summary>
 public class MissingCacheRule : IArchitectureRule
 {
     private static readonly JsonSerializerOptions ConfigurationOptions = new()
@@ -22,8 +17,6 @@ public class MissingCacheRule : IArchitectureRule
     public string Code => RuleCodes.MissingCache;
     public Area Area => Area.Scalability;
 
-    // Never escalates: it is a performance recommendation, not a failure. Treating it as critical
-    // would devalue the real criticals (D4.3).
     public Severity DefaultSeverity => Severity.Warning;
     public RulePhase Phase => RulePhase.Consumer;
 
@@ -47,29 +40,12 @@ public class MissingCacheRule : IArchitectureRule
             if (ReadReplicasOf(database) is > 0)
                 continue;
 
-            // Telemetry reading the database is not a consumer whose reads want a cache (QA §4,
-            // coverage): it is the wire NO_OBSERVABILITY asks for, and it must not cost a point here.
-            // V14 §4.2. A call declared write-only is not a read a cache could answer: "put a
-            // cache in front" was being said to Workers that only ever write (T11, P10). Absent
-            // means both, so every edge drawn before v7 still counts - it is the declaration
-            // that changes the sentence, never a guess.
             var direct = graph.IncomingByTarget[database.Id]
                 .Where(c => c.Synchronous && !NodeRoles.IsTelemetryEdge(graph, c))
                 .Where(c => graph.ResilienceOf(c).Reads)
                 .ToList();
             var effective = direct.Where(edge => IsEffectiveConsumer(graph, edge.SourceNodeId, database.Id)).ToList();
 
-            // V14 B7. Components, not arrows. The threshold is called MinConsumers and the card
-            // says "N componentes", and until V14 both were fed the length of an edge list, so one
-            // Api drawn twice to its database was "2 componentes" - the same reading HIGH_COUPLING
-            // already refused on its own side ("depending twice on the same thing is one
-            // dependency"). Every arrow still goes into Elements: they are what the canvas lights
-            // up, and two arrows are two things to look at even when they are one consumer.
-            //
-            // V15 B2. And services, not boxes: two replicas of an Api behind one balancer are one
-            // consumer (NodeRoles.ReplicaSetOf), for the same reason two arrows from one box were.
-            // `LB -> Pedidos1, Pedidos2 -> Db` said "recibe consultas directas de 2 componentes"
-            // about a single service and its own database.
             var consumers = effective
                 .Select(edge => graph.NodesById.GetValueOrDefault(edge.SourceNodeId))
                 .Where(source => source is not null)
@@ -80,8 +56,6 @@ public class MissingCacheRule : IArchitectureRule
             if (consumers < RuleThresholds.CacheMinConsumers)
                 continue;
 
-            // Same as HIGH_COUPLING: the consumers read in the graph's order (V6 D1.1), which is
-            // the one the document's connection table uses.
             List<FindingElement> elements = [FindingElement.Node(database.Id)];
             elements.AddRange(effective.Select(e => FindingElement.Connection(e.Id)));
 
@@ -96,10 +70,6 @@ public class MissingCacheRule : IArchitectureRule
                 LocalizedText.Of("finding.MISSING_CACHE.direct.suggestion"),
                 elements)
             {
-                // V4 D5.6. Two ways out and only one of them is a local graph transformation, so
-                // that is the one with a button: everything that calls the database directly goes
-                // through a cache instead. Read replicas stay in the suggestion as text, because
-                // choosing between the two is the decision the user should be making.
                 Fix = new AppliedFix(
                     FixKinds.InsertCache,
                     FindingElement.Node(database.Id),
@@ -110,12 +80,6 @@ public class MissingCacheRule : IArchitectureRule
         return RuleResult.Applicable(findings);
     }
 
-    /// <summary>
-    /// A direct synchronous consumer that is not itself a Cache and has no Cache on its way to
-    /// this database. Without this precision <c>Api → Cache → Database</c> would count the cache
-    /// as a consumer of itself, and the "no cache interposed" condition would contradict itself
-    /// (D4.3).
-    /// </summary>
     private static bool IsEffectiveConsumer(ArchitectureGraph graph, Guid consumerId, Guid databaseId)
     {
         if (graph.NodesById.GetValueOrDefault(consumerId)?.Type == NodeType.Cache)
@@ -167,8 +131,6 @@ public class MissingCacheRule : IArchitectureRule
         }
         catch (JsonException)
         {
-            // Saving validates node configuration against its schema, so this only covers rows
-            // written before that validation existed. Unreadable means "not declared".
             return null;
         }
     }

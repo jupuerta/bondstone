@@ -7,9 +7,6 @@ using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Analysis.Rules;
 
-/// <summary>
-/// QA §4. The asynchronous twin of ORPHAN_NODE: a queue somebody publishes to and nobody drains.
-/// </summary>
 public class QueueNoConsumerRuleTests
 {
     private readonly QueueNoConsumerRule _rule = new();
@@ -18,8 +15,6 @@ public class QueueNoConsumerRuleTests
     [Fact]
     public void A_queue_with_a_producer_and_no_consumer_is_flagged()
     {
-        // The half of the pattern this product recommends, without the other half. Before QA §4
-        // this scored exactly the same as the whole pattern.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Cola", NodeType.Queue)
@@ -56,9 +51,6 @@ public class QueueNoConsumerRuleTests
     [Fact]
     public void A_worker_pointing_at_the_queue_is_publishing_and_the_card_names_the_arrow()
     {
-        // The drawing the convention turns upside down: the user meant "Worker consumes from Cola"
-        // and drew "Worker depends on Cola", which to the load model, the simulator and this rule
-        // is a second publisher. The finding says so, and points at the arrow to reverse.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Cola", NodeType.Queue)
@@ -73,14 +65,10 @@ public class QueueNoConsumerRuleTests
         Assert.Equal([_builder.NodeElement("Cola"), _builder.EdgeElement("Worker", "Cola")], finding.Elements);
     }
 
-    // ---- V14 B8: the delivery has to land on something that runs code ----------
 
     [Fact]
     public void A_database_at_the_end_of_the_queue_is_not_a_consumer()
     {
-        // QA V14 T3: `Api -> Cola -> Db`. The only wire out of the queue points at a database,
-        // which processes no message - the exact shape this rule was written for, and until V14
-        // the one it gave a green tick to.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Cola", NodeType.Queue)
@@ -97,8 +85,6 @@ public class QueueNoConsumerRuleTests
     [Fact]
     public void A_false_consumer_no_longer_hides_the_worker_drawn_backwards()
     {
-        // QA V14 N8: the arrow to the database used to count as the consumer, so the queue passed
-        // and the `backwards` sentence - the one that names the arrow to reverse - was never said.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Cola", NodeType.Queue)
@@ -153,8 +139,6 @@ public class QueueNoConsumerRuleTests
     [Fact]
     public void A_queue_forwarding_to_a_drained_queue_has_a_consumer_at_every_stage()
     {
-        // The staged pipeline the V13 QA calls "the one this product itself recommends". A queue
-        // feeding a queue is the broker routing, not dropping: the work is forwarded and done.
         _builder
             .Node("Api", NodeType.Api)
             .Nodes(NodeType.Queue, "Cola1", "Cola2")
@@ -181,7 +165,6 @@ public class QueueNoConsumerRuleTests
     [Fact]
     public void Two_queues_forwarding_to_each_other_drain_nothing()
     {
-        // The walk through forwarded queues has to terminate on a cycle of them and say "nobody".
         _builder
             .Node("Api", NodeType.Api)
             .Nodes(NodeType.Queue, "Cola1", "Cola2")
@@ -207,8 +190,6 @@ public class QueueNoConsumerRuleTests
     [Fact]
     public void An_orphan_queue_is_ORPHAN_NODEs_finding_and_not_this_ones()
     {
-        // QA B4: a box in no flow is one finding, under one code. With nobody publishing there is
-        // nothing to drain, so the rule has nothing to look at.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)

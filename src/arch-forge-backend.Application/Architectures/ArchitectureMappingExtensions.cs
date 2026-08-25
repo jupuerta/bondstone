@@ -17,7 +17,6 @@ public static class ArchitectureMappingExtensions
         Connections = architecture.Connections.Select(c => c.ToDto()).ToList()
     };
 
-    /// <summary>Only where the caller just minted the architecture (see <see cref="ArchitectureCreatedDto"/>).</summary>
     public static ArchitectureCreatedDto ToCreatedDto(this Architecture architecture) => new()
     {
         Name = architecture.Name,
@@ -49,9 +48,6 @@ public static class ArchitectureMappingExtensions
         Configuration = ParseConfiguration(connection.Configuration)
     };
 
-    // Configuration is stored as jsonb but surfaced to the client as a JSON object, not as an
-    // escaped string - see Technical_Design_V1 §6.2. The column is not null, so this always
-    // yields an object; the fallback only covers rows written before that constraint existed.
     private static JsonElement ParseConfiguration(string? configuration)
     {
         using var document = JsonDocument.Parse(

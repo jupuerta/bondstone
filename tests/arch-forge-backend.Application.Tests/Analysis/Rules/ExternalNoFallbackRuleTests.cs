@@ -8,11 +8,6 @@ using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Analysis.Rules;
 
-/// <summary>
-/// V8 §6.2. The rule that earns <c>ExternalService</c> its place in the palette, and the pair of
-/// assertions that say what the type <em>means</em>: you cannot make it bigger, and the only thing
-/// left is not needing it to answer.
-/// </summary>
 public class ExternalNoFallbackRuleTests
 {
     private static ArchitectureGraph Calling(int? timeoutSeconds = 5, bool circuitBreaker = false, bool fallback = false, bool synchronous = true) =>
@@ -26,8 +21,6 @@ public class ExternalNoFallbackRuleTests
     [Fact]
     public void A_timeout_is_not_enough_on_somebody_elses_service()
     {
-        // This is the whole difference with MISSING_RESILIENCE, which a timeout does silence: a
-        // bounded wait still leaves the caller with no answer, and here there is no third option.
         var result = new ExternalNoFallbackRule().Evaluate(Calling());
 
         Assert.True(result.IsApplicable);
@@ -37,7 +30,6 @@ public class ExternalNoFallbackRuleTests
         Assert.Equal("finding.EXTERNAL_NO_FALLBACK.unprotected.explanation", finding.Explanation.Key());
         Assert.Equal("finding.EXTERNAL_NO_FALLBACK.unprotected.suggestion", finding.Suggestion.Key());
 
-        // The timeout is there, so the fix touches only the half that is missing.
         Assert.NotNull(finding.Fix);
         Assert.Null(finding.Fix!.TimeoutSeconds);
         Assert.True(finding.Fix.Fallback);
@@ -47,10 +39,6 @@ public class ExternalNoFallbackRuleTests
     [Fact]
     public void Without_a_timeout_the_finding_says_so_and_the_fix_sets_both()
     {
-        // QA B8. The timeout used to be MISSING_RESILIENCE's half of the same call, under a second
-        // code in the same area. Now this rule absorbs it: the edge with nothing configured gets
-        // its own sentence, and its fix sets the timeout with the fallback - a fallback without
-        // one contains nothing (D4.2), and a fix that left the Warning standing would not be one.
         var finding = Assert.Single(new ExternalNoFallbackRule().Evaluate(Calling(timeoutSeconds: null)).Findings);
 
         Assert.Equal(Severity.Critical, finding.Severity);
@@ -68,8 +56,6 @@ public class ExternalNoFallbackRuleTests
     [Fact]
     public void It_tells_MISSING_RESILIENCE_which_calls_it_has_already_covered()
     {
-        // QA B8, the D4.5 channel: a Producer that leaves one fact per reported edge, so the
-        // sibling rule can stay quiet on exactly those and nothing else.
         var rule = new ExternalNoFallbackRule();
         Assert.Equal(RulePhase.Producer, rule.Phase);
 
@@ -78,7 +64,6 @@ public class ExternalNoFallbackRuleTests
         var fact = Assert.Single(reported.Facts.OfType<ExternalNoFallbackFact>());
         Assert.Equal(reported.Connections.Single().Id, fact.ConnectionId);
 
-        // A contained call is not reported, so nobody is told to keep quiet about it.
         var contained = Calling(timeoutSeconds: null, fallback: true);
         rule.Evaluate(contained);
         Assert.Empty(contained.Facts);
@@ -111,7 +96,6 @@ public class ExternalNoFallbackRuleTests
     }
 }
 
-/// <summary>V8 §6.2. What the type is, as the two models see it.</summary>
 public class ExternalServiceCapacityTests
 {
     [Fact]
@@ -132,9 +116,6 @@ public class ExternalServiceCapacityTests
     [Fact]
     public void The_rule_that_would_tell_you_to_scale_it_looks_away()
     {
-        // Its suggestions are all "add instances", "add replicas", "share the work" - three things
-        // that cannot be done to somebody else's service. A finding with an impossible suggestion
-        // is worse than no finding.
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api, """{"requestsPerSecond":900}""")
             .Node("Provider", NodeType.ExternalService)
@@ -147,15 +128,10 @@ public class ExternalServiceCapacityTests
         Assert.DoesNotContain(findings, f => f.Elements.Any(e => e.Id == graph.Nodes.Single(n => n.Name == "Provider").Id));
     }
 
-    // ---- V14 B10: a provider's own call is not yours to protect -------------
 
     [Fact]
     public void A_third_partys_call_to_another_third_party_is_not_yours_to_protect()
     {
-        // T10. `Api -> Stripe` is protected; `Stripe -> Maps` is drawn to say the provider depends
-        // on another provider. The rule told the user to put a timeout and a fallback on Stripe's
-        // call to Google Maps - an instruction nobody can follow, which is the exact failure
-        // UNDERSIZED_COMPONENT refuses to commit on the same type.
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Stripe", NodeType.ExternalService)
@@ -173,8 +149,6 @@ public class ExternalServiceCapacityTests
     [Fact]
     public void Your_own_unprotected_call_to_the_provider_is_still_the_finding()
     {
-        // The guard: the edge that *is* yours keeps its Critical, with or without the provider's
-        // own hop drawn behind it.
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Stripe", NodeType.ExternalService)
@@ -191,12 +165,6 @@ public class ExternalServiceCapacityTests
     [Fact]
     public void The_telemetry_box_calling_a_provider_is_the_B9_exception_not_B10()
     {
-        // N4 in the sweep: `Obs -> Stripe`. Its source is not a third party, so B10 does not
-        // apply - and it is deliberately *not* silenced as instrumentation either. This rule is
-        // what MISSING_RESILIENCE would say about the same edge (D4.5), and MISSING_RESILIENCE
-        // keeps reading telemetry edges on purpose (V14 B9, NodeRoles.IsTelemetryEdge): a blocking
-        // call out of the metrics box with no bound on the wait is the one true thing to say
-        // about it.
         var graph = new GraphBuilder()
             .Node("Obs", NodeType.Observability)
             .Node("Stripe", NodeType.ExternalService)

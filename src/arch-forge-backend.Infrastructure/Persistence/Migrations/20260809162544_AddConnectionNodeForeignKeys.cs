@@ -4,10 +4,8 @@
 
 namespace arch_forge_backend.Infrastructure.Persistence.Migrations
 {
-    /// <inheritdoc />
     public partial class AddConnectionNodeForeignKeys : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateIndex(
@@ -37,7 +35,6 @@ namespace arch_forge_backend.Infrastructure.Persistence.Migrations
                 onDelete: ReferentialAction.Cascade);
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropForeignKey(

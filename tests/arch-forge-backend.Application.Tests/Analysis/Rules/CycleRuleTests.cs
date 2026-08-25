@@ -16,7 +16,6 @@ public class CycleRuleTests
     [Fact]
     public void SynchronousCycle_IsCritical()
     {
-        // A synchronous cycle is a deadlock waiting to happen (D4.x).
         _builder
             .Nodes(default, "Orders", "Payments", "Inventory")
             .Connect("Orders", "Payments")
@@ -35,7 +34,6 @@ public class CycleRuleTests
     [Fact]
     public void CycleWithAnAsynchronousHop_IsOnlyAWarning()
     {
-        // With a queue in between it is debatable but workable.
         _builder
             .Nodes(default, "Orders", "Payments", "Inventory")
             .Connect("Orders", "Payments")
@@ -48,7 +46,6 @@ public class CycleRuleTests
     [Fact]
     public void TwoNodeCycle_IsDetected()
     {
-        // D4.6: CIRCULAR_DEPENDENCY is subsumed - A -> B -> A is just a cycle of length 2.
         _builder
             .Nodes(default, "Orders", "Payments")
             .Connect("Orders", "Payments")
@@ -62,8 +59,6 @@ public class CycleRuleTests
     [Fact]
     public void Cycle_IsReportedOnceInCanonicalForm()
     {
-        // Without normalizing to the lowest id, the same cycle would produce one finding per node
-        // and the order of findings would stop being deterministic (D4.x).
         _builder
             .Nodes(default, "A", "B", "C")
             .Connect("B", "C")
@@ -93,8 +88,6 @@ public class CycleRuleTests
     [Fact]
     public void Cycle_PublishesOneFactPerEdgeOfTheCycle()
     {
-        // SYNC_CHAIN excludes these edges, which is what leaves it an acyclic graph to walk
-        // (D5.4) and what keeps a cycle from also being reported as a chain (D4.5).
         _builder
             .Nodes(default, "A", "B", "C")
             .Connect("A", "B")
@@ -135,7 +128,6 @@ public class CycleRuleTests
         Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
     }
 
-    // ---- V13 D1.2: three cycles, three different fixes -----------------------
 
     [Fact]
     public void AnAllSynchronousCycle_IsToldToBreakItWithAnAsynchronousHop()
@@ -154,7 +146,6 @@ public class CycleRuleTests
     [Fact]
     public void ACycleThatAlreadyHasAnAsynchronousHop_IsToldToDecoupleInstead()
     {
-        // The deadlock is already gone. Telling it to add a queue is telling it to do what it did.
         _builder
             .Nodes(default, "Orders", "Payments", "Inventory")
             .Connect("Orders", "Payments")
@@ -169,8 +160,6 @@ public class CycleRuleTests
     [Fact]
     public void ACycleThroughAStore_IsAnOwnershipProblemAndSaysSo()
     {
-        // The case the old constant got wrong: a queue would make the deadlock go away and leave
-        // two components writing each other's data exactly where they were.
         _builder
             .Node("Orders")
             .Node("Db", NodeType.Database)
@@ -193,14 +182,10 @@ public class CycleRuleTests
         Assert.Equal(2, _rule.Evaluate(_builder.Build()).Findings.Count);
     }
 
-    // ---- V14 B9: instrumentation is not a mutual dependency -------------------
 
     [Fact]
     public void SendingMetricsAndBeingScrapedBack_IsNotACycle()
     {
-        // T1c, and the most ordinary drawing there is: the Api pushes its metrics and the
-        // collector scrapes it back. It came out a Critical telling the student to break the loop
-        // with an asynchronous hop - over two arrows where neither side waits on the other's work.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Obs", NodeType.Observability)
@@ -212,9 +197,6 @@ public class CycleRuleTests
     [Fact]
     public void ALoopOfTelemetryBoxes_IsNotACycleEither()
     {
-        // N19. Five observability boxes watching each other is a nonsense worth its own finding -
-        // ORPHAN_NODE says so since V13 B5 - but it is not a circular dependency of the
-        // architecture, and CYCLE was calling it a Critical one.
         _builder
             .Nodes(NodeType.Observability, "O1", "O2", "O3")
             .Connect("O1", "O2").Connect("O2", "O3").Connect("O3", "O1");
@@ -225,7 +207,6 @@ public class CycleRuleTests
     [Fact]
     public void ARealCycleWithTelemetryHangingOffIt_IsStillReported()
     {
-        // The guard on the guard: skipping instrumentation must not skip the loop it is watching.
         _builder
             .Nodes(default, "A", "B")
             .Node("Obs", NodeType.Observability)

@@ -4,14 +4,10 @@
 
 namespace arch_forge_backend.Infrastructure.Persistence.Migrations
 {
-    /// <inheritdoc />
     public partial class EnforceConfigurationNotNullAndVersionDefault : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // SET NOT NULL rejects the ALTER outright if any row still holds NULL - the new
-            // column default only covers future inserts - so existing rows are backfilled first.
             migrationBuilder.Sql(
                 @"UPDATE ""Nodes"" SET ""Configuration"" = '{}'::jsonb WHERE ""Configuration"" IS NULL;");
 
@@ -35,7 +31,6 @@ namespace arch_forge_backend.Infrastructure.Persistence.Migrations
                 oldType: "integer");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AlterColumn<string>(

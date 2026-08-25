@@ -29,8 +29,6 @@ public class DeleteArchitectureCommandHandlerTests
     [Fact]
     public async Task Handle_UnknownArchitecture_ReportsNothingDeleted()
     {
-        // The controller turns this into a 404. On an irreversible operation with no history,
-        // "there was nothing there" is worth returning rather than pretending it worked.
         var deleted = await _handler.Handle(new DeleteArchitectureCommand { EditToken = Guid.NewGuid().ToString() });
 
         Assert.False(deleted);
@@ -39,9 +37,6 @@ public class DeleteArchitectureCommandHandlerTests
     [Fact]
     public async Task Handle_DoesNotAskForAVersion()
     {
-        // Unlike the PUT. The 409 exists to stop a stale snapshot silently overwriting somebody
-        // else's edit; a delete has nothing to merge, and demanding a version would only mean
-        // reading an architecture in order to throw it away.
         var architecture = await SeedArchitecture();
         architecture.Version = 47;
 
@@ -51,8 +46,6 @@ public class DeleteArchitectureCommandHandlerTests
     [Fact]
     public async Task Handle_TakesTheWholeGraphWithIt()
     {
-        // The database does this by cascade; the fake does it by dropping the entry the nodes and
-        // connections hang off. Either way, nothing of the architecture is left readable.
         var architecture = await SeedArchitecture();
         var api = new Node { Id = Guid.NewGuid(), Type = Domain.Enums.NodeType.Api, Name = "Api" };
         var db = new Node { Id = Guid.NewGuid(), Type = Domain.Enums.NodeType.Database, Name = "Db" };

@@ -16,7 +16,6 @@ public class ArchitectureAnalyzerTests
     [Fact]
     public void Analyze_WithNoRules_ReturnsNullScoreAndNoScoredArea()
     {
-        // D1.2, rule 4: an empty architecture is a dash, never a 100.
         var result = new ArchitectureAnalyzer([]).Analyze(EmptyGraph);
 
         Assert.Null(result.Score);
@@ -28,8 +27,6 @@ public class ArchitectureAnalyzerTests
     [Fact]
     public void Analyze_WhereNoRuleApplies_ReturnsNullScoreAndNoScoredArea()
     {
-        // The same conclusion by the other road: rules exist, none of them had anything to check
-        // here. Still not a 100 (D1.2, rules 3 and 4).
         var result = new ArchitectureAnalyzer([
             StubRule.NotApplicable(Area.Availability),
             StubRule.NotApplicable(Area.Resilience)
@@ -44,15 +41,12 @@ public class ArchitectureAnalyzerTests
     [Fact]
     public void Analyze_CarriesTheScoringVersion()
     {
-        // D1.5: which model produced the number, so a stored result can still be read later.
         Assert.Equal("v8", new ArchitectureAnalyzer([]).Analyze(EmptyGraph).ScoringVersion);
     }
 
     [Fact]
     public void Analyze_ApplicableRuleWithNoFindings_SynthesizesAGoodFinding()
     {
-        // D5.2: the analyzer builds it, not the rule - otherwise a rule eventually forgets and
-        // the Passed counter lies in silence.
         var rule = StubRule.Applicable(Area.Coupling);
 
         var result = new ArchitectureAnalyzer([rule]).Analyze(EmptyGraph);
@@ -89,8 +83,6 @@ public class ArchitectureAnalyzerTests
     [Fact]
     public void Analyze_RuleThatDoesNotApply_LeavesItsAreaOutOfTheAverage()
     {
-        // D1.2, rule 3: an area whose rules had nothing to check does not enter the average, and
-        // does not count as a passed check either.
         var result = new ArchitectureAnalyzer([
             StubRule.NotApplicable(Area.Availability),
             StubRule.Applicable(Area.Coupling)
@@ -105,8 +97,6 @@ public class ArchitectureAnalyzerTests
     [Fact]
     public void Analyze_ScoresEachAreaSeparatelyAndAveragesTheScoredOnes()
     {
-        // Availability: one critical -> 85. Coupling: two warnings -> 100 - 5 - 2.5 = 92.5 -> 93.
-        // Average of the two areas the user sees: (85 + 93) / 2 = 89.
         var result = new ArchitectureAnalyzer([
             StubRule.WithFindings(Area.Availability, RuleCodes.Spof, Severity.Critical),
             StubRule.WithFindings(Area.Coupling, RuleCodes.HighCoupling, Severity.Warning, Severity.Warning)
@@ -121,8 +111,6 @@ public class ArchitectureAnalyzerTests
     [Fact]
     public void Analyze_AreaFedBySeveralRules_CapsEachRuleOnItsOwn()
     {
-        // The cap of D1.1 is per rule code, not per area: 100 - 45 - 15 = 40. Were it per area,
-        // Resilience could never drop past 55 no matter how many different things were wrong.
         var result = new ArchitectureAnalyzer([
             StubRule.WithFindings(Area.Resilience, RuleCodes.MissingResilience,
                 Enumerable.Repeat(Severity.Critical, 6).ToArray()),
@@ -135,8 +123,6 @@ public class ArchitectureAnalyzerTests
     [Fact]
     public void Analyze_RunsEveryProducerBeforeAnyConsumer()
     {
-        // D5.2: the consumer must see the facts whatever order the rules were registered in -
-        // here the consumer is registered first on purpose.
         var seenByConsumer = new List<ArchitectureFact>();
 
         new ArchitectureAnalyzer([
@@ -150,8 +136,6 @@ public class ArchitectureAnalyzerTests
     [Fact]
     public void Analyze_OrderOfRulesWithinAPhase_DoesNotChangeTheResult()
     {
-        // This is the assertion the whole two-phase design rests on (D5.2): if the order inside a
-        // phase mattered, two phases would not be enough and the engine would need the DAG.
         IArchitectureRule[] rules = [
             new FactPublishingRule(Area.Availability, RuleCodes.Spof, factCount: 2),
             new FactPublishingRule(Area.Coupling, RuleCodes.Cycle, factCount: 1),
@@ -168,8 +152,6 @@ public class ArchitectureAnalyzerTests
     [Fact]
     public void Analyze_RunTwiceOverTheSameGraph_GivesTheSameResult()
     {
-        // Facts from a previous run must not pile up: a producer publishing on every pass would
-        // make the second analysis of an unchanged architecture disagree with the first.
         var analyzer = new ArchitectureAnalyzer([
             new FactPublishingRule(Area.Availability, RuleCodes.Spof, factCount: 2),
             new FactConsumingRule(Area.Resilience, RuleCodes.MissingResilience, [])
@@ -182,7 +164,6 @@ public class ArchitectureAnalyzerTests
     [Fact]
     public void Analyze_OrdersFindingsBySeverityThenAreaThenCode()
     {
-        // D2.1, rule 4. Without this the reference-architecture tests would be unstable.
         var result = new ArchitectureAnalyzer([
             StubRule.Applicable(Area.Scalability),
             StubRule.WithFindings(Area.Resilience, "Z_RULE", Severity.Warning),
@@ -199,10 +180,6 @@ public class ArchitectureAnalyzerTests
     [Fact]
     public void Analyze_FindingsTiedOnSeverityAreaAndCode_AreOrderedByTheGraph()
     {
-        // V6 D1.1, the fourth tie-break. Until V6 the three keys of D2.1 left the findings of one
-        // rule tied, and the tie was broken by the order the rule emitted them in - which is the
-        // order the graph arrived in, which the database does not guarantee. Now the element the
-        // finding is about decides, so this rule reporting backwards still reads forwards.
         var graph = new ArchitectureGraph(
             [Node("Zeta", NodeType.Service), Node("Db", NodeType.Database), Node("Api", NodeType.Api)],
             []);
@@ -217,10 +194,6 @@ public class ArchitectureAnalyzerTests
     [Fact]
     public void Analyze_SeveralFindingsPointingAtNothing_KeepTheOrderItEmittedThem()
     {
-        // The tie-break of V6 D1.1 needs an element to sort by, and a finding without one sorts
-        // last. Only the Good of each rule has no elements and there is exactly one per code, so
-        // in the product nothing ever ties here - but the order still has to be stable rather than
-        // whatever OrderBy felt like.
         var result = new ArchitectureAnalyzer([
             StubRule.WithMessages(Area.Availability, RuleCodes.Spof, Severity.Critical, "first", "second", "third")
         ]).Analyze(EmptyGraph);
@@ -231,8 +204,6 @@ public class ArchitectureAnalyzerTests
     [Fact]
     public void Constructor_TwoRulesSharingACode_Throws()
     {
-        // The cap is per code (D1.1) and a code means one thing (D2.4): two rules answering to
-        // the same one would double-penalize in silence.
         var exception = Assert.Throws<InvalidOperationException>(() => new ArchitectureAnalyzer([
             StubRule.WithFindings(Area.Availability, RuleCodes.Spof, Severity.Critical),
             StubRule.WithFindings(Area.Resilience, RuleCodes.Spof, Severity.Warning)
@@ -244,8 +215,6 @@ public class ArchitectureAnalyzerTests
     [Fact]
     public void Analyze_RuleReportingFindingsWhileNotApplicable_Throws()
     {
-        // Not applicable means there was nothing to check (D1.4); findings under an area marked
-        // as having nothing to say is a contradiction, not a state to render.
         var analyzer = new ArchitectureAnalyzer([new MisbehavingRule(applicable: false, matchingCode: true)]);
 
         Assert.Throws<InvalidOperationException>(() => analyzer.Analyze(EmptyGraph));
@@ -254,9 +223,6 @@ public class ArchitectureAnalyzerTests
     [Fact]
     public void Analyze_RuleNotApplicableWithoutSayingWhy_Throws()
     {
-        // V16 C7b. The catalogue paints the reason on the card, so a rule that stands down in
-        // silence is a blank line where the screen's most useful sentence goes. `RuleResult`'s
-        // factory asks for one; this is what catches the rule that builds the record by hand.
         var analyzer = new ArchitectureAnalyzer([new SilentRule()]);
 
         var exception = Assert.Throws<InvalidOperationException>(() => analyzer.Analyze(EmptyGraph));
@@ -267,8 +233,6 @@ public class ArchitectureAnalyzerTests
     [Fact]
     public void Analyze_RuleEmittingAFindingUnderAnotherCode_Throws()
     {
-        // Penalties are grouped by the rule's code and area; a finding that disagrees would be
-        // charged to one heading and displayed under another.
         var analyzer = new ArchitectureAnalyzer([new MisbehavingRule(applicable: true, matchingCode: false)]);
 
         Assert.Throws<InvalidOperationException>(() => analyzer.Analyze(EmptyGraph));
@@ -276,8 +240,6 @@ public class ArchitectureAnalyzerTests
 
     private static AreaScore AreaOf(AnalysisResult result, Area area) => result.Areas.Single(a => a.Area == area);
 
-    // Records compare their list members by reference, so the whole result is rendered to text to
-    // compare two runs in one assertion - and a failure prints what actually differs.
     private static string Render(AnalysisResult result)
     {
         var rendered = new StringBuilder()
@@ -304,11 +266,6 @@ public class ArchitectureAnalyzerTests
         Configuration = "{}"
     };
 
-    /// <summary>
-    /// Reports one finding per node, walking the graph backwards. Emission order is the opposite of
-    /// the order the analyzer has to produce, which is the only way to tell a real tie-break from
-    /// the stability of OrderBy.
-    /// </summary>
     private sealed class BackwardsNodeRule(Area area, string code, Severity severity) : IArchitectureRule
     {
         public string Code => code;
@@ -365,7 +322,6 @@ public class ArchitectureAnalyzerTests
                 .ToList());
         }
 
-        // Real codes, so the ordering tests use the same alphabet the product does.
         private static string CodeFor(Area area) => area switch
         {
             Area.Availability => RuleCodes.Spof,
@@ -375,7 +331,6 @@ public class ArchitectureAnalyzerTests
         };
     }
 
-    /// <summary>A producer: publishes facts and reports one warning for each.</summary>
     private sealed class FactPublishingRule(Area area, string code, int factCount) : IArchitectureRule
     {
         public string Code => code;
@@ -391,7 +346,6 @@ public class ArchitectureAnalyzerTests
 
             for (var i = 0; i < factCount; i++)
             {
-                // Deterministic ids: two runs must produce byte-identical results.
                 var nodeId = new Guid($"00000000-0000-0000-0000-{i:000000000000}");
                 graph.Facts.Add(new SinglePointOfFailureFact(nodeId, Severity.Critical));
                 findings.Add(new RuleFinding(code, area, Severity.Warning, LocalizedText.Of($"published {i}"), LocalizedText.Of("explanation"), null,
@@ -402,7 +356,6 @@ public class ArchitectureAnalyzerTests
         }
     }
 
-    /// <summary>A consumer: reports one warning per fact it can see, so its output changes if the phases ever leak.</summary>
     private sealed class FactConsumingRule(Area area, string code, List<ArchitectureFact> seen) : IArchitectureRule
     {
         public string Code => code;
@@ -425,7 +378,6 @@ public class ArchitectureAnalyzerTests
         }
     }
 
-    /// <summary>V16 C7b. Not applicable, and not a word about why.</summary>
     private sealed class SilentRule : IArchitectureRule
     {
         public string Code => RuleCodes.Spof;

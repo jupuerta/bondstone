@@ -7,19 +7,11 @@ using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Simulation;
 
-/// <summary>
-/// V4 DT.7 and plan técnico §5.4. The bound, and the properties that make it a bound rather than a
-/// probability - which is the second correction of §2 and the one that kept a stochastic model from
-/// sneaking into a simulator V3 declared deterministic.
-/// </summary>
 public class RequestYieldTests
 {
     [Fact]
     public void Two_bottlenecks_in_series_give_the_worst_of_the_two_and_not_their_product()
     {
-        // **The assertion that defines the metric.** Composing them as independent probabilities
-        // would give 25 %; the bound gives 50 %, it can be redone in ten seconds, and it points at
-        // something. It is optimistic on purpose and the panel says "como mucho".
         var graph = Loaded(600, builder => builder
             .Node("A", NodeType.Service)
             .Node("B", NodeType.Service)
@@ -35,9 +27,6 @@ public class RequestYieldTests
     [Fact]
     public void A_timeout_and_a_fallback_contain_whatever_is_behind_them()
     {
-        // Correction 3. Containment is read from the edge, not from phase A - a pure-load scenario
-        // injects no fault, so phase A never runs, and `resilient-async` would have reported 100 %
-        // affected with its database at 180 %.
         var graph = Loaded(300, builder => builder
             .Node("Db", NodeType.Database)
             .Connect("Api", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql));
@@ -51,8 +40,6 @@ public class RequestYieldTests
     [Fact]
     public void A_fallback_without_a_timeout_contains_nothing()
     {
-        // V3 D4.2 kept intact: with no timeout the call never returns, so there is no error for the
-        // fallback to catch. It is the guard that makes one checkbox the key to all the others.
         var graph = Loaded(300, builder => builder
             .Node("Db", NodeType.Database)
             .Connect("Api", "Db", fallback: true, protocol: ProtocolType.Sql));
@@ -65,8 +52,6 @@ public class RequestYieldTests
     [Fact]
     public void An_asynchronous_call_never_holds_a_request_back()
     {
-        // V3 D4.7: nobody is waiting for an answer. What does not happen is the work afterwards,
-        // and that travels as backlog, not as a lost request.
         var graph = Loaded(300, builder => builder
             .Node("Queue", NodeType.Queue)
             .Node("Worker", NodeType.Service)
@@ -99,8 +84,6 @@ public class RequestYieldTests
     [Fact]
     public void A_call_that_expires_every_time_is_the_same_as_a_dead_target()
     {
-        // V3 D4.1, and it is what composes the two axes in `worst-case`: nobody is killed, a
-        // component is just slow enough that its caller's timeout always wins.
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
@@ -116,7 +99,6 @@ public class RequestYieldTests
     [Fact]
     public void A_cycle_does_not_hang_the_walk()
     {
-        // Same cut as CallCost (V3 D5.4): the edge that closes the cycle yields nothing back.
         var graph = Loaded(100, builder => builder
             .Node("A", NodeType.Service)
             .Node("B", NodeType.Service)

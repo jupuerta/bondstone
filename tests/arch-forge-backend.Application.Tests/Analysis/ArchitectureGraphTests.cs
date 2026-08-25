@@ -5,18 +5,11 @@ using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Analysis;
 
-/// <summary>
-/// V6 D1.1. The graph is where the order of an architecture is decided, because it is the only
-/// thing every rule reads. EF Core returns the rows in whatever order it likes, and until V6 that
-/// order travelled all the way to the findings the user sees.
-/// </summary>
 public class ArchitectureGraphTests
 {
     [Fact]
     public void Nodes_AreOrderedByTypeThenNameThenId()
     {
-        // Grouped by type and alphabetical inside it - the order an inventory is read in, and the
-        // one the export already composes its component table in (V5 §6.2).
         var graph = new ArchitectureGraph(
             [
                 Node("Zeta", NodeType.Service),
@@ -32,8 +25,6 @@ public class ArchitectureGraphTests
     [Fact]
     public void NodesSharingAName_AreOrderedById()
     {
-        // Names are free text and nothing stops two components from sharing one, so Id is what
-        // turns a partial order into a total one.
         var first = Node("Api", NodeType.Api, new Guid("11111111-1111-1111-1111-111111111111"));
         var second = Node("Api", NodeType.Api, new Guid("22222222-2222-2222-2222-222222222222"));
 
@@ -45,7 +36,6 @@ public class ArchitectureGraphTests
     [Fact]
     public void Connections_AreOrderedBySourceThenTargetName()
     {
-        // By name and not by Id: an edge is read as "who calls whom", so the list follows the flow.
         var api = Node("Api", NodeType.Api);
         var orders = Node("Orders", NodeType.Service);
         var users = Node("Users", NodeType.Service);
@@ -63,8 +53,6 @@ public class ArchitectureGraphTests
     [Fact]
     public void ShufflingTheInput_GivesTheSameGraph()
     {
-        // The property the whole decision exists for: what the database hands over cannot change
-        // what the rules see.
         var api = Node("Api", NodeType.Api);
         var orders = Node("Orders", NodeType.Service);
         var db = Node("Db", NodeType.Database);
@@ -81,8 +69,6 @@ public class ArchitectureGraphTests
     [Fact]
     public void TheLookups_FollowTheOrderOfTheConnections()
     {
-        // A rule walking the dependents of a node inherits this order, so ordering the list and
-        // leaving the lookups built from the argument would have fixed half the problem.
         var db = Node("Db", NodeType.Database);
         var users = Node("Users", NodeType.Service);
         var api = Node("Api", NodeType.Api);
@@ -100,8 +86,6 @@ public class ArchitectureGraphTests
     [Fact]
     public void AnEdgePointingAtAMissingNode_DoesNotThrow()
     {
-        // Ordering is not the place to discover a broken graph: the edge sorts under the empty
-        // name and whatever reads it later fails where the failure means something.
         var api = Node("Api", NodeType.Api);
         var dangling = new Connection
         {

@@ -7,13 +7,6 @@ using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Analysis;
 
-/// <summary>
-/// V4 D5.6. Which findings carry a correction, and - just as much the point - which do not.
-///
-/// V3 called this debt <em>"siete reglas, siete propuestas: un proyecto, no una funcionalidad"</em>.
-/// It stops being a project by automating only the corrections where there is nothing to decide.
-/// The assertions below are the two halves of that sentence.
-/// </summary>
 public class AppliedFixTests
 {
     [Fact]
@@ -37,10 +30,6 @@ public class AppliedFixTests
     [Fact]
     public void A_synchronous_send_to_the_telemetry_is_made_asynchronous()
     {
-        // V15 A3. The one instrumentation edge MISSING_RESILIENCE still reads, and its one answer:
-        // telemetry is fire-and-forget, so the fix is the arrow's mode - not a timeout and a
-        // fallback on a send that should never have waited, which is what the button drew until
-        // V15 (and drew just the same on a scrape, where it meant nothing at all).
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Obs", NodeType.Observability)
@@ -53,15 +42,13 @@ public class AppliedFixTests
         Assert.Equal(FixKinds.MakeEdgeAsynchronous, fix!.Kind);
         Assert.Equal(ElementType.Connection, fix.Element.Type);
         Assert.Equal("fix.MISSING_RESILIENCE.makeAsynchronous", fix.Label.Describe());
-        Assert.Null(fix.TimeoutSeconds);   // the mode is the fix; nothing else on the edge is touched
+        Assert.Null(fix.TimeoutSeconds);
         Assert.Null(fix.Fallback);
     }
 
     [Fact]
     public void A_timeout_shorter_than_its_own_call_is_raised_above_it()
     {
-        // Twice the measured cost, rounded up: enough headroom that applying it once is enough,
-        // and it must not create a TIMEOUT_TOO_SHORT of its own on the next analysis.
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api, """{"requestsPerSecond":1200}""")
             .Node("Db", NodeType.Database)
@@ -73,7 +60,7 @@ public class AppliedFixTests
         Assert.NotNull(fix);
         Assert.Equal(FixKinds.SetEdgeResilience, fix!.Kind);
         Assert.True(fix.TimeoutSeconds >= 5);
-        Assert.Null(fix.Fallback);   // raising the timeout is the fix; nothing else is touched
+        Assert.Null(fix.Fallback);
     }
 
     [Fact]
@@ -109,9 +96,6 @@ public class AppliedFixTests
 
         Assert.Equal(FixKinds.InsertCache, fix!.Kind);
 
-        // The element is the database, not one of the two calls: the transformation is "everything
-        // goes through a cache", which has one answer, rather than "cache this particular call",
-        // which would be picking one of two arbitrarily.
         Assert.Equal(ElementType.Node, fix.Element.Type);
         Assert.Equal("fix.MISSING_CACHE.insert(node=Db)", fix.Label.Describe());
     }
@@ -132,14 +116,6 @@ public class AppliedFixTests
         Assert.Equal("fix.ORPHAN_NODE.remove(node=Leftover)", fix.Label.Describe());
     }
 
-    /// <summary>
-    /// <strong>The other half of D5.6.</strong> A SPOF has four legitimate answers - replicate it,
-    /// put a balancer in front, make the call asynchronous, accept it - and picking one for the
-    /// user is taking away the decision the product exists to teach (§21). The same goes for
-    /// coupling, cycles, chains, an exposed database and a component that is short of capacity.
-    ///
-    /// If this test ever goes red, somebody automated a judgement call.
-    /// </summary>
     [Fact]
     public void The_rules_whose_fix_is_a_decision_carry_no_button()
     {
@@ -164,8 +140,6 @@ public class AppliedFixTests
     [Fact]
     public void Exactly_five_of_the_fifteen_rules_can_carry_one()
     {
-        // The count is the decision, so it is asserted rather than left to be counted by hand:
-        // five corrections where there is nothing to decide, text where there is.
         string[] withFix =
         [
             RuleCodes.MissingResilience, RuleCodes.TimeoutTooShort, RuleCodes.QueueNoDlq,

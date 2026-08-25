@@ -9,23 +9,6 @@ public class ForkArchitectureCommand
     public string ShareToken { get; set; } = string.Empty;
 }
 
-/// <summary>
-/// V4 D2.3. Copies an architecture into a new one with its own tokens.
-///
-/// The smallest piece of V4 and the one that pays two debts at once. The §11 of the ideas document
-/// promised that whoever opens a shared link can <em>modify</em> the architecture, and until now
-/// opening <c>/a/{token}</c> edited the original - so "try it yourself" meant "edit mine". And it
-/// is what starting a challenge from someone else's solution needs (D6.4): comparing is opening two
-/// links, and improving on one is forking it.
-///
-/// Resolved by <see cref="ForkArchitectureCommand.ShareToken"/> and not by id: forking is available
-/// from the read side, to anyone who can already see the architecture - the copy is what turns
-/// "edit mine" back into "try it yourself", so it cannot itself require an edit token.
-///
-/// Ids are minted fresh for every node and edge, because they are primary keys and two
-/// architectures cannot share them. That is exactly why a challenge's faults point at components
-/// by name and not by id (<see cref="Challenges.ScenarioFault"/>).
-/// </summary>
 public class ForkArchitectureCommandHandler
 {
     private readonly IArchitectureRepository _repository;

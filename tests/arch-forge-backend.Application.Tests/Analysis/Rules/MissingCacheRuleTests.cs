@@ -32,8 +32,6 @@ public class MissingCacheRuleTests
     [Fact]
     public void SingleConsumer_Passes()
     {
-        // The permissive version of this rule would flag Api -> Database, the most common correct
-        // small architecture there is (D4.3).
         _builder
             .Node("Db", NodeType.Database)
             .Node("Api", NodeType.Api)
@@ -59,7 +57,6 @@ public class MissingCacheRuleTests
     [Fact]
     public void ReadReplicasSetToZero_StillFires()
     {
-        // Declaring zero replicas is declaring there are none.
         _builder
             .Node("Db", NodeType.Database, configuration: """{"readReplicas":0}""")
             .Nodes(NodeType.Service, "Api", "Service")
@@ -71,8 +68,6 @@ public class MissingCacheRuleTests
     [Fact]
     public void CacheInFrontOfTheDatabase_IsNotItsOwnConsumer()
     {
-        // Without this precision Api -> Cache -> Database would count the cache as a consumer and
-        // the "no cache interposed" condition would contradict itself (D4.3).
         _builder
             .Node("Db", NodeType.Database)
             .Node("Cache", NodeType.Cache)
@@ -86,7 +81,6 @@ public class MissingCacheRuleTests
     [Fact]
     public void ConsumerWithACacheOnItsWay_IsNotEffective()
     {
-        // Orders reaches the database through a cache, so it is not adding direct read load.
         _builder
             .Node("Db", NodeType.Database)
             .Node("Cache", NodeType.Cache)
@@ -122,13 +116,10 @@ public class MissingCacheRuleTests
         Assert.Equal(["Db", "Api->Db", "Service->Db"], _builder.Names(finding.Elements));
     }
 
-    // ---- V14 B7: components, not arrows ----------------------------------------
 
     [Fact]
     public void OneConsumerDrawnTwice_IsOneConsumer()
     {
-        // QA V14 T4: a single Api with two arrows to the same database said "2 componentes". The
-        // threshold is called MinConsumers; it was being fed the length of an edge list.
         _builder
             .Node("Db", NodeType.Database)
             .Node("Api", NodeType.Api)
@@ -143,10 +134,6 @@ public class MissingCacheRuleTests
     [Fact]
     public void TheCardCountsConsumers_AndTheCanvasGetsEveryArrow()
     {
-        // Two consumers, three arrows (QA V14 C8 said "3 componentes" here). The count the card
-        // prints is the one HIGH_COUPLING would make - "depending twice on the same thing is one
-        // dependency" - and every arrow still travels in Elements, because two arrows are two
-        // things to light up even when they are one consumer.
         _builder
             .Node("Db", NodeType.Database)
             .Node("Api", NodeType.Api)
@@ -162,8 +149,6 @@ public class MissingCacheRuleTests
     [Fact]
     public void NeverEscalatesToCritical()
     {
-        // A performance recommendation, not a failure: treating it as critical would devalue the
-        // real criticals (D4.3).
         _builder.Node("Db", NodeType.Database);
 
         for (var i = 0; i < 10; i++)
@@ -185,15 +170,10 @@ public class MissingCacheRuleTests
         Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
     }
 
-    // ---- V15 B2: two replicas are one consumer ----------------------------------
 
     [Fact]
     public void TwoReplicasBehindABalancer_AreOneConsumer()
     {
-        // QA V15 C4 (T3): `LB -> Pedidos1, Pedidos2 -> Db` said "'Db' recibe consultas directas de 2
-        // componentes". Boxes of the same type fanned out from one LoadBalancer are the one kind of
-        // copy the model recognises, and B7's "components, not arrows" extends to them: a copy is
-        // not another consumer.
         _builder
             .Node("Db", NodeType.Database)
             .Node("LB", NodeType.LoadBalancer)
@@ -210,8 +190,6 @@ public class MissingCacheRuleTests
     [Fact]
     public void TwoServicesBehindAGateway_AreStillTwoConsumers()
     {
-        // The V15 trap: a Gateway is a router too, and grouping by IsRouter would take
-        // MISSING_CACHE off gateway-microservices and worst-case, whose services hang from one.
         _builder
             .Node("Db", NodeType.Database)
             .Node("Gw", NodeType.Gateway)
@@ -227,8 +205,6 @@ public class MissingCacheRuleTests
     [Fact]
     public void AReplicaSetBesideAnotherConsumer_CountsOnce_AndTheCanvasGetsEveryArrow()
     {
-        // Two replicas of Api and a separate Service: two consumers, and all three arrows lit -
-        // B7's split between what the card counts and what the canvas shows.
         _builder
             .Node("Db", NodeType.Database)
             .Node("LB", NodeType.LoadBalancer)
@@ -246,8 +222,6 @@ public class MissingCacheRuleTests
     [Fact]
     public void ABalancerOverOneBox_MakesNoCopy()
     {
-        // Negative control on the grouping: a single target behind the balancer is not a replica
-        // set, so Users and Orders stay two consumers.
         _builder
             .Node("Db", NodeType.Database)
             .Node("LB", NodeType.LoadBalancer)

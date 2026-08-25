@@ -6,20 +6,6 @@ using arch_forge_backend.Domain.Entities;
 
 namespace arch_forge_backend.Application.Challenges;
 
-/// <summary>
-/// V4 D3.1 and D1.2, the whole evaluator as one pure function over three inputs.
-///
-/// <strong>It calculates nothing.</strong> The structural family walks the graph; the analytical one
-/// reads an <see cref="AnalysisResult"/>; the simulated one reads a
-/// <see cref="SimulationResult"/>. Both of those contracts already exist, are already deterministic
-/// and are already covered by tests, which is what turns "evaluate a challenge" into a
-/// <c>switch</c> rather than a third engine next to the analyzer and the simulator.
-///
-/// <strong>No branch reads <see cref="AnalysisResult.Score"/>, and that is D1.4 made mechanical.</strong>
-/// V4 lands seven rules and two areas that scored nothing start scoring, so every score moves; a
-/// challenge pinned to a number would fail solutions nobody touched. There is a test that walks
-/// this file's dependencies to keep it that way.
-/// </summary>
 public static class RequirementEvaluator
 {
     public static ChallengeRequirementResult Evaluate(ChallengeRequirement requirement, EvaluationContext context) =>
@@ -39,14 +25,10 @@ public static class RequirementEvaluator
             RequirementKinds.NoSeverity => NoSeverity(requirement, context),
             RequirementKinds.UnderScenario => UnderScenario(requirement, context),
 
-            // Unreachable: the catalogue refuses to load an unknown kind (D1.5). Answering "not
-            // met" rather than throwing keeps one malformed requirement from taking down the
-            // evaluation of the other four.
             _ => ChallengeRequirementResult.Fail(requirement,
                 LocalizedText.Of("challenge.requirement.unknownKind", ("kind", requirement.Kind)))
         };
 
-    // ---- Estructural -------------------------------------------------------
 
     private static ChallengeRequirementResult ContainsNode(ChallengeRequirement requirement, EvaluationContext context)
     {
@@ -104,15 +86,6 @@ public static class RequirementEvaluator
             offenders.Select(x => FindingElement.Node(x.Node.Id)).ToList());
     }
 
-    /// <summary>
-    /// Synchronous edges only, and that is V3 D4.2 rather than a shortcut: on an asynchronous edge
-    /// nobody waits for an answer, so there is no error for a timeout or a fallback to catch.
-    ///
-    /// An architecture with no such edge at all passes vacuously. That is the standard reading and
-    /// it is not a hole: a challenge that also wants the component to exist says so with its own
-    /// <see cref="RequirementKinds.ContainsNode"/>, which is one line and reads better in the
-    /// checklist than a compound requirement would.
-    /// </summary>
     private static ChallengeRequirementResult AllEdgesTo(ChallengeRequirement requirement, EvaluationContext context)
     {
         var edges = context.Graph.Connections
@@ -125,9 +98,6 @@ public static class RequirementEvaluator
         if (offenders.Count == 0)
             return ChallengeRequirementResult.Pass(requirement);
 
-        // The mechanism's name is a nested key rather than a word pasted in: "respuesta
-        // alternativa" is "fallback" in English, and a sentence that interpolates an already
-        // translated fragment can only ever be right in the language it was written in.
         var mechanism = LocalizedText.Of($"mechanism.{requirement.Mechanism!}");
 
         var detail = offenders.Count == edges.Count
@@ -150,8 +120,6 @@ public static class RequirementEvaluator
 
     private static ChallengeRequirementResult PathExists(ChallengeRequirement requirement, EvaluationContext context)
     {
-        // A path of at least one hop: the sources seed the walk but do not count as arrivals, so
-        // `pathExists` from a type to itself asks for two components and not for one.
         var pending = new Queue<Guid>(context.Graph.Nodes.Where(n => n.Type == requirement.FromType).Select(n => n.Id));
         var seen = new HashSet<Guid>();
 
@@ -176,12 +144,6 @@ public static class RequirementEvaluator
                 ("toType", requirement.ToType!)));
     }
 
-    /// <summary>
-    /// V4 VS4. Traffic is a property of the architecture (DT.1), so the user can edit it - and
-    /// "everything under 80 % at 300 rps" would otherwise be solved by declaring 1 rps. It is the
-    /// same shape of anti-cheese as pointing at components by name: the challenge checks that the
-    /// question is still being asked.
-    /// </summary>
     private static ChallengeRequirementResult DeclaresLoad(ChallengeRequirement requirement, EvaluationContext context)
     {
         var declared = context.Graph.RootNodes.Sum(node => NodeSettings.DeclaredRps(node));
@@ -199,10 +161,6 @@ public static class RequirementEvaluator
             context.Graph.RootNodes.Select(n => FindingElement.Node(n.Id)).ToList());
     }
 
-    /// <summary>
-    /// V8 §6.1, the anti-cheese that was missing. <see cref="DeclaresLoad"/> keeps the question
-    /// being asked; this keeps the answer from being "buy more of everything".
-    /// </summary>
     private static ChallengeRequirementResult MaxNodes(ChallengeRequirement requirement, EvaluationContext context)
     {
         var max = requirement.Max!.Value;
@@ -215,12 +173,6 @@ public static class RequirementEvaluator
             LocalizedText.Of("challenge.requirement.maxNodes.exceeded", ("count", count), ("max", max)));
     }
 
-    /// <summary>
-    /// A cap on copies rather than on components. It reads the same
-    /// <see cref="NodeSettings.Instances"/> the capacity model reads, so a database's replicas count
-    /// as copies here exactly as they count as capacity there - which is the whole point: the
-    /// challenge caps the lever that would otherwise solve it.
-    /// </summary>
     private static ChallengeRequirementResult MaxInstances(ChallengeRequirement requirement, EvaluationContext context)
     {
         var max = requirement.Max!.Value;
@@ -246,15 +198,6 @@ public static class RequirementEvaluator
             offenders.Select(x => FindingElement.Node(x.Node.Id)).ToList());
     }
 
-    /// <summary>
-    /// V8 §6.4. One call, named by its two ends.
-    ///
-    /// Several calls between the same pair are treated as one requirement over all of them: two
-    /// components can be wired twice, and passing "the charge does not block" while one of the two
-    /// copies still blocks would be a checklist that lies. Missing entirely is its own failure and
-    /// its own sentence - that is the anti-cheese, and it has to say so rather than pass vacuously
-    /// the way <see cref="AllEdgesTo"/> does over a type nobody drew.
-    /// </summary>
     private static ChallengeRequirementResult Edge(ChallengeRequirement requirement, EvaluationContext context)
     {
         var edges = context.Graph.Connections
@@ -284,9 +227,6 @@ public static class RequirementEvaluator
 
         if (requirement.Mechanism is { } mechanism)
         {
-            // Only a synchronous call can carry one (V3 D4.2): on an asynchronous edge nobody is
-            // waiting, so there is no error for the mechanism to catch and asking for it would be
-            // asking for a checkbox.
             var wrong = edges.Where(c => c.Synchronous && !Has(context.Graph.ResilienceOf(c), mechanism)).ToList();
 
             if (wrong.Count > 0)
@@ -306,14 +246,7 @@ public static class RequirementEvaluator
         context.Graph.NodesById.TryGetValue(nodeId, out var node) &&
         string.Equals(node.Name, name, StringComparison.Ordinal);
 
-    // ---- Analítica ---------------------------------------------------------
 
-    /// <summary>
-    /// <c>Good</c> findings are excluded on purpose, and this is not a detail: the analyzer
-    /// <em>synthesizes</em> a finding with the rule's own code when the rule passes (V2 D1.4).
-    /// Counting those, <c>noFinding: SPOF</c> would be unsatisfiable - it would fail precisely when
-    /// SPOF is happy.
-    /// </summary>
     private static List<RuleFinding> Problems(EvaluationContext context, string code) =>
         context.Analysis.Findings
             .Where(f => f.Severity != Severity.Good && string.Equals(f.Code, code, StringComparison.Ordinal))
@@ -326,8 +259,6 @@ public static class RequirementEvaluator
         if (found.Count == 0)
             return ChallengeRequirementResult.Pass(requirement);
 
-        // The finding's own message is already written to be read - reproducing it here in worse
-        // words would be the same sentence twice in the same panel.
         return ChallengeRequirementResult.Fail(
             requirement,
             found.Count == 1
@@ -343,10 +274,6 @@ public static class RequirementEvaluator
             ? ChallengeRequirementResult.Pass(requirement)
             : ChallengeRequirementResult.Fail(requirement, LocalizedText.Of("challenge.requirement.hasFinding.absent"));
 
-    /// <summary>
-    /// <c>Severity</c> <em>or worse</em>: asking for "no warnings" while a critical slipped past
-    /// would be a checklist that lies, and the lattice already orders them.
-    /// </summary>
     private static ChallengeRequirementResult NoSeverity(ChallengeRequirement requirement, EvaluationContext context)
     {
         var found = context.Analysis.Findings
@@ -365,7 +292,6 @@ public static class RequirementEvaluator
             found.SelectMany(f => f.Elements).Distinct().ToList());
     }
 
-    // ---- Simulada ----------------------------------------------------------
 
     private static ChallengeRequirementResult UnderScenario(ChallengeRequirement requirement, EvaluationContext context)
     {
@@ -376,11 +302,6 @@ public static class RequirementEvaluator
 
         var simulation = context.Simulate(scenario);
 
-        // The engine drops faults pointing at elements that are gone, on purpose: a link shared
-        // before the architecture was edited has to keep opening (V3 D3.6). For a requirement that
-        // rule is backwards - a scenario that lost its fault runs over a healthy architecture and
-        // <em>passes</em>, so "it survives Payments going down" would be met by an architecture
-        // that never posed the question. Anything discarded fails, loudly.
         if (simulation.DiscardedFaults.Count > 0)
             return ChallengeRequirementResult.Fail(
                 requirement,
@@ -407,7 +328,6 @@ public static class RequirementEvaluator
             Affected(simulation));
     }
 
-    /// <summary>What to light up: everything the scenario did not leave healthy.</summary>
     private static IReadOnlyList<FindingElement> Affected(SimulationResult simulation) =>
         simulation.States
             .Where(s => s.State != HealthState.Healthy)
@@ -429,7 +349,6 @@ public static class RequirementEvaluator
         _ => null
     };
 
-    // ---- Textos ------------------------------------------------------------
 
     private static bool Has(ResilienceConfiguration resilience, string mechanism) => mechanism switch
     {
@@ -440,15 +359,7 @@ public static class RequirementEvaluator
         _ => false
     };
 
-    // MechanismName and MetricName used to live here, turning a catalogue value into a Spanish
-    // word. They are now keys - `mechanism.timeout`, `metric.blastRadius` - resolved wherever the
-    // sentence around them is resolved, which is the only place that knows the language.
 
-    /// <summary>
-    /// A metric's value with its unit. Each metric owns a second key - <c>metric.blastRadius.value</c>
-    /// - holding the shape of its own figure, because the unit is part of the sentence and a
-    /// percentage does not read the same in every language as <c>43.5%</c>.
-    /// </summary>
     private static LocalizedText Format(string metric, decimal value) =>
         LocalizedText.Of($"metric.{metric}.value", ("value", value));
 

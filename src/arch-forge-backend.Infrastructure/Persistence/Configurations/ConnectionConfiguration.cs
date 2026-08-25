@@ -11,16 +11,11 @@ public class ConnectionConfiguration : IEntityTypeConfiguration<Connection>
         builder.HasKey(c => c.Id);
         builder.Property(c => c.Protocol).HasConversion<string>().HasMaxLength(50);
 
-        // V2 D3.1: resilience moves into a jsonb object, symmetric to Node.Configuration, so new
-        // mechanisms (backoff, jitter, rate limit) do not each cost a migration.
         builder.Property(c => c.Configuration)
             .HasColumnType("jsonb")
             .IsRequired()
             .HasDefaultValueSql("'{}'::jsonb");
 
-        // Technical_Design_V1 §5.2: an edge always resolves to a real node. The PUT replaces the
-        // whole set in one transaction, so this cascade is mostly a guard for access through
-        // other paths (scripts, admin tooling).
         builder.HasOne<Node>()
             .WithMany()
             .HasForeignKey(c => c.SourceNodeId)

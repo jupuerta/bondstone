@@ -33,7 +33,6 @@ public class MissingResilienceRuleTests
     [Fact]
     public void AsynchronousEdge_IsIgnored()
     {
-        // On an asynchronous call these mechanisms do not apply.
         _builder
             .Node("Orders")
             .Node("Queue", NodeType.Queue)
@@ -46,7 +45,6 @@ public class MissingResilienceRuleTests
     [Fact]
     public void TimeoutTowardsANodeThatIsNotASpof_Passes()
     {
-        // Asking for a circuit breaker everywhere would flag the whole graph (D4.4).
         _builder
             .Node("Orders")
             .Node("Db", NodeType.Database)
@@ -72,15 +70,12 @@ public class MissingResilienceRuleTests
         var finding = Assert.Single(_rule.Evaluate(graph).Findings);
 
         Assert.Equal(Severity.Critical, finding.Severity);
-        // Only the SPOF half applies: this edge has a timeout, so there is nothing to say about one.
         Assert.Equal("finding.MISSING_RESILIENCE.exposedToSpof.explanation(target=Db)", finding.Explanation.Describe());
     }
 
     [Fact]
     public void TimeoutTowardsAWarningSpof_DoesNotEscalate()
     {
-        // The correction of v1.1: with SPOF graded by blast radius, escalating towards any SPOF
-        // turned a correct architecture with one shared cache into a pile of criticals.
         _builder
             .Node("Orders")
             .Node("Cache", NodeType.Cache)
@@ -122,7 +117,6 @@ public class MissingResilienceRuleTests
         var finding = Assert.Single(_rule.Evaluate(graph).Findings);
 
         Assert.Equal(Severity.Critical, finding.Severity);
-        // Both reasons apply, and that is one key rather than two fragments joined (V7 D1.1).
         Assert.Equal("finding.MISSING_RESILIENCE.noTimeoutAndSpof.explanation", finding.Explanation.Key());
         Assert.Equal("Db", finding.Explanation.Arg("target"));
         Assert.Equal("finding.MISSING_RESILIENCE.noTimeoutAndSpof.suggestion", finding.Suggestion.Key());
@@ -131,8 +125,6 @@ public class MissingResilienceRuleTests
     [Fact]
     public void EdgeAlreadyReportedByRetryAmplification_StaysQuiet()
     {
-        // D4.5: the more specific rule already said the timeout is missing. Saying it again under
-        // a second code is noise, not information.
         _builder
             .Node("Orders")
             .Node("Payments")
@@ -147,9 +139,6 @@ public class MissingResilienceRuleTests
     [Fact]
     public void EdgeAlreadyReportedByExternalNoFallback_StaysQuiet()
     {
-        // QA B8: the same D4.5 courtesy towards EXTERNAL_NO_FALLBACK. Its Critical on a call to a
-        // third party already names the missing timeout and its fix sets it - a second Warning on
-        // the same edge was the same advice charged twice in the same area.
         _builder
             .Node("Checkout")
             .Node("Payments", NodeType.ExternalService)
@@ -167,9 +156,6 @@ public class MissingResilienceRuleTests
     [Fact]
     public void ExternalCallThatIsContainedButUnbounded_IsStillMissingItsTimeout()
     {
-        // The fact only travels with a finding: a call with a fallback and no timeout is not
-        // EXTERNAL_NO_FALLBACK's to report, so the timeout lesson is still this rule's to give -
-        // and it matters, because a fallback without a timeout contains nothing (D4.2).
         _builder
             .Node("Checkout")
             .Node("Payments", NodeType.ExternalService)
@@ -209,8 +195,6 @@ public class MissingResilienceRuleTests
     [Fact]
     public void AThirdPartysOwnCall_IsNotYoursToProtect()
     {
-        // V14 B10. `Stripe -> Maps` bare: what Stripe does with its call to Google Maps is
-        // Stripe's resilience, and there is no knob on this canvas that changes it.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Stripe", NodeType.ExternalService)
@@ -221,16 +205,10 @@ public class MissingResilienceRuleTests
         Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
     }
 
-    // ---- V15 A3: an instrumentation edge has two directions, and only one of them is a call ----
 
     [Fact]
     public void AScrape_IsNotACallOfYours()
     {
-        // V15 A3 (QA V15 C2). `Obs -> Api` is the telemetry reading what it watches: it starts at
-        // the metrics sink, it is on no request path, and there is no knob on it the architect
-        // owns - a timeout on Prometheus's poll of your Api is Prometheus's, and a fallback on it
-        // means nothing. The canvas draws every new arrow synchronous and unconfigured, so wiring
-        // the telemetry the way NO_OBSERVABILITY asks used to cost a Warning per box.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
@@ -248,8 +226,6 @@ public class MissingResilienceRuleTests
     [Fact]
     public void AScrapeAsTheOnlySynchronousCall_LeavesNothingToEvaluate()
     {
-        // The same courtesy `IsNotYourCall` gets: a graph whose only synchronous arrows are the
-        // telemetry's has no call this rule can grade, so it is not applicable rather than passed.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Obs", NodeType.Observability)
@@ -261,9 +237,6 @@ public class MissingResilienceRuleTests
     [Fact]
     public void AScrapeTowardsACriticalSpof_IsNotTheCriticalItUsedToBe()
     {
-        // The worst of it: `Obs -> Gw` with the gateway a Critical SPOF came out a Critical whose
-        // explanation said the gateway's fall "propagates straight back" - into the metrics
-        // collector. The escalation read the SPOF fact without asking which edge it was on.
         _builder
             .Node("Gw", NodeType.Gateway)
             .Node("Svc")
@@ -280,11 +253,6 @@ public class MissingResilienceRuleTests
     [Fact]
     public void ASynchronousPushToTheTelemetry_IsStillAWarning_AndItsFixMakesTheHopAsynchronous()
     {
-        // The half of the exception that was always justified: `Api -> Obs` synchronous is a
-        // blocking call to the metrics backend on the request path, the one thing about an
-        // instrumentation edge that is genuinely the architect's. What the student can do about it
-        // is what the doctrine names - make the hop asynchronous - not a timeout and a fallback on
-        // a fire-and-forget send, which is what the button used to draw.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
@@ -305,16 +273,13 @@ public class MissingResilienceRuleTests
         Assert.Equal(FixKinds.MakeEdgeAsynchronous, fix!.Kind);
         Assert.Equal(_builder.EdgeElement("Api", "Obs"), fix.Element);
         Assert.Equal("fix.MISSING_RESILIENCE.makeAsynchronous", fix.Label.Describe());
-        Assert.Null(fix.TimeoutSeconds);   // the mode is the fix; nothing else on the edge moves
+        Assert.Null(fix.TimeoutSeconds);
         Assert.Null(fix.Fallback);
     }
 
     [Fact]
     public void APushToTheTelemetry_NeverEscalates()
     {
-        // SPOF never grades the telemetry box, so in the real analyzer this fact does not exist.
-        // The rule refuses the escalation on its own anyway: a component's fall does not propagate
-        // back into its own metrics, whatever a fact says about the box.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Obs", NodeType.Observability)
@@ -332,8 +297,6 @@ public class MissingResilienceRuleTests
     [Fact]
     public void APushWithATimeout_Passes()
     {
-        // Bounded is bounded: a synchronous send that cannot hang the request is the same
-        // protected call any other edge with a timeout is.
         _builder
             .Node("Api", NodeType.Api)
             .Node("Obs", NodeType.Observability)
@@ -348,8 +311,6 @@ public class MissingResilienceRuleTests
     [Fact]
     public void TheTwoDirectionsOfAnInstrumentationEdge_AreNotTheSameFinding()
     {
-        // QA V15 S1a / S1b: the two used to come out letter for letter identical, with a timeout
-        // and a fallback offered on a scrape. The rule now reads the arrow.
         var push = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Obs", NodeType.Observability)
             .Connect("Api", "Obs");
