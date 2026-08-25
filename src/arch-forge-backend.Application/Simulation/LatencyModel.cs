@@ -23,6 +23,21 @@ public static class LatencyModel
     public const int LoadBalancer = 1;
     public const int Cache = 1;
     public const int Queue = 2;
+
+    /// <summary>
+    /// V16 Anexo B. The same two milliseconds as a <see cref="Queue"/>, and for the reason
+    /// <see cref="CapacityModel.Topic"/> already gives for its capacity (V14 §3.1): it is the same
+    /// broker hardware, and what differs is what it does with the fan-out, not what a message costs
+    /// to pass through it.
+    ///
+    /// Until V16 this constant did not exist and <see cref="Processing"/> had fifteen of the sixteen
+    /// types, so a Topic fell through to a Service's 10 ms - five times a Queue, decided by a
+    /// <c>default</c> rather than by anybody. It was not much on latencies of hundreds of
+    /// milliseconds; what it was, was a figure nobody chose, in a model whose whole argument is that
+    /// its figures are chosen. Publishing the table is what found it (C2), which is the entire point
+    /// of publishing the table.
+    /// </summary>
+    public const int Topic = 2;
     public const int Api = 5;
     public const int Gateway = 5;
     public const int Service = 10;
@@ -74,6 +89,7 @@ public static class LatencyModel
         NodeType.LoadBalancer => LoadBalancer,
         NodeType.Cache => Cache,
         NodeType.Queue => Queue,
+        NodeType.Topic => Topic,
         NodeType.Api => Api,
         NodeType.Gateway => Gateway,
         NodeType.Service => Service,

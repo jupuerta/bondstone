@@ -14,10 +14,15 @@ namespace arch_forge_backend.Application.Simulation;
 /// <strong>Nothing here is a number.</strong> Every value is asked of the class that owns it, and
 /// the two switches are walked with <c>Enum.GetValues</c> rather than listed — a type added to
 /// <see cref="NodeType"/> appears here on its own, and a type whose capacity moves moves here too.
-/// A published copy that drifts from the model would be worse than the silence it replaces, and
-/// Anexo B of V16 is what that drift looks like: <see cref="NodeType.Topic"/> has no entry in
-/// <see cref="LatencyModel.Processing"/> and falls through to a Service's 10 ms, a figure nobody
-/// chose. This endpoint does not fix it — it is what makes it visible.
+/// A published copy that drifts from the model would be worse than the silence it replaces.
+///
+/// It has already earned that once. Walking the enum is what surfaced V16's Anexo B: publishing the
+/// table put <see cref="NodeType.Topic"/> on screen at a Service's 10 ms — five times its twin the
+/// <see cref="NodeType.Queue"/>, on the same 5 000 rps — because <see cref="LatencyModel.Processing"/>
+/// listed fifteen of the sixteen types and the sixteenth fell through the default. This endpoint did
+/// not fix it; it is what made it impossible to keep not noticing. It is fixed now
+/// (<see cref="LatencyModel.Topic"/>), and the guard against the seventeenth type is
+/// <c>LatencyModelTests</c>.
 /// </summary>
 public static class ModelReference
 {

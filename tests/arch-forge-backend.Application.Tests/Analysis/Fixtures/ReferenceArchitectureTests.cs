@@ -458,7 +458,10 @@ public class ReferenceArchitectureTests
         // draws. Until V15 the first cost Resilience a Warning per box and, towards the front
         // door, a Critical: "the gateway's fall propagates straight back" - into the metrics
         // collector. The reference fixtures carry no telemetry, which is what makes them the
-        // control: 98 / 90 / 80 / 69 are the same numbers with the cables on.
+        // control: 98 / 92 / 83 / 70 are the same numbers with the cables on. (V16 Anexo C: this
+        // line said 98 / 90 / 80 / 69 until then - the pre-D2 cuarteta - while the four asserts it
+        // was quoting, at :43, :114, :189 and :289 of this same file, had moved with D2. A figure
+        // that only lives in prose goes stale; the assert beside it cannot.)
         var bare = ReferenceArchitecture.Analyze(fixture);
         var observed = ReferenceArchitecture.Analyze(Instrumented(fixture, push, synchronous));
 
