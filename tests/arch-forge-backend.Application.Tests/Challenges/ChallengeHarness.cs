@@ -50,7 +50,12 @@ public static class ChallengeHarness
     private static EvaluateChallengeQueryHandler Handler() =>
         new(new NullRepository(), Catalog, Analyzer(), new SimulationEngine());
 
-    private static ArchitectureAnalyzer Analyzer() => new([
+    public static IEnumerable<string> RuleNames() => Rules().Select(rule => rule.GetType().Name);
+
+    private static ArchitectureAnalyzer Analyzer() => new(Rules());
+
+    private static IReadOnlyList<IArchitectureRule> Rules() =>
+    [
         new SpofRule(),
         new CycleRule(),
         new RetryAmplificationRule(),
@@ -61,6 +66,7 @@ public static class ChallengeHarness
         new OrphanNodeRule(),
         new QueueNoDlqRule(),
         new TimeoutTooShortRule(),
+        new TimeoutTooLongRule(),
         new UndersizedComponentRule(),
         new NoRateLimitRule(),
         new ExposedDatabaseRule(),
@@ -74,7 +80,7 @@ public static class ChallengeHarness
         new ImplausibleDependencyRule(),
         new TrafficRejectedRule(),
         new MissingCdnRule()
-    ]);
+    ];
 
     private sealed class NullRepository : Application.Common.Interfaces.IArchitectureRepository
     {

@@ -16,6 +16,8 @@ public class ArchitecturesController : ControllerBase
     private readonly DeleteArchitectureCommandHandler _deleteHandler;
     private readonly AnalyzeArchitectureQueryHandler _analyzeHandler;
     private readonly SimulateArchitectureQueryHandler _simulateHandler;
+    private readonly MapArchitectureFragilityQueryHandler _fragilityHandler;
+    private readonly SweepArchitectureLoadQueryHandler _loadCurveHandler;
     private readonly ForkArchitectureCommandHandler _forkHandler;
     private readonly GetArchitectureHistoryQueryHandler _historyHandler;
 
@@ -27,6 +29,8 @@ public class ArchitecturesController : ControllerBase
         DeleteArchitectureCommandHandler deleteHandler,
         AnalyzeArchitectureQueryHandler analyzeHandler,
         SimulateArchitectureQueryHandler simulateHandler,
+        MapArchitectureFragilityQueryHandler fragilityHandler,
+        SweepArchitectureLoadQueryHandler loadCurveHandler,
         ForkArchitectureCommandHandler forkHandler,
         GetArchitectureHistoryQueryHandler historyHandler)
     {
@@ -37,6 +41,8 @@ public class ArchitecturesController : ControllerBase
         _deleteHandler = deleteHandler;
         _analyzeHandler = analyzeHandler;
         _simulateHandler = simulateHandler;
+        _fragilityHandler = fragilityHandler;
+        _loadCurveHandler = loadCurveHandler;
         _forkHandler = forkHandler;
         _historyHandler = historyHandler;
     }
@@ -110,6 +116,20 @@ public class ArchitecturesController : ControllerBase
         };
 
         var result = await _simulateHandler.Handle(query, cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
+
+    [HttpPost("{shareToken}/fragility")]
+    public async Task<IActionResult> Fragility(string shareToken, CancellationToken cancellationToken)
+    {
+        var result = await _fragilityHandler.Handle(new MapArchitectureFragilityQuery { ShareToken = shareToken }, cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
+
+    [HttpPost("{shareToken}/load-curve")]
+    public async Task<IActionResult> LoadCurve(string shareToken, CancellationToken cancellationToken)
+    {
+        var result = await _loadCurveHandler.Handle(new SweepArchitectureLoadQuery { ShareToken = shareToken }, cancellationToken);
         return result is null ? NotFound() : Ok(result);
     }
 

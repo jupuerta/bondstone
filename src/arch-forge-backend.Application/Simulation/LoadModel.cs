@@ -14,19 +14,21 @@ public sealed class LoadModel
     private readonly HashSet<Guid> _backEdges;
     private readonly List<Guid> _order;
     private readonly ArchitectureGraph _graph;
+    private readonly decimal _demandScale;
 
-    private LoadModel(ArchitectureGraph graph)
+    private LoadModel(ArchitectureGraph graph, decimal demandScale)
     {
         _graph = graph;
+        _demandScale = demandScale;
         (_order, _backEdges) = TopologicalOrder(graph);
 
         foreach (var node in graph.Nodes)
             _capacity[node.Id] = CapacityModel.PerInstance(node.Type) * NodeSettings.Instances(node);
     }
 
-    public static LoadModel Of(ArchitectureGraph graph)
+    public static LoadModel Of(ArchitectureGraph graph, decimal demandScale = 1m)
     {
-        var model = new LoadModel(graph);
+        var model = new LoadModel(graph, demandScale);
 
         model.Propagate(_ => 1m);
 
@@ -69,11 +71,13 @@ public sealed class LoadModel
 
     public decimal BacklogRps { get; private set; }
 
+    public decimal EnteringRps => _graph.RootNodes.Sum(n => NodeSettings.Admit(n, DeclaredRps(n)));
+
     public decimal LoadAmplification
     {
         get
         {
-            var entering = _graph.RootNodes.Sum(n => NodeSettings.Admit(n, NodeSettings.DeclaredRps(n)));
+            var entering = EnteringRps;
             if (entering <= 0m)
                 return 1m;
 
@@ -82,6 +86,8 @@ public sealed class LoadModel
         }
     }
 
+
+    private decimal DeclaredRps(Node node) => NodeSettings.DeclaredRps(node) * _demandScale;
 
     private void Propagate(Func<Connection, decimal> amplification)
     {
@@ -98,7 +104,7 @@ public sealed class LoadModel
                 .Where(edge => !_backEdges.Contains(edge.Id))
                 .Sum(edge => _edgeLoad.GetValueOrDefault(edge.Id));
 
-            var demand = NodeSettings.DeclaredRps(node) + incoming;
+            var demand = DeclaredRps(node) + incoming;
             var load = NodeSettings.Admit(node, demand);
             _nodeDemand[nodeId] = demand;
             _nodeLoad[nodeId] = load;

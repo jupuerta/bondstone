@@ -2,6 +2,8 @@ using arch_forge_backend.Application.Tests.TestDoubles;
 using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Challenges;
+using arch_forge_backend.Application.Simulation;
+using System.Text.Json;
 using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Challenges;
@@ -38,6 +40,7 @@ public class ChallengeDefinitionsTests
                 ("latency-budget", RequirementKinds.UnderScenario, 100),
                 ("latency-budget", RequirementKinds.UnderScenario, 75),
                 ("no-new-hardware", RequirementKinds.UnderScenario, 60),
+                ("timeout-was-enough", RequirementKinds.UnderScenario, 400),
             ],
             published);
     }
@@ -232,5 +235,143 @@ public class PaymentsFridayTests
         Assert.False(result.Passed);
         Assert.False(survives.Met);
         Assert.Contains("Payments", survives.Detail.Describe());
+    }
+}
+
+public class TimeoutWasEnoughTests
+{
+    private const string Slug = "timeout-was-enough";
+
+    [Fact]
+    public void The_starter_expires_the_call_the_customer_makes()
+    {
+        var result = ChallengeHarness.Evaluate(Slug, ChallengeHarness.Catalog.StarterOf(Slug)!);
+        var fits = result.Requirements[3];
+
+        Assert.False(fits.Met);
+        Assert.Contains("TIMEOUT_TOO_SHORT", fits.Detail.Key());
+        Assert.Contains("Edge", fits.Detail.Describe());
+        Assert.Contains("Storefront", fits.Detail.Describe());
+    }
+
+    [Fact]
+    public void Nothing_is_over_its_capacity_and_the_second_still_runs_out()
+    {
+        var analysis = ChallengeHarness.Analyze(ChallengeHarness.Catalog.StarterOf(Slug)!);
+
+        Assert.DoesNotContain(
+            analysis.Findings,
+            f => f.Code == RuleCodes.UndersizedComponent && f.Severity == Severity.Critical);
+
+        Assert.Contains(
+            analysis.Findings,
+            f => f.Code == RuleCodes.TimeoutTooShort && f.Severity == Severity.Critical);
+    }
+
+    [Fact]
+    public void Raising_the_timeout_silences_the_finding_and_fails_the_budget()
+    {
+        var result = ChallengeHarness.Evaluate(Slug, Retimed(ChallengeHarness.Catalog.StarterOf(Slug)!, 5));
+
+        Assert.True(result.Requirements[3].Met);
+        Assert.False(result.Requirements[4].Met);
+        Assert.False(result.Passed);
+    }
+
+    [Fact]
+    public void A_circuit_breaker_makes_the_failure_instant_and_the_call_no_shorter()
+    {
+        var result = ChallengeHarness.Evaluate(Slug, Broken(ChallengeHarness.Catalog.StarterOf(Slug)!));
+
+        Assert.True(result.Requirements[4].Met);
+        Assert.False(result.Requirements[3].Met);
+        Assert.False(result.Passed);
+    }
+
+    private static ArchitectureBlueprint Retimed(ArchitectureBlueprint blueprint, int seconds) =>
+        Reconfigured(blueprint, _ => $"{{\"timeoutSeconds\":{seconds}}}");
+
+    private static ArchitectureBlueprint Broken(ArchitectureBlueprint blueprint) =>
+        Reconfigured(blueprint, edge => edge.From == "Edge"
+            ? "{\"timeoutSeconds\":1,\"circuitBreaker\":true}"
+            : "{\"timeoutSeconds\":1}");
+
+    internal static ArchitectureBlueprint Reconfigured(
+        ArchitectureBlueprint blueprint,
+        Func<BlueprintConnection, string> configuration) => new()
+    {
+        Name = blueprint.Name,
+        Nodes = blueprint.Nodes,
+        Connections = blueprint.Connections
+            .Select(c => new BlueprintConnection
+            {
+                From = c.From,
+                To = c.To,
+                Protocol = c.Protocol,
+                Synchronous = c.Synchronous,
+                Configuration = JsonDocument.Parse(configuration(c)).RootElement.Clone()
+            })
+            .ToList()
+    };
+}
+
+public class NobodyNoticedTests
+{
+    private const string Slug = "nobody-noticed";
+
+    [Fact]
+    public void A_fallback_alone_contains_the_damage_and_still_serves_nobody()
+    {
+        var withFallback = TimeoutWasEnoughTests.Reconfigured(
+            ChallengeHarness.Catalog.StarterOf(Slug)!,
+            edge => edge.To == "Products"
+                ? "{\"timeoutSeconds\":2,\"fallback\":true}"
+                : "{\"timeoutSeconds\":2}");
+
+        var metrics = Outage(withFallback);
+
+        Assert.Equal(0, metrics.EntryPointsAffected);
+        Assert.True(metrics.BlastRadius < 1m);
+
+        Assert.Equal(1m, metrics.RequestsAffected);
+    }
+
+    [Fact]
+    public void The_solution_loses_nothing_with_half_the_drawing_tinted()
+    {
+        var metrics = Outage(ChallengeHarness.Catalog.ReferenceSolutionOf(Slug)!);
+
+        Assert.Equal(0m, metrics.RequestsAffected);
+
+        Assert.Equal(1, metrics.ComponentsDown);
+        Assert.Equal(2, metrics.ComponentsDegraded);
+        Assert.Equal(0.6m, metrics.BlastRadius);
+    }
+
+    [Fact]
+    public void Deleting_the_database_does_not_pass_the_challenge()
+    {
+        var starter = ChallengeHarness.Catalog.StarterOf(Slug)!;
+        var mutilated = new ArchitectureBlueprint
+        {
+            Name = starter.Name,
+            Nodes = starter.Nodes.Where(n => n.Name != "Products").ToList(),
+            Connections = starter.Connections.Where(c => c.To != "Products").ToList()
+        };
+
+        var result = ChallengeHarness.Evaluate(Slug, mutilated);
+
+        Assert.False(result.Passed);
+        Assert.Contains("Products", result.Requirements[4].Detail.Describe());
+    }
+
+    private static SimulationMetrics Outage(ArchitectureBlueprint blueprint)
+    {
+        var graph = ChallengeHarness.Graph(blueprint);
+        var products = graph.Nodes.Single(n => n.Name == "Products");
+
+        return new SimulationEngine()
+            .Run(graph, new SimulationScenario([new Fault(ElementType.Node, products.Id, FaultKinds.Down)]))
+            .Metrics;
     }
 }

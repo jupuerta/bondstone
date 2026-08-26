@@ -83,6 +83,8 @@ public static class DependencyInjection
         services.AddScoped<GetArchitectureByEditTokenQueryHandler>();
         services.AddScoped<AnalyzeArchitectureQueryHandler>();
         services.AddScoped<SimulateArchitectureQueryHandler>();
+        services.AddScoped<MapArchitectureFragilityQueryHandler>();
+        services.AddScoped<SweepArchitectureLoadQueryHandler>();
         services.AddScoped<ForkArchitectureCommandHandler>();
         services.AddScoped<StartChallengeCommandHandler>();
         services.AddScoped<OpenChallengeSolutionCommandHandler>();
