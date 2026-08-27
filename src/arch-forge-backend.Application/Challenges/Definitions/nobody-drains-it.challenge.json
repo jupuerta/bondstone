@@ -1,0 +1,41 @@
+{
+  "slug": "nobody-drains-it",
+  "titleKey": "challenge.nobody-drains-it.title",
+  "storyKey": "challenge.nobody-drains-it.story",
+  "difficulty": "beginner",
+  "order": 4,
+  "topic": "Coupling",
+  "starter": "nobody-drains-it.starter.json",
+  "referenceSolution": "nobody-drains-it.solution.json",
+  "requirements": [
+    {
+      "kind": "declaresLoad",
+      "labelKey": "challenge.nobody-drains-it.requirement.1",
+      "min": 120
+    },
+    {
+      "kind": "edge",
+      "labelKey": "challenge.nobody-drains-it.requirement.2",
+      "from": "Orders",
+      "to": "Invoices",
+      "synchronous": false
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.nobody-drains-it.requirement.3",
+      "code": "QUEUE_NO_CONSUMER"
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.nobody-drains-it.goal.1",
+      "code": "QUEUE_NO_DLQ"
+    }
+  ],
+  "hintKeys": [
+    "challenge.nobody-drains-it.hint.1",
+    "challenge.nobody-drains-it.hint.2",
+    "challenge.nobody-drains-it.hint.3"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "slug": "it-does-not-fit",
+  "titleKey": "challenge.it-does-not-fit.title",
+  "storyKey": "challenge.it-does-not-fit.story",
+  "difficulty": "beginner",
+  "order": 6,
+  "topic": "Scalability",
+  "starter": "it-does-not-fit.starter.json",
+  "referenceSolution": "it-does-not-fit.solution.json",
+  "requirements": [
+    { "kind": "declaresLoad", "labelKey": "challenge.it-does-not-fit.requirement.1", "min": 500 },
+    { "kind": "noFinding", "labelKey": "challenge.it-does-not-fit.requirement.2", "code": "UNDERSIZED_COMPONENT" },
+    { "kind": "noFinding", "labelKey": "challenge.it-does-not-fit.requirement.3", "code": "TRAFFIC_REJECTED" }
+  ],
+  "optionalGoals": [
+    { "kind": "maxNodes", "labelKey": "challenge.it-does-not-fit.goal.1", "max": 3 }
+  ],
+  "hintKeys": [
+    "challenge.it-does-not-fit.hint.1",
+    "challenge.it-does-not-fit.hint.2",
+    "challenge.it-does-not-fit.hint.3"
+  ]
+}

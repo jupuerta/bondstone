@@ -1,0 +1,16 @@
+{
+  "name": "thirty-seconds starter",
+  "nodes": [
+    { "name": "Storefront", "type": "Api", "x": 0, "y": 160, "configuration": { "requestsPerSecond": 60, "instances": 2, "authentication": true, "rateLimit": 300 } },
+    { "name": "Orders", "type": "Service", "x": 300, "y": 160, "configuration": { "instances": 2 } },
+    { "name": "Db", "type": "Database", "x": 600, "y": 160, "configuration": { "replicas": 1 } },
+    { "name": "Telemetry", "type": "Observability", "x": 300, "y": 400 }
+  ],
+  "connections": [
+    { "from": "Storefront", "to": "Orders", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 60 } },
+    { "from": "Orders", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
+    { "from": "Storefront", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
+    { "from": "Orders", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
+    { "from": "Db", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} }
+  ]
+}

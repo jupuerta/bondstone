@@ -1,0 +1,42 @@
+{
+  "slug": "flying-blind",
+  "titleKey": "challenge.flying-blind.title",
+  "storyKey": "challenge.flying-blind.story",
+  "difficulty": "beginner",
+  "order": 3,
+  "topic": "Observability",
+  "starter": "flying-blind.starter.json",
+  "referenceSolution": "flying-blind.solution.json",
+  "requirements": [
+    {
+      "kind": "declaresLoad",
+      "labelKey": "challenge.flying-blind.requirement.1",
+      "min": 150
+    },
+    {
+      "kind": "containsNode",
+      "labelKey": "challenge.flying-blind.requirement.2",
+      "nodeType": "Observability"
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.flying-blind.requirement.3",
+      "code": "NO_OBSERVABILITY"
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.flying-blind.goal.1",
+      "faults": [{ "node": "Telemetry", "kind": "down" }],
+      "metric": "requestsAffected",
+      "operator": "eq",
+      "value": 0
+    }
+  ],
+  "hintKeys": [
+    "challenge.flying-blind.hint.1",
+    "challenge.flying-blind.hint.2",
+    "challenge.flying-blind.hint.3"
+  ]
+}

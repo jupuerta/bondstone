@@ -1,0 +1,20 @@
+{
+  "name": "two-services-one-table starter",
+  "nodes": [
+    { "name": "Storefront", "type": "Api", "x": 260, "y": 0, "configuration": { "requestsPerSecond": 80, "instances": 2, "rateLimit": 600, "authentication": true } },
+    { "name": "Orders", "type": "Service", "x": 0, "y": 200, "configuration": { "instances": 2 } },
+    { "name": "Invoicing", "type": "Service", "x": 520, "y": 200, "configuration": { "instances": 2 } },
+    { "name": "Db", "type": "Database", "x": 260, "y": 420, "configuration": { "replicas": 1 } },
+    { "name": "Telemetry", "type": "Observability", "x": 780, "y": 420 }
+  ],
+  "connections": [
+    { "from": "Storefront", "to": "Orders", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
+    { "from": "Storefront", "to": "Invoicing", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
+    { "from": "Orders", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 3, "access": "ReadWrite" } },
+    { "from": "Invoicing", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 3, "access": "ReadWrite" } },
+    { "from": "Storefront", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
+    { "from": "Orders", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
+    { "from": "Invoicing", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
+    { "from": "Db", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} }
+  ]
+}
