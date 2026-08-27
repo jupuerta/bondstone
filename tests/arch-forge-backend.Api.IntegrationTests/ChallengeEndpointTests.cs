@@ -1,6 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
+using arch_forge_backend.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace arch_forge_backend.Api.IntegrationTests;
@@ -8,10 +11,18 @@ namespace arch_forge_backend.Api.IntegrationTests;
 public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
 {
     private readonly HttpClient _client;
+    private readonly PostgresApiFactory _factory;
 
     public ChallengeEndpointTests(PostgresApiFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient();
+    }
+
+    private async Task<int> CountArchitecturesAsync()
+    {
+        using var scope = _factory.Services.CreateScope();
+        return await scope.ServiceProvider.GetRequiredService<ArchForgeDbContext>().Architectures.CountAsync();
     }
 
     [Fact]
@@ -133,6 +144,50 @@ public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
 
         var verdict = await evaluated.Content.ReadFromJsonAsync<JsonObject>();
         Assert.True(verdict!["passed"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public async Task Previewing_the_solution_says_the_same_as_opening_it()
+    {
+        var opened = (await (await _client.PostAsync("/api/challenges/payments-friday/solution", null))
+            .Content.ReadFromJsonAsync<JsonObject>())!;
+
+        var preview = (await (await _client.GetAsync("/api/challenges/payments-friday/solution/preview"))
+            .Content.ReadFromJsonAsync<JsonObject>())!;
+
+        Assert.Equal(
+            opened["nodes"]!.AsArray().Select(node => node!["name"]!.GetValue<string>()).OrderBy(name => name),
+            preview["nodes"]!.AsArray().Select(node => node!["name"]!.GetValue<string>()).OrderBy(name => name));
+
+        Assert.Equal(opened["connections"]!.AsArray().Count, preview["connections"]!.AsArray().Count);
+
+        var analyzed = await (await _client.PostAsync(
+            $"/api/architectures/{opened["shareToken"]!.GetValue<string>()}/analyze", null))
+            .Content.ReadFromJsonAsync<JsonObject>();
+
+        Assert.Equal(
+            analyzed!["score"]!.GetValue<int>(),
+            preview["analysis"]!["score"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task Previewing_the_solution_does_not_create_an_architecture()
+    {
+        var before = await CountArchitecturesAsync();
+
+        for (var i = 0; i < 3; i++)
+            Assert.Equal(HttpStatusCode.OK, (await _client.GetAsync("/api/challenges/payments-friday/solution/preview")).StatusCode);
+
+        Assert.Equal(before, await CountArchitecturesAsync());
+
+        await _client.PostAsync("/api/challenges/payments-friday/solution", null);
+        Assert.Equal(before + 1, await CountArchitecturesAsync());
+    }
+
+    [Fact]
+    public async Task Previewing_a_challenge_that_is_not_there_is_a_404()
+    {
+        Assert.Equal(HttpStatusCode.NotFound, (await _client.GetAsync("/api/challenges/nope/solution/preview")).StatusCode);
     }
 
     [Fact]

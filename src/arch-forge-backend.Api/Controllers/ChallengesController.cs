@@ -11,17 +11,20 @@ public class ChallengesController : ControllerBase
     private readonly StartChallengeCommandHandler _startHandler;
     private readonly EvaluateChallengeQueryHandler _evaluateHandler;
     private readonly OpenChallengeSolutionCommandHandler _solutionHandler;
+    private readonly PreviewChallengeSolutionQueryHandler _previewHandler;
 
     public ChallengesController(
         ChallengeCatalog catalog,
         StartChallengeCommandHandler startHandler,
         EvaluateChallengeQueryHandler evaluateHandler,
-        OpenChallengeSolutionCommandHandler solutionHandler)
+        OpenChallengeSolutionCommandHandler solutionHandler,
+        PreviewChallengeSolutionQueryHandler previewHandler)
     {
         _catalog = catalog;
         _startHandler = startHandler;
         _evaluateHandler = evaluateHandler;
         _solutionHandler = solutionHandler;
+        _previewHandler = previewHandler;
     }
 
     [HttpGet]
@@ -47,6 +50,13 @@ public class ChallengesController : ControllerBase
     {
         var query = new EvaluateChallengeQuery { Slug = slug, ShareToken = request.ShareToken };
         var result = await _evaluateHandler.Handle(query, cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
+
+    [HttpGet("{slug}/solution/preview")]
+    public IActionResult SolutionPreview(string slug)
+    {
+        var result = _previewHandler.Handle(new PreviewChallengeSolutionQuery { Slug = slug });
         return result is null ? NotFound() : Ok(result);
     }
 

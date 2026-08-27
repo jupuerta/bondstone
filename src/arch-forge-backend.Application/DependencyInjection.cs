@@ -88,6 +88,7 @@ public static class DependencyInjection
         services.AddScoped<ForkArchitectureCommandHandler>();
         services.AddScoped<StartChallengeCommandHandler>();
         services.AddScoped<OpenChallengeSolutionCommandHandler>();
+        services.AddScoped<PreviewChallengeSolutionQueryHandler>();
         services.AddScoped<EvaluateChallengeQueryHandler>();
         services.AddScoped<GetArchitectureHistoryQueryHandler>();
 
