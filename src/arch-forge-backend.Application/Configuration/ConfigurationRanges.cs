@@ -1,10 +1,15 @@
+using System.Text.Json;
+using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Application.Configuration.Schemas;
+using arch_forge_backend.Domain.Enums;
 
 namespace arch_forge_backend.Application.Configuration;
 
 public static class ConfigurationRanges
 {
     public const int MaxTimeoutSeconds = 600;
+
+    public static readonly string[] Zones = ["a", "b", "c"];
 
     public static string? Violation(object configuration) => configuration switch
     {
@@ -27,6 +32,26 @@ public static class ConfigurationRanges
                                      ?? AtLeastZero("retries", c.Retries),
         _ => null
     };
+
+    // zone is not a property of the 16 typed schemas, so Violation() never sees it: it has to be
+    // read off the raw configuration object, or a typo would save silently and mean "no zone".
+    public static string? ZoneViolation(NodeType type, JsonElement configuration)
+    {
+        foreach (var property in configuration.EnumerateObject())
+        {
+            if (!property.Name.Equals("zone", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (!NodeRoles.IsYoursToPlace(type))
+                return $"zone does not apply to {type}.";
+
+            if (property.Value.ValueKind != JsonValueKind.String
+                || !Zones.Contains(property.Value.GetString()))
+                return "zone must be one of a, b, c.";
+        }
+
+        return null;
+    }
 
     private static string? AtLeastOne(string field, int? value) =>
         value is < 1 ? $"{field} must be 1 or greater." : null;

@@ -21,8 +21,8 @@ public class AnalysisContractTests
         {
             var coverage = ReferenceArchitecture.Analyze(name).Coverage;
 
-            Assert.Equal(24, coverage.Count);
-            Assert.Equal(24, coverage.Select(rule => rule.Code).Distinct().Count());
+            Assert.Equal(25, coverage.Count);
+            Assert.Equal(25, coverage.Select(rule => rule.Code).Distinct().Count());
         }
     }
 
@@ -131,12 +131,12 @@ public class AnalysisContractTests
     }
 
     [Fact]
-    public void The_empty_canvas_gets_twenty_four_different_sentences()
+    public void The_empty_canvas_gets_twenty_five_different_sentences()
     {
         var coverage = ReferenceArchitecture.Analyze(new GraphBuilder().Build()).Coverage;
 
         Assert.All(coverage, rule => Assert.Equal(RuleState.NotApplicable, rule.State));
-        Assert.Equal(24, coverage.Select(rule => rule.Reason!.Key).Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(25, coverage.Select(rule => rule.Reason!.Key).Distinct(StringComparer.Ordinal).Count());
     }
 
     [Fact]
@@ -358,6 +358,81 @@ public class AnalysisContractTests
         Assert.Equal(0m, CallLoadOf(result, graph, "Obs", "Api"));
     }
 
+
+    [Fact]
+    public void Cost_travels_with_the_analysis_and_says_it_even_when_nobody_declared_traffic()
+    {
+        foreach (var name in References)
+        {
+            var result = ReferenceArchitecture.Analyze(name);
+
+            Assert.NotEmpty(result.Cost.Components);
+            Assert.Equal(result.Cost.Components.Sum(component => component.Total), result.Cost.Total);
+        }
+    }
+
+    [Fact]
+    public void Cost_lists_every_component_including_the_ones_that_are_not_yours_to_pay_for()
+    {
+        var graph = new GraphBuilder()
+            .Node("Users", NodeType.Client, "{\"requestsPerSecond\":40}")
+            .Node("Api", NodeType.Api, "{\"authentication\":true,\"instances\":2}")
+            .Node("Pagos", NodeType.ExternalService)
+            .Node("Db", NodeType.Database, "{\"readReplicas\":1}")
+            .Connect("Users", "Api")
+            .Connect("Api", "Pagos", timeoutSeconds: 3, fallback: true)
+            .Connect("Api", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql)
+            .Build();
+
+        var cost = ReferenceArchitecture.Analyze(graph).Cost;
+
+        Assert.Equal(graph.Nodes.Select(n => n.Id), cost.Components.Select(component => component.NodeId));
+
+        Assert.Equal(0, CostOf(cost, graph, "Users"));
+        Assert.Equal(0, CostOf(cost, graph, "Pagos"));
+        Assert.Equal(CostModel.Api * 2, CostOf(cost, graph, "Api"));
+        Assert.Equal(CostModel.Database * 2, CostOf(cost, graph, "Db"));
+
+        Assert.Equal(CostModel.Of(graph), cost.Total);
+    }
+
+    [Fact]
+    public void Cost_publishes_the_two_factors_the_screen_multiplies()
+    {
+        var graph = new GraphBuilder()
+            .Node("Api", NodeType.Api, "{\"requestsPerSecond\":40,\"instances\":3}")
+            .Build();
+
+        var api = ComponentOf(ReferenceArchitecture.Analyze(graph).Cost, graph, "Api");
+
+        Assert.Equal(CostModel.Api, api.PerInstance);
+        Assert.Equal(3, api.Instances);
+        Assert.Equal(CostModel.Api * 3, api.Total);
+    }
+
+    [Fact]
+    public void Spreading_a_component_over_zones_does_not_change_what_it_costs()
+    {
+        var spread = new GraphBuilder()
+            .Node("Api a", NodeType.Api, "{\"zone\":\"a\"}")
+            .Node("Api b", NodeType.Api, "{\"zone\":\"b\"}")
+            .Node("Api c", NodeType.Api, "{\"zone\":\"c\"}")
+            .Build();
+
+        var stacked = new GraphBuilder()
+            .Node("Api", NodeType.Api, "{\"zone\":\"a\",\"instances\":3}")
+            .Build();
+
+        Assert.Equal(12, ReferenceArchitecture.Analyze(spread).Cost.Total);
+        Assert.Equal(12, ReferenceArchitecture.Analyze(stacked).Cost.Total);
+    }
+
+
+    private static int CostOf(ArchitectureCost cost, ArchitectureGraph graph, string name) =>
+        ComponentOf(cost, graph, name).Total;
+
+    private static ComponentCost ComponentOf(ArchitectureCost cost, ArchitectureGraph graph, string name) =>
+        cost.Components.Single(component => component.NodeId == graph.NodeId(name));
 
     private static LocalizedText ReasonOf(AnalysisResult result, string code) =>
         result.Coverage.Single(rule => rule.Code == code).Reason!;

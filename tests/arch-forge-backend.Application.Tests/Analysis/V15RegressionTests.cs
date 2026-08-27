@@ -94,20 +94,24 @@ public class V15RegressionTests
     }
 
 
+    // V20 C2: the drawing, not the claim. A perfect score is still reachable on all seven areas —
+    // but the copies have to be earned. With 500 rps and a CDN swallowing nine tenths of them, three
+    // Apis, three Services and five database copies served 25 rps, which is what the cost area is
+    // there to notice. Same shape, the traffic that pays for it, and one replica fewer.
     [Fact]
     public void TheBestArchitectureThePaletteCanDraw_ScoresOneHundred()
     {
         var b = new GraphBuilder()
-            .Node("Web", NodeType.Client, """{"requestsPerSecond":500}""")
+            .Node("Web", NodeType.Client, """{"requestsPerSecond":5000}""")
             .Node("Edge", NodeType.Cdn, """{"hitRatio":0.9}""")
             .Node("LB", NodeType.LoadBalancer, """{"healthCheck":true}""")
             .Node("Gw1", NodeType.Gateway, """{"authentication":true,"rateLimit":5000}""")
             .Node("Gw2", NodeType.Gateway, """{"authentication":true,"rateLimit":5000}""")
             .Node("IdP", NodeType.IdentityProvider)
-            .Node("Api", NodeType.Api, """{"authentication":true,"rateLimit":5000,"instances":3}""")
-            .Node("Svc", NodeType.Service, """{"instances":3}""")
+            .Node("Api", NodeType.Api, """{"authentication":true,"rateLimit":5000,"instances":2}""")
+            .Node("Svc", NodeType.Service, """{"instances":2}""")
             .Node("Cache", NodeType.Cache, """{"hitRatio":0.8}""")
-            .Node("Db", NodeType.Database, """{"replicas":2,"readReplicas":2}""")
+            .Node("Db", NodeType.Database, """{"replicas":1,"readReplicas":2}""")
             .Node("Cola", NodeType.Queue, """{"deadLetterQueue":true,"maxRetries":3}""")
             .Node("Worker", NodeType.Worker, """{"instances":2}""")
             .Node("Obs", NodeType.Observability)

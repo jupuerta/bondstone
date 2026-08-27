@@ -46,7 +46,23 @@ public class ArchitectureAnalyzer
             Order(findings, Positions(graph)),
             Load(graph, load),
             Coverage(outcomes),
-            CallLoad(graph, load));
+            CallLoad(graph, load),
+            Cost(graph));
+    }
+
+    private static ArchitectureCost Cost(ArchitectureGraph graph)
+    {
+        var components = graph.Nodes
+            .Select(node => new ComponentCost(
+                node.Id,
+                CostModel.PerInstance(node.Type),
+                NodeSettings.Instances(node),
+                NodeRoles.IsYoursToPayFor(node.Type)
+                    ? CostModel.PerInstance(node.Type) * NodeSettings.Instances(node)
+                    : 0))
+            .ToList();
+
+        return new ArchitectureCost(components.Sum(component => component.Total), components);
     }
 
     private static IReadOnlyList<ComponentLoad> Load(ArchitectureGraph graph, LoadModel load)

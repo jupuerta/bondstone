@@ -28,13 +28,23 @@ public sealed class EvaluationContext
 
     public int SimulationsRun => _cache.Count;
 
+    // A node is resolved to its Guid here, because that is the only place that knows the names on this
+    // board. A zone is not: it travels on as a name and SimulationScenario.Resolve expands it against
+    // the graph, which is what keeps the scenario true when a component joins the zone later.
     public bool TryResolve(IReadOnlyList<ScenarioFault> faults, out SimulationScenario scenario, out string? missing)
     {
         var resolved = new List<Fault>(faults.Count);
+        var zones = new List<string>();
 
         foreach (var fault in faults)
         {
-            if (!_idsByName.TryGetValue(fault.Node, out var id))
+            if (fault.NamesAZone)
+            {
+                zones.Add(fault.Zone!);
+                continue;
+            }
+
+            if (!_idsByName.TryGetValue(fault.Node!, out var id))
             {
                 scenario = SimulationScenario.Empty;
                 missing = fault.Node;
@@ -44,7 +54,7 @@ public sealed class EvaluationContext
             resolved.Add(new Fault(ElementType.Node, id, fault.Kind, fault.Value));
         }
 
-        scenario = new SimulationScenario(resolved);
+        scenario = new SimulationScenario(resolved, zones);
         missing = null;
         return true;
     }
@@ -52,7 +62,9 @@ public sealed class EvaluationContext
     public SimulationResult Simulate(SimulationScenario scenario)
     {
         var canonical = scenario.Canonical();
-        var key = string.Join("|", canonical.Faults.Select(f => $"{f.Target}:{f.Id}:{f.Kind}:{f.Value}"));
+        var key = string.Join("|",
+            canonical.Faults.Select(f => $"{f.Target}:{f.Id}:{f.Kind}:{f.Value}")
+                .Concat(canonical.Zones.Select(z => $"zone:{z}")));
 
         if (_cache.TryGetValue(key, out var cached))
             return cached;

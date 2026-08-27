@@ -19,6 +19,8 @@ public static class RequirementKinds
 
     public const string MaxInstances = "maxInstances";
 
+    public const string MaxCost = "maxCost";
+
     public const string Edge = "edge";
 
 
@@ -33,7 +35,7 @@ public static class RequirementKinds
 
     public static bool IsKnown(string kind) => kind is
         ContainsNode or AbsentNode or MaxFanOut or AllEdgesTo or PathExists or DeclaresLoad or
-        MaxNodes or MaxInstances or Edge or
+        MaxNodes or MaxInstances or MaxCost or Edge or
         NoFinding or HasFinding or NoSeverity or
         UnderScenario;
 }

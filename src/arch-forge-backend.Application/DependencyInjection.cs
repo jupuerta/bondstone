@@ -47,6 +47,8 @@ public static class DependencyInjection
         services.AddScoped<IArchitectureRule, ImplausibleDependencyRule>();
 
         services.AddScoped<IArchitectureRule, TimeoutTooLongRule>();
+
+        services.AddScoped<IArchitectureRule, OverprovisionedRule>();
         services.AddScoped<ArchitectureAnalyzer>();
 
         services.AddScoped<SimulationEngine>();

@@ -18,5 +18,11 @@ public static class RuleThresholds
 
     public const int CdnWorthTraffic = 1000;
 
+    public const decimal OverprovisionedUtilization = 0.2m;
+
+    // Never advise dropping below this: the second copy is not capacity, it is what takes the
+    // component out of SPOF. Same number NodeSettings calls RedundantInstances.
+    public const int RedundancyFloor = 2;
+
     public const int TimeoutUnboundedMs = Simulation.LatencyModel.UnboundedWait;
 }

@@ -379,6 +379,46 @@ public class UpdateArchitectureCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_ZoneOutsideTheClosedSet_ThrowsInvalidNodeConfigurationException()
+    {
+        var architecture = await SeedArchitecture();
+        var api = Node(NodeType.Api, "Api");
+        api.Configuration = Json("""{"zone":"d"}""");
+
+        var exception = await Assert.ThrowsAsync<InvalidNodeConfigurationException>(() =>
+            _handler.Handle(Command(architecture, api)));
+
+        Assert.Contains("zone must be one of a, b, c", exception.Message);
+    }
+
+    [Fact]
+    public async Task Handle_ZoneOnATypeNobodyPlaces_ThrowsEvenWithoutASchemaProvider()
+    {
+        var architecture = await SeedArchitecture();
+        var cdn = Node(NodeType.Cdn, "Cdn");
+        cdn.Configuration = Json("""{"zone":"a"}""");
+
+        var exception = await Assert.ThrowsAsync<InvalidNodeConfigurationException>(() =>
+            _handler.Handle(Command(architecture, cdn)));
+
+        Assert.Contains("zone does not apply to Cdn", exception.Message);
+    }
+
+    [Fact]
+    public async Task Handle_ValidZone_IsStoredWithTheRestOfTheConfiguration()
+    {
+        var architecture = await SeedArchitecture();
+        var api = Node(NodeType.Api, "Api");
+        api.Configuration = Json("""{"zone":"a","instances":2}""");
+
+        var result = await _handler.Handle(Command(architecture, api));
+
+        Assert.NotNull(result);
+        var persisted = await _repository.GetByIdAsync(architecture.Id);
+        Assert.Contains("\"zone\":\"a\"", Assert.Single(persisted!.Nodes).Configuration);
+    }
+
+    [Fact]
     public async Task Handle_NodeValuesAtTheEdgeOfTheirRange_Succeed()
     {
         var architecture = await SeedArchitecture();

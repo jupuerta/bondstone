@@ -32,6 +32,11 @@
       "kind": "noFinding",
       "labelKey": "challenge.million-a-day.requirement.5",
       "code": "UNDERSIZED_COMPONENT"
+    },
+    {
+      "kind": "maxCost",
+      "labelKey": "challenge.million-a-day.requirement.6",
+      "max": 42
     }
   ],
   "optionalGoals": [

@@ -1,4 +1,6 @@
 using System.Text.Json;
+using arch_forge_backend.Application.Analysis.Rules;
+using arch_forge_backend.Application.Configuration;
 using arch_forge_backend.Application.Configuration.Schemas;
 using arch_forge_backend.Domain.Entities;
 using arch_forge_backend.Domain.Enums;
@@ -76,6 +78,18 @@ public static class NodeSettings
         _ => false
     };
 
+    // Transversal key of the jsonb, not a property of any schema. Null for a type nobody places or a
+    // value outside the closed set, so writes that skip validation (challenge boards, old rows) cannot
+    // smuggle a zone into the analysis; "no zone" is the opt-out SpofRule relies on.
+    public static string? Zone(Node node)
+    {
+        if (!NodeRoles.IsYoursToPlace(node.Type))
+            return null;
+
+        var zone = Read<PlacementConfiguration>(node)?.Zone;
+        return zone is not null && ConfigurationRanges.Zones.Contains(zone) ? zone : null;
+    }
+
     public static decimal HitRatio(Node node)
     {
         var (configured, fallback) = node.Type switch
@@ -89,6 +103,11 @@ public static class NodeSettings
     }
 
     private static int Positive(int? value) => value is > 0 ? value.Value : 1;
+
+    private sealed class PlacementConfiguration
+    {
+        public string? Zone { get; set; }
+    }
 
     private static T? Read<T>(Node node) where T : class
     {

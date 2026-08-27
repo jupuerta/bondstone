@@ -37,4 +37,12 @@ public sealed class ChallengeRequirement
     public decimal? Value { get; set; }
 }
 
-public sealed record ScenarioFault(string Node, string Kind, int? Value = null);
+// A fault a challenge poses carries a Node or a Zone, exactly one of the two, checked when the
+// catalogue loads. The zone travels as a name and is expanded against the graph by
+// SimulationScenario.Resolve, so a board that gains a component later keeps meaning what it said.
+public sealed record ScenarioFault(string? Node, string Kind, int? Value = null, string? Zone = null)
+{
+    public bool NamesANode => !string.IsNullOrWhiteSpace(Node);
+
+    public bool NamesAZone => !string.IsNullOrWhiteSpace(Zone);
+}

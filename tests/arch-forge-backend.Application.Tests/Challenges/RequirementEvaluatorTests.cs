@@ -2,6 +2,7 @@ using arch_forge_backend.Application.Tests.TestDoubles;
 using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Challenges;
+using arch_forge_backend.Application.Simulation;
 using arch_forge_backend.Domain.Enums;
 using Xunit;
 
@@ -257,6 +258,73 @@ public class NewRequirementKindsTests
 
         Assert.False(Run(new ChallengeRequirement { Kind = RequirementKinds.MaxInstances, LabelKey = "x", Max = 1 }, blueprint).Met);
         Assert.True(Run(new ChallengeRequirement { Kind = RequirementKinds.MaxInstances, LabelKey = "x", NodeType = NodeType.Database, Max = 1 }, blueprint).Met);
+    }
+
+    [Fact]
+    public void MaxCost_separates_the_two_ways_out_of_database_overload()
+    {
+        // The whole point of C5, in one test: both shapes have three nodes and two edges, so no
+        // maxNodes can tell them apart. The budget can.
+        var iron = Blueprint.Of(
+            [("Api", NodeType.Api, "{}"), ("Db", NodeType.Database, """{"readReplicas":1}""")],
+            [("Api", "Db", ProtocolType.Sql, true, """{"timeoutSeconds":5}""")]);
+
+        var cache = Blueprint.Of(
+            [("Api", NodeType.Api), ("Cache", NodeType.Cache), ("Db", NodeType.Database)],
+            [("Api", "Cache", ProtocolType.Http, true, """{"timeoutSeconds":2}"""),
+             ("Cache", "Db", ProtocolType.Sql, true, """{"timeoutSeconds":5}""")]);
+
+        var budget = new ChallengeRequirement { Kind = RequirementKinds.MaxCost, LabelKey = "x", Max = 18 };
+
+        Assert.Equal(24, CostModel.Of(ChallengeHarness.Graph(iron)));
+        Assert.Equal(16, CostModel.Of(ChallengeHarness.Graph(cache)));
+
+        Assert.False(Run(budget, iron).Met);
+        Assert.True(Run(budget, cache).Met);
+    }
+
+    [Fact]
+    public void MaxCost_says_where_the_money_goes_and_not_only_that_you_went_over()
+    {
+        var blueprint = Blueprint.Of(
+            [("Api", NodeType.Api, "{}"), ("Db", NodeType.Database, """{"readReplicas":1}""")],
+            [("Api", "Db", ProtocolType.Sql, true, """{"timeoutSeconds":5}""")]);
+
+        var result = Run(new ChallengeRequirement { Kind = RequirementKinds.MaxCost, LabelKey = "x", Max = 18 }, blueprint);
+
+        Assert.False(result.Met);
+        Assert.Equal(
+            "challenge.requirement.maxCost.exceeded(cost=20, max=18, node=Db, total=24)",
+            result.Detail.Describe());
+    }
+
+    [Fact]
+    public void MaxCost_reads_the_same_total_the_cost_model_publishes()
+    {
+        var blueprint = Blueprint.Of(
+            [("Api", NodeType.Api, """{"instances":3}"""), ("Db", NodeType.Database, "{}"), ("Nobody", NodeType.ExternalService, "{}")],
+            [("Api", "Db", ProtocolType.Sql, true, """{"timeoutSeconds":5}""")]);
+
+        var total = CostModel.Of(ChallengeHarness.Graph(blueprint));
+
+        Assert.Equal(22, total);
+        Assert.True(Run(new ChallengeRequirement { Kind = RequirementKinds.MaxCost, LabelKey = "x", Max = total }, blueprint).Met);
+        Assert.False(Run(new ChallengeRequirement { Kind = RequirementKinds.MaxCost, LabelKey = "x", Max = total - 1 }, blueprint).Met);
+    }
+
+    [Fact]
+    public void MaxCost_never_points_at_what_nobody_bills_you_for()
+    {
+        var blueprint = Blueprint.Of(
+            [("Browser", NodeType.Client), ("Api", NodeType.Api), ("Stripe", NodeType.ExternalService)],
+            [("Browser", "Api", ProtocolType.Http, true, "{}"),
+             ("Api", "Stripe", ProtocolType.Http, true, """{"timeoutSeconds":5}""")]);
+
+        var result = Run(new ChallengeRequirement { Kind = RequirementKinds.MaxCost, LabelKey = "x", Max = 1 }, blueprint);
+
+        Assert.False(result.Met);
+        Assert.Equal("Api", result.Detail.Arg("node"));
+        Assert.Single(result.Elements);
     }
 
     [Fact]

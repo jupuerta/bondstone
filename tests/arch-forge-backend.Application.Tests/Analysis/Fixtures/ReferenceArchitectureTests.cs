@@ -28,11 +28,16 @@ public class ReferenceArchitectureTests
     }
 
     [Fact]
-    public void MinimalApiDb_ScoresTheSixAreas()
+    public void MinimalApiDb_ScoresTheSixAreasAndStandsDownOnTheSeventh()
     {
         var result = ReferenceArchitecture.Analyze("minimal-api-db");
 
-        Assert.All(result.Areas, area => Assert.Equal(AreaState.Scored, area.State));
+        Assert.All(
+            result.Areas.Where(area => area.Area != Area.Cost),
+            area => Assert.Equal(AreaState.Scored, area.State));
+
+        Assert.Equal(AreaState.NotApplicable, result.StateOf(Area.Cost));
+        Assert.Null(result.ScoreOf(Area.Cost));
     }
 
     [Fact]

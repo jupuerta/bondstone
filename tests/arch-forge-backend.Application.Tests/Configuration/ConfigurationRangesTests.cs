@@ -1,5 +1,7 @@
+using System.Text.Json;
 using arch_forge_backend.Application.Configuration;
 using arch_forge_backend.Application.Configuration.Schemas;
+using arch_forge_backend.Domain.Enums;
 using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Configuration;
@@ -73,4 +75,40 @@ public class ConfigurationRangesTests
             "instances must be 1 or greater.",
             ConfigurationRanges.Violation(new ApiConfiguration { Instances = 0, RequestsPerSecond = -1 }));
     }
+
+    [Fact]
+    public void A_zone_in_the_closed_set_passes()
+    {
+        Assert.Null(ConfigurationRanges.ZoneViolation(NodeType.Api, Parse("""{"zone":"a"}""")));
+        Assert.Null(ConfigurationRanges.ZoneViolation(NodeType.Database, Parse("""{"zone":"b","replicas":1}""")));
+        Assert.Null(ConfigurationRanges.ZoneViolation(NodeType.Observability, Parse("""{"zone":"c"}""")));
+    }
+
+    [Fact]
+    public void A_zone_outside_the_closed_set_is_named()
+    {
+        Assert.Equal("zone must be one of a, b, c.", ConfigurationRanges.ZoneViolation(NodeType.Api, Parse("""{"zone":"d"}""")));
+        Assert.Equal("zone must be one of a, b, c.", ConfigurationRanges.ZoneViolation(NodeType.Api, Parse("""{"zone":"A"}""")));
+        Assert.Equal("zone must be one of a, b, c.", ConfigurationRanges.ZoneViolation(NodeType.Api, Parse("""{"zone":3}""")));
+        Assert.Equal("zone must be one of a, b, c.", ConfigurationRanges.ZoneViolation(NodeType.Api, Parse("""{"zone":null}""")));
+    }
+
+    [Fact]
+    public void A_zone_on_a_type_nobody_places_is_rejected()
+    {
+        Assert.Equal("zone does not apply to Cdn.", ConfigurationRanges.ZoneViolation(NodeType.Cdn, Parse("""{"zone":"a"}""")));
+        Assert.Equal("zone does not apply to Client.", ConfigurationRanges.ZoneViolation(NodeType.Client, Parse("""{"zone":"a"}""")));
+        Assert.Equal(
+            "zone does not apply to ExternalService.",
+            ConfigurationRanges.ZoneViolation(NodeType.ExternalService, Parse("""{"zone":"a"}""")));
+    }
+
+    [Fact]
+    public void No_zone_declared_is_always_fine()
+    {
+        Assert.Null(ConfigurationRanges.ZoneViolation(NodeType.Api, Parse("{}")));
+        Assert.Null(ConfigurationRanges.ZoneViolation(NodeType.Cdn, Parse("""{"hitRatio":0.9}""")));
+    }
+
+    private static JsonElement Parse(string json) => JsonDocument.Parse(json).RootElement;
 }

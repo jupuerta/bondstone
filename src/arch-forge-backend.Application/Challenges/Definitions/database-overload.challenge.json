@@ -22,6 +22,11 @@
       "kind": "noFinding",
       "labelKey": "challenge.database-overload.requirement.3",
       "code": "UNDERSIZED_COMPONENT"
+    },
+    {
+      "kind": "maxCost",
+      "labelKey": "challenge.database-overload.requirement.4",
+      "max": 18
     }
   ],
   "optionalGoals": [

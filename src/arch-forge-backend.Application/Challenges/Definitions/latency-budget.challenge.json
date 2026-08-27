@@ -25,6 +25,11 @@
       "metric": "nominalLatencyMs",
       "operator": "lt",
       "value": 100
+    },
+    {
+      "kind": "maxCost",
+      "labelKey": "challenge.latency-budget.requirement.4",
+      "max": 30
     }
   ],
   "optionalGoals": [

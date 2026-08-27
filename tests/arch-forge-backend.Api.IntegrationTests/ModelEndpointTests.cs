@@ -27,6 +27,7 @@ public class ModelEndpointTests : IClassFixture<PostgresApiFactory>
         var database = Assert.Single(components, row => (string?)row!["type"] == "Database");
         Assert.Equal(200, (int)database!["capacityPerInstance"]!);
         Assert.Equal(20, (int)database["processingMs"]!);
+        Assert.Equal(10, (int)database["costPerInstance"]!);
 
         Assert.Equal(0.8m, (decimal)body["saturationWarning"]!);
         Assert.Equal(30_000, (int)body["unboundedWaitMs"]!);

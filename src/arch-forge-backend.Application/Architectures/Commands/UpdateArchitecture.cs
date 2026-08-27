@@ -212,6 +212,9 @@ public class UpdateArchitectureCommandHandler
             if (configuration.ValueKind != JsonValueKind.Object)
                 throw new InvalidNodeConfigurationException(node.Name, "configuration must be a JSON object.");
 
+            if (ConfigurationRanges.ZoneViolation(node.Type, configuration) is { } zoneViolation)
+                throw new InvalidNodeConfigurationException(node.Name, zoneViolation);
+
             if (!_configurationRegistry.TryGetProvider(node.Type, out var provider))
                 continue;
 

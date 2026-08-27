@@ -1,6 +1,7 @@
 using arch_forge_backend.Application.Analysis;
 using arch_forge_backend.Application.Common.Exceptions;
 using arch_forge_backend.Application.Common.Interfaces;
+using arch_forge_backend.Application.Configuration;
 using arch_forge_backend.Application.Simulation;
 
 namespace arch_forge_backend.Application.Architectures.Queries;
@@ -52,6 +53,17 @@ public class SimulateArchitectureQueryHandler
 
             if (!seen.Add((fault.Target, fault.Id, fault.Kind)))
                 throw new InvalidSimulationScenarioException($"Element '{fault.Id}' carries '{fault.Kind}' twice.");
+        }
+
+        var zones = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var zone in scenario.Zones)
+        {
+            if (!ConfigurationRanges.Zones.Contains(zone))
+                throw new InvalidSimulationScenarioException($"'{zone}' is not a known zone.");
+
+            if (!zones.Add(zone))
+                throw new InvalidSimulationScenarioException($"Zone '{zone}' is listed twice.");
         }
     }
 }

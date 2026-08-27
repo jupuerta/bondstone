@@ -43,7 +43,8 @@ public static class ReferenceArchitecture
             new ImplausibleDependencyRule(),
             new TrafficRejectedRule(),
             new MissingCdnRule(),
-            new TimeoutTooLongRule()
+            new TimeoutTooLongRule(),
+            new OverprovisionedRule()
         ]);
 
         return analyzer.Analyze(graph);

@@ -12,7 +12,11 @@ public static class ModelReference
 
     private static ModelReferenceDto Build() => new(
         Enum.GetValues<NodeType>()
-            .Select(type => new ComponentModelDto(type, CapacityModel.PerInstance(type), LatencyModel.Processing(type)))
+            .Select(type => new ComponentModelDto(
+                type,
+                CapacityModel.PerInstance(type),
+                LatencyModel.Processing(type),
+                CostModel.PerInstance(type)))
             .ToList(),
         Enum.GetValues<ProtocolType>()
             .Select(protocol => new NetworkHopDto(protocol, LatencyModel.Hop(protocol)))
@@ -43,7 +47,11 @@ public sealed record ModelReferenceDto(
     decimal DefaultCdnHitRatio,
     QueueingCurveDto Queueing);
 
-public sealed record ComponentModelDto(NodeType Type, int CapacityPerInstance, int ProcessingMs);
+// The cost is the third constant of the same family as capacity and processing (costmodel V20,
+// C4). It travels here rather than being copied into the frontend so /model cannot say 10 the day
+// the model stops charging 10 - the same reason the queueing cap travels instead of being written
+// into the formula on screen.
+public sealed record ComponentModelDto(NodeType Type, int CapacityPerInstance, int ProcessingMs, int CostPerInstance);
 
 public sealed record NetworkHopDto(ProtocolType Protocol, int Ms);
 

@@ -79,7 +79,8 @@ public static class ChallengeHarness
         new SharedDatabaseRule(),
         new ImplausibleDependencyRule(),
         new TrafficRejectedRule(),
-        new MissingCdnRule()
+        new MissingCdnRule(),
+        new OverprovisionedRule()
     ];
 
     private sealed class NullRepository : Application.Common.Interfaces.IArchitectureRepository

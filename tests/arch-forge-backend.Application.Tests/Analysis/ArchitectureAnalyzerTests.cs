@@ -20,7 +20,7 @@ public class ArchitectureAnalyzerTests
 
         Assert.Null(result.Score);
         Assert.Empty(result.Findings);
-        Assert.Equal(6, result.Areas.Count);
+        Assert.Equal(7, result.Areas.Count);
         Assert.All(result.Areas, area => Assert.Equal(AreaState.NoRules, area.State));
     }
 

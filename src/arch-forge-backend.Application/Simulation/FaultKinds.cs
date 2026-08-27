@@ -15,5 +15,10 @@ public static class FaultKinds
     public static bool AppliesTo(string kind, ElementType target) =>
         kind is not Degraded || target == ElementType.Node;
 
+    // A zone is not an element: it has no Guid, no timeout and no capacity, so the only thing that
+    // can happen to it is that it stops existing. Everything else is a property of the components
+    // inside it and is asked of them one by one.
+    public static bool AppliesToZone(string kind) => kind == Down;
+
     public static bool RequiresValue(string kind) => kind == Latency;
 }

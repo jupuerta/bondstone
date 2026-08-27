@@ -56,6 +56,15 @@ public static class NodeRoles
     public static bool IsYoursToSize(NodeType type) =>
         IsObservable(type) && type is not NodeType.Scheduler;
 
+    // Three different sets (zonas V20, Anexo B). IsYoursToSize excludes Observability,
+    // IdentityProvider and Scheduler, and you pay for and place all three; the Cdn is the row that
+    // keeps pay and place apart: its bill reaches you, but being everywhere is its definition.
+    public static bool IsYoursToPayFor(NodeType type) =>
+        type is not (NodeType.ExternalService or NodeType.Client);
+
+    public static bool IsYoursToPlace(NodeType type) =>
+        IsYoursToPayFor(type) && !IsProviderEdge(type);
+
     public static bool IsProviderEdge(NodeType type) => type is NodeType.Cdn;
 
     public static (Guid Anchor, NodeType Type) ReplicaSetOf(ArchitectureGraph graph, Node node)

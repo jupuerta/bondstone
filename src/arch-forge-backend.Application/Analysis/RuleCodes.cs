@@ -33,4 +33,6 @@ public static class RuleCodes
     public const string ImplausibleDependency = "IMPLAUSIBLE_DEPENDENCY";
 
     public const string TimeoutTooLong = "TIMEOUT_TOO_LONG";
+
+    public const string Overprovisioned = "OVERPROVISIONED";
 }

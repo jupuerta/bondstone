@@ -13,6 +13,8 @@ public class SpofRule : IArchitectureRule
     private const int UnreachableMin = 2;
     private const int RedundantInstancesMin = 2;
 
+    private static readonly HashSet<Guid> Nothing = [];
+
     public string Code => RuleCodes.Spof;
     public Area Area => Area.Availability;
     public Severity DefaultSeverity => Severity.Critical;
@@ -48,10 +50,11 @@ public class SpofRule : IArchitectureRule
         if (!dependentsByNode.Values.Any(dependents => dependents.Count > 0))
             return RuleResult.NotApplicable("rule.na.SPOF.noDependency");
 
-        var reachableFromRoots = ReachableFromRoots(graph, excluded: null);
+        var reachableFromRoots = ReachableFromRoots(graph, Nothing);
 
         var load = LoadModel.Of(graph);
         var findings = new List<RuleFinding>();
+        var reportedSets = new HashSet<Guid>();
 
         foreach (var node in graph.Nodes)
         {
@@ -61,15 +64,27 @@ public class SpofRule : IArchitectureRule
             if (NodeRoles.IsProviderEdge(node.Type))
                 continue;
 
-            if (IsRedundancyMechanism(graph, node) || HasRedundancy(graph, node))
+            if (IsRedundancyMechanism(graph, node))
                 continue;
 
-            var dependents = hardDependentsByNode[node.Id].Count;
+            if (UnitOf(graph, node) is not { } unit)
+                continue;
+
+            if (unit.Zone is not null && !reportedSets.Add(unit.Anchor))
+                continue;
+
+            var ids = unit.Nodes.Select(copy => copy.Id).ToHashSet();
+
+            var dependents = unit.Nodes
+                .SelectMany(copy => hardDependentsByNode[copy.Id])
+                .Where(id => !ids.Contains(id))
+                .Distinct()
+                .Count();
 
             var unreachable = reachableFromRoots.Count == 0
                 ? 0
-                : reachableFromRoots.Except(ReachableFromRoots(graph, excluded: node.Id))
-                    .Count(id => id != node.Id
+                : reachableFromRoots.Except(ReachableFromRoots(graph, ids))
+                    .Count(id => !ids.Contains(id)
                                  && graph.NodesById.TryGetValue(id, out var lost)
                                  && !NodeRoles.IsTrafficOrigin(lost.Type));
 
@@ -81,6 +96,19 @@ public class SpofRule : IArchitectureRule
             if (!passage && !shared && !identity)
                 continue;
 
+            if (unit.Zone is { } zone)
+            {
+                findings.Add(Report(graph, unit.Nodes, Severity.Warning,
+                    LocalizedText.Of("finding.SPOF.sameZone.message",
+                        ("names", Names(unit.Nodes)),
+                        ("count", unit.Nodes.Count),
+                        ("zone", zone)),
+                    LocalizedText.Of("finding.SPOF.sameZone.explanation", ("zone", zone)),
+                    LocalizedText.Of("finding.SPOF.suggestion.sameZone")));
+
+                continue;
+            }
+
             var affected = OutageImpact.OfLosing(graph, load, node.Id);
             var passageSeverity = affected > 0m ? Severity.Critical : Severity.Warning;
 
@@ -90,14 +118,16 @@ public class SpofRule : IArchitectureRule
 
             var byPassage = passage && (!shared || passageSeverity >= sharedSeverity);
 
-            findings.Add(Report(graph, node, byPassage ? passageSeverity : sharedSeverity, affected,
+            findings.Add(Report(graph, unit.Nodes, byPassage ? passageSeverity : sharedSeverity,
                 byPassage
                     ? LocalizedText.Of("finding.SPOF.unreachable.message",
                         ("node", node.Name),
                         ("count", unreachable))
                     : LocalizedText.Of("finding.SPOF.shared.message",
                         ("node", node.Name),
-                        ("count", dependents))));
+                        ("count", dependents)),
+                Explain(graph, node, affected),
+                Suggest(node)));
         }
 
         return RuleResult.Applicable(findings);
@@ -117,12 +147,14 @@ public class SpofRule : IArchitectureRule
 
     private RuleFinding Report(
         ArchitectureGraph graph,
-        Node node,
+        IReadOnlyList<Node> unit,
         Severity severity,
-        decimal affected,
-        LocalizedText message)
+        LocalizedText message,
+        LocalizedText explanation,
+        LocalizedText suggestion)
     {
-        graph.Facts.Add(new SinglePointOfFailureFact(node.Id, severity));
+        foreach (var node in unit)
+            graph.Facts.Add(new SinglePointOfFailureFact(node.Id, severity));
 
         return new RuleFinding(
             Code,
@@ -130,9 +162,9 @@ public class SpofRule : IArchitectureRule
             severity,
             message,
 
-            Explain(graph, node, affected),
-            Suggest(node),
-            [FindingElement.Node(node.Id)]);
+            explanation,
+            suggestion,
+            unit.Select(node => FindingElement.Node(node.Id)).ToList());
     }
 
     private static LocalizedText Explain(ArchitectureGraph graph, Node node, decimal affected)
@@ -163,6 +195,45 @@ public class SpofRule : IArchitectureRule
         _ => "finding.SPOF.suggestion.instances"
     });
 
+    private static string Names(IEnumerable<Node> unit) =>
+        string.Join(", ", unit.Select(node => $"'{node.Name}'"));
+
+    // What gets graded as one box. Null means the node is redundant and stays exempt, which is the
+    // answer for everything that does not declare a zone: the opt-in of V20 Z3 lives here and nowhere
+    // else. A zone turns the exemption into a warning instead of removing it.
+    private static Unit? UnitOf(ArchitectureGraph graph, Node node)
+    {
+        if (!HasRedundancy(graph, node))
+            return new Unit(node.Id, [node], null);
+
+        if (PlaceableCopies(graph, node) is not { } copies)
+            return null;
+
+        var zones = copies.Select(NodeSettings.Zone).Distinct().ToList();
+
+        return zones is [{ } zone] ? new Unit(copies[0].Id, copies, zone) : null;
+    }
+
+    // The copies a drawing can place. Siblings behind a balancer have one zone each; instances and
+    // replicas are a counter inside a single box, so the box's zone is theirs. A store cleared by
+    // replicas alone has no placeable copies at all: the model offers no way to put a stored replica
+    // somewhere else, and a finding whose only exit is deleting the zone would teach hiding it.
+    private static List<Node>? PlaceableCopies(ArchitectureGraph graph, Node node)
+    {
+        var (anchor, type) = NodeRoles.ReplicaSetOf(graph, node);
+
+        if (anchor != node.Id)
+            return graph.OutgoingBySource[anchor]
+                .Select(edge => graph.NodesById.GetValueOrDefault(edge.TargetNodeId))
+                .Where(target => target?.Type == type)
+                .Select(target => target!)
+                .DistinctBy(target => target.Id)
+                .OrderBy(target => target.Id)
+                .ToList();
+
+        return NodeSettings.HasDeclaredInstances(node) ? [node] : null;
+    }
+
     private static bool IsRedundancyMechanism(ArchitectureGraph graph, Node node) =>
         node.Type == NodeType.LoadBalancer && BalancedTypes(graph, node).Any();
 
@@ -189,10 +260,10 @@ public class SpofRule : IArchitectureRule
                              || byType.Any(target => NodeSettings.HasDeclaredInstances(target!)))
             .Select(byType => byType.Key);
 
-    private static HashSet<Guid> ReachableFromRoots(ArchitectureGraph graph, Guid? excluded)
+    private static HashSet<Guid> ReachableFromRoots(ArchitectureGraph graph, IReadOnlySet<Guid> excluded)
     {
         var reachable = new HashSet<Guid>();
-        var pending = new Stack<Guid>(TrafficRoots.Of(graph).Select(n => n.Id).Where(id => id != excluded));
+        var pending = new Stack<Guid>(TrafficRoots.Of(graph).Select(n => n.Id).Where(id => !excluded.Contains(id)));
 
         while (pending.TryPop(out var nodeId))
         {
@@ -201,7 +272,7 @@ public class SpofRule : IArchitectureRule
 
             foreach (var edge in graph.OutgoingBySource[nodeId])
             {
-                if (edge.TargetNodeId != excluded && !NodeRoles.IsTelemetryEdge(graph, edge))
+                if (!excluded.Contains(edge.TargetNodeId) && !NodeRoles.IsTelemetryEdge(graph, edge))
                     pending.Push(edge.TargetNodeId);
             }
         }
@@ -209,4 +280,5 @@ public class SpofRule : IArchitectureRule
         return reachable;
     }
 
+    private readonly record struct Unit(Guid Anchor, IReadOnlyList<Node> Nodes, string? Zone);
 }

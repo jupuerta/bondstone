@@ -1,4 +1,5 @@
 using arch_forge_backend.Application.Analysis;
+using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Application.Configuration.Schemas;
 using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Simulation;
@@ -19,6 +20,7 @@ public static class RequirementEvaluator
             RequirementKinds.DeclaresLoad => DeclaresLoad(requirement, context),
             RequirementKinds.MaxNodes => MaxNodes(requirement, context),
             RequirementKinds.MaxInstances => MaxInstances(requirement, context),
+            RequirementKinds.MaxCost => MaxCost(requirement, context),
             RequirementKinds.Edge => Edge(requirement, context),
             RequirementKinds.NoFinding => NoFinding(requirement, context),
             RequirementKinds.HasFinding => HasFinding(requirement, context),
@@ -196,6 +198,37 @@ public static class RequirementEvaluator
                 ("count", worst.Instances),
                 ("max", max)),
             offenders.Select(x => FindingElement.Node(x.Node.Id)).ToList());
+    }
+
+    // A ceiling says "you went over". A budget has to say where it goes, or it is a ceiling with
+    // another name: the total, the cap, and the priciest component by its name. The verdict is
+    // CostModel.Of, the single source of truth; the breakdown only picks who to point at.
+    private static ChallengeRequirementResult MaxCost(ChallengeRequirement requirement, EvaluationContext context)
+    {
+        var max = requirement.Max!.Value;
+        var total = CostModel.Of(context.Graph);
+
+        var billed = context.Graph.Nodes
+            .Where(n => NodeRoles.IsYoursToPayFor(n.Type))
+            .Select(n => (Node: n, Cost: CostModel.PerInstance(n.Type) * NodeSettings.Instances(n)))
+            .Where(x => x.Cost > 0)
+            .OrderByDescending(x => x.Cost)
+            .ThenBy(x => x.Node.Id)
+            .ToList();
+
+        if (total <= max || billed.Count == 0)
+            return ChallengeRequirementResult.Pass(requirement);
+
+        var worst = billed[0];
+
+        return ChallengeRequirementResult.Fail(
+            requirement,
+            LocalizedText.Of("challenge.requirement.maxCost.exceeded",
+                ("total", total),
+                ("max", max),
+                ("node", worst.Node.Name),
+                ("cost", worst.Cost)),
+            billed.Select(x => FindingElement.Node(x.Node.Id)).ToList());
     }
 
     private static ChallengeRequirementResult Edge(ChallengeRequirement requirement, EvaluationContext context)

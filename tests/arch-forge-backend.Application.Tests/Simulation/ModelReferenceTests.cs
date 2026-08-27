@@ -18,6 +18,7 @@ public class ModelReferenceTests
             var row = Assert.Single(rows, candidate => candidate.Type == type);
             Assert.Equal(CapacityModel.PerInstance(type), row.CapacityPerInstance);
             Assert.Equal(LatencyModel.Processing(type), row.ProcessingMs);
+            Assert.Equal(CostModel.PerInstance(type), row.CostPerInstance);
         }
     }
 

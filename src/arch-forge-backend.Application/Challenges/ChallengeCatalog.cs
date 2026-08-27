@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using arch_forge_backend.Application.Configuration;
 using arch_forge_backend.Application.Simulation;
 
 namespace arch_forge_backend.Application.Challenges;
@@ -76,7 +77,7 @@ public sealed class ChallengeCatalog
             throw new InvalidChallengeDefinitionException($"The reference solution of '{definition.Slug}' {problem}.");
 
         foreach (var requirement in definition.Requirements.Concat(definition.OptionalGoals))
-            Validate(definition.Slug, requirement);
+            ValidateRequirement(definition.Slug, requirement);
 
         var scenarios = definition.Requirements.Concat(definition.OptionalGoals)
             .Where(r => r.Kind == RequirementKinds.UnderScenario)
@@ -91,7 +92,9 @@ public sealed class ChallengeCatalog
 
     public const int MaxScenarios = 3;
 
-    private static void Validate(string slug, ChallengeRequirement requirement)
+    // Public because it is the deploy-time gate: a malformed definition has to bring the process down
+    // on the way up, not surface in the user's face, and that promise is worth a test of its own.
+    public static void ValidateRequirement(string slug, ChallengeRequirement requirement)
     {
         void Require(bool condition, string what)
         {
@@ -119,6 +122,10 @@ public sealed class ChallengeCatalog
                 break;
 
             case RequirementKinds.MaxInstances:
+                Require(requirement.Max is >= 1, "needs a max of 1 or more");
+                break;
+
+            case RequirementKinds.MaxCost:
                 Require(requirement.Max is >= 1, "needs a max of 1 or more");
                 break;
 
@@ -165,10 +172,20 @@ public sealed class ChallengeCatalog
 
                 foreach (var fault in requirement.Faults!)
                 {
-                    Require(!string.IsNullOrWhiteSpace(fault.Node), "names a fault with no node");
+                    Require(fault.NamesANode || fault.NamesAZone, "names a fault on neither a node nor a zone");
+                    Require(!fault.NamesANode || !fault.NamesAZone,
+                        $"names a fault on both the node '{fault.Node}' and the zone '{fault.Zone}'; it is one or the other");
                     Require(FaultKinds.IsKnown(fault.Kind), $"uses '{fault.Kind}', which is not a fault kind");
                     Require(!FaultKinds.RequiresValue(fault.Kind) || fault.Value is > 0,
                         $"uses '{fault.Kind}' without a value");
+
+                    if (!fault.NamesAZone)
+                        continue;
+
+                    Require(ConfigurationRanges.Zones.Contains(fault.Zone!),
+                        $"names the zone '{fault.Zone}', which is not one of {string.Join(", ", ConfigurationRanges.Zones)}");
+                    Require(FaultKinds.AppliesToZone(fault.Kind),
+                        $"asks a zone for '{fault.Kind}', and the only thing that happens to a zone is that it goes down");
                 }
 
                 break;
@@ -177,7 +194,7 @@ public sealed class ChallengeCatalog
 
     internal static string ScenarioKey(IEnumerable<ScenarioFault> faults) =>
         string.Join("|", faults
-            .Select(f => $"{f.Node}:{f.Kind}:{f.Value}")
+            .Select(f => $"{f.Node}:{f.Zone}:{f.Kind}:{f.Value}")
             .OrderBy(s => s, StringComparer.Ordinal));
 
     private static ArchitectureBlueprint ReadBlueprint(Assembly assembly, ChallengeDefinition definition, string file)

@@ -112,7 +112,7 @@ public class ArchitecturesController : ControllerBase
         var query = new SimulateArchitectureQuery
         {
             ShareToken = shareToken,
-            Scenario = new SimulationScenario(request?.Faults ?? [])
+            Scenario = new SimulationScenario(request?.Faults ?? [], request?.Zones ?? [])
         };
 
         var result = await _simulateHandler.Handle(query, cancellationToken);
@@ -136,5 +136,7 @@ public class ArchitecturesController : ControllerBase
     public class SimulateRequest
     {
         public List<Fault>? Faults { get; set; }
+
+        public List<string>? Zones { get; set; }
     }
 }
