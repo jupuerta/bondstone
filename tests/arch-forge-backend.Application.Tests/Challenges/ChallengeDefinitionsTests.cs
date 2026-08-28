@@ -80,6 +80,24 @@ public class ChallengeDefinitionsTests
             string.Join(" · ", result.Requirements.Where(r => !r.Met).Select(r => $"{r.Label.Key()} — {r.Detail.Describe()}")));
     }
 
+    // The reference solution is what the app hands over when somebody gives up, so it has to be as
+    // good as what the challenge asks of them — optional goals included. Without this, a goal can
+    // promise something the answer does not deliver: `exposed-database` promised "no criticals" and
+    // its own solution left six components unobserved.
+    [Theory]
+    [MemberData(nameof(Slugs))]
+    public void The_reference_solution_meets_its_own_optional_goals(string slug)
+    {
+        var result = ChallengeHarness.Evaluate(slug, ChallengeHarness.Catalog.ReferenceSolutionOf(slug)!);
+
+        Assert.All(
+            result.OptionalGoals,
+            goal => Assert.True(
+                goal.Met,
+                $"'{slug}' asks for '{goal.Label.Key()}' as an optional goal, and its own reference " +
+                $"solution does not reach it: {goal.Detail.Describe()}"));
+    }
+
     [Theory]
     [MemberData(nameof(Slugs))]
     public void The_starter_does_not_pass(string slug)

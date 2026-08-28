@@ -6,7 +6,8 @@
     { "name": "Reports", "type": "LoadBalancer", "x": 0, "y": 340, "configuration": { "requestsPerSecond": 20, "healthCheck": true } },
     { "name": "Storefront", "type": "Api", "x": 280, "y": 0, "configuration": { "authentication": true } },
     { "name": "Storefront 2", "type": "Api", "x": 280, "y": 240, "configuration": { "authentication": true } },
-    { "name": "Db", "type": "Database", "x": 560, "y": 120 }
+    { "name": "Db", "type": "Database", "x": 560, "y": 120 },
+    { "name": "Telemetry", "type": "Observability", "x": 280, "y": 480 }
   ],
   "connections": [
     { "from": "Edge", "to": "Front", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
@@ -15,6 +16,12 @@
     { "from": "Reports", "to": "Storefront", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
     { "from": "Reports", "to": "Storefront 2", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
     { "from": "Storefront", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
-    { "from": "Storefront 2", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 5 } }
+    { "from": "Storefront 2", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Edge", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
+    { "from": "Front", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
+    { "from": "Reports", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
+    { "from": "Storefront", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
+    { "from": "Storefront 2", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
+    { "from": "Db", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} }
   ]
 }
