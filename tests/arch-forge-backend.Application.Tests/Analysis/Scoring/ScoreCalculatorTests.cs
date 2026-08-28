@@ -93,7 +93,11 @@ public class ScoreCalculatorTests
 
         Assert.Equal(new AreaScore(Area.Security, null, AreaState.NoRules), AreaOf(result, Area.Security));
         Assert.Equal(new AreaScore(Area.Observability, null, AreaState.NoRules), AreaOf(result, Area.Observability));
-        Assert.Equal(85, result.Score);
+
+        // The area itself still scores 85; what there is no score for is the architecture, because
+        // one axis out of seven is not an average of anything (V22 D1).
+        Assert.Equal(85, ScoreOf(result, Area.Availability));
+        Assert.Null(result.Score);
     }
 
     [Fact]
@@ -105,7 +109,37 @@ public class ScoreCalculatorTests
         ]);
 
         Assert.Equal(AreaState.NotApplicable, AreaOf(result, Area.Availability).State);
-        Assert.Equal(100, result.Score);
+        Assert.Equal(100, ScoreOf(result, Area.Coupling));
+        Assert.Null(result.Score);
+    }
+
+    // V22 D1. Six unconnected boxes used to score 100 / 100: six of the seven areas had nothing to
+    // look at, so the number was the average of the one that could speak, and it had no complaint.
+    [Fact]
+    public void Calculate_FewerThanHalfTheAreasScored_HasNoScoreAtAll()
+    {
+        var result = ScoreCalculator.Calculate([
+            Outcome(Area.Coupling, RuleCodes.OrphanNode, Severity.Info),
+            Outcome(Area.Availability, RuleCodes.Spof, Severity.Good),
+        ]);
+
+        Assert.Equal(100, ScoreOf(result, Area.Coupling));
+        Assert.Equal(100, ScoreOf(result, Area.Availability));
+        Assert.Null(result.Score);
+    }
+
+    [Fact]
+    public void Calculate_HalfTheAreasScored_AveragesThem()
+    {
+        var result = ScoreCalculator.Calculate([
+            Outcome(Area.Availability, RuleCodes.Spof, Severity.Critical),
+            Outcome(Area.Coupling, RuleCodes.Cycle, Severity.Good),
+            Outcome(Area.Security, RuleCodes.ExposedDatabase, Severity.Good),
+            Outcome(Area.Resilience, RuleCodes.SyncChain, Severity.Good),
+        ]);
+
+        // 85 + 100 + 100 + 100, over four.
+        Assert.Equal(96, result.Score);
     }
 
     [Fact]

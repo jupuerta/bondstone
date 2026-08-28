@@ -13,4 +13,5 @@ public sealed record RuleCoverage(
     string Code,
     Area Area,
     RuleState State,
-    Localization.LocalizedText? Reason = null);
+    Localization.LocalizedText? Reason = null,
+    bool DescribesTheDrawing = false);

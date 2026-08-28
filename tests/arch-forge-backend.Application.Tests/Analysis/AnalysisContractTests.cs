@@ -1,4 +1,5 @@
 using arch_forge_backend.Application.Analysis;
+using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Application.Localization;
 using arch_forge_backend.Application.Simulation;
 using arch_forge_backend.Application.Tests.Analysis.Fixtures;
@@ -24,6 +25,34 @@ public class AnalysisContractTests
             Assert.Equal(25, coverage.Count);
             Assert.Equal(25, coverage.Select(rule => rule.Code).Distinct().Count());
         }
+    }
+
+    // V22 §11. The panel hoists these above the score, so which rules they are has to travel — a copy
+    // of the list on the frontend would be one more table to drift, which is exactly how the area
+    // column of the challenge catalogue was wrong for four rules.
+    [Fact]
+    public void Coverage_names_the_two_rules_that_talk_about_the_drawing()
+    {
+        foreach (var name in References)
+        {
+            var coverage = ReferenceArchitecture.Analyze(name).Coverage;
+
+            Assert.Equal(
+                [RuleCodes.ImplausibleDependency, RuleCodes.ProtocolMismatch],
+                coverage.Where(rule => rule.DescribesTheDrawing).Select(rule => rule.Code).Order());
+        }
+    }
+
+    // And the reason they are marked instead of scored apart: a finding about the drawing costs the
+    // same as any other of its severity, and lives in the area whose consequences it has. The mark is
+    // about reading order, not about points (V21 §3 measured the alternative).
+    [Fact]
+    public void The_drawing_rules_score_where_their_consequences_are()
+    {
+        var rules = new IArchitectureRule[] { new ProtocolMismatchRule(), new ImplausibleDependencyRule() };
+
+        Assert.All(rules, rule => Assert.Equal(Area.Resilience, rule.Area));
+        Assert.All(rules, rule => Assert.True(rule.DescribesTheDrawing));
     }
 
     [Fact]

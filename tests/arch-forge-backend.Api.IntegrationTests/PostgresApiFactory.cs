@@ -21,7 +21,14 @@ public class PostgresApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         {
             configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ConnectionStrings:ArchForge"] = _postgres.GetConnectionString()
+                ["ConnectionStrings:ArchForge"] = _postgres.GetConnectionString(),
+
+                // The suite has no client IP, so every test shares one bucket, and it already mints
+                // 18 architectures against a production ceiling of 20. Lifted rather than switched
+                // off: the limiter stays in the pipeline, so a route that stopped being reachable
+                // through it would still fail here.
+                ["RateLimiting:MintPermits"] = "100000",
+                ["RateLimiting:GlobalPermitsPerMinute"] = "100000",
             });
         });
     }

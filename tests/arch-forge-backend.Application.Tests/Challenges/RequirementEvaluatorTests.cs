@@ -108,7 +108,7 @@ public class RequirementEvaluatorTests
             AnalysisResult.CurrentScoringVersion,
             100,
             [],
-            new AnalysisSummary(0, 0, 1),
+            new AnalysisSummary(0, 0, 0, 1),
             [new RuleFinding(RuleCodes.Spof, Area.Availability, Severity.Good, LocalizedText.Of("Todo bien."), LocalizedText.Of("Porque sí."), null, [])]);
 
         var result = RequirementEvaluator.Evaluate(
@@ -125,7 +125,7 @@ public class RequirementEvaluatorTests
             AnalysisResult.CurrentScoringVersion,
             40,
             [],
-            new AnalysisSummary(1, 0, 0),
+            new AnalysisSummary(1, 0, 0, 0),
             [new RuleFinding(RuleCodes.Spof, Area.Availability, Severity.Critical, LocalizedText.Of("Hay un SPOF."), LocalizedText.Of("Por esto."), LocalizedText.Of("Haz esto."), [])]);
 
         var context = ChallengeHarness.Context(ApiCacheDb(), analysis);
@@ -188,7 +188,7 @@ public class RequirementEvaluatorTests
             AnalysisResult.CurrentScoringVersion,
             score,
             [new AreaScore(Area.Availability, score, state), new AreaScore(Area.Security, score, state)],
-            new AnalysisSummary(0, 1, 3),
+            new AnalysisSummary(0, 1, 0, 3),
             findings);
 
         var blueprint = ApiCacheDb();

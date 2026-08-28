@@ -19,5 +19,5 @@ public sealed record AnalysisResult(
 
     public ArchitectureCost Cost { get; init; } = Cost ?? new ArchitectureCost(0, []);
 
-    public const string CurrentScoringVersion = "v9";
+    public const string CurrentScoringVersion = "v10";
 }

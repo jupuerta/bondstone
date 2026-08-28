@@ -41,7 +41,7 @@ public class ArchitectureAnalyzerTests
     [Fact]
     public void Analyze_CarriesTheScoringVersion()
     {
-        Assert.Equal("v9", new ArchitectureAnalyzer([]).Analyze(EmptyGraph).ScoringVersion);
+        Assert.Equal("v10", new ArchitectureAnalyzer([]).Analyze(EmptyGraph).ScoringVersion);
     }
 
     [Fact]
@@ -66,7 +66,8 @@ public class ArchitectureAnalyzerTests
         var result = new ArchitectureAnalyzer([StubRule.Applicable(Area.Coupling)]).Analyze(EmptyGraph);
 
         Assert.Equal(new AreaScore(Area.Coupling, 100, AreaState.Scored), AreaOf(result, Area.Coupling));
-        Assert.Equal(100, result.Score);
+        // One area is not an average (V22 D1); the area's own 100 is the assertion above.
+        Assert.Null(result.Score);
     }
 
     [Fact]
@@ -90,7 +91,9 @@ public class ArchitectureAnalyzerTests
 
         Assert.Equal(AreaState.NotApplicable, AreaOf(result, Area.Availability).State);
         Assert.Null(AreaOf(result, Area.Availability).Score);
-        Assert.Equal(100, result.Score);
+        Assert.Equal(100, AreaOf(result, Area.Coupling).Score);
+        // And out of the average so thoroughly that there is no average left (V22 D1).
+        Assert.Null(result.Score);
         Assert.Equal(1, result.Summary.Passed);
     }
 
@@ -104,8 +107,9 @@ public class ArchitectureAnalyzerTests
 
         Assert.Equal(85, AreaOf(result, Area.Availability).Score);
         Assert.Equal(93, AreaOf(result, Area.Coupling).Score);
-        Assert.Equal(89, result.Score);
-        Assert.Equal(new AnalysisSummary(Critical: 1, Warning: 2, Passed: 0), result.Summary);
+        // Two of seven: the areas score, the architecture does not (V22 D1).
+        Assert.Null(result.Score);
+        Assert.Equal(new AnalysisSummary(Critical: 1, Warning: 2, Info: 0, Passed: 0), result.Summary);
     }
 
     [Fact]

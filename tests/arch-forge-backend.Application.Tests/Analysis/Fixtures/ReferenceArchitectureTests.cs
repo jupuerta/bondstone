@@ -24,7 +24,7 @@ public class ReferenceArchitectureTests
         Assert.Equal(93, result.ScoreOf(Area.Observability));
         Assert.Equal(98, result.Score);
 
-        Assert.Equal(new AnalysisSummary(Critical: 0, Warning: 3, Passed: 13), result.Summary);
+        Assert.Equal(new AnalysisSummary(Critical: 0, Warning: 3, Info: 0, Passed: 13), result.Summary);
     }
 
     [Fact]
@@ -50,7 +50,7 @@ public class ReferenceArchitectureTests
     }
 
     [Fact]
-    public void GatewayMicroservices_ScoresEightyThree()
+    public void GatewayMicroservices_ScoresEightyFour()
     {
         var result = ReferenceArchitecture.Analyze("gateway-microservices");
 
@@ -59,14 +59,15 @@ public class ReferenceArchitectureTests
         Assert.Equal(65, result.ScoreOf(Area.Resilience));
 
         Assert.Equal(95, result.ScoreOf(Area.Coupling));
-        Assert.Equal(95, result.ScoreOf(Area.Scalability));
+        // Ver `WorstCase_ScoresSeventyOne`: `MISSING_CACHE` en `Info` no resta.
+        Assert.Equal(100, result.ScoreOf(Area.Scalability));
         Assert.Equal(95, result.ScoreOf(Area.Security));
 
         Assert.Equal(73, result.ScoreOf(Area.Observability));
 
-        Assert.Equal(83, result.Score);
+        Assert.Equal(84, result.Score);
 
-        Assert.Equal(new AnalysisSummary(Critical: 6, Warning: 10, Passed: 9), result.Summary);
+        Assert.Equal(new AnalysisSummary(Critical: 6, Warning: 9, Info: 1, Passed: 9), result.Summary);
     }
 
     [Fact]
@@ -108,7 +109,7 @@ public class ReferenceArchitectureTests
 
         Assert.Equal(92, result.Score);
 
-        Assert.Equal(new AnalysisSummary(Critical: 1, Warning: 11, Passed: 14), result.Summary);
+        Assert.Equal(new AnalysisSummary(Critical: 1, Warning: 11, Info: 0, Passed: 14), result.Summary);
     }
 
     [Fact]
@@ -156,7 +157,7 @@ public class ReferenceArchitectureTests
     }
 
     [Fact]
-    public void WorstCase_ScoresSeventy()
+    public void WorstCase_ScoresSeventyOne()
     {
         var result = ReferenceArchitecture.Analyze("worst-case");
 
@@ -165,11 +166,14 @@ public class ReferenceArchitectureTests
         Assert.Equal(35, result.ScoreOf(Area.Resilience));
 
         Assert.Equal(65, result.ScoreOf(Area.Coupling));
-        Assert.Equal(95, result.ScoreOf(Area.Scalability));
+        // 100 y no 95 desde V20: `MISSING_CACHE` es la única regla de Escalabilidad que salta aquí,
+        // y en `Info` ya no resta. La arquitectura no ha mejorado; hemos dejado de cobrarle por una
+        // sugerencia de velocidad.
+        Assert.Equal(100, result.ScoreOf(Area.Scalability));
         Assert.Equal(95, result.ScoreOf(Area.Security));
         Assert.Equal(60, result.ScoreOf(Area.Observability));
 
-        Assert.Equal(70, result.Score);
+        Assert.Equal(71, result.Score);
 
         Assert.Equal(12, result.Summary.Critical);
     }
@@ -235,12 +239,15 @@ public class ReferenceArchitectureTests
                 RuleCodes.Cycle, RuleCodes.HighCoupling,
                 RuleCodes.NoObservability,
                 RuleCodes.Spof, RuleCodes.MissingResilience, RuleCodes.SyncChain,
-                RuleCodes.SharedDatabase, RuleCodes.MissingCache,
+                RuleCodes.SharedDatabase,
                 RuleCodes.UnauthenticatedEntry,
                 RuleCodes.NoObservability, RuleCodes.NoObservability, RuleCodes.NoObservability,
                 RuleCodes.NoObservability, RuleCodes.NoObservability, RuleCodes.NoObservability,
                 RuleCodes.NoObservability, RuleCodes.NoObservability, RuleCodes.NoObservability,
-                RuleCodes.NoObservability
+                RuleCodes.NoObservability,
+                // V20. `Info` va por debajo de todo lo que penaliza y por encima de lo que pasó, que
+                // es el sitio que le corresponde: tiene algo que decir y no cuesta puntos.
+                RuleCodes.MissingCache
             ],
             result.Findings.Where(f => f.Severity != Severity.Good).Select(f => f.Code));
     }
@@ -263,7 +270,7 @@ public class ReferenceArchitectureTests
     {
         var result = ReferenceArchitecture.Analyze(fixture);
 
-        Assert.Equal("v9", result.ScoringVersion);
+        Assert.Equal("v10", result.ScoringVersion);
         Assert.Equal(Enum.GetValues<Area>(), result.Areas.Select(a => a.Area));
         Assert.All(result.Findings, finding =>
         {

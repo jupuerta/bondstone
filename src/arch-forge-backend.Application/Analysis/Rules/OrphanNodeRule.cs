@@ -6,7 +6,10 @@ public class OrphanNodeRule : IArchitectureRule
 {
     public string Code => RuleCodes.OrphanNode;
     public Area Area => Area.Coupling;
-    public Severity DefaultSeverity => Severity.Warning;
+    // V20. An unconnected box is a drawing that is not finished, not an architecture that is
+    // broken: nothing can fail through it because nothing goes through it. It earns the card that
+    // says so and stops charging five points for it.
+    public Severity DefaultSeverity => Severity.Info;
     public RulePhase Phase => RulePhase.Consumer;
 
     public LocalizedText PassedMessage => LocalizedText.Of("finding.ORPHAN_NODE.passed.message");

@@ -14,7 +14,7 @@ public class MissingCacheRuleTests
     private readonly GraphBuilder _builder = new();
 
     [Fact]
-    public void ThreeDirectConsumersWithoutCacheOrReplicas_IsAWarning()
+    public void ThreeDirectConsumersWithoutCacheOrReplicas_IsWorthSaying()
     {
         _builder
             .Node("Db", NodeType.Database)
@@ -25,7 +25,10 @@ public class MissingCacheRuleTests
 
         Assert.Equal(RuleCodes.MissingCache, finding.Code);
         Assert.Equal(Area.Scalability, finding.Area);
-        Assert.Equal(Severity.Warning, finding.Severity);
+        // V20. `Info` y no `Warning`: es la única regla del analizador que señala una oportunidad
+        // y no un defecto — todo lo que sugiere sigue funcionando —, y compartir nivel con
+        // `QUEUE_NO_DLQ` ponía «esto podría ir más rápido» al lado de «estás perdiendo mensajes».
+        Assert.Equal(Severity.Info, finding.Severity);
         Assert.Equal("finding.MISSING_CACHE.direct.message(count=3, node=Db)", finding.Message.Describe());
     }
 
@@ -147,7 +150,7 @@ public class MissingCacheRuleTests
     }
 
     [Fact]
-    public void NeverEscalatesToCritical()
+    public void NeverEscalatesAboveInfo()
     {
         _builder.Node("Db", NodeType.Database);
 
@@ -157,7 +160,7 @@ public class MissingCacheRuleTests
             _builder.Connect($"S{i}", "Db");
         }
 
-        Assert.Equal(Severity.Warning, Assert.Single(_rule.Evaluate(_builder.Build()).Findings).Severity);
+        Assert.Equal(Severity.Info, Assert.Single(_rule.Evaluate(_builder.Build()).Findings).Severity);
     }
 
     [Fact]

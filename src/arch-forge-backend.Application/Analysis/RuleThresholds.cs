@@ -20,6 +20,19 @@ public static class RuleThresholds
 
     public const decimal OverprovisionedUtilization = 0.2m;
 
+    // V22 D1. Above this multiple of what the load needs, waste stops being a warning.
+    //
+    // `Cost` is one of the two areas fed by a single rule, and a code's penalty is capped at three
+    // times its weight — so with `OVERPROVISIONED` stuck at `Warning`, the area could never fall
+    // below 85 however much money was being burned. Measured before choosing the number: an `Api`
+    // with **200 copies for 10 rps** scored the same 98 as the same drawing sized correctly. Paying
+    // twenty times over cost exactly nothing.
+    //
+    // Four and not two: three copies for a load that needs one is a defensible amount of headroom,
+    // and the rule already refuses to advise below `RedundancyFloor`. Four is where the drawing
+    // stops being cautious and starts being wrong.
+    public const int OverprovisionedCritical = 4;
+
     // Never advise dropping below this: the second copy is not capacity, it is what takes the
     // component out of SPOF. Same number NodeSettings calls RedundantInstances.
     public const int RedundancyFloor = 2;

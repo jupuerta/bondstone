@@ -34,6 +34,7 @@ public class ArchitectureAnalyzer
         var summary = new AnalysisSummary(
             Critical: findings.Count(f => f.Severity == Severity.Critical),
             Warning: findings.Count(f => f.Severity == Severity.Warning),
+            Info: findings.Count(f => f.Severity == Severity.Info),
             Passed: findings.Count(f => f.Severity == Severity.Good));
 
         var load = LoadModel.Of(graph);
@@ -97,7 +98,8 @@ public class ArchitectureAnalyzer
             !outcome.IsApplicable ? RuleState.NotApplicable
                 : outcome.Findings.All(f => f.Severity == Severity.Good) ? RuleState.Passed
                 : RuleState.Fired,
-            outcome.NotApplicableReason))
+            outcome.NotApplicableReason,
+            outcome.DescribesTheDrawing))
         .OrderBy(rule => rule.Area)
         .ThenBy(rule => rule.Code, StringComparer.Ordinal)
         .ToList();
@@ -125,7 +127,7 @@ public class ArchitectureAnalyzer
             ? [Passed(rule)]
             : result.Findings;
 
-        return new RuleOutcome(rule.Area, rule.Code, result.IsApplicable, findings, result.NotApplicableReason);
+        return new RuleOutcome(rule.Area, rule.Code, result.IsApplicable, findings, result.NotApplicableReason, rule.DescribesTheDrawing);
     }
 
     private static RuleFinding Passed(IArchitectureRule rule) => new(

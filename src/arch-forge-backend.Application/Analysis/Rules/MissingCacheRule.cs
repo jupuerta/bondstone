@@ -17,7 +17,12 @@ public class MissingCacheRule : IArchitectureRule
     public string Code => RuleCodes.MissingCache;
     public Area Area => Area.Scalability;
 
-    public Severity DefaultSeverity => Severity.Warning;
+    // V20. The only rule of the analyzer that is an opportunity rather than a defect: a database
+    // read hot enough to be worth a cache in front of it. Everything it suggests still works, which
+    // is exactly what `Info` means — and it is the finding V13 §11 named when it asked for the level,
+    // because sharing `Warning` with `QUEUE_NO_DLQ` put "this could be faster" next to "you are
+    // losing messages".
+    public Severity DefaultSeverity => Severity.Info;
     public RulePhase Phase => RulePhase.Consumer;
 
     public LocalizedText PassedMessage => LocalizedText.Of("finding.MISSING_CACHE.passed.message");
@@ -62,7 +67,7 @@ public class MissingCacheRule : IArchitectureRule
             findings.Add(new RuleFinding(
                 Code,
                 Area,
-                Severity.Warning,
+                Severity.Info,
                 LocalizedText.Of("finding.MISSING_CACHE.direct.message",
                     ("node", database.Name),
                     ("count", consumers)),

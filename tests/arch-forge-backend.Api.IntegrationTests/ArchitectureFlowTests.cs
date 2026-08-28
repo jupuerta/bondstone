@@ -67,7 +67,7 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
         Assert.Contains(findings, f => f!["code"]!.GetValue<string>() == "SYNC_CHAIN");
         Assert.True(analysis["score"]!.GetValue<int>() is >= 0 and <= 100);
 
-        Assert.Equal("v9", analysis["scoringVersion"]!.GetValue<string>());
+        Assert.Equal("v10", analysis["scoringVersion"]!.GetValue<string>());
         Assert.Equal(
             ["Availability", "Resilience", "Coupling", "Scalability", "Security", "Observability", "Cost"],
             analysis["areas"]!.AsArray().Select(a => a!["area"]!.GetValue<string>()));
@@ -450,7 +450,7 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
 
         Assert.Equal(2, history[0]!["version"]!.GetValue<int>());
         Assert.Equal(3, history[1]!["version"]!.GetValue<int>());
-        Assert.All(history, entry => Assert.Equal("v9", entry!["scoringVersion"]!.GetValue<string>()));
+        Assert.All(history, entry => Assert.Equal("v10", entry!["scoringVersion"]!.GetValue<string>()));
 
         Assert.True(history[1]!["score"]!.GetValue<int>() > history[0]!["score"]!.GetValue<int>());
 

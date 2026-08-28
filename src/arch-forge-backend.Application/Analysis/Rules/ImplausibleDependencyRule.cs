@@ -10,6 +10,9 @@ public class ImplausibleDependencyRule : IArchitectureRule
     public string Code => RuleCodes.ImplausibleDependency;
     public Area Area => Area.Resilience;
     public Severity DefaultSeverity => Severity.Warning;
+    // V22 §11. Habla del dibujo, no de la arquitectura.
+    public bool DescribesTheDrawing => true;
+
     public RulePhase Phase => RulePhase.Consumer;
 
     public LocalizedText PassedMessage => LocalizedText.Of("finding.IMPLAUSIBLE_DEPENDENCY.passed.message");

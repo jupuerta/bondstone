@@ -261,7 +261,9 @@ public class QaRegressionTests
         Assert.Contains(result.Findings, f => f.Code == RuleCodes.OrphanNode && f.Elements.Contains(cola));
         Assert.DoesNotContain(result.Findings, f => f.Code == RuleCodes.QueueNoDlq && f.Severity != Severity.Good);
         Assert.Equal(100, result.ScoreOf(Area.Resilience));
-        Assert.Equal(95, result.ScoreOf(Area.Coupling));
+        // 100 y no 95 desde V20: `ORPHAN_NODE` pasó a `Info`. Una caja sin conectar es un dibujo sin
+        // terminar, no una arquitectura rota — nada puede fallar por ahí porque nada pasa por ahí.
+        Assert.Equal(100, result.ScoreOf(Area.Coupling));
     }
 
     [Fact]

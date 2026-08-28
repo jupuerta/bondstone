@@ -42,7 +42,7 @@ public class GetArchitectureHistoryQueryHandlerTests
             Version = version,
             ScoringVersion = scoringVersion,
             Score = score,
-            Summary = summary ?? JsonSerializer.Serialize(new AnalysisSummary(1, 2, 9)),
+            Summary = summary ?? JsonSerializer.Serialize(new AnalysisSummary(1, 2, 0, 9)),
             Areas = areas ?? SnapshotAreas.Empty,
             CreatedAt = new DateTime(2026, 8, 22, 0, 0, 0, DateTimeKind.Utc).AddMinutes(version),
         });
@@ -137,13 +137,13 @@ public class GetArchitectureHistoryQueryHandlerTests
     [Fact]
     public async Task Handle_Summary_TravelsWithEachPoint()
     {
-        Record(1, 61, summary: JsonSerializer.Serialize(new AnalysisSummary(2, 4, 6)));
-        Record(2, 78, summary: JsonSerializer.Serialize(new AnalysisSummary(1, 2, 9)));
+        Record(1, 61, summary: JsonSerializer.Serialize(new AnalysisSummary(2, 4, 0, 6)));
+        Record(2, 78, summary: JsonSerializer.Serialize(new AnalysisSummary(1, 2, 0, 9)));
 
         var result = (await Handle())!;
 
-        Assert.Equal(new AnalysisSummary(2, 4, 6), result[0].Summary);
-        Assert.Equal(new AnalysisSummary(1, 2, 9), result[1].Summary);
+        Assert.Equal(new AnalysisSummary(2, 4, 0, 6), result[0].Summary);
+        Assert.Equal(new AnalysisSummary(1, 2, 0, 9), result[1].Summary);
     }
 
     [Theory]

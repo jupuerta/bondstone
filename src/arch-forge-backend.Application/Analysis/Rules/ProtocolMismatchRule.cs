@@ -10,6 +10,9 @@ public class ProtocolMismatchRule : IArchitectureRule
     public string Code => RuleCodes.ProtocolMismatch;
     public Area Area => Area.Resilience;
     public Severity DefaultSeverity => Severity.Warning;
+    // V22 §11. Habla del dibujo, no de la arquitectura.
+    public bool DescribesTheDrawing => true;
+
     public RulePhase Phase => RulePhase.Consumer;
 
     public LocalizedText PassedMessage => LocalizedText.Of("finding.PROTOCOL_MISMATCH.passed.message");

@@ -1,7 +1,9 @@
 using arch_forge_backend.Application.Architectures.Commands;
 using arch_forge_backend.Application.Architectures.Queries;
 using arch_forge_backend.Application.Simulation;
+using arch_forge_backend.Api.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace arch_forge_backend.Api.Controllers;
 
@@ -48,6 +50,7 @@ public class ArchitecturesController : ControllerBase
     }
 
     [HttpPost]
+    [EnableRateLimiting(RateLimitPolicies.Mint)]
     public async Task<IActionResult> Create([FromBody] CreateArchitectureCommand command, CancellationToken cancellationToken)
     {
         var result = await _createHandler.Handle(command, cancellationToken);
@@ -84,6 +87,7 @@ public class ArchitecturesController : ControllerBase
     }
 
     [HttpPost("{shareToken}/fork")]
+    [EnableRateLimiting(RateLimitPolicies.Mint)]
     public async Task<IActionResult> Fork(string shareToken, CancellationToken cancellationToken)
     {
         var result = await _forkHandler.Handle(new ForkArchitectureCommand { ShareToken = shareToken }, cancellationToken);

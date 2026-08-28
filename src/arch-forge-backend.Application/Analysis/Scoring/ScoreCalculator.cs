@@ -5,7 +5,8 @@ public sealed record RuleOutcome(
     string Code,
     bool IsApplicable,
     IReadOnlyList<RuleFinding> Findings,
-    Localization.LocalizedText? NotApplicableReason = null);
+    Localization.LocalizedText? NotApplicableReason = null,
+    bool DescribesTheDrawing = false);
 
 public sealed record ScoreResult(int? Score, IReadOnlyList<AreaScore> Areas);
 
@@ -17,6 +18,19 @@ public static class ScoreCalculator
     private const decimal RepeatFactor = 0.5m;
 
     private const int CapMultiplier = 3;
+
+    // V22 D1. How many of the seven areas have to be evaluable before the average of them is worth
+    // calling a score.
+    //
+    // Measured: six unconnected boxes scored **100 / 100**. Six of the seven areas had nothing to
+    // look at — no traffic path, no calls, no store — so the number was the average of the one area
+    // that could speak, and it had nothing to complain about. A canvas that is not an architecture
+    // yet was being told it was perfect.
+    //
+    // Four is half of seven rounded up, and it is comfortably clear of the real cases: two boxes and
+    // an arrow already score six of seven areas, and the four references score six. What it catches
+    // is drawings that have not started.
+    private const int MinScoredAreas = 4;
 
     public static ScoreResult Calculate(IReadOnlyList<RuleOutcome> outcomes)
     {
@@ -53,7 +67,7 @@ public static class ScoreCalculator
             scored.Add(areaScore);
         }
 
-        int? score = scored.Count == 0 ? null : RoundHalfUp(scored.Sum() / (decimal)scored.Count);
+        int? score = scored.Count < MinScoredAreas ? null : RoundHalfUp(scored.Sum() / (decimal)scored.Count);
 
         return new ScoreResult(score, areas);
     }

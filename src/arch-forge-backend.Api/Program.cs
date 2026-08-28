@@ -1,5 +1,7 @@
 using System.Text.Json.Serialization;
+using arch_forge_backend.Api.Health;
 using arch_forge_backend.Api.Middleware;
+using arch_forge_backend.Api.RateLimiting;
 using arch_forge_backend.Application;
 using arch_forge_backend.Application.Challenges;
 using arch_forge_backend.Infrastructure;
@@ -33,6 +35,11 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownProxies.Clear();
 });
 
+builder.Services.AddArchForgeRateLimiting(builder.Configuration);
+
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("database");
+
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -59,6 +66,15 @@ if (app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 
 app.UseCors(FrontendCorsPolicy);
+
+// After `UseForwardedHeaders`, so the partition key is the client and not the proxy.
+app.UseRateLimiter();
+
+// Not rate limited and deliberately outside `/api/architectures`: the thing asking is the
+// container runtime, every few seconds, and a probe that can be throttled reports the throttle as
+// an outage.
+app.MapHealthChecks("/api/health").DisableRateLimiting();
+
 app.MapControllers();
 
  app.Run();

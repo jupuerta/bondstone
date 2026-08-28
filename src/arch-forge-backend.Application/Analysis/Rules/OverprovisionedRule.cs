@@ -41,10 +41,17 @@ public class OverprovisionedRule : IArchitectureRule
 
             var perInstance = CostModel.PerInstance(node.Type);
 
+            // Critical when the drawing pays several times over. The area has one rule and a code's
+            // penalty is capped at three times its weight, so leaving this at `Warning` put a floor
+            // of 85 under `Cost` — see `RuleThresholds.OverprovisionedCritical`.
+            var severity = copies >= keep * RuleThresholds.OverprovisionedCritical
+                ? Severity.Critical
+                : Severity.Warning;
+
             findings.Add(new RuleFinding(
                 Code,
                 Area,
-                Severity.Warning,
+                severity,
                 LocalizedText.Of("finding.OVERPROVISIONED.message",
                     ("node", node.Name),
                     ("copies", copies),
