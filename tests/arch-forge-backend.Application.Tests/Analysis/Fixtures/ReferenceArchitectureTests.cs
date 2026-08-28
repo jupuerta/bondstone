@@ -263,7 +263,7 @@ public class ReferenceArchitectureTests
     {
         var result = ReferenceArchitecture.Analyze(fixture);
 
-        Assert.Equal("v8", result.ScoringVersion);
+        Assert.Equal("v9", result.ScoringVersion);
         Assert.Equal(Enum.GetValues<Area>(), result.Areas.Select(a => a.Area));
         Assert.All(result.Findings, finding =>
         {

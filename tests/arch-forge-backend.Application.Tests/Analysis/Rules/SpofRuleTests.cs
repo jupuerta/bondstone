@@ -881,34 +881,64 @@ public class SpofRuleTests
     [Fact]
     public void AddingTheCdnThatMissingCdnAsksFor_CostsNoAvailability()
     {
-        var bare = Fronted(new GraphBuilder(), cdn: false);
-        var fronted = Fronted(new GraphBuilder(), cdn: true);
+        var bare = Fronted(cdn: false);
+        var fronted = Fronted(cdn: true);
 
-        Assert.Empty(_rule.Evaluate(bare.Build()).Findings);
-        Assert.Empty(_rule.Evaluate(fronted.Build()).Findings);
+        Assert.Empty(_rule.Evaluate(bare).Findings);
+        Assert.Empty(_rule.Evaluate(fronted).Findings);
 
-        var without = ReferenceArchitecture.Analyze(bare.Build());
-        var with = ReferenceArchitecture.Analyze(fronted.Build());
+        var without = ReferenceArchitecture.Analyze(bare);
+        var with = ReferenceArchitecture.Analyze(fronted);
 
         Assert.Equal(without.ScoreOf(Area.Availability), with.ScoreOf(Area.Availability));
         Assert.DoesNotContain(with.Findings, f => f.Code == RuleCodes.Spof && f.Severity != Severity.Good);
-        Assert.True(with.Score > without.Score, $"with the CDN {with.Score}, without it {without.Score}");
+        Assert.True(
+            with.ScoreOf(Area.Scalability) > without.ScoreOf(Area.Scalability),
+            $"with the CDN {with.ScoreOf(Area.Scalability)}, without it {without.ScoreOf(Area.Scalability)}");
+    }
 
-        static GraphBuilder Fronted(GraphBuilder builder, bool cdn)
-        {
-            builder
-                .Node("Users", NodeType.Client, """{"requestsPerSecond": 3000}""")
-                .Node("Api", NodeType.Api, """{"authentication": true, "rateLimit": 9000, "instances": 20}""")
-                .Node("Db", NodeType.Database, """{"replicas": 2, "readReplicas": 40}""")
-                .Connect("Api", "Db", timeoutSeconds: 30, fallback: true, protocol: ProtocolType.Sql);
+    [Fact]
+    public void TheCdnDoesNotCostAvailability_ItChangesWhatTheRightSizeIs()
+    {
+        var without = ReferenceArchitecture.Analyze(Fronted(cdn: false));
+        var with = ReferenceArchitecture.Analyze(Fronted(cdn: true));
+        var resized = ReferenceArchitecture.Analyze(Fronted(cdn: true, rightSized: true));
 
-            if (cdn)
-                builder.Node("Edge", NodeType.Cdn).Connect("Users", "Edge").Connect("Edge", "Api", timeoutSeconds: 30, fallback: true);
-            else
-                builder.Connect("Users", "Api");
+        Assert.Equal(2, with.Findings.Count(Overprovisioned));
+        Assert.True(with.ScoreOf(Area.Cost) < without.ScoreOf(Area.Cost));
 
-            return builder;
-        }
+        Assert.DoesNotContain(resized.Findings, Overprovisioned);
+        Assert.Empty(_rule.Evaluate(Fronted(cdn: true, rightSized: true)).Findings);
+        Assert.Equal(without.ScoreOf(Area.Availability), resized.ScoreOf(Area.Availability));
+        Assert.True(
+            resized.Score > without.Score,
+            $"resized behind the CDN {resized.Score}, bare {without.Score}");
+        Assert.True(
+            resized.Cost!.Total * 10 < with.Cost!.Total,
+            $"resized {resized.Cost.Total}, unchanged behind the CDN {with.Cost.Total}");
+
+        static bool Overprovisioned(RuleFinding finding) =>
+            finding.Code == RuleCodes.Overprovisioned && finding.Severity != Severity.Good;
+    }
+
+    private static ArchitectureGraph Fronted(bool cdn, bool rightSized = false)
+    {
+        var builder = new GraphBuilder()
+            .Node("Users", NodeType.Client, """{"requestsPerSecond": 3000}""")
+            .Node("Api", NodeType.Api, rightSized
+                ? """{"authentication": true, "rateLimit": 9000, "instances": 2}"""
+                : """{"authentication": true, "rateLimit": 9000, "instances": 20}""")
+            .Node("Db", NodeType.Database, rightSized
+                ? """{"replicas": 1}"""
+                : """{"replicas": 2, "readReplicas": 40}""")
+            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql);
+
+        if (cdn)
+            builder.Node("Edge", NodeType.Cdn).Connect("Users", "Edge").Connect("Edge", "Api", timeoutSeconds: 5, fallback: true);
+        else
+            builder.Connect("Users", "Api");
+
+        return builder.Build();
     }
 
     [Fact]

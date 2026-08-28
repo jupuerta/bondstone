@@ -41,7 +41,7 @@ public class ArchitectureAnalyzerTests
     [Fact]
     public void Analyze_CarriesTheScoringVersion()
     {
-        Assert.Equal("v8", new ArchitectureAnalyzer([]).Analyze(EmptyGraph).ScoringVersion);
+        Assert.Equal("v9", new ArchitectureAnalyzer([]).Analyze(EmptyGraph).ScoringVersion);
     }
 
     [Fact]

@@ -408,6 +408,10 @@ public class AnalysisContractTests
         Assert.Equal(CostModel.Api, api.PerInstance);
         Assert.Equal(3, api.Instances);
         Assert.Equal(CostModel.Api * 3, api.Total);
+
+        // The panel has never known the names of the nodes: they reach it only inside the backend's
+        // sentences. Without this the breakdown is a column of anonymous bars.
+        Assert.Equal("Api", api.Name);
     }
 
     [Fact]

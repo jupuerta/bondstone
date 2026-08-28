@@ -345,6 +345,16 @@ public class RecordAnalyzerSentences
             .Connect("R1", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql, access: "read")
             .Connect("R2", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql, access: "read"));
 
+        yield return ("sameZone", new GraphBuilder()
+            .Node("Users", NodeType.Client).Node("LB", NodeType.LoadBalancer)
+            .Node("Api1", NodeType.Api, "{\"zone\":\"a\"}").Node("Api2", NodeType.Api, "{\"zone\":\"a\"}")
+            .Node("Db", NodeType.Database, "{\"replicas\":2}").Node("Cola", NodeType.Queue)
+            .Connect("Users", "LB").Connect("LB", "Api1").Connect("LB", "Api2")
+            .Connect("Api1", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql)
+            .Connect("Api2", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql)
+            .Connect("Api1", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Api2", "Cola", synchronous: false, protocol: ProtocolType.Amqp));
+
         yield return ("unguarded", new GraphBuilder()
             .Node("Users", NodeType.Client).Node("Edge", NodeType.Cdn).Node("W", NodeType.Worker)
             .Connect("Users", "Edge").Connect("Edge", "W"));

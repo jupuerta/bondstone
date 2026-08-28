@@ -55,6 +55,7 @@ public class ArchitectureAnalyzer
         var components = graph.Nodes
             .Select(node => new ComponentCost(
                 node.Id,
+                node.Name,
                 CostModel.PerInstance(node.Type),
                 NodeSettings.Instances(node),
                 NodeRoles.IsYoursToPayFor(node.Type)
