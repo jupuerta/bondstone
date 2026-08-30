@@ -80,7 +80,8 @@ public static class ChallengeHarness
         new ImplausibleDependencyRule(),
         new TrafficRejectedRule(),
         new MissingCdnRule(),
-        new OverprovisionedRule()
+        new OverprovisionedRule(),
+        new AsyncNoQueueRule()
     ];
 
     private sealed class NullRepository : Application.Common.Interfaces.IArchitectureRepository

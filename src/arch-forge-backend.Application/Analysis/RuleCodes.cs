@@ -35,4 +35,6 @@ public static class RuleCodes
     public const string TimeoutTooLong = "TIMEOUT_TOO_LONG";
 
     public const string Overprovisioned = "OVERPROVISIONED";
+
+    public const string AsyncNoQueue = "ASYNC_NO_QUEUE";
 }

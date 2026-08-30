@@ -217,6 +217,32 @@ public class RequirementEvaluatorTests
             requirements.Select(r => (r.Kind, RequirementEvaluator.Evaluate(r, perfect).Met, RequirementEvaluator.Evaluate(r, perfect).Detail.Describe())),
             requirements.Select(r => (r.Kind, RequirementEvaluator.Evaluate(r, awful).Met, RequirementEvaluator.Evaluate(r, awful).Detail.Describe())));
     }
+
+    [Fact]
+    public void Edge_asked_not_to_wait_accepts_the_call_that_goes_through_a_queue()
+    {
+        var requirement = new ChallengeRequirement { Kind = RequirementKinds.Edge, LabelKey = "x", From = "Api", To = "Mailer", Synchronous = false };
+
+        var through = Blueprint.Of(
+            [("Api", NodeType.Api), ("Emails", NodeType.Queue), ("Mailer", NodeType.Service)],
+            [("Api", "Emails", ProtocolType.Amqp, false, "{}"), ("Emails", "Mailer", ProtocolType.Amqp, false, "{}")]);
+
+        Assert.True(Run(requirement, through).Met);
+
+        var rpc = Blueprint.Of(
+            [("Api", NodeType.Api), ("Emails", NodeType.Queue), ("Mailer", NodeType.Service)],
+            [("Api", "Emails", ProtocolType.Amqp, false, "{}"), ("Emails", "Mailer", ProtocolType.Amqp, true, "{}")]);
+
+        var waiting = Run(requirement, rpc);
+        Assert.False(waiting.Met);
+        Assert.Equal("challenge.requirement.edge.notAsynchronous", waiting.Detail.Key());
+
+        var elsewhere = Blueprint.Of(
+            [("Api", NodeType.Api), ("Emails", NodeType.Queue), ("Mailer", NodeType.Service), ("Other", NodeType.Worker)],
+            [("Api", "Emails", ProtocolType.Amqp, false, "{}"), ("Emails", "Other", ProtocolType.Amqp, false, "{}")]);
+
+        Assert.Equal("challenge.requirement.edge.missing", Run(requirement, elsewhere).Detail.Key());
+    }
 }
 
 public class NewRequirementKindsTests

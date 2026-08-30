@@ -44,7 +44,8 @@ public static class ReferenceArchitecture
             new TrafficRejectedRule(),
             new MissingCdnRule(),
             new TimeoutTooLongRule(),
-            new OverprovisionedRule()
+            new OverprovisionedRule(),
+            new AsyncNoQueueRule()
         ]);
 
         return analyzer.Analyze(graph);

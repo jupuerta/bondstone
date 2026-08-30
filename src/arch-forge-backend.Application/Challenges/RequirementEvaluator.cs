@@ -1,4 +1,5 @@
 using arch_forge_backend.Application.Analysis;
+using arch_forge_backend.Domain.Enums;
 using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Application.Configuration.Schemas;
 using arch_forge_backend.Application.Localization;
@@ -237,6 +238,11 @@ public static class RequirementEvaluator
             .Where(c => Named(context, c.SourceNodeId, requirement.From!) && Named(context, c.TargetNodeId, requirement.To!))
             .ToList();
 
+        // A call asked not to wait may go through a broker instead of straight: then the two hops are
+        // the call, and both of them have to be asynchronous for it to count.
+        if (edges.Count == 0 && requirement.Synchronous == false)
+            edges = ThroughABroker(context, requirement.From!, requirement.To!);
+
         if (edges.Count == 0)
             return ChallengeRequirementResult.Fail(requirement,
                 LocalizedText.Of("challenge.requirement.edge.missing",
@@ -382,6 +388,21 @@ public static class RequirementEvaluator
         _ => null
     };
 
+
+    private static List<Connection> ThroughABroker(EvaluationContext context, string from, string to)
+    {
+        var graph = context.Graph;
+
+        return graph.Connections
+            .Where(first => Named(context, first.SourceNodeId, from))
+            .Where(first => graph.NodesById.TryGetValue(first.TargetNodeId, out var broker)
+                            && broker.Type is NodeType.Queue or NodeType.Topic)
+            .SelectMany(first => graph.OutgoingBySource[first.TargetNodeId]
+                .Where(second => Named(context, second.TargetNodeId, to))
+                .SelectMany(second => new[] { first, second }))
+            .Distinct()
+            .ToList();
+    }
 
     private static bool Has(ResilienceConfiguration resilience, string mechanism) => mechanism switch
     {

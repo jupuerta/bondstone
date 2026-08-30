@@ -143,6 +143,10 @@ public class RecordAnalyzerSentences
             .Connect("Api", "Topic", synchronous: false, protocol: ProtocolType.Amqp)
             .Connect("Api", "Suelta", synchronous: false, protocol: ProtocolType.Amqp));
 
+        yield return ("fireAndForget", new GraphBuilder()
+            .Nodes(NodeType.Service, "Orders", "Mailer")
+            .Connect("Orders", "Mailer", synchronous: false));
+
         yield return ("queuesBackwards", new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Cola", NodeType.Queue).Node("Topic", NodeType.Topic)
             .Nodes(NodeType.Worker, "W1", "W2")

@@ -109,7 +109,7 @@ public class ReferenceArchitectureTests
 
         Assert.Equal(92, result.Score);
 
-        Assert.Equal(new AnalysisSummary(Critical: 1, Warning: 11, Info: 0, Passed: 14), result.Summary);
+        Assert.Equal(new AnalysisSummary(Critical: 1, Warning: 11, Info: 0, Passed: 15), result.Summary);
     }
 
     [Fact]
@@ -270,7 +270,7 @@ public class ReferenceArchitectureTests
     {
         var result = ReferenceArchitecture.Analyze(fixture);
 
-        Assert.Equal("v10", result.ScoringVersion);
+        Assert.Equal("v11", result.ScoringVersion);
         Assert.Equal(Enum.GetValues<Area>(), result.Areas.Select(a => a.Area));
         Assert.All(result.Findings, finding =>
         {

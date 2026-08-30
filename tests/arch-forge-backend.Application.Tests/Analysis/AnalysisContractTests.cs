@@ -22,8 +22,8 @@ public class AnalysisContractTests
         {
             var coverage = ReferenceArchitecture.Analyze(name).Coverage;
 
-            Assert.Equal(25, coverage.Count);
-            Assert.Equal(25, coverage.Select(rule => rule.Code).Distinct().Count());
+            Assert.Equal(26, coverage.Count);
+            Assert.Equal(26, coverage.Select(rule => rule.Code).Distinct().Count());
         }
     }
 
@@ -121,6 +121,18 @@ public class AnalysisContractTests
         Assert.Equal(RuleState.Fired, StateOf(result, RuleCodes.NoObservability));
     }
 
+    // The only reference with a call that does not wait is the one whose calls all go through the
+    // queue: it passes, and the other three have nothing to look at. That is what keeps the four
+    // scores where they were.
+    [Fact]
+    public void Coverage_hears_the_queue_rule_only_where_something_fires_without_waiting()
+    {
+        Assert.Equal(RuleState.Passed, StateOf(ReferenceArchitecture.Analyze("resilient-async"), RuleCodes.AsyncNoQueue));
+
+        foreach (var name in References.Where(name => name != "resilient-async"))
+            Assert.Equal(RuleState.NotApplicable, StateOf(ReferenceArchitecture.Analyze(name), RuleCodes.AsyncNoQueue));
+    }
+
     [Fact]
     public void Coverage_moves_with_the_drawing()
     {
@@ -160,12 +172,12 @@ public class AnalysisContractTests
     }
 
     [Fact]
-    public void The_empty_canvas_gets_twenty_five_different_sentences()
+    public void The_empty_canvas_gets_twenty_six_different_sentences()
     {
         var coverage = ReferenceArchitecture.Analyze(new GraphBuilder().Build()).Coverage;
 
         Assert.All(coverage, rule => Assert.Equal(RuleState.NotApplicable, rule.State));
-        Assert.Equal(25, coverage.Select(rule => rule.Reason!.Key).Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(26, coverage.Select(rule => rule.Reason!.Key).Distinct(StringComparer.Ordinal).Count());
     }
 
     [Fact]

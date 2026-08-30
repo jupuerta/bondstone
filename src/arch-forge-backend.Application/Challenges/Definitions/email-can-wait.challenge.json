@@ -37,6 +37,11 @@
       "metric": "entryPointsAffected",
       "operator": "eq",
       "value": 0
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.email-can-wait.goal.2",
+      "code": "ASYNC_NO_QUEUE"
     }
   ],
   "hintKeys": [

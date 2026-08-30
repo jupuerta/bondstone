@@ -27,6 +27,8 @@ public static class FixKinds
 
     public const string MakeEdgeAsynchronous = "makeEdgeAsynchronous";
 
+    public const string InsertQueue = "insertQueue";
+
     public static bool IsKnown(string kind) => kind is
-        SetEdgeResilience or SetNodeFlag or InsertCache or RemoveNode or ConnectTo or MakeEdgeAsynchronous;
+        SetEdgeResilience or SetNodeFlag or InsertCache or RemoveNode or ConnectTo or MakeEdgeAsynchronous or InsertQueue;
 }
