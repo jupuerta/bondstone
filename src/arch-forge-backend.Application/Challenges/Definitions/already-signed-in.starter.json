@@ -8,11 +8,11 @@
     { "name": "Telemetry", "type": "Observability", "x": 0, "y": 440 }
   ],
   "connections": [
-    { "from": "Storefront", "to": "Auth0", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 2 } },
-    { "from": "Storefront", "to": "Orders", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
-    { "from": "Orders", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
-    { "from": "Storefront", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
-    { "from": "Orders", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
-    { "from": "Db", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} }
+    { "from": "Storefront", "to": "Auth0", "synchronous": true, "configuration": { "timeoutSeconds": 2 } },
+    { "from": "Storefront", "to": "Orders", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
+    { "from": "Orders", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
+    { "from": "Storefront", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Orders", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Db", "to": "Telemetry", "synchronous": false, "configuration": {} }
   ]
 }

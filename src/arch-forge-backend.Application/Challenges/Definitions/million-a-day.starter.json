@@ -9,14 +9,12 @@
     {
       "from": "Gateway",
       "to": "Api",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": { "timeoutSeconds": 5 }
     },
     {
       "from": "Api",
       "to": "Db",
-      "protocol": "Sql",
       "synchronous": true,
       "configuration": { "timeoutSeconds": 5 }
     }

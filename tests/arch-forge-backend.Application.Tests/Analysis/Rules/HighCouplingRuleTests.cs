@@ -72,7 +72,7 @@ public class HighCouplingRuleTests
     {
         _builder.Node("Orders").Nodes(default, "A", "B", "C");
         _builder.Connect("Orders", "A").Connect("Orders", "B").Connect("Orders", "C");
-        _builder.Connect("Orders", "A", synchronous: false, protocol: Domain.Enums.ProtocolType.Amqp);
+        _builder.Connect("Orders", "A", synchronous: false);
 
         Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
     }

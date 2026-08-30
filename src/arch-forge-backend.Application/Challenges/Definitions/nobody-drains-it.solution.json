@@ -8,12 +8,12 @@
     { "name": "Telemetry", "type": "Observability", "x": 260, "y": 400 }
   ],
   "connections": [
-    { "from": "Storefront", "to": "Orders", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
-    { "from": "Orders", "to": "Invoices", "protocol": "Amqp", "synchronous": false, "configuration": {} },
-    { "from": "Invoices", "to": "Billing", "protocol": "Amqp", "synchronous": false, "configuration": {} },
-    { "from": "Storefront", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
-    { "from": "Orders", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
-    { "from": "Invoices", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
-    { "from": "Billing", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} }
+    { "from": "Storefront", "to": "Orders", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
+    { "from": "Orders", "to": "Invoices", "synchronous": false, "configuration": {} },
+    { "from": "Invoices", "to": "Billing", "synchronous": false, "configuration": {} },
+    { "from": "Storefront", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Orders", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Invoices", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Billing", "to": "Telemetry", "synchronous": false, "configuration": {} }
   ]
 }

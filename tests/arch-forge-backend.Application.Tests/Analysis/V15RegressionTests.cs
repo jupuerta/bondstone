@@ -17,7 +17,7 @@ public class V15RegressionTests
             .Node("Svc", NodeType.Service)
             .Node("Db", NodeType.Database, """{"replicas":2}""")
             .Connect("Api", "Svc", timeoutSeconds: 3, fallback: true)
-            .Connect("Svc", "Db", timeoutSeconds: 3, fallback: true, protocol: ProtocolType.Sql);
+            .Connect("Svc", "Db", timeoutSeconds: 3, fallback: true);
 
         var bare = ReferenceArchitecture.Analyze(Base().Build());
         var wired = ReferenceArchitecture.Analyze(Base()
@@ -41,7 +41,7 @@ public class V15RegressionTests
             .Node("Api", NodeType.Api, """{"authentication":true,"rateLimit":1000,"instances":2}""")
             .Node("Db", NodeType.Database, """{"replicas":2}""").Node("Obs", NodeType.Observability)
             .Connect("Web", "LB").Connect("LB", "Api", timeoutSeconds: 3, fallback: true)
-            .Connect("Api", "Db", timeoutSeconds: 3, fallback: true, protocol: ProtocolType.Sql)
+            .Connect("Api", "Db", timeoutSeconds: 3, fallback: true)
             .Connect("Obs", "LB").Connect("Obs", "Api").Connect("Obs", "Db")
             .Build());
 
@@ -51,8 +51,8 @@ public class V15RegressionTests
             .Node("Api2", NodeType.Api, """{"authentication":true,"rateLimit":1000}""")
             .Node("Db", NodeType.Database, """{"replicas":2}""").Node("Obs", NodeType.Observability)
             .Connect("Web", "LB").Connect("LB", "Api1", timeoutSeconds: 3, fallback: true).Connect("LB", "Api2", timeoutSeconds: 3, fallback: true)
-            .Connect("Api1", "Db", timeoutSeconds: 3, fallback: true, protocol: ProtocolType.Sql)
-            .Connect("Api2", "Db", timeoutSeconds: 3, fallback: true, protocol: ProtocolType.Sql)
+            .Connect("Api1", "Db", timeoutSeconds: 3, fallback: true)
+            .Connect("Api2", "Db", timeoutSeconds: 3, fallback: true)
             .Connect("Obs", "LB").Connect("Obs", "Api1").Connect("Obs", "Api2").Connect("Obs", "Db")
             .Build());
 
@@ -74,7 +74,7 @@ public class V15RegressionTests
                 .Node("Api", NodeType.Api, """{"authentication":true,"rateLimit":5000,"instances":10}""")
                 .Node("Db", NodeType.Database, """{"replicas":2,"readReplicas":2}""")
                 .Node("Obs", NodeType.Observability)
-                .Connect("Api", "Db", timeoutSeconds: 3, fallback: true, protocol: ProtocolType.Sql)
+                .Connect("Api", "Db", timeoutSeconds: 3, fallback: true)
                 .Connect("Obs", "Api", timeoutSeconds: 5, fallback: true).Connect("Obs", "Db", timeoutSeconds: 5, fallback: true);
 
             if (cdn)
@@ -122,10 +122,10 @@ public class V15RegressionTests
             .Connect("Gw1", "IdP", timeoutSeconds: 2, fallback: true).Connect("Gw2", "IdP", timeoutSeconds: 2, fallback: true)
             .Connect("Api", "Cache", timeoutSeconds: 1, fallback: true)
             .Connect("Api", "Svc", timeoutSeconds: 3, fallback: true)
-            .Connect("Svc", "Db", timeoutSeconds: 3, fallback: true, protocol: ProtocolType.Sql)
-            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola", "Worker", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Worker", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql);
+            .Connect("Svc", "Db", timeoutSeconds: 3, fallback: true)
+            .Connect("Api", "Cola", synchronous: false)
+            .Connect("Cola", "Worker", synchronous: false)
+            .Connect("Worker", "Db", timeoutSeconds: 5, fallback: true);
 
         foreach (var name in new[] { "Edge", "LB", "Gw1", "Gw2", "Api", "Svc", "Cache", "Db", "Cola", "Worker" })
             b.Connect("Obs", name, synchronous: false);

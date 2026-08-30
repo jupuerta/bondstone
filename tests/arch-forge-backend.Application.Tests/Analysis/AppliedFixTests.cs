@@ -15,7 +15,7 @@ public class AppliedFixTests
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Db")
             .Build();
 
         var fix = Assert.Single(new MissingResilienceRule().Evaluate(graph).Findings).Fix;
@@ -52,7 +52,7 @@ public class AppliedFixTests
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api, """{"requestsPerSecond":1200}""")
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", timeoutSeconds: 1, protocol: ProtocolType.Sql)
+            .Connect("Api", "Db", timeoutSeconds: 1)
             .Build();
 
         var fix = Assert.Single(new TimeoutTooShortRule().Evaluate(graph).Findings).Fix;
@@ -70,8 +70,8 @@ public class AppliedFixTests
             .Node("Api", NodeType.Api)
             .Node("Q", NodeType.Queue)
             .Node("Worker", NodeType.Worker)
-            .Connect("Api", "Q", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Q", "Worker", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Api", "Q", synchronous: false)
+            .Connect("Q", "Worker", synchronous: false)
             .Build();
 
         var fix = Assert.Single(new QueueNoDlqRule().Evaluate(graph).Findings).Fix;
@@ -88,8 +88,8 @@ public class AppliedFixTests
             .Node("A", NodeType.Service)
             .Node("B", NodeType.Service)
             .Node("Db", NodeType.Database)
-            .Connect("A", "Db", protocol: ProtocolType.Sql)
-            .Connect("B", "Db", protocol: ProtocolType.Sql)
+            .Connect("A", "Db")
+            .Connect("B", "Db")
             .Build();
 
         var fix = Assert.Single(new MissingCacheRule().Evaluate(graph).Findings).Fix;
@@ -107,7 +107,7 @@ public class AppliedFixTests
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
             .Node("Leftover", NodeType.Service)
-            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Db")
             .Build();
 
         var fix = Assert.Single(new OrphanNodeRule().Evaluate(graph).Findings).Fix;

@@ -190,7 +190,7 @@ public sealed class CallCost
 
         var basis = LatencyModel.Processing(node.Type);
         var charged = _inputs.ProcessingOf(node);
-        var network = incoming is null ? 0 : LatencyModel.Hop(incoming.Protocol);
+        var network = incoming is null ? 0 : LatencyModel.Hop(_graph.ProtocolOf(incoming));
         var injected = _inputs.LatencyOf(FindingElement.Node(node.Id))
                        + (incoming is null ? 0 : _inputs.LatencyOf(FindingElement.Connection(incoming.Id)));
 
@@ -291,7 +291,7 @@ public sealed class CallCost
         }
 
         var target = Visit(edge.TargetNodeId);
-        var raw = LatencyModel.Hop(edge.Protocol)
+        var raw = LatencyModel.Hop(_graph.ProtocolOf(edge))
                   + _inputs.LatencyOf(FindingElement.Connection(edge.Id))
                   + target.LatencyMs;
 

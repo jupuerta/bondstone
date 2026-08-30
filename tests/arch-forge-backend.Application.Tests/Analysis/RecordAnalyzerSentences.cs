@@ -75,12 +75,12 @@ public class RecordAnalyzerSentences
 
         yield return ("minimal", new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Db", NodeType.Database)
-            .Connect("Api", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql));
+            .Connect("Api", "Db", timeoutSeconds: 5));
 
         yield return ("perfect", new GraphBuilder()
             .Node("Users", NodeType.Client).Node("Api", NodeType.Api, "{\"authentication\":true,\"rateLimit\":1000,\"instances\":2}")
             .Node("Db", NodeType.Database, "{\"replicas\":2}").Node("Obs", NodeType.Observability)
-            .Connect("Users", "Api").Connect("Api", "Db", timeoutSeconds: 3, fallback: true, protocol: ProtocolType.Sql)
+            .Connect("Users", "Api").Connect("Api", "Db", timeoutSeconds: 3, fallback: true)
             .Connect("Obs", "Api", timeoutSeconds: 5, fallback: true).Connect("Obs", "Db", timeoutSeconds: 5, fallback: true));
 
         yield return ("implausible", new GraphBuilder()
@@ -88,34 +88,28 @@ public class RecordAnalyzerSentences
             .Node("Cron", NodeType.Scheduler).Node("Cache", NodeType.Cache).Node("Store", NodeType.ObjectStorage)
             .Connect("Db", "Users").Connect("Edge", "Cache").Connect("Cron", "Store").Connect("Store", "Users"));
 
-        yield return ("protocols", new GraphBuilder()
-            .Node("Api", NodeType.Api).Node("Cola", NodeType.Queue).Node("Db", NodeType.Database).Node("Svc", NodeType.Service)
-            .Connect("Api", "Cola", protocol: ProtocolType.Sql, synchronous: false)
-            .Connect("Api", "Db", protocol: ProtocolType.Amqp)
-            .Connect("Svc", "Cola", protocol: ProtocolType.Http, synchronous: false));
-
         yield return ("spofShapes", new GraphBuilder()
             .Node("Gw", NodeType.Gateway).Nodes(NodeType.Service, "A", "B", "C").Node("Db", NodeType.Database)
             .Node("Cache", NodeType.Cache).Node("Store", NodeType.ObjectStorage).Node("Cola", NodeType.Queue)
             .Node("Topic", NodeType.Topic).Node("Stripe", NodeType.ExternalService).Node("IdP", NodeType.IdentityProvider)
             .Connect("Gw", "A").Connect("Gw", "B").Connect("Gw", "C")
-            .Connect("A", "Db", protocol: ProtocolType.Sql).Connect("B", "Db", protocol: ProtocolType.Sql)
+            .Connect("A", "Db").Connect("B", "Db")
             .Connect("A", "Cache").Connect("B", "Cache").Connect("A", "Store").Connect("B", "Store")
-            .Connect("A", "Cola", synchronous: false, protocol: ProtocolType.Amqp).Connect("B", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola", "C", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("A", "Topic", synchronous: false, protocol: ProtocolType.Amqp).Connect("B", "Topic", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Topic", "C", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("A", "Cola", synchronous: false).Connect("B", "Cola", synchronous: false)
+            .Connect("Cola", "C", synchronous: false)
+            .Connect("A", "Topic", synchronous: false).Connect("B", "Topic", synchronous: false)
+            .Connect("Topic", "C", synchronous: false)
             .Connect("A", "Stripe").Connect("B", "Stripe").Connect("Gw", "IdP"));
 
         yield return ("cycleAndRetries", new GraphBuilder()
             .Node("Api", NodeType.Api).Nodes(NodeType.Service, "X", "Y").Node("Db", NodeType.Database)
             .Connect("Api", "X", timeoutSeconds: 3, retries: 3).Connect("X", "Y", timeoutSeconds: 3, retries: 3)
-            .Connect("Y", "X", timeoutSeconds: 3, retries: 3).Connect("Y", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql));
+            .Connect("Y", "X", timeoutSeconds: 3, retries: 3).Connect("Y", "Db", timeoutSeconds: 3));
 
         yield return ("cycleOverData", new GraphBuilder()
             .Nodes(NodeType.Service, "P", "Q").Node("Db", NodeType.Database)
             .Connect("P", "Q", timeoutSeconds: 3).Connect("Q", "P", timeoutSeconds: 3)
-            .Connect("P", "Db", protocol: ProtocolType.Sql, timeoutSeconds: 3).Connect("Q", "Db", protocol: ProtocolType.Sql, timeoutSeconds: 3));
+            .Connect("P", "Db", timeoutSeconds: 3).Connect("Q", "Db", timeoutSeconds: 3));
 
         yield return ("unboundedRetries", new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Svc", NodeType.Service)
@@ -138,10 +132,10 @@ public class RecordAnalyzerSentences
         yield return ("queues", new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Cola", NodeType.Queue).Node("Topic", NodeType.Topic)
             .Node("W", NodeType.Worker).Node("Suelta", NodeType.Queue)
-            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola", "W", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Api", "Topic", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Api", "Suelta", synchronous: false, protocol: ProtocolType.Amqp));
+            .Connect("Api", "Cola", synchronous: false)
+            .Connect("Cola", "W", synchronous: false)
+            .Connect("Api", "Topic", synchronous: false)
+            .Connect("Api", "Suelta", synchronous: false));
 
         yield return ("fireAndForget", new GraphBuilder()
             .Nodes(NodeType.Service, "Orders", "Mailer")
@@ -150,21 +144,21 @@ public class RecordAnalyzerSentences
         yield return ("queuesBackwards", new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Cola", NodeType.Queue).Node("Topic", NodeType.Topic)
             .Nodes(NodeType.Worker, "W1", "W2")
-            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("W1", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Api", "Topic", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("W2", "Topic", synchronous: false, protocol: ProtocolType.Amqp));
+            .Connect("Api", "Cola", synchronous: false)
+            .Connect("W1", "Cola", synchronous: false)
+            .Connect("Api", "Topic", synchronous: false)
+            .Connect("W2", "Topic", synchronous: false));
 
         yield return ("security", new GraphBuilder()
             .Node("Users", NodeType.Client, "{\"requestsPerSecond\":100}").Node("Api", NodeType.Api, "{\"authentication\":false}")
             .Node("Db", NodeType.Database).Node("Svc", NodeType.Service)
-            .Connect("Users", "Api").Connect("Api", "Db", protocol: ProtocolType.Sql, timeoutSeconds: 3)
+            .Connect("Users", "Api").Connect("Api", "Db", timeoutSeconds: 3)
             .Connect("Users", "Svc"));
 
         yield return ("securityContradicted", new GraphBuilder()
             .Node("Users", NodeType.Client).Node("Gw", NodeType.Gateway, "{\"authentication\":false}")
             .Node("IdP", NodeType.IdentityProvider).Node("Db", NodeType.Database)
-            .Connect("Users", "Gw").Connect("Gw", "IdP", timeoutSeconds: 2).Connect("Gw", "Db", protocol: ProtocolType.Sql, timeoutSeconds: 3));
+            .Connect("Users", "Gw").Connect("Gw", "IdP", timeoutSeconds: 2).Connect("Gw", "Db", timeoutSeconds: 3));
 
         yield return ("exposedStore", new GraphBuilder()
             .Node("Users", NodeType.Client).Node("Bucket", NodeType.ObjectStorage)
@@ -174,18 +168,18 @@ public class RecordAnalyzerSentences
             .Node("Users", NodeType.Client, "{\"requestsPerSecond\":4000}")
             .Node("Api", NodeType.Api, "{\"authentication\":true,\"rateLimit\":100}")
             .Node("Svc", NodeType.Service).Node("Db", NodeType.Database)
-            .Connect("Users", "Api").Connect("Api", "Svc", timeoutSeconds: 1).Connect("Svc", "Db", timeoutSeconds: 1, protocol: ProtocolType.Sql));
+            .Connect("Users", "Api").Connect("Api", "Svc", timeoutSeconds: 1).Connect("Svc", "Db", timeoutSeconds: 1));
 
         yield return ("loadNoLimit", new GraphBuilder()
             .Node("Users", NodeType.Client, "{\"requestsPerSecond\":2000}")
             .Node("Api", NodeType.Api, "{\"authentication\":true}").Node("Svc", NodeType.Service, "{\"instances\":1}")
             .Node("Db", NodeType.Database, "{\"replicas\":2,\"readReplicas\":4}")
-            .Connect("Users", "Api").Connect("Api", "Svc", timeoutSeconds: 30).Connect("Svc", "Db", timeoutSeconds: 30, protocol: ProtocolType.Sql));
+            .Connect("Users", "Api").Connect("Api", "Svc", timeoutSeconds: 30).Connect("Svc", "Db", timeoutSeconds: 30));
 
         yield return ("atCapacity", new GraphBuilder()
             .Node("Users", NodeType.Client, "{\"requestsPerSecond\":450}")
             .Node("Api", NodeType.Api, "{\"authentication\":true,\"rateLimit\":5000}").Node("Db", NodeType.Database, "{\"replicas\":2,\"readReplicas\":20}")
-            .Connect("Users", "Api").Connect("Api", "Db", timeoutSeconds: 30, fallback: true, protocol: ProtocolType.Sql));
+            .Connect("Users", "Api").Connect("Api", "Db", timeoutSeconds: 30, fallback: true));
 
         yield return ("external", new GraphBuilder()
             .Node("Api", NodeType.Api).Nodes(NodeType.ExternalService, "Stripe", "Maps")
@@ -197,12 +191,12 @@ public class RecordAnalyzerSentences
 
         yield return ("orphans", new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Db", NodeType.Database).Node("Suelto", NodeType.Service)
-            .Connect("Api", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql));
+            .Connect("Api", "Db", timeoutSeconds: 3));
 
         yield return ("severalTelemetry", new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Svc", NodeType.Service).Node("Db", NodeType.Database)
             .Nodes(NodeType.Observability, "Metrics", "Logs")
-            .Connect("Api", "Svc", timeoutSeconds: 3).Connect("Svc", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql)
+            .Connect("Api", "Svc", timeoutSeconds: 3).Connect("Svc", "Db", timeoutSeconds: 3)
             .Connect("Metrics", "Api", timeoutSeconds: 5).Connect("Logs", "Svc", timeoutSeconds: 5));
 
         yield return ("syncChain", new GraphBuilder()
@@ -213,33 +207,33 @@ public class RecordAnalyzerSentences
         yield return ("syncChainRead", new GraphBuilder()
             .Node("Api", NodeType.Api).Nodes(NodeType.Service, "B", "C").Node("Db", NodeType.Database)
             .Connect("Api", "B", timeoutSeconds: 3).Connect("B", "C", timeoutSeconds: 3)
-            .Connect("C", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql));
+            .Connect("C", "Db", timeoutSeconds: 3));
 
         yield return ("sharedWriters", new GraphBuilder()
             .Node("Gw", NodeType.Gateway).Nodes(NodeType.Service, "W1", "W2").Node("Db", NodeType.Database)
             .Connect("Gw", "W1", timeoutSeconds: 3).Connect("Gw", "W2", timeoutSeconds: 3)
-            .Connect("W1", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql, access: "write")
-            .Connect("W2", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql, access: "write"));
+            .Connect("W1", "Db", timeoutSeconds: 3, access: "write")
+            .Connect("W2", "Db", timeoutSeconds: 3, access: "write"));
 
         yield return ("missingCdn", new GraphBuilder()
             .Node("Users", NodeType.Client, "{\"requestsPerSecond\":3000}")
             .Node("Api", NodeType.Api, "{\"authentication\":true,\"rateLimit\":9000,\"instances\":20}")
             .Node("Db", NodeType.Database, "{\"replicas\":2,\"readReplicas\":40}")
-            .Connect("Users", "Api").Connect("Api", "Db", timeoutSeconds: 30, fallback: true, protocol: ProtocolType.Sql));
+            .Connect("Users", "Api").Connect("Api", "Db", timeoutSeconds: 30, fallback: true));
 
         yield return ("clientCalled", new GraphBuilder()
             .Node("Svc", NodeType.Service).Node("Users", NodeType.Client).Node("Db", NodeType.Database)
-            .Connect("Svc", "Users").Connect("Svc", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql));
+            .Connect("Svc", "Users").Connect("Svc", "Db", timeoutSeconds: 3));
 
         yield return ("httpToStore", new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Db", NodeType.Database)
-            .Connect("Api", "Db", timeoutSeconds: 3, protocol: ProtocolType.Http));
+            .Connect("Api", "Db", timeoutSeconds: 3));
 
         yield return ("drowningDb", new GraphBuilder()
             .Node("Users", NodeType.Client, "{\"requestsPerSecond\":6000}")
             .Node("Api", NodeType.Api, "{\"authentication\":true,\"rateLimit\":9000,\"instances\":40}")
             .Node("Db", NodeType.Database, "{\"replicas\":2}")
-            .Connect("Users", "Api").Connect("Api", "Db", timeoutSeconds: 1, protocol: ProtocolType.Sql));
+            .Connect("Users", "Api").Connect("Api", "Db", timeoutSeconds: 1));
 
         yield return ("timeoutTooShort", new GraphBuilder()
             .Node("Api", NodeType.Api, "{\"authentication\":true,\"requestsPerSecond\":285}")
@@ -252,41 +246,41 @@ public class RecordAnalyzerSentences
 
         yield return ("oneTelemetryBox", new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Db", NodeType.Database).Node("Obs", NodeType.Observability)
-            .Connect("Api", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql)
+            .Connect("Api", "Db", timeoutSeconds: 3)
             .Connect("Obs", "Api", timeoutSeconds: 5, fallback: true));
 
         yield return ("brokerPassage", new GraphBuilder()
             .Node("Api", NodeType.Api, "{\"authentication\":true,\"rateLimit\":1000,\"instances\":2}")
             .Node("Cola", NodeType.Queue, "{\"deadLetterQueue\":true}").Node("W", NodeType.Worker, "{\"instances\":2}")
             .Node("Db", NodeType.Database, "{\"replicas\":2}")
-            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola", "W", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("W", "Db", timeoutSeconds: 3, fallback: true, protocol: ProtocolType.Sql));
+            .Connect("Api", "Cola", synchronous: false)
+            .Connect("Cola", "W", synchronous: false)
+            .Connect("W", "Db", timeoutSeconds: 3, fallback: true));
 
         yield return ("topicPassage", new GraphBuilder()
             .Node("Api", NodeType.Api, "{\"authentication\":true,\"rateLimit\":1000,\"instances\":2}")
             .Node("Ev", NodeType.Topic).Nodes(NodeType.Worker, "S1", "S2").Node("Db", NodeType.Database, "{\"replicas\":2}")
-            .Connect("Api", "Ev", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Ev", "S1", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Ev", "S2", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("S1", "Db", timeoutSeconds: 3, fallback: true, protocol: ProtocolType.Sql));
+            .Connect("Api", "Ev", synchronous: false)
+            .Connect("Ev", "S1", synchronous: false)
+            .Connect("Ev", "S2", synchronous: false)
+            .Connect("S1", "Db", timeoutSeconds: 3, fallback: true));
 
         yield return ("asyncCycle", new GraphBuilder()
             .Nodes(NodeType.Service, "M1", "M2").Node("Cola", NodeType.Queue, "{\"deadLetterQueue\":true}")
-            .Connect("M1", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola", "M2", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("M2", "M1", synchronous: false, protocol: ProtocolType.Amqp));
+            .Connect("M1", "Cola", synchronous: false)
+            .Connect("Cola", "M2", synchronous: false)
+            .Connect("M2", "M1", synchronous: false));
 
         yield return ("saturatedQueueAndWorker", new GraphBuilder()
             .Node("Cron", NodeType.Scheduler, "{\"jobsPerSecond\":9000}").Node("Cola", NodeType.Queue, "{\"deadLetterQueue\":true}")
             .Node("W", NodeType.Worker, "{\"instances\":1}")
-            .Connect("Cron", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola", "W", synchronous: false, protocol: ProtocolType.Amqp));
+            .Connect("Cron", "Cola", synchronous: false)
+            .Connect("Cola", "W", synchronous: false));
 
         yield return ("gatewayNoLimit", new GraphBuilder()
             .Node("Users", NodeType.Client, "{\"requestsPerSecond\":100}").Node("Gw", NodeType.Gateway, "{\"authentication\":true}")
             .Node("Db", NodeType.Database, "{\"replicas\":2}")
-            .Connect("Users", "Gw").Connect("Gw", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql));
+            .Connect("Users", "Gw").Connect("Gw", "Db", timeoutSeconds: 3));
 
         yield return ("cleanUnderLoadWithCdn", new GraphBuilder()
             .Node("Users", NodeType.Client, "{\"requestsPerSecond\":3000}").Node("Edge", NodeType.Cdn)
@@ -294,11 +288,11 @@ public class RecordAnalyzerSentences
             .Node("Stripe", NodeType.ExternalService).Node("Db", NodeType.Database, "{\"replicas\":2,\"readReplicas\":40}")
             .Connect("Users", "Edge").Connect("Edge", "Api", timeoutSeconds: 30, fallback: true)
             .Connect("Api", "Stripe", timeoutSeconds: 5, fallback: true)
-            .Connect("Api", "Db", timeoutSeconds: 30, fallback: true, retries: 1, protocol: ProtocolType.Sql));
+            .Connect("Api", "Db", timeoutSeconds: 30, fallback: true, retries: 1));
 
         yield return ("cycleThroughAStore", new GraphBuilder()
             .Node("Svc", NodeType.Service).Node("Db", NodeType.Database, "{\"replicas\":2}")
-            .Connect("Svc", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql)
+            .Connect("Svc", "Db", timeoutSeconds: 3)
             .Connect("Db", "Svc", timeoutSeconds: 3));
 
         yield return ("cdnInFront", new GraphBuilder()
@@ -306,7 +300,7 @@ public class RecordAnalyzerSentences
             .Node("Api", NodeType.Api, "{\"authentication\":true,\"rateLimit\":90000,\"instances\":40}")
             .Node("Db", NodeType.Database, "{\"replicas\":2,\"readReplicas\":200}")
             .Connect("Users", "Edge").Connect("Edge", "Api", timeoutSeconds: 60, fallback: true)
-            .Connect("Api", "Db", timeoutSeconds: 60, fallback: true, protocol: ProtocolType.Sql));
+            .Connect("Api", "Db", timeoutSeconds: 60, fallback: true));
 
         yield return ("blindWithOneIdleBox", new GraphBuilder()
             .Node("Gw", NodeType.Gateway).Nodes(NodeType.Service, "B1", "B2").Node("Obs", NodeType.Observability)
@@ -318,13 +312,13 @@ public class RecordAnalyzerSentences
 
         yield return ("timeoutTooLong", new GraphBuilder()
             .Node("Api", NodeType.Api, "{\"authentication\":true,\"rateLimit\":1000}").Node("Db", NodeType.Database, "{\"replicas\":2}")
-            .Connect("Api", "Db", timeoutSeconds: 600, fallback: true, protocol: ProtocolType.Sql));
+            .Connect("Api", "Db", timeoutSeconds: 600, fallback: true));
 
         yield return ("timeoutTooLongOnSpof", new GraphBuilder()
             .Node("Gw", NodeType.Gateway, "{\"authentication\":true,\"rateLimit\":1000}").Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database, "{\"replicas\":2}").Node("Cache", NodeType.Cache)
             .Connect("Gw", "Api", timeoutSeconds: 600)
-            .Connect("Api", "Db", timeoutSeconds: 3, fallback: true, protocol: ProtocolType.Sql)
+            .Connect("Api", "Db", timeoutSeconds: 3, fallback: true)
             .Connect("Api", "Cache", timeoutSeconds: 1, fallback: true));
 
         yield return ("allCycleNoRoot", new GraphBuilder()
@@ -340,24 +334,24 @@ public class RecordAnalyzerSentences
 
         yield return ("telemetryPush", new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Db", NodeType.Database).Node("Obs", NodeType.Observability)
-            .Connect("Api", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql)
+            .Connect("Api", "Db", timeoutSeconds: 3)
             .Connect("Api", "Obs"));
         yield return ("sharedReaders", new GraphBuilder()
             .Node("Gw", NodeType.Gateway).Nodes(NodeType.Service, "Owner", "R1", "R2").Node("Db", NodeType.Database)
             .Connect("Gw", "Owner", timeoutSeconds: 3).Connect("Gw", "R1", timeoutSeconds: 3).Connect("Gw", "R2", timeoutSeconds: 3)
-            .Connect("Owner", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql, access: "write")
-            .Connect("R1", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql, access: "read")
-            .Connect("R2", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql, access: "read"));
+            .Connect("Owner", "Db", timeoutSeconds: 3, access: "write")
+            .Connect("R1", "Db", timeoutSeconds: 3, access: "read")
+            .Connect("R2", "Db", timeoutSeconds: 3, access: "read"));
 
         yield return ("sameZone", new GraphBuilder()
             .Node("Users", NodeType.Client).Node("LB", NodeType.LoadBalancer)
             .Node("Api1", NodeType.Api, "{\"zone\":\"a\"}").Node("Api2", NodeType.Api, "{\"zone\":\"a\"}")
             .Node("Db", NodeType.Database, "{\"replicas\":2}").Node("Cola", NodeType.Queue)
             .Connect("Users", "LB").Connect("LB", "Api1").Connect("LB", "Api2")
-            .Connect("Api1", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql)
-            .Connect("Api2", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql)
-            .Connect("Api1", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Api2", "Cola", synchronous: false, protocol: ProtocolType.Amqp));
+            .Connect("Api1", "Db", timeoutSeconds: 3)
+            .Connect("Api2", "Db", timeoutSeconds: 3)
+            .Connect("Api1", "Cola", synchronous: false)
+            .Connect("Api2", "Cola", synchronous: false));
 
         yield return ("unguarded", new GraphBuilder()
             .Node("Users", NodeType.Client).Node("Edge", NodeType.Cdn).Node("W", NodeType.Worker)

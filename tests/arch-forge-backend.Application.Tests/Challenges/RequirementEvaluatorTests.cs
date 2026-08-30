@@ -12,8 +12,8 @@ public class RequirementEvaluatorTests
 {
     private static ArchitectureBlueprint ApiCacheDb() => Blueprint.Of(
         [("Api", NodeType.Api), ("Cache", NodeType.Cache), ("Db", NodeType.Database)],
-        [("Api", "Cache", ProtocolType.Http, true, """{"timeoutSeconds":2}"""),
-         ("Cache", "Db", ProtocolType.Sql, true, """{"timeoutSeconds":5}""")]);
+        [("Api", "Cache", true, """{"timeoutSeconds":2}"""),
+         ("Cache", "Db", true, """{"timeoutSeconds":5}""")]);
 
     private static ChallengeRequirementResult Run(ChallengeRequirement requirement, ArchitectureBlueprint blueprint) =>
         RequirementEvaluator.Evaluate(requirement, ChallengeHarness.Context(blueprint));
@@ -46,9 +46,9 @@ public class RequirementEvaluatorTests
     {
         var blueprint = Blueprint.Of(
             [("Api", NodeType.Api), ("A", NodeType.Service), ("B", NodeType.Service), ("C", NodeType.Service)],
-            [("Api", "A", ProtocolType.Http, true, "{}"),
-             ("Api", "B", ProtocolType.Http, true, "{}"),
-             ("Api", "C", ProtocolType.Http, true, "{}")]);
+            [("Api", "A", true, "{}"),
+             ("Api", "B", true, "{}"),
+             ("Api", "C", true, "{}")]);
 
         Assert.True(Run(new ChallengeRequirement { Kind = RequirementKinds.MaxFanOut, LabelKey = "x", Max = 3 }, blueprint).Met);
 
@@ -62,8 +62,8 @@ public class RequirementEvaluatorTests
     {
         var blueprint = Blueprint.Of(
             [("Api", NodeType.Api), ("Queue", NodeType.Queue), ("Db", NodeType.Database)],
-            [("Api", "Queue", ProtocolType.Amqp, false, "{}"),
-             ("Api", "Db", ProtocolType.Sql, true, """{"timeoutSeconds":5}""")]);
+            [("Api", "Queue", false, "{}"),
+             ("Api", "Db", true, """{"timeoutSeconds":5}""")]);
 
         Assert.True(Run(new ChallengeRequirement
         {
@@ -76,8 +76,8 @@ public class RequirementEvaluatorTests
     {
         var blueprint = Blueprint.Of(
             [("Api", NodeType.Api), ("A", NodeType.Service), ("B", NodeType.Service)],
-            [("Api", "A", ProtocolType.Http, true, """{"timeoutSeconds":5}"""),
-             ("Api", "B", ProtocolType.Http, true, "{}")]);
+            [("Api", "A", true, """{"timeoutSeconds":5}"""),
+             ("Api", "B", true, "{}")]);
 
         var result = Run(new ChallengeRequirement
         {
@@ -225,13 +225,13 @@ public class RequirementEvaluatorTests
 
         var through = Blueprint.Of(
             [("Api", NodeType.Api), ("Emails", NodeType.Queue), ("Mailer", NodeType.Service)],
-            [("Api", "Emails", ProtocolType.Amqp, false, "{}"), ("Emails", "Mailer", ProtocolType.Amqp, false, "{}")]);
+            [("Api", "Emails", false, "{}"), ("Emails", "Mailer", false, "{}")]);
 
         Assert.True(Run(requirement, through).Met);
 
         var rpc = Blueprint.Of(
             [("Api", NodeType.Api), ("Emails", NodeType.Queue), ("Mailer", NodeType.Service)],
-            [("Api", "Emails", ProtocolType.Amqp, false, "{}"), ("Emails", "Mailer", ProtocolType.Amqp, true, "{}")]);
+            [("Api", "Emails", false, "{}"), ("Emails", "Mailer", true, "{}")]);
 
         var waiting = Run(requirement, rpc);
         Assert.False(waiting.Met);
@@ -239,7 +239,7 @@ public class RequirementEvaluatorTests
 
         var elsewhere = Blueprint.Of(
             [("Api", NodeType.Api), ("Emails", NodeType.Queue), ("Mailer", NodeType.Service), ("Other", NodeType.Worker)],
-            [("Api", "Emails", ProtocolType.Amqp, false, "{}"), ("Emails", "Other", ProtocolType.Amqp, false, "{}")]);
+            [("Api", "Emails", false, "{}"), ("Emails", "Other", false, "{}")]);
 
         Assert.Equal("challenge.requirement.edge.missing", Run(requirement, elsewhere).Detail.Key());
     }
@@ -252,7 +252,7 @@ public class NewRequirementKindsTests
 
     private static ArchitectureBlueprint ApiDb(string apiConfiguration = "{}", string dbConfiguration = "{}") => Blueprint.Of(
         [("Api", NodeType.Api, apiConfiguration), ("Db", NodeType.Database, dbConfiguration)],
-        [("Api", "Db", ProtocolType.Sql, true, """{"timeoutSeconds":5}""")]);
+        [("Api", "Db", true, """{"timeoutSeconds":5}""")]);
 
     [Fact]
     public void MaxNodes_counts_the_whole_inventory()
@@ -293,12 +293,12 @@ public class NewRequirementKindsTests
         // maxNodes can tell them apart. The budget can.
         var iron = Blueprint.Of(
             [("Api", NodeType.Api, "{}"), ("Db", NodeType.Database, """{"readReplicas":1}""")],
-            [("Api", "Db", ProtocolType.Sql, true, """{"timeoutSeconds":5}""")]);
+            [("Api", "Db", true, """{"timeoutSeconds":5}""")]);
 
         var cache = Blueprint.Of(
             [("Api", NodeType.Api), ("Cache", NodeType.Cache), ("Db", NodeType.Database)],
-            [("Api", "Cache", ProtocolType.Http, true, """{"timeoutSeconds":2}"""),
-             ("Cache", "Db", ProtocolType.Sql, true, """{"timeoutSeconds":5}""")]);
+            [("Api", "Cache", true, """{"timeoutSeconds":2}"""),
+             ("Cache", "Db", true, """{"timeoutSeconds":5}""")]);
 
         var budget = new ChallengeRequirement { Kind = RequirementKinds.MaxCost, LabelKey = "x", Max = 18 };
 
@@ -314,7 +314,7 @@ public class NewRequirementKindsTests
     {
         var blueprint = Blueprint.Of(
             [("Api", NodeType.Api, "{}"), ("Db", NodeType.Database, """{"readReplicas":1}""")],
-            [("Api", "Db", ProtocolType.Sql, true, """{"timeoutSeconds":5}""")]);
+            [("Api", "Db", true, """{"timeoutSeconds":5}""")]);
 
         var result = Run(new ChallengeRequirement { Kind = RequirementKinds.MaxCost, LabelKey = "x", Max = 18 }, blueprint);
 
@@ -329,7 +329,7 @@ public class NewRequirementKindsTests
     {
         var blueprint = Blueprint.Of(
             [("Api", NodeType.Api, """{"instances":3}"""), ("Db", NodeType.Database, "{}"), ("Nobody", NodeType.ExternalService, "{}")],
-            [("Api", "Db", ProtocolType.Sql, true, """{"timeoutSeconds":5}""")]);
+            [("Api", "Db", true, """{"timeoutSeconds":5}""")]);
 
         var total = CostModel.Of(ChallengeHarness.Graph(blueprint));
 
@@ -343,8 +343,8 @@ public class NewRequirementKindsTests
     {
         var blueprint = Blueprint.Of(
             [("Browser", NodeType.Client), ("Api", NodeType.Api), ("Stripe", NodeType.ExternalService)],
-            [("Browser", "Api", ProtocolType.Http, true, "{}"),
-             ("Api", "Stripe", ProtocolType.Http, true, """{"timeoutSeconds":5}""")]);
+            [("Browser", "Api", true, "{}"),
+             ("Api", "Stripe", true, """{"timeoutSeconds":5}""")]);
 
         var result = Run(new ChallengeRequirement { Kind = RequirementKinds.MaxCost, LabelKey = "x", Max = 1 }, blueprint);
 
@@ -376,7 +376,7 @@ public class NewRequirementKindsTests
 
         var released = Blueprint.Of(
             [("Api", NodeType.Api), ("Db", NodeType.Database)],
-            [("Api", "Db", ProtocolType.Amqp, false, "{}")]);
+            [("Api", "Db", false, "{}")]);
 
         Assert.True(Run(requirement, released).Met);
     }
@@ -386,8 +386,8 @@ public class NewRequirementKindsTests
     {
         var blueprint = Blueprint.Of(
             [("Api", NodeType.Api), ("Db", NodeType.Database), ("Cache", NodeType.Cache)],
-            [("Api", "Db", ProtocolType.Sql, true, """{"timeoutSeconds":5}"""),
-             ("Api", "Cache", ProtocolType.Http, true, "{}")]);
+            [("Api", "Db", true, """{"timeoutSeconds":5}"""),
+             ("Api", "Cache", true, "{}")]);
 
         Assert.True(Run(new ChallengeRequirement
         {
@@ -408,12 +408,12 @@ internal static class Blueprint
 {
     public static ArchitectureBlueprint Of(
         (string Name, NodeType Type)[] nodes,
-        (string From, string To, ProtocolType Protocol, bool Synchronous, string Configuration)[] edges) =>
+        (string From, string To, bool Synchronous, string Configuration)[] edges) =>
         Of(nodes.Select(n => (n.Name, n.Type, "{}")).ToArray(), edges);
 
     public static ArchitectureBlueprint Of(
         (string Name, NodeType Type, string Configuration)[] nodes,
-        (string From, string To, ProtocolType Protocol, bool Synchronous, string Configuration)[] edges) => new()
+        (string From, string To, bool Synchronous, string Configuration)[] edges) => new()
     {
         Name = "test",
         Nodes = nodes.Select(n => new BlueprintNode
@@ -426,7 +426,6 @@ internal static class Blueprint
         {
             From = e.From,
             To = e.To,
-            Protocol = e.Protocol,
             Synchronous = e.Synchronous,
             Configuration = System.Text.Json.JsonDocument.Parse(e.Configuration).RootElement.Clone()
         }).ToList()

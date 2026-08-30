@@ -325,7 +325,6 @@ public class TimeoutWasEnoughTests
             {
                 From = c.From,
                 To = c.To,
-                Protocol = c.Protocol,
                 Synchronous = c.Synchronous,
                 Configuration = JsonDocument.Parse(configuration(c)).RootElement.Clone()
             })

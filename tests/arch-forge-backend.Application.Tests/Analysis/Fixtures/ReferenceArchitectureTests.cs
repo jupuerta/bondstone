@@ -24,7 +24,7 @@ public class ReferenceArchitectureTests
         Assert.Equal(93, result.ScoreOf(Area.Observability));
         Assert.Equal(98, result.Score);
 
-        Assert.Equal(new AnalysisSummary(Critical: 0, Warning: 3, Info: 0, Passed: 13), result.Summary);
+        Assert.Equal(new AnalysisSummary(Critical: 0, Warning: 3, Info: 0, Passed: 12), result.Summary);
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public class ReferenceArchitectureTests
 
         Assert.Equal(84, result.Score);
 
-        Assert.Equal(new AnalysisSummary(Critical: 6, Warning: 9, Info: 1, Passed: 9), result.Summary);
+        Assert.Equal(new AnalysisSummary(Critical: 6, Warning: 9, Info: 1, Passed: 8), result.Summary);
     }
 
     [Fact]
@@ -109,7 +109,7 @@ public class ReferenceArchitectureTests
 
         Assert.Equal(92, result.Score);
 
-        Assert.Equal(new AnalysisSummary(Critical: 1, Warning: 11, Info: 0, Passed: 15), result.Summary);
+        Assert.Equal(new AnalysisSummary(Critical: 1, Warning: 11, Info: 0, Passed: 14), result.Summary);
     }
 
     [Fact]
@@ -191,7 +191,7 @@ public class ReferenceArchitectureTests
             ],
             result.Findings.Where(f => f.Severity != Severity.Good).Select(f => f.Code).Distinct().Order());
 
-        Assert.Equal(6, result.Summary.Passed);
+        Assert.Equal(5, result.Summary.Passed);
     }
 
     [Theory]
@@ -359,7 +359,6 @@ public class ReferenceArchitectureTests
                 Id = Guid.Parse($"ffffffff-ffff-ffff-ffff-{++wired:000000000000}"),
                 SourceNodeId = push ? node.Id : telemetry.Id,
                 TargetNodeId = push ? telemetry.Id : node.Id,
-                Protocol = ProtocolType.Http,
                 Synchronous = synchronous
             });
         }

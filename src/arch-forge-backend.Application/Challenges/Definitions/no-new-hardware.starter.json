@@ -6,7 +6,7 @@
     { "name": "Db", "type": "Database", "x": 520, "y": 160 }
   ],
   "connections": [
-    { "from": "Storefront", "to": "Catalog", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
-    { "from": "Catalog", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 5 } }
+    { "from": "Storefront", "to": "Catalog", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Catalog", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 5 } }
   ]
 }

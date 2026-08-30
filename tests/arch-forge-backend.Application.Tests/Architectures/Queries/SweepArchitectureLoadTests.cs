@@ -106,7 +106,7 @@ public class SweepArchitectureLoadTests
         var curve = SweepArchitectureLoadQueryHandler.Sweep(new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Db")
             .Build());
 
         Assert.Null(curve.BreakPoint);
@@ -155,8 +155,8 @@ public class SweepArchitectureLoadTests
             .Node("Api", NodeType.Api, """{"requestsPerSecond":100}""")
             .Node("Queue", NodeType.Queue)
             .Node("Worker", NodeType.Worker)
-            .Connect("Api", "Queue", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Queue", "Worker", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Api", "Queue", synchronous: false)
+            .Connect("Queue", "Worker", synchronous: false)
             .Build());
 
         var backlog = curve.Points.Select(p => p.BacklogRps).ToList();
@@ -202,6 +202,6 @@ public class SweepArchitectureLoadTests
     private static ArchitectureGraph Chain(int rps) => new GraphBuilder()
         .Node("Api", NodeType.Api, $$"""{"requestsPerSecond":{{rps}}}""")
         .Node("Db", NodeType.Database)
-        .Connect("Api", "Db", protocol: ProtocolType.Sql)
+        .Connect("Api", "Db")
         .Build();
 }

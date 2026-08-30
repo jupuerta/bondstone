@@ -293,7 +293,7 @@ public class SyncDependencyChainRuleTests
     {
         _builder
             .Node("Api", NodeType.Api).Nodes(NodeType.Service, "B", "C").Node("Db", NodeType.Database)
-            .Connect("Api", "B").Connect("B", "C").Connect("C", "Db", protocol: ProtocolType.Sql);
+            .Connect("Api", "B").Connect("B", "C").Connect("C", "Db");
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
@@ -309,7 +309,7 @@ public class SyncDependencyChainRuleTests
     {
         _builder
             .Node("Api", NodeType.Api).Nodes(NodeType.Service, "B", "C").Node("Db", NodeType.Database)
-            .Connect("Api", "B").Connect("B", "C").Connect("C", "Db", protocol: ProtocolType.Sql, access: "write");
+            .Connect("Api", "B").Connect("B", "C").Connect("C", "Db", access: "write");
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
@@ -353,7 +353,7 @@ public class SyncDependencyChainRuleTests
         _builder
             .Node("Api", NodeType.Api).Nodes(NodeType.Service, "B", "C")
             .Node("Cache", NodeType.Cache).Node("Db", NodeType.Database)
-            .Connect("Api", "B").Connect("B", "C").Connect("C", "Cache").Connect("Cache", "Db", protocol: ProtocolType.Sql);
+            .Connect("Api", "B").Connect("B", "C").Connect("C", "Cache").Connect("Cache", "Db");
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 

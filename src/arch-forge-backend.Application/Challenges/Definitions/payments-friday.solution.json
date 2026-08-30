@@ -10,21 +10,18 @@
     {
       "from": "Storefront",
       "to": "Orders",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": { "timeoutSeconds": 3, "fallback": true }
     },
     {
       "from": "Orders",
       "to": "Payments",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": { "timeoutSeconds": 2, "circuitBreaker": true, "fallback": true }
     },
     {
       "from": "Orders",
       "to": "Db",
-      "protocol": "Sql",
       "synchronous": true,
       "configuration": { "timeoutSeconds": 5, "circuitBreaker": true, "fallback": true }
     }

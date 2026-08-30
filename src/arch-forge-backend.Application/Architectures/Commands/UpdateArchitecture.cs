@@ -41,7 +41,6 @@ public class UpdateArchitectureCommandValidator : AbstractValidator<UpdateArchit
         RuleForEach(c => c.Connections).ChildRules(connection =>
         {
             connection.RuleFor(c => c.Id).NotEmpty().WithMessage("Each connection must carry a client-generated id.");
-            connection.RuleFor(c => c.Protocol).IsInEnum();
 
             connection.RuleFor(c => c.TargetNodeId)
                 .NotEqual(c => c.SourceNodeId)
@@ -150,7 +149,6 @@ public class UpdateArchitectureCommandHandler
             ArchitectureId = architecture.Id,
             SourceNodeId = c.SourceNodeId,
             TargetNodeId = c.TargetNodeId,
-            Protocol = c.Protocol,
             Synchronous = c.Synchronous,
             Configuration = ToStoredConfiguration(c.Configuration)
         }).ToList();

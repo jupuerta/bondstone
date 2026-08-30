@@ -5,6 +5,6 @@
     { "name": "Recommendations", "type": "Service", "x": 300, "y": 160 }
   ],
   "connections": [
-    { "from": "Storefront", "to": "Recommendations", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 5, "circuitBreaker": true, "fallback": true } }
+    { "from": "Storefront", "to": "Recommendations", "synchronous": true, "configuration": { "timeoutSeconds": 5, "circuitBreaker": true, "fallback": true } }
   ]
 }

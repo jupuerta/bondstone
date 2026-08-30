@@ -21,10 +21,10 @@ public class QaRegressionTests
             .Node("Api", NodeType.Api)
             .Nodes(NodeType.Queue, "Cola1", "Cola2", "Cola3")
             .Node("Worker", NodeType.Worker)
-            .Connect("Api", "Cola1", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola1", "Cola2", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola2", "Cola3", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola3", "Worker", synchronous: false, protocol: ProtocolType.Amqp);
+            .Connect("Api", "Cola1", synchronous: false)
+            .Connect("Cola1", "Cola2", synchronous: false)
+            .Connect("Cola2", "Cola3", synchronous: false)
+            .Connect("Cola3", "Worker", synchronous: false);
 
         var findings = new SpofRule().Evaluate(_builder.Build()).Findings;
 
@@ -44,7 +44,7 @@ public class QaRegressionTests
         var bare = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql);
+            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true);
 
         Assert.Empty(new SpofRule().Evaluate(bare.Build()).Findings);
 
@@ -52,7 +52,7 @@ public class QaRegressionTests
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
             .Node("Obs", NodeType.Observability)
-            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql)
+            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true)
             .Connect("Api", "Obs", synchronous: false);
 
         Assert.Empty(new SpofRule().Evaluate(observed.Build()).Findings);
@@ -65,7 +65,7 @@ public class QaRegressionTests
             .Node("Api", NodeType.Api, """{"authentication": true}""")
             .Node("Db", NodeType.Database)
             .Node("Obs", NodeType.Observability)
-            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql)
+            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true)
             .Connect("Api", "Obs", synchronous: false)
             .Connect("Db", "Obs", synchronous: false);
 
@@ -83,7 +83,7 @@ public class QaRegressionTests
             .Node("Api", NodeType.Api, """{"authentication": true}""")
             .Node("Db", NodeType.Database)
             .Node("Obs", NodeType.Observability)
-            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql);
+            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true);
 
         var blind = ReferenceArchitecture.Analyze(Minimum().Build());
         Assert.Equal(93, blind.ScoreOf(Area.Observability));
@@ -127,10 +127,10 @@ public class QaRegressionTests
             .Nodes(NodeType.Service, "Users", "Orders")
             .Node("users-db", NodeType.Database)
             .Node("orders-db", NodeType.Database)
-            .Connect("Users", "users-db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Users", "orders-db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Orders", "users-db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Orders", "orders-db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Users", "users-db", timeoutSeconds: 5)
+            .Connect("Users", "orders-db", timeoutSeconds: 5)
+            .Connect("Orders", "users-db", timeoutSeconds: 5)
+            .Connect("Orders", "orders-db", timeoutSeconds: 5);
 
         var findings = new SpofRule().Evaluate(_builder.Build()).Findings;
 
@@ -143,10 +143,10 @@ public class QaRegressionTests
             .Nodes(NodeType.Service, "Users", "Orders")
             .Node("users-db", NodeType.Database, """{"replicas": 2}""")
             .Node("orders-db", NodeType.Database)
-            .Connect("Users", "users-db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Users", "orders-db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Orders", "users-db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Orders", "orders-db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Users", "users-db", timeoutSeconds: 5)
+            .Connect("Users", "orders-db", timeoutSeconds: 5)
+            .Connect("Orders", "users-db", timeoutSeconds: 5)
+            .Connect("Orders", "orders-db", timeoutSeconds: 5);
 
         var remaining = Assert.Single(new SpofRule().Evaluate(replicated.Build()).Findings);
         Assert.Equal(replicated.NodeElement("orders-db"), Assert.Single(remaining.Elements));
@@ -160,12 +160,12 @@ public class QaRegressionTests
             .Nodes(NodeType.Service, "S1", "S2", "S3", "S4")
             .Node("Db1", NodeType.Database)
             .Node("Db2", NodeType.Database)
-            .Connect("LB", "Db1", timeoutSeconds: 3, protocol: ProtocolType.Sql)
-            .Connect("LB", "Db2", timeoutSeconds: 3, protocol: ProtocolType.Sql)
-            .Connect("S1", "Db1", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("S2", "Db1", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("S3", "Db2", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("S4", "Db2", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("LB", "Db1", timeoutSeconds: 3)
+            .Connect("LB", "Db2", timeoutSeconds: 3)
+            .Connect("S1", "Db1", timeoutSeconds: 5)
+            .Connect("S2", "Db1", timeoutSeconds: 5)
+            .Connect("S3", "Db2", timeoutSeconds: 5)
+            .Connect("S4", "Db2", timeoutSeconds: 5);
 
         var findings = new SpofRule().Evaluate(_builder.Build()).Findings;
 
@@ -183,7 +183,7 @@ public class QaRegressionTests
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
             .Nodes(NodeType.Observability, "Obs1", "Obs2")
-            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql)
+            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true)
             .Connect("Obs1", "Obs2", synchronous: false);
 
         var result = new NoObservabilityRule().Evaluate(_builder.Build());
@@ -201,7 +201,7 @@ public class QaRegressionTests
             .Node("Api", NodeType.Api, """{"authentication": true}""")
             .Node("Db", NodeType.Database)
             .Nodes(NodeType.Observability, "Obs1", "Obs2")
-            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql)
+            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true)
             .Connect("Obs1", "Obs2", synchronous: false);
 
         var result = ReferenceArchitecture.Analyze(_builder.Build());
@@ -253,7 +253,7 @@ public class QaRegressionTests
             .Node("Api", NodeType.Api, """{"authentication": true}""")
             .Node("Db", NodeType.Database)
             .Node("Cola", NodeType.Queue)
-            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql);
+            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true);
 
         var result = ReferenceArchitecture.Analyze(_builder.Build());
         var cola = _builder.NodeElement("Cola");
@@ -285,9 +285,9 @@ public class QaRegressionTests
             .Node("Cola", NodeType.Queue, """{"deadLetterQueue": true}""")
             .Node("Worker", NodeType.Worker)
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Worker", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Worker", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Api", "Cola", synchronous: false)
+            .Connect("Worker", "Cola", synchronous: false)
+            .Connect("Worker", "Db", timeoutSeconds: 5);
 
         var result = ReferenceArchitecture.Analyze(_builder.Build());
 
@@ -303,7 +303,7 @@ public class QaRegressionTests
             .Node("Api", NodeType.Api, """{"authentication": true}""")
             .Node("Db", NodeType.Database)
             .Node("Obs", NodeType.Observability)
-            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql)
+            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true)
             .Connect("Obs", "Db", synchronous: false);
 
         var result = ReferenceArchitecture.Analyze(_builder.Build());
@@ -322,8 +322,8 @@ public class QaRegressionTests
             .Node("AdminApi", NodeType.Api)
             .Node("Db", NodeType.Database)
             .Connect("Web", "Gw", timeoutSeconds: 3)
-            .Connect("Gw", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("AdminApi", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Gw", "Db", timeoutSeconds: 5)
+            .Connect("AdminApi", "Db", timeoutSeconds: 5);
 
         var findings = new UnauthenticatedEntryRule().Evaluate(_builder.Build()).Findings;
 
@@ -340,7 +340,7 @@ public class QaRegressionTests
             .Node("Api", NodeType.Api, """{"authentication": true}""")
             .Node("Db", NodeType.Database)
             .Connect("Web", "Api")
-            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql);
+            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true);
 
         var result = ReferenceArchitecture.Analyze(_builder.Build());
 
@@ -378,8 +378,8 @@ public class QaRegressionTests
             .Node("Db", NodeType.Database)
             .Node("Api", NodeType.Api, """{"authentication": true}""")
             .Connect("Cron", "Worker", synchronous: false)
-            .Connect("Worker", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql);
+            .Connect("Worker", "Db", timeoutSeconds: 5)
+            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true);
 
         var result = ReferenceArchitecture.Analyze(_builder.Build());
 
@@ -400,7 +400,7 @@ public class QaRegressionTests
             .Node("IdP", NodeType.IdentityProvider)
             .Node("Db", NodeType.Database)
             .Connect("Api", "IdP", timeoutSeconds: 1)
-            .Connect("Api", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Api", "Db", timeoutSeconds: 5);
 
         var result = new UnauthenticatedEntryRule().Evaluate(delegating.Build());
 
@@ -483,7 +483,7 @@ public class QaRegressionTests
         var saturated = new GraphBuilder()
             .Node("Api", NodeType.Api, """{"authentication": true, "requestsPerSecond": 1000}""")
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Api", "Db", timeoutSeconds: 5);
 
         var load = LoadModel.Of(saturated.Build());
         Assert.Equal(2m, load.UtilizationOf(saturated.IdOf("Api")));
@@ -492,7 +492,7 @@ public class QaRegressionTests
         var limited = new GraphBuilder()
             .Node("Gw", NodeType.Gateway, """{"authentication": true, "requestsPerSecond": 1000, "rateLimit": 500}""")
             .Node("Db", NodeType.Database)
-            .Connect("Gw", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Gw", "Db", timeoutSeconds: 5);
 
         Assert.Equal(500m, LoadModel.Of(limited.Build()).LoadOf(limited.IdOf("Db")));
     }
@@ -503,7 +503,7 @@ public class QaRegressionTests
         _builder
             .Node("Api", NodeType.Api, """{"authentication": true, "requestsPerSecond": 1000}""")
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Api", "Db", timeoutSeconds: 5);
 
         var findings = new UndersizedComponentRule().Evaluate(_builder.Build()).Findings;
 
@@ -524,7 +524,7 @@ public class QaRegressionTests
         _builder
             .Node("Api", NodeType.Api, """{"authentication": true}""")
             .Node("Cola", NodeType.Queue)
-            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp);
+            .Connect("Api", "Cola", synchronous: false);
 
         var result = ReferenceArchitecture.Analyze(_builder.Build());
 
@@ -562,8 +562,8 @@ public class QaRegressionTests
             .Node("Db", NodeType.Database)
             .Connect("Api", "Users", timeoutSeconds: 3)
             .Connect("Api", "Orders", timeoutSeconds: 3)
-            .Connect("Users", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Orders", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Users", "Db", timeoutSeconds: 5)
+            .Connect("Orders", "Db", timeoutSeconds: 5);
 
         var result = ReferenceArchitecture.Analyze(_builder.Build());
 
@@ -612,7 +612,7 @@ public class QaRegressionTests
             .Node("Api", NodeType.Api, """{"authentication": true}""")
             .Node("Db", NodeType.Database)
             .Connect("Users", "Api")
-            .Connect("Api", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql);
+            .Connect("Api", "Db", timeoutSeconds: 3);
 
         var result = ReferenceArchitecture.Analyze(_builder.Build());
 
@@ -653,7 +653,7 @@ public class QaRegressionTests
             .Node("Api", NodeType.Api, """{"authentication": true}""")
             .Node("Db", NodeType.Database)
             .Connect("Users", "Api")
-            .Connect("Api", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql);
+            .Connect("Api", "Db", timeoutSeconds: 3);
 
         var forwards = new ArchitectureAnalyzer([new TimeoutTooShortRule(), new UndersizedComponentRule()]).Analyze(_builder.Build());
         var backwards = new ArchitectureAnalyzer([new UndersizedComponentRule(), new TimeoutTooShortRule()]).Analyze(_builder.Build());

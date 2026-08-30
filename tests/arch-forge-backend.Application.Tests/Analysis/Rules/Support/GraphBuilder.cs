@@ -40,7 +40,6 @@ public class GraphBuilder
         int? retries = null,
         bool circuitBreaker = false,
         bool fallback = false,
-        ProtocolType protocol = ProtocolType.Http,
         string? access = null)
     {
         _connections.Add((source, target, new Connection
@@ -48,7 +47,6 @@ public class GraphBuilder
             Id = NextId(),
             SourceNodeId = IdOf(source),
             TargetNodeId = IdOf(target),
-            Protocol = protocol,
             Synchronous = synchronous,
             Configuration = Resilience(timeoutSeconds, retries, circuitBreaker, fallback, access)
         }));

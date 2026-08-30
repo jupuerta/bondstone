@@ -128,20 +128,6 @@ public class RulePrecedenceTests
         Assert.Empty(result.Findings);
     }
 
-    [Fact]
-    public void ProtocolMismatchAndAsyncNoQueue_NeverShareAnEdge()
-    {
-        _builder
-            .Nodes(NodeType.Service, "Orders", "Mailer")
-            .Connect("Orders", "Mailer", synchronous: false, protocol: ProtocolType.Amqp);
-
-        var result = new ArchitectureAnalyzer([new ProtocolMismatchRule(), new AsyncNoQueueRule()]).Analyze(_builder.Build());
-        var edge = FindingElement.Connection(_builder.EdgeId("Orders", "Mailer"));
-
-        Assert.Contains(result.Findings, f => f.Code == RuleCodes.ProtocolMismatch && f.Elements.Contains(edge));
-        Assert.DoesNotContain(result.Findings, f => f.Code == RuleCodes.AsyncNoQueue && f.Elements.Contains(edge));
-    }
-
     // The fix MISSING_RESILIENCE offers on a telemetry push is to stop waiting. Applying it must not
     // hand the same edge to the rule that asks where the work waits: telemetry is not work.
     [Fact]

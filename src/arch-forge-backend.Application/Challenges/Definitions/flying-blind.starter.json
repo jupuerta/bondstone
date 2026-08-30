@@ -7,7 +7,7 @@
     { "name": "Telemetry", "type": "Observability", "x": 260, "y": 380 }
   ],
   "connections": [
-    { "from": "Storefront", "to": "Bookings", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
-    { "from": "Bookings", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 3 } }
+    { "from": "Storefront", "to": "Bookings", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
+    { "from": "Bookings", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 3 } }
   ]
 }

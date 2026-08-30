@@ -6,8 +6,8 @@
     { "name": "Telemetry", "type": "Observability", "x": 150, "y": 400 }
   ],
   "connections": [
-    { "from": "Storefront", "to": "Search", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 2 } },
-    { "from": "Storefront", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
-    { "from": "Search", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} }
+    { "from": "Storefront", "to": "Search", "synchronous": true, "configuration": { "timeoutSeconds": 2 } },
+    { "from": "Storefront", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Search", "to": "Telemetry", "synchronous": false, "configuration": {} }
   ]
 }

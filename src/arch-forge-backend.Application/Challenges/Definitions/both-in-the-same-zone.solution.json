@@ -10,17 +10,17 @@
     { "name": "Telemetry", "type": "Observability", "x": 170, "y": 480, "configuration": { "zone": "c" } }
   ],
   "connections": [
-    { "from": "Edge", "to": "Front", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
-    { "from": "Front", "to": "Api", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
-    { "from": "Front", "to": "Api 2", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
-    { "from": "Api", "to": "Cache", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 2, "fallback": true } },
-    { "from": "Api 2", "to": "Cache", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 2, "fallback": true } },
-    { "from": "Cache", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 5, "fallback": true } },
-    { "from": "Edge", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
-    { "from": "Front", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
-    { "from": "Api", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
-    { "from": "Api 2", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
-    { "from": "Cache", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
-    { "from": "Db", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} }
+    { "from": "Edge", "to": "Front", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Front", "to": "Api", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Front", "to": "Api 2", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Api", "to": "Cache", "synchronous": true, "configuration": { "timeoutSeconds": 2, "fallback": true } },
+    { "from": "Api 2", "to": "Cache", "synchronous": true, "configuration": { "timeoutSeconds": 2, "fallback": true } },
+    { "from": "Cache", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 5, "fallback": true } },
+    { "from": "Edge", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Front", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Api", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Api 2", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Cache", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Db", "to": "Telemetry", "synchronous": false, "configuration": {} }
   ]
 }

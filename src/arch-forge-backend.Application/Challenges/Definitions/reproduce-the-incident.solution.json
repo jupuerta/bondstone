@@ -34,7 +34,6 @@
     {
       "from": "Storefront",
       "to": "Orders",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": {
         "timeoutSeconds": 5
@@ -43,7 +42,6 @@
     {
       "from": "Orders",
       "to": "Cart",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": {
         "timeoutSeconds": 5
@@ -52,7 +50,6 @@
     {
       "from": "Cart",
       "to": "Recommendations",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": {
         "timeoutSeconds": 5

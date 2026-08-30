@@ -9,14 +9,12 @@
     {
       "from": "Storefront",
       "to": "Catalog",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": { "timeoutSeconds": 5 }
     },
     {
       "from": "Catalog",
       "to": "Db",
-      "protocol": "Sql",
       "synchronous": true,
       "configuration": { "timeoutSeconds": 5 }
     }

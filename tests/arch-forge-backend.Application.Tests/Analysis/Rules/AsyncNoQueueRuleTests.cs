@@ -65,10 +65,10 @@ public class AsyncNoQueueRuleTests
         var result = Evaluate(new GraphBuilder()
             .Node("Orders", NodeType.Service).Node("Emails", NodeType.Queue).Node("Mailer", NodeType.Worker)
             .Node("Events", NodeType.Topic).Node("Audit", NodeType.Service)
-            .Connect("Orders", "Emails", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Emails", "Mailer", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Orders", "Events", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Events", "Audit", synchronous: false, protocol: ProtocolType.Amqp));
+            .Connect("Orders", "Emails", synchronous: false)
+            .Connect("Emails", "Mailer", synchronous: false)
+            .Connect("Orders", "Events", synchronous: false)
+            .Connect("Events", "Audit", synchronous: false));
 
         Assert.True(result.IsApplicable);
         Assert.Empty(result.Findings);
@@ -80,8 +80,8 @@ public class AsyncNoQueueRuleTests
         var builder = new GraphBuilder()
             .Node("Orders", NodeType.Service).Node("Emails", NodeType.Queue).Node("Mailer", NodeType.Worker)
             .Node("Stock", NodeType.Service)
-            .Connect("Orders", "Emails", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Emails", "Mailer", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Orders", "Emails", synchronous: false)
+            .Connect("Emails", "Mailer", synchronous: false)
             .Connect("Orders", "Stock", synchronous: false);
 
         var finding = Assert.Single(Evaluate(builder).Findings);
@@ -98,17 +98,6 @@ public class AsyncNoQueueRuleTests
 
         Assert.False(result.IsApplicable);
         Assert.Equal("rule.na.ASYNC_NO_QUEUE.noAsyncCall", result.NotApplicableReason!.Key());
-    }
-
-    [Fact]
-    public void Amqp_without_a_broker_is_a_drawing_error_and_belongs_to_PROTOCOL_MISMATCH()
-    {
-        var result = Evaluate(new GraphBuilder()
-            .Nodes(NodeType.Service, "Orders", "Mailer")
-            .Connect("Orders", "Mailer", synchronous: false, protocol: ProtocolType.Amqp));
-
-        Assert.True(result.IsApplicable);
-        Assert.Empty(result.Findings);
     }
 
     [Fact]

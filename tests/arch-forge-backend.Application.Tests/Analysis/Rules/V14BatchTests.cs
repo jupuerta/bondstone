@@ -19,7 +19,7 @@ public class ObservabilityFloorTests
     {
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Svc", NodeType.Service).Node("Db", NodeType.Database)
-            .Connect("Api", "Svc").Connect("Svc", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Svc").Connect("Svc", "Db")
             .Build();
 
         var findings = _rule.Evaluate(graph).Findings;
@@ -44,7 +44,7 @@ public class ObservabilityFloorTests
                 .Nodes(NodeType.Api, apis).Node("Db", NodeType.Database)
                 .Connect("Web", "LB");
             foreach (var api in apis)
-                b.Connect("LB", api, timeoutSeconds: 3, fallback: true).Connect(api, "Db", timeoutSeconds: 3, fallback: true, protocol: ProtocolType.Sql);
+                b.Connect("LB", api, timeoutSeconds: 3, fallback: true).Connect(api, "Db", timeoutSeconds: 3, fallback: true);
             return b;
         }
 
@@ -64,7 +64,7 @@ public class ObservabilityFloorTests
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Svc", NodeType.Service).Node("Db", NodeType.Database)
             .Node("Obs", NodeType.Observability)
-            .Connect("Api", "Svc").Connect("Svc", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Svc").Connect("Svc", "Db")
             .Connect("Api", "Obs", synchronous: false)
             .Build();
 
@@ -80,7 +80,7 @@ public class ObservabilityFloorTests
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Svc", NodeType.Service).Node("Db", NodeType.Database)
             .Node("Obs", NodeType.Observability)
-            .Connect("Api", "Svc").Connect("Svc", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Svc").Connect("Svc", "Db")
             .Build();
 
         var findings = _rule.Evaluate(graph).Findings;
@@ -95,7 +95,7 @@ public class ObservabilityFloorTests
     {
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Db", NodeType.Database)
-            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Db")
             .Build();
 
         var findings = _rule.Evaluate(graph).Findings;
@@ -128,7 +128,7 @@ public class ObservabilityFloorTests
             .Node("Gw", NodeType.Gateway).Node("Auth", NodeType.IdentityProvider).Node("Db", NodeType.Database)
             .Node("Obs", NodeType.Observability)
             .Connect("Gw", "Auth", timeoutSeconds: 2, fallback: true)
-            .Connect("Gw", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
+            .Connect("Gw", "Db", timeoutSeconds: 5)
             .Connect("Gw", "Obs", synchronous: false).Connect("Db", "Obs", synchronous: false)
             .Build();
 
@@ -262,8 +262,8 @@ public class EdgeAccessTests
     {
         var writers = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Worker", NodeType.Worker).Node("Db", NodeType.Database)
-            .Connect("Api", "Db", protocol: ProtocolType.Sql, access: "write")
-            .Connect("Worker", "Db", protocol: ProtocolType.Sql, access: "write")
+            .Connect("Api", "Db", access: "write")
+            .Connect("Worker", "Db", access: "write")
             .Build();
 
         Assert.Empty(new MissingCacheRule().Evaluate(writers).Findings);
@@ -274,8 +274,8 @@ public class EdgeAccessTests
     {
         var undeclared = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Svc", NodeType.Service).Node("Db", NodeType.Database)
-            .Connect("Api", "Db", protocol: ProtocolType.Sql)
-            .Connect("Svc", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Db")
+            .Connect("Svc", "Db")
             .Build();
 
         Assert.Single(new MissingCacheRule().Evaluate(undeclared).Findings);
@@ -286,8 +286,8 @@ public class EdgeAccessTests
     {
         var declared = new GraphBuilder()
             .Node("Users", NodeType.Service).Node("Orders", NodeType.Service).Node("Db", NodeType.Database)
-            .Connect("Users", "Db", protocol: ProtocolType.Sql, access: "write")
-            .Connect("Orders", "Db", protocol: ProtocolType.Sql, access: "write")
+            .Connect("Users", "Db", access: "write")
+            .Connect("Orders", "Db", access: "write")
             .Build();
 
         var strong = Assert.Single(new SharedDatabaseRule().Evaluate(declared).Findings);
@@ -295,8 +295,8 @@ public class EdgeAccessTests
 
         var silent = new GraphBuilder()
             .Node("Users", NodeType.Service).Node("Orders", NodeType.Service).Node("Db", NodeType.Database)
-            .Connect("Users", "Db", protocol: ProtocolType.Sql)
-            .Connect("Orders", "Db", protocol: ProtocolType.Sql)
+            .Connect("Users", "Db")
+            .Connect("Orders", "Db")
             .Build();
 
         var conservative = Assert.Single(new SharedDatabaseRule().Evaluate(silent).Findings);
@@ -324,7 +324,7 @@ public class TopicTests
     {
         var builder = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Events", NodeType.Topic)
-            .Connect("Api", "Events", synchronous: false, protocol: ProtocolType.Amqp);
+            .Connect("Api", "Events", synchronous: false);
 
         var finding = Assert.Single(new QueueNoConsumerRule().Evaluate(builder.Build()).Findings);
 
@@ -338,26 +338,14 @@ public class TopicTests
         var builder = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Events", NodeType.Topic)
             .Nodes(NodeType.Worker, "W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8")
-            .Connect("Api", "Events", synchronous: false, protocol: ProtocolType.Amqp);
+            .Connect("Api", "Events", synchronous: false);
 
         foreach (var w in new[] { "W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8" })
-            builder.Connect("Events", w, synchronous: false, protocol: ProtocolType.Amqp);
+            builder.Connect("Events", w, synchronous: false);
 
         Assert.DoesNotContain(
             new HighCouplingRule().Evaluate(builder.Build()).Findings,
             f => f.Elements.Contains(builder.NodeElement("Events")));
-    }
-
-    [Fact]
-    public void AmqpWithATopicAtEitherEnd_IsTheBrokerTalking()
-    {
-        var graph = new GraphBuilder()
-            .Node("Api", NodeType.Api).Node("Events", NodeType.Topic).Node("Worker", NodeType.Worker)
-            .Connect("Api", "Events", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Events", "Worker", synchronous: false, protocol: ProtocolType.Amqp)
-            .Build();
-
-        Assert.Empty(new ProtocolMismatchRule().Evaluate(graph).Findings);
     }
 
     [Fact]
@@ -366,9 +354,9 @@ public class TopicTests
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Cola", NodeType.Queue).Node("Events", NodeType.Topic)
             .Node("Worker", NodeType.Worker)
-            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola", "Events", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Events", "Worker", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Api", "Cola", synchronous: false)
+            .Connect("Cola", "Events", synchronous: false)
+            .Connect("Events", "Worker", synchronous: false)
             .Build();
 
         Assert.Empty(new QueueNoConsumerRule().Evaluate(graph).Findings);
@@ -380,10 +368,10 @@ public class TopicTests
             .Node("Api", NodeType.Api, """{"requestsPerSecond":300}""")
             .Node("Broker", broker)
             .Nodes(NodeType.Worker, "C1", "C2", "C3")
-            .Connect("Api", "Broker", synchronous: false, protocol: ProtocolType.Amqp);
+            .Connect("Api", "Broker", synchronous: false);
 
         foreach (var c in new[] { "C1", "C2", "C3" })
-            builder.Connect("Broker", c, synchronous: false, protocol: ProtocolType.Amqp);
+            builder.Connect("Broker", c, synchronous: false);
 
         return (builder.Build(), builder);
     }

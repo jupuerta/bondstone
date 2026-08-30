@@ -8,7 +8,6 @@
     {
       "from": "Storefront",
       "to": "Db",
-      "protocol": "Sql",
       "synchronous": true,
       "configuration": { "timeoutSeconds": 5 }
     }

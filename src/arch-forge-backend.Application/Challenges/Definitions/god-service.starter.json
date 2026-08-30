@@ -70,7 +70,6 @@
     {
       "from": "Storefront",
       "to": "Core",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": {
         "timeoutSeconds": 5
@@ -79,7 +78,6 @@
     {
       "from": "Core",
       "to": "Users",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": {
         "timeoutSeconds": 5
@@ -88,7 +86,6 @@
     {
       "from": "Core",
       "to": "Orders",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": {
         "timeoutSeconds": 5
@@ -97,7 +94,6 @@
     {
       "from": "Core",
       "to": "Payments",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": {
         "timeoutSeconds": 5
@@ -106,7 +102,6 @@
     {
       "from": "Core",
       "to": "Inventory",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": {
         "timeoutSeconds": 5
@@ -115,7 +110,6 @@
     {
       "from": "Core",
       "to": "Shipping",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": {
         "timeoutSeconds": 5
@@ -124,7 +118,6 @@
     {
       "from": "Core",
       "to": "Pricing",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": {
         "timeoutSeconds": 5
@@ -133,7 +126,6 @@
     {
       "from": "Core",
       "to": "Notifications",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": {
         "timeoutSeconds": 5
@@ -142,7 +134,6 @@
     {
       "from": "Payments",
       "to": "Core",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": {
         "timeoutSeconds": 5
@@ -151,7 +142,6 @@
     {
       "from": "Inventory",
       "to": "Core",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": {
         "timeoutSeconds": 5

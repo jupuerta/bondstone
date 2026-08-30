@@ -6,7 +6,7 @@
     { "name": "Db", "type": "Database", "x": 600, "y": 160 }
   ],
   "connections": [
-    { "from": "Storefront", "to": "Edge cache", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 5, "fallback": true } },
-    { "from": "Edge cache", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 5 } }
+    { "from": "Storefront", "to": "Edge cache", "synchronous": true, "configuration": { "timeoutSeconds": 5, "fallback": true } },
+    { "from": "Edge cache", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 5 } }
   ]
 }

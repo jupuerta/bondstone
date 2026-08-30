@@ -9,7 +9,6 @@
       "id": "c0000000-0000-0000-0000-000000000001",
       "sourceNodeId": "a0000000-0000-0000-0000-000000000001",
       "targetNodeId": "a0000000-0000-0000-0000-000000000002",
-      "protocol": "Sql",
       "synchronous": true,
       "configuration": { "timeoutSeconds": 5 }
     }

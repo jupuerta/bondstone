@@ -10,18 +10,18 @@
     { "name": "Telemetry", "type": "Observability", "x": 280, "y": 480 }
   ],
   "connections": [
-    { "from": "Edge", "to": "Front", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
-    { "from": "Front", "to": "Storefront", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
-    { "from": "Front", "to": "Storefront 2", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
-    { "from": "Reports", "to": "Storefront", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
-    { "from": "Reports", "to": "Storefront 2", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
-    { "from": "Storefront", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
-    { "from": "Storefront 2", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
-    { "from": "Edge", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
-    { "from": "Front", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
-    { "from": "Reports", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
-    { "from": "Storefront", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
-    { "from": "Storefront 2", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
-    { "from": "Db", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} }
+    { "from": "Edge", "to": "Front", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Front", "to": "Storefront", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Front", "to": "Storefront 2", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Reports", "to": "Storefront", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Reports", "to": "Storefront 2", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Storefront", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Storefront 2", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Edge", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Front", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Reports", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Storefront", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Storefront 2", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Db", "to": "Telemetry", "synchronous": false, "configuration": {} }
   ]
 }

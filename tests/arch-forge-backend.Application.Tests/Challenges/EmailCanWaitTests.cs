@@ -22,7 +22,7 @@ public class EmailCanWaitTests
         Assert.Contains(solution.Nodes, node => node.Type == NodeType.Queue);
         Assert.DoesNotContain(findings, f =>
             f.Severity != Severity.Good
-            && f.Code is RuleCodes.AsyncNoQueue or RuleCodes.ProtocolMismatch or RuleCodes.QueueNoDlq or RuleCodes.QueueNoConsumer);
+            && f.Code is RuleCodes.AsyncNoQueue or RuleCodes.QueueNoDlq or RuleCodes.QueueNoConsumer);
     }
 
     // Unticking the box is still the whole challenge — the hints say so — and what it leaves behind
@@ -60,7 +60,6 @@ public class EmailCanWaitTests
             {
                 From = c.From,
                 To = c.To,
-                Protocol = c.Protocol,
                 Synchronous = c is { From: "Orders", To: "Mailer" } ? false : c.Synchronous,
                 Configuration = c.Configuration
             })

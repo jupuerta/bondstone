@@ -60,7 +60,6 @@ public class ForkArchitectureCommandHandler
                 ArchitectureId = fork.Id,
                 SourceNodeId = idsBySource[edge.SourceNodeId],
                 TargetNodeId = idsBySource[edge.TargetNodeId],
-                Protocol = edge.Protocol,
                 Synchronous = edge.Synchronous,
                 Configuration = edge.Configuration
             });

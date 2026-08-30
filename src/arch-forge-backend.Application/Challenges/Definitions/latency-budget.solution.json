@@ -10,21 +10,18 @@
     {
       "from": "Storefront",
       "to": "Catalog",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": { "timeoutSeconds": 2 }
     },
     {
       "from": "Catalog",
       "to": "Cache",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": { "timeoutSeconds": 1, "fallback": true }
     },
     {
       "from": "Cache",
       "to": "Db",
-      "protocol": "Sql",
       "synchronous": true,
       "configuration": { "timeoutSeconds": 5, "circuitBreaker": true, "fallback": true }
     }

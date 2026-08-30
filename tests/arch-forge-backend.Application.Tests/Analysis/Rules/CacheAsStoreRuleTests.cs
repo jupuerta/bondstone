@@ -40,7 +40,7 @@ public class CacheAsStoreRuleTests
             .Node("Cache", NodeType.Cache)
             .Node("Db", NodeType.Database)
             .Connect("Api", "Cache", timeoutSeconds: 1)
-            .Connect("Cache", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Cache", "Db", timeoutSeconds: 5);
 
         var result = _rule.Evaluate(_builder.Build());
 
@@ -56,7 +56,7 @@ public class CacheAsStoreRuleTests
             .Node("Cache", NodeType.Cache)
             .Node("Db", NodeType.Database)
             .Connect("Api", "Cache", timeoutSeconds: 1)
-            .Connect("Api", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Api", "Db", timeoutSeconds: 5);
 
         Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
     }
@@ -71,7 +71,7 @@ public class CacheAsStoreRuleTests
             .Node("Db", NodeType.Database)
             .Connect("Api", "Cache", timeoutSeconds: 1)
             .Connect("Warmer", "Cache", timeoutSeconds: 1)
-            .Connect("Warmer", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Warmer", "Db", timeoutSeconds: 5);
 
         Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
     }
@@ -86,9 +86,9 @@ public class CacheAsStoreRuleTests
             .Node("Worker", NodeType.Worker)
             .Node("Db", NodeType.Database)
             .Connect("Api", "Cache", timeoutSeconds: 1)
-            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola", "Worker", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Worker", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Api", "Cola", synchronous: false)
+            .Connect("Cola", "Worker", synchronous: false)
+            .Connect("Worker", "Db", timeoutSeconds: 5);
 
         Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
     }
@@ -115,7 +115,7 @@ public class CacheAsStoreRuleTests
             .Node("Reports", NodeType.Worker)
             .Node("Db", NodeType.Database)
             .Connect("Api", "Cache", timeoutSeconds: 1)
-            .Connect("Reports", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Reports", "Db", timeoutSeconds: 5);
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
         Assert.Equal("Cache", finding.Message.Arg("node"));
@@ -128,7 +128,7 @@ public class CacheAsStoreRuleTests
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
             .Node("Cache", NodeType.Cache)
-            .Connect("Api", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Api", "Db", timeoutSeconds: 5);
 
         Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
     }
@@ -139,7 +139,7 @@ public class CacheAsStoreRuleTests
         _builder
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Api", "Db", timeoutSeconds: 5);
 
         Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
     }

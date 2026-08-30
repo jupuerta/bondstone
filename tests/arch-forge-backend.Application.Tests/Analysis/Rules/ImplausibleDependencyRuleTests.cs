@@ -38,7 +38,7 @@ public class ImplausibleDependencyRuleTests
     public void TheCdnThatRunsSql_IsTheOneCaseThatAsserts()
     {
         _builder.Node("Edge", NodeType.Cdn).Node("Db", NodeType.Database)
-            .Connect("Edge", "Db", protocol: ProtocolType.Sql);
+            .Connect("Edge", "Db");
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
@@ -111,7 +111,7 @@ public class ImplausibleDependencyRuleTests
     public void ACacheReadingThroughToItsOrigin_IsNotAStoreOriginatingACall()
     {
         _builder.Node("Api", NodeType.Api).Node("Cache", NodeType.Cache).Node("Db", NodeType.Database)
-            .Connect("Api", "Cache").Connect("Cache", "Db", protocol: ProtocolType.Sql);
+            .Connect("Api", "Cache").Connect("Cache", "Db");
 
         Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
     }
@@ -154,10 +154,10 @@ public class ImplausibleDependencyRuleTests
             .Node("Worker", NodeType.Worker).Node("Cron", NodeType.Scheduler).Node("Files", NodeType.ObjectStorage)
             .Node("Auth", NodeType.IdentityProvider).Node("Stripe", NodeType.ExternalService)
             .Connect("Web", "Edge").Connect("Edge", "LB").Connect("LB", "Gw").Connect("Gw", "Api")
-            .Connect("Gw", "Auth").Connect("Api", "Svc").Connect("Svc", "Cache").Connect("Cache", "Db", protocol: ProtocolType.Sql)
-            .Connect("Api", "Queue", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Queue", "Worker", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Worker", "Db", protocol: ProtocolType.Sql).Connect("Worker", "Files").Connect("Cron", "Worker")
+            .Connect("Gw", "Auth").Connect("Api", "Svc").Connect("Svc", "Cache").Connect("Cache", "Db")
+            .Connect("Api", "Queue", synchronous: false)
+            .Connect("Queue", "Worker", synchronous: false)
+            .Connect("Worker", "Db").Connect("Worker", "Files").Connect("Cron", "Worker")
             .Connect("Svc", "Stripe");
 
         var result = _rule.Evaluate(_builder.Build());

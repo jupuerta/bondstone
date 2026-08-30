@@ -21,8 +21,6 @@ public static class RuleCodes
 
     public const string ExternalNoFallback = "EXTERNAL_NO_FALLBACK";
 
-    public const string ProtocolMismatch = "PROTOCOL_MISMATCH";
-
     public const string QueueNoConsumer = "QUEUE_NO_CONSUMER";
     public const string CacheAsStore = "CACHE_AS_STORE";
     public const string SharedDatabase = "SHARED_DATABASE";

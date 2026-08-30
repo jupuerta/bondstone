@@ -64,7 +64,7 @@ public class CriticalPathTests
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api, "{\"requestsPerSecond\":300}")
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Db")
             .Build();
 
         var load = LoadModel.Of(graph);

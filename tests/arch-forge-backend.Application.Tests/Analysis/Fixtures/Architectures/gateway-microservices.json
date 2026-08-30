@@ -35,7 +35,6 @@
       "id": "c0000000-0000-0000-0000-000000000001",
       "sourceNodeId": "a0000000-0000-0000-0000-000000000001",
       "targetNodeId": "a0000000-0000-0000-0000-000000000002",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": {
         "timeoutSeconds": 5
@@ -45,7 +44,6 @@
       "id": "c0000000-0000-0000-0000-000000000002",
       "sourceNodeId": "a0000000-0000-0000-0000-000000000001",
       "targetNodeId": "a0000000-0000-0000-0000-000000000003",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": {
         "timeoutSeconds": 5
@@ -55,7 +53,6 @@
       "id": "c0000000-0000-0000-0000-000000000003",
       "sourceNodeId": "a0000000-0000-0000-0000-000000000001",
       "targetNodeId": "a0000000-0000-0000-0000-000000000004",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": {
         "timeoutSeconds": 5
@@ -65,7 +62,6 @@
       "id": "c0000000-0000-0000-0000-000000000004",
       "sourceNodeId": "a0000000-0000-0000-0000-000000000003",
       "targetNodeId": "a0000000-0000-0000-0000-000000000004",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": {
         "retries": 3
@@ -75,7 +71,6 @@
       "id": "c0000000-0000-0000-0000-000000000005",
       "sourceNodeId": "a0000000-0000-0000-0000-000000000002",
       "targetNodeId": "a0000000-0000-0000-0000-000000000005",
-      "protocol": "Sql",
       "synchronous": true,
       "configuration": {
         "timeoutSeconds": 5
@@ -85,7 +80,6 @@
       "id": "c0000000-0000-0000-0000-000000000006",
       "sourceNodeId": "a0000000-0000-0000-0000-000000000003",
       "targetNodeId": "a0000000-0000-0000-0000-000000000005",
-      "protocol": "Sql",
       "synchronous": true,
       "configuration": {
         "timeoutSeconds": 5
@@ -95,7 +89,6 @@
       "id": "c0000000-0000-0000-0000-000000000007",
       "sourceNodeId": "a0000000-0000-0000-0000-000000000004",
       "targetNodeId": "a0000000-0000-0000-0000-000000000005",
-      "protocol": "Sql",
       "synchronous": true,
       "configuration": {
         "timeoutSeconds": 5

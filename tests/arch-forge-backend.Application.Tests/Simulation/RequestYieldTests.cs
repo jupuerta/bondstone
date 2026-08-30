@@ -29,7 +29,7 @@ public class RequestYieldTests
     {
         var graph = Loaded(300, builder => builder
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql));
+            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true));
 
         var (affected, bottleneck) = Impact(graph);
 
@@ -42,7 +42,7 @@ public class RequestYieldTests
     {
         var graph = Loaded(300, builder => builder
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", fallback: true, protocol: ProtocolType.Sql));
+            .Connect("Api", "Db", fallback: true));
 
         var (affected, _) = Impact(graph);
 
@@ -55,8 +55,8 @@ public class RequestYieldTests
         var graph = Loaded(300, builder => builder
             .Node("Queue", NodeType.Queue)
             .Node("Worker", NodeType.Service)
-            .Connect("Api", "Queue", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Queue", "Worker", synchronous: false, protocol: ProtocolType.Amqp));
+            .Connect("Api", "Queue", synchronous: false)
+            .Connect("Queue", "Worker", synchronous: false));
 
         var (affected, _) = Impact(graph);
 
@@ -69,7 +69,7 @@ public class RequestYieldTests
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
+            .Connect("Api", "Db", timeoutSeconds: 5)
             .Build();
 
         var down = new HashSet<Guid> { graph.NodeId("Db") };
@@ -87,7 +87,7 @@ public class RequestYieldTests
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
+            .Connect("Api", "Db", timeoutSeconds: 5)
             .Build();
 
         var expired = new HashSet<Guid> { graph.EdgeId("Api", "Db") };
@@ -115,7 +115,7 @@ public class RequestYieldTests
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Db")
             .Build();
 
         Assert.Equal(0m, Impact(graph).Affected);

@@ -101,7 +101,7 @@ public class CostModelTests
         var iron = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database, """{"replicas":1}""")
-            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Db")
             .Build();
 
         var cache = new GraphBuilder()
@@ -109,7 +109,7 @@ public class CostModelTests
             .Node("Cache", NodeType.Cache)
             .Node("Db", NodeType.Database)
             .Connect("Api", "Cache")
-            .Connect("Cache", "Db", protocol: ProtocolType.Sql)
+            .Connect("Cache", "Db")
             .Build();
 
         Assert.Equal(24, CostModel.Of(iron));

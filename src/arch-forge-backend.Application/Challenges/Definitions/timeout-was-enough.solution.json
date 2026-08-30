@@ -8,9 +8,9 @@
     { "name": "Ledger", "type": "Database", "x": 1040, "y": 160, "configuration": { "replicas": 3 } }
   ],
   "connections": [
-    { "from": "Edge", "to": "Storefront", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 1 } },
-    { "from": "Storefront", "to": "Checkout", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 1 } },
-    { "from": "Checkout", "to": "Billing", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 1 } },
-    { "from": "Billing", "to": "Ledger", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 1 } }
+    { "from": "Edge", "to": "Storefront", "synchronous": true, "configuration": { "timeoutSeconds": 1 } },
+    { "from": "Storefront", "to": "Checkout", "synchronous": true, "configuration": { "timeoutSeconds": 1 } },
+    { "from": "Checkout", "to": "Billing", "synchronous": true, "configuration": { "timeoutSeconds": 1 } },
+    { "from": "Billing", "to": "Ledger", "synchronous": true, "configuration": { "timeoutSeconds": 1 } }
   ]
 }

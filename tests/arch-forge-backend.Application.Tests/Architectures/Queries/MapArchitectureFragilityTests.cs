@@ -125,7 +125,7 @@ public class MapArchitectureFragilityTests
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api, """{"requestsPerSecond":100}""")
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Db")
             .Build();
 
         var map = MapArchitectureFragilityQueryHandler.Sweep(graph, Engine);

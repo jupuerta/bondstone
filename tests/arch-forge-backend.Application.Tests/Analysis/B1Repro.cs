@@ -21,7 +21,7 @@ public class B1ReproTests
             .Node("Svc", NodeType.Service)
             .Node("Db", NodeType.Database, """{"readReplicas": 2}""")
             .Connect("Api", "Svc", timeoutSeconds: 5, fallback: true)
-            .Connect("Svc", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql);
+            .Connect("Svc", "Db", timeoutSeconds: 5, fallback: true);
 
         foreach (var f in new SpofRule().Evaluate(t1a.Build()).Findings)
             _out.WriteLine($"T1a: [{f.Severity}] {f.Message.Describe()}");
@@ -32,7 +32,7 @@ public class B1ReproTests
             .Node("Db", NodeType.Database, """{"readReplicas": 2}""")
             .Node("Obs", NodeType.Observability)
             .Connect("Api", "Svc", timeoutSeconds: 5, fallback: true)
-            .Connect("Svc", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql)
+            .Connect("Svc", "Db", timeoutSeconds: 5, fallback: true)
             .Connect("Obs", "Api", synchronous: false)
             .Connect("Obs", "Svc", synchronous: false)
             .Connect("Obs", "Db", synchronous: false);

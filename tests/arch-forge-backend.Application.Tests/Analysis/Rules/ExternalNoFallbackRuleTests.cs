@@ -89,7 +89,7 @@ public class ExternalNoFallbackRuleTests
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Db")
             .Build();
 
         Assert.False(new ExternalNoFallbackRule().Evaluate(graph).IsApplicable);

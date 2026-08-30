@@ -1,6 +1,7 @@
 using System.Text.Json;
 using arch_forge_backend.Application.Configuration.Schemas;
 using arch_forge_backend.Domain.Entities;
+using arch_forge_backend.Domain.Enums;
 
 namespace arch_forge_backend.Application.Analysis;
 
@@ -66,6 +67,11 @@ public class ArchitectureGraph
         _resilienceByConnection[connection.Id] = resilience;
         return resilience;
     }
+
+    public ProtocolType ProtocolOf(Connection connection) =>
+        Protocols.Between(
+            NodesById.GetValueOrDefault(connection.SourceNodeId)?.Type,
+            NodesById.GetValueOrDefault(connection.TargetNodeId)?.Type);
 
     private string NameOf(Guid nodeId) =>
         NodesById.GetValueOrDefault(nodeId)?.Name ?? string.Empty;

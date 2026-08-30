@@ -55,7 +55,6 @@ public sealed class ArchitectureBlueprint
                 ArchitectureId = architecture.Id,
                 SourceNodeId = idsByName[edge.From],
                 TargetNodeId = idsByName[edge.To],
-                Protocol = edge.Protocol,
                 Synchronous = edge.Synchronous,
                 Configuration = Raw(edge.Configuration)
             });
@@ -110,7 +109,6 @@ public sealed class BlueprintConnection
 {
     public string From { get; set; } = string.Empty;
     public string To { get; set; } = string.Empty;
-    public ProtocolType Protocol { get; set; }
     public bool Synchronous { get; set; } = true;
 
     [JsonPropertyName("configuration")]

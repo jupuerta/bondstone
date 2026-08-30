@@ -27,7 +27,7 @@ public class LoadDemandScaleTests
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api, """{"requestsPerSecond":100}""")
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Db")
             .Build();
 
         var single = LoadModel.Of(graph);
@@ -45,7 +45,7 @@ public class LoadDemandScaleTests
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Db")
             .Build();
 
         Assert.True(LoadModel.Of(graph, 20).IsIdle);
@@ -100,8 +100,8 @@ public class LoadDemandScaleTests
             .Node("Api", NodeType.Api, """{"requestsPerSecond":100}""")
             .Node("Queue", NodeType.Queue)
             .Node("Worker", NodeType.Worker)
-            .Connect("Api", "Queue", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Queue", "Worker", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Api", "Queue", synchronous: false)
+            .Connect("Queue", "Worker", synchronous: false)
             .Build();
 
         var worker = graph.NodeId("Worker");

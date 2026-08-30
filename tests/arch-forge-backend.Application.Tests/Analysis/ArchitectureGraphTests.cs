@@ -92,7 +92,6 @@ public class ArchitectureGraphTests
             Id = Guid.NewGuid(),
             SourceNodeId = api.Id,
             TargetNodeId = Guid.NewGuid(),
-            Protocol = ProtocolType.Http,
             Synchronous = true,
             Configuration = "{}"
         };
@@ -115,7 +114,6 @@ public class ArchitectureGraphTests
         Id = Guid.NewGuid(),
         SourceNodeId = source.Id,
         TargetNodeId = target.Id,
-        Protocol = ProtocolType.Http,
         Synchronous = true,
         Configuration = "{}"
     };

@@ -258,7 +258,7 @@ public class SpofRuleTests
             .Node("Db", NodeType.Database, """{"replicas": 2}""")
             .Node("Obs", NodeType.Observability)
             .Connect("Api", "Svc", timeoutSeconds: 5, fallback: true)
-            .Connect("Svc", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql)
+            .Connect("Svc", "Db", timeoutSeconds: 5, fallback: true)
             .Connect("Obs", "Api", synchronous: false)
             .Connect("Obs", "Svc", synchronous: false)
             .Connect("Obs", "Db", synchronous: false);
@@ -512,7 +512,7 @@ public class SpofRuleTests
             .Node("Auth0", NodeType.IdentityProvider).Node("Db", NodeType.Database, """{"replicas": 1}""")
             .Connect("Web", "Gw")
             .Connect("Gw", "Auth0", timeoutSeconds: 2)
-            .Connect("Gw", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql);
+            .Connect("Gw", "Db", timeoutSeconds: 5, fallback: true);
 
         var auth = Assert.Single(
             _rule.Evaluate(_builder.Build()).Findings,
@@ -801,15 +801,15 @@ public class SpofRuleTests
             .Node("Api", NodeType.Api, """{"instances": 2}""")
             .Node("Db", NodeType.Database, """{"replicas": 2}""")
             .Connect("Users", "LB").Connect("LB", "Api")
-            .Connect("Api", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Api", "Db", timeoutSeconds: 5);
 
         var drawn = new GraphBuilder()
             .Node("Users", NodeType.Client).Node("LB", NodeType.LoadBalancer)
             .Nodes(NodeType.Api, "Api1", "Api2")
             .Node("Db", NodeType.Database, """{"replicas": 2}""")
             .Connect("Users", "LB").Connect("LB", "Api1").Connect("LB", "Api2")
-            .Connect("Api1", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Api2", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Api1", "Db", timeoutSeconds: 5)
+            .Connect("Api2", "Db", timeoutSeconds: 5);
 
         Assert.Empty(_rule.Evaluate(drawn.Build()).Findings);
         Assert.Empty(_rule.Evaluate(declared.Build()).Findings);
@@ -870,7 +870,7 @@ public class SpofRuleTests
             .Node("Api", NodeType.Api, """{"instances": 3}""")
             .Node("Db", NodeType.Database, """{"replicas": 2}""")
             .Connect("Users", "Edge").Connect("Edge", "Api", timeoutSeconds: 5)
-            .Connect("Api", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Api", "Db", timeoutSeconds: 5);
 
         var result = _rule.Evaluate(_builder.Build());
 
@@ -931,7 +931,7 @@ public class SpofRuleTests
             .Node("Db", NodeType.Database, rightSized
                 ? """{"replicas": 1}"""
                 : """{"replicas": 2, "readReplicas": 40}""")
-            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql);
+            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true);
 
         if (cdn)
             builder.Node("Edge", NodeType.Cdn).Connect("Users", "Edge").Connect("Edge", "Api", timeoutSeconds: 5, fallback: true);

@@ -15,7 +15,7 @@ public class LoadModelTests
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Db")
             .Build();
 
         var load = LoadModel.Of(graph);
@@ -34,8 +34,8 @@ public class LoadModelTests
             .Node("Db", NodeType.Database)
             .Connect("Api", "A")
             .Connect("Api", "B")
-            .Connect("A", "Db", protocol: ProtocolType.Sql)
-            .Connect("B", "Db", protocol: ProtocolType.Sql));
+            .Connect("A", "Db")
+            .Connect("B", "Db"));
 
         var load = LoadModel.Of(graph);
 
@@ -50,7 +50,7 @@ public class LoadModelTests
             .Node("Cache", NodeType.Cache)
             .Node("Db", NodeType.Database)
             .Connect("Api", "Cache")
-            .Connect("Cache", "Db", protocol: ProtocolType.Sql));
+            .Connect("Cache", "Db"));
 
         var load = LoadModel.Of(graph);
 
@@ -117,8 +117,8 @@ public class LoadModelTests
             .Nodes(NodeType.Service, "SvcA", "SvcB")
             .Node("Db", NodeType.Database)
             .Connect("Web", "LB")
-            .Connect("SvcA", "Db", protocol: ProtocolType.Sql)
-            .Connect("SvcB", "Db", protocol: ProtocolType.Sql);
+            .Connect("SvcA", "Db")
+            .Connect("SvcB", "Db");
 
         foreach (var gateway in gateways)
         {
@@ -137,7 +137,7 @@ public class LoadModelTests
         var graph = new GraphBuilder()
             .Node("Gateway", NodeType.Gateway, """{"requestsPerSecond":5000,"rateLimit":400}""")
             .Node("Db", NodeType.Database)
-            .Connect("Gateway", "Db", protocol: ProtocolType.Sql)
+            .Connect("Gateway", "Db")
             .Build();
 
         var load = LoadModel.Of(graph);
@@ -154,7 +154,7 @@ public class LoadModelTests
             .Node("Gateway", NodeType.Gateway, """{"rateLimit":400}""")
             .Node("Db", NodeType.Database)
             .Connect("Web", "Gateway")
-            .Connect("Gateway", "Db", protocol: ProtocolType.Sql)
+            .Connect("Gateway", "Db")
             .Build();
 
         var load = LoadModel.Of(graph);
@@ -170,7 +170,7 @@ public class LoadModelTests
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api, """{"requestsPerSecond":1000,"rateLimit":300}""")
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Db")
             .Build();
 
         var load = LoadModel.Of(graph);
@@ -187,8 +187,8 @@ public class LoadModelTests
             .Node("Cola", NodeType.Queue)
             .Node("Worker", NodeType.Worker)
             .Node("Telemetry", NodeType.Observability)
-            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola", "Worker", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Api", "Cola", synchronous: false)
+            .Connect("Cola", "Worker", synchronous: false)
             .Connect("Cola", "Telemetry", synchronous: false)
             .Connect("Api", "Telemetry", synchronous: false)
             .Build();
@@ -205,8 +205,8 @@ public class LoadModelTests
         var graph = Loaded(1_000, builder => builder
             .Node("Queue", NodeType.Queue)
             .Node("Worker", NodeType.Service)
-            .Connect("Api", "Queue", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Queue", "Worker", synchronous: false, protocol: ProtocolType.Amqp));
+            .Connect("Api", "Queue", synchronous: false)
+            .Connect("Queue", "Worker", synchronous: false));
 
         var load = LoadModel.Of(graph);
 

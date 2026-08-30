@@ -175,8 +175,8 @@ public class SimulationEngineTests
             .Node("Api", NodeType.Api)
             .Node("Bus", NodeType.Queue)
             .Node("Worker", NodeType.Service)
-            .Connect("Api", "Bus", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Bus", "Worker", synchronous: false, protocol: ProtocolType.Amqp);
+            .Connect("Api", "Bus", synchronous: false)
+            .Connect("Bus", "Worker", synchronous: false);
 
         var graph = builder.Build();
         var result = Simulate(graph, new Fault(ElementType.Node, builder.IdOf("Bus"), FaultKinds.Down));
@@ -197,7 +197,7 @@ public class SimulationEngineTests
             .Node("Orders", NodeType.Service)
             .Node("Db", NodeType.Database)
             .Connect("Api", "Orders", timeoutSeconds: 5)
-            .Connect("Orders", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Orders", "Db", timeoutSeconds: 5);
 
         var graph = builder.Build();
         var result = Simulate(graph, new Fault(ElementType.Node, builder.IdOf("Db"), FaultKinds.Degraded));
@@ -247,8 +247,8 @@ public class SimulationEngineTests
         var builder = new GraphBuilder()
             .Nodes(NodeType.Api, "Api1", "Api2")
             .Node("Db", NodeType.Database)
-            .Connect("Api1", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Api2", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Api1", "Db", timeoutSeconds: 5)
+            .Connect("Api2", "Db", timeoutSeconds: 5);
 
         var graph = builder.Build();
         var result = Simulate(graph, new Fault(ElementType.Connection, builder.EdgeId("Api1", "Db"), FaultKinds.Down));
@@ -264,7 +264,7 @@ public class SimulationEngineTests
         var builder = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Api", "Db", timeoutSeconds: 5);
 
         var graph = builder.Build();
         var result = Simulate(graph, new Fault(ElementType.Connection, builder.EdgeId("Api", "Db"), FaultKinds.Down));

@@ -9,14 +9,14 @@
     { "name": "Telemetry", "type": "Observability", "x": 780, "y": 420 }
   ],
   "connections": [
-    { "from": "Storefront", "to": "Orders", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
-    { "from": "Storefront", "to": "Invoicing", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
-    { "from": "Orders", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 3, "access": "ReadWrite" } },
-    { "from": "Invoicing", "to": "Ledger", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 3, "access": "ReadWrite" } },
-    { "from": "Storefront", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
-    { "from": "Orders", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
-    { "from": "Invoicing", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
-    { "from": "Db", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} },
-    { "from": "Ledger", "to": "Telemetry", "protocol": "Http", "synchronous": false, "configuration": {} }
+    { "from": "Storefront", "to": "Orders", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
+    { "from": "Storefront", "to": "Invoicing", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
+    { "from": "Orders", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 3, "access": "ReadWrite" } },
+    { "from": "Invoicing", "to": "Ledger", "synchronous": true, "configuration": { "timeoutSeconds": 3, "access": "ReadWrite" } },
+    { "from": "Storefront", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Orders", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Invoicing", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Db", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Ledger", "to": "Telemetry", "synchronous": false, "configuration": {} }
   ]
 }

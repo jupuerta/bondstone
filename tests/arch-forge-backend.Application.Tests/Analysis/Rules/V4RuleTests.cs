@@ -19,7 +19,7 @@ public class OrphanNodeRuleTests
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
             .Node("Leftover", NodeType.Service)
-            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Db")
             .Build();
 
         var result = new OrphanNodeRule().Evaluate(graph);
@@ -70,7 +70,7 @@ public class QueueNoDlqRuleTests
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Q", NodeType.Queue)
-            .Connect("Api", "Q", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Api", "Q", synchronous: false)
             .Build();
 
         var result = new QueueNoDlqRule().Evaluate(graph);
@@ -86,8 +86,8 @@ public class QueueNoDlqRuleTests
             .Node("Api", NodeType.Api)
             .Node("Q", NodeType.Queue)
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Q", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Q", "Db", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Api", "Q", synchronous: false)
+            .Connect("Q", "Db", synchronous: false)
             .Build();
 
         Assert.Empty(new QueueNoDlqRule().Evaluate(graph).Findings);
@@ -98,8 +98,8 @@ public class QueueNoDlqRuleTests
         .Node("Api", NodeType.Api)
         .Node("Q", NodeType.Queue, configuration)
         .Node("Worker", NodeType.Worker)
-        .Connect("Api", "Q", synchronous: false, protocol: ProtocolType.Amqp)
-        .Connect("Q", "Worker", synchronous: false, protocol: ProtocolType.Amqp)
+        .Connect("Api", "Q", synchronous: false)
+        .Connect("Q", "Worker", synchronous: false)
         .Build();
 }
 
@@ -129,7 +129,7 @@ public class TimeoutTooShortRuleTests
     private static ArchitectureGraph ApiAndDb(int rps) => new GraphBuilder()
         .Node("Api", NodeType.Api, rps == 0 ? "{}" : $$"""{"requestsPerSecond":{{rps}}}""")
         .Node("Db", NodeType.Database)
-        .Connect("Api", "Db", timeoutSeconds: 1, protocol: ProtocolType.Sql)
+        .Connect("Api", "Db", timeoutSeconds: 1)
         .Build();
 
 
@@ -182,7 +182,7 @@ public class TimeoutTooShortRuleTests
         .Node("Api", NodeType.Api, """{"instances":4}""")
         .Node("Db", NodeType.Database)
         .Connect("Gw", "Api", timeoutSeconds: 1)
-        .Connect("Api", "Db", protocol: ProtocolType.Sql)
+        .Connect("Api", "Db")
         .Build();
 
     [Fact]
@@ -208,7 +208,7 @@ public class TimeoutTooShortRuleTests
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Db")
             .Build();
 
         Assert.False(new TimeoutTooShortRule().Evaluate(graph).IsApplicable);
@@ -223,7 +223,7 @@ public class UndersizedComponentRuleTests
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Db")
             .Build();
 
         Assert.False(new UndersizedComponentRule().Evaluate(graph).IsApplicable);
@@ -319,7 +319,7 @@ public class UndersizedComponentRuleTests
     private static ArchitectureGraph Loaded(int rps) => new GraphBuilder()
         .Node("Api", NodeType.Api, $$"""{"requestsPerSecond":{{rps}}}""")
         .Node("Db", NodeType.Database)
-        .Connect("Api", "Db", protocol: ProtocolType.Sql)
+        .Connect("Api", "Db")
         .Build();
 }
 
@@ -374,8 +374,8 @@ public class SecurityRuleTests
             .Node("Db", NodeType.Database)
             .Connect("LB", "Api1")
             .Connect("LB", "Api2")
-            .Connect("Api1", "Db", protocol: ProtocolType.Sql)
-            .Connect("Api2", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api1", "Db")
+            .Connect("Api2", "Db")
             .Build();
 
         Assert.Equal(2, new UnauthenticatedEntryRule().Evaluate(graph).Findings.Count);
@@ -387,7 +387,7 @@ public class SecurityRuleTests
         var graph = new GraphBuilder()
             .Node("LB", NodeType.LoadBalancer)
             .Node("Db", NodeType.Database)
-            .Connect("LB", "Db", protocol: ProtocolType.Sql)
+            .Connect("LB", "Db")
             .Build();
 
         var finding = Assert.Single(new ExposedDatabaseRule().Evaluate(graph).Findings);
@@ -435,7 +435,7 @@ public class SecurityRuleTests
             .Node("Gw", NodeType.Gateway)
             .Node("Db", NodeType.Database)
             .Connect("Web", "Gw")
-            .Connect("Gw", "Db", protocol: ProtocolType.Sql)
+            .Connect("Gw", "Db")
             .Build();
 
         var finding = Assert.Single(new NoRateLimitRule().Evaluate(graph).Findings);
@@ -453,7 +453,7 @@ public class SecurityRuleTests
         var graph = new GraphBuilder()
             .Node("Root", type)
             .Node("Db", NodeType.Database)
-            .Connect("Root", "Db", protocol: ProtocolType.Sql)
+            .Connect("Root", "Db")
             .Build();
 
         var result = new ExposedDatabaseRule().Evaluate(graph);
@@ -471,7 +471,7 @@ public class SecurityRuleTests
         var graph = new GraphBuilder()
             .Node("Root", type)
             .Node("Db", NodeType.Database)
-            .Connect("Root", "Db", protocol: ProtocolType.Sql)
+            .Connect("Root", "Db")
             .Build();
 
         Assert.Single(new ExposedDatabaseRule().Evaluate(graph).Findings);
@@ -483,8 +483,8 @@ public class SecurityRuleTests
         var graph = new GraphBuilder()
             .Nodes(NodeType.Service, "Users", "Orders")
             .Node("users-db", NodeType.Database).Node("orders-db", NodeType.Database)
-            .Connect("Users", "users-db", protocol: ProtocolType.Sql)
-            .Connect("Orders", "orders-db", protocol: ProtocolType.Sql)
+            .Connect("Users", "users-db")
+            .Connect("Orders", "orders-db")
             .Build();
 
         Assert.Empty(new ExposedDatabaseRule().Evaluate(graph).Findings);
@@ -497,7 +497,7 @@ public class SecurityRuleTests
             .Node("Api", NodeType.Api, """{"requestsPerSecond":100}""")
             .Node("Db", NodeType.Database)
             .Node("Obs", NodeType.Observability)
-            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Db")
             .Connect("Obs", "Api", synchronous: false)
             .Connect("Obs", "Db", synchronous: false)
             .Build();
@@ -515,7 +515,7 @@ public class SecurityRuleTests
             .Node("Bff", NodeType.Service)
             .Node("Db", NodeType.Database)
             .Connect("Web", "Bff")
-            .Connect("Bff", "Db", protocol: ProtocolType.Sql)
+            .Connect("Bff", "Db")
             .Build();
 
         Assert.Empty(new ExposedDatabaseRule().Evaluate(graph).Findings);
@@ -626,7 +626,7 @@ public class SecurityRuleTests
             .Node("Edge", NodeType.Cdn)
             .Node("Db", NodeType.Database)
             .Connect("Users", "Edge")
-            .Connect("Edge", "Db", protocol: ProtocolType.Sql)
+            .Connect("Edge", "Db")
             .Build();
 
         Assert.Single(new ExposedDatabaseRule().Evaluate(graph).Findings);
@@ -778,7 +778,7 @@ public class SecurityRuleTests
             .Node("Worker", NodeType.Worker)
             .Node("Db", NodeType.Database)
             .Connect("Users", "Worker")
-            .Connect("Worker", "Db", protocol: ProtocolType.Sql)
+            .Connect("Worker", "Db")
             .Build();
 
         var result = ReferenceArchitecture.Analyze(graph);
@@ -818,26 +818,26 @@ public class SecurityRuleTests
         .Node("IdP", NodeType.IdentityProvider)
         .Node("Db", NodeType.Database)
         .Connect("Api", "IdP", timeoutSeconds: 1)
-        .Connect("Api", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+        .Connect("Api", "Db", timeoutSeconds: 5);
 
     private static ArchitectureGraph Bff(string configuration, int rps = 0) => new GraphBuilder()
         .Node("Web", NodeType.Client, rps == 0 ? "{}" : $$"""{"requestsPerSecond":{{rps}}}""")
         .Node("Bff", NodeType.Service, configuration)
         .Node("Db", NodeType.Database)
         .Connect("Web", "Bff")
-        .Connect("Bff", "Db", protocol: ProtocolType.Sql)
+        .Connect("Bff", "Db")
         .Build();
 
     private static ArchitectureGraph ApiAndDb(string configuration) => new GraphBuilder()
         .Node("Api", NodeType.Api, configuration)
         .Node("Db", NodeType.Database)
-        .Connect("Api", "Db", protocol: ProtocolType.Sql)
+        .Connect("Api", "Db")
         .Build();
 
     private static ArchitectureGraph Gateway(string configuration) => new GraphBuilder()
         .Node("Gw", NodeType.Gateway, configuration)
         .Node("Db", NodeType.Database)
-        .Connect("Gw", "Db", protocol: ProtocolType.Sql)
+        .Connect("Gw", "Db")
         .Build();
 }
 
@@ -946,8 +946,8 @@ public class NoObservabilityRuleTests
             .Node("Db", NodeType.Database)
             .Node("Cola", NodeType.Queue)
             .Connect("Api", "A", timeoutSeconds: 3).Connect("Api", "B", timeoutSeconds: 3)
-            .Connect("A", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp);
+            .Connect("A", "Db", timeoutSeconds: 5)
+            .Connect("Api", "Cola", synchronous: false);
 
         var wired = new GraphBuilder()
             .Node("Api", NodeType.Api)
@@ -956,8 +956,8 @@ public class NoObservabilityRuleTests
             .Node("Cola", NodeType.Queue)
             .Node("Telemetry", NodeType.Observability)
             .Connect("Api", "A", timeoutSeconds: 3).Connect("Api", "B", timeoutSeconds: 3)
-            .Connect("A", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("A", "Db", timeoutSeconds: 5)
+            .Connect("Api", "Cola", synchronous: false)
             .Connect("Api", "Telemetry", synchronous: false)
             .Connect("Telemetry", "A").Connect("Telemetry", "B")
             .Connect("Telemetry", "Db")
@@ -975,5 +975,5 @@ public class NoObservabilityRuleTests
     private static GraphBuilder Base() => new GraphBuilder()
         .Node("Api", NodeType.Api)
         .Node("Db", NodeType.Database)
-        .Connect("Api", "Db", protocol: ProtocolType.Sql);
+        .Connect("Api", "Db");
 }

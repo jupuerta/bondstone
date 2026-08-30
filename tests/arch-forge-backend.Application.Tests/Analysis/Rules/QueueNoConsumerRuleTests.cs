@@ -18,7 +18,7 @@ public class QueueNoConsumerRuleTests
         _builder
             .Node("Api", NodeType.Api)
             .Node("Cola", NodeType.Queue)
-            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp);
+            .Connect("Api", "Cola", synchronous: false);
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
@@ -39,8 +39,8 @@ public class QueueNoConsumerRuleTests
             .Node("Api", NodeType.Api)
             .Node("Cola", NodeType.Queue)
             .Node("Worker", NodeType.Worker)
-            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola", "Worker", synchronous: false, protocol: ProtocolType.Amqp);
+            .Connect("Api", "Cola", synchronous: false)
+            .Connect("Cola", "Worker", synchronous: false);
 
         var result = _rule.Evaluate(_builder.Build());
 
@@ -55,8 +55,8 @@ public class QueueNoConsumerRuleTests
             .Node("Api", NodeType.Api)
             .Node("Cola", NodeType.Queue)
             .Node("Worker", NodeType.Worker)
-            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Worker", "Cola", synchronous: false, protocol: ProtocolType.Amqp);
+            .Connect("Api", "Cola", synchronous: false)
+            .Connect("Worker", "Cola", synchronous: false);
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
@@ -73,8 +73,8 @@ public class QueueNoConsumerRuleTests
             .Node("Api", NodeType.Api)
             .Node("Cola", NodeType.Queue)
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola", "Db", synchronous: false, protocol: ProtocolType.Amqp);
+            .Connect("Api", "Cola", synchronous: false)
+            .Connect("Cola", "Db", synchronous: false);
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
@@ -90,9 +90,9 @@ public class QueueNoConsumerRuleTests
             .Node("Cola", NodeType.Queue)
             .Node("Db", NodeType.Database)
             .Node("Worker", NodeType.Worker)
-            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola", "Db", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Worker", "Cola", synchronous: false, protocol: ProtocolType.Amqp);
+            .Connect("Api", "Cola", synchronous: false)
+            .Connect("Cola", "Db", synchronous: false)
+            .Connect("Worker", "Cola", synchronous: false);
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
@@ -111,8 +111,8 @@ public class QueueNoConsumerRuleTests
             .Node("Api", NodeType.Api)
             .Node("Cola", NodeType.Queue)
             .Node("Consumer", consumer)
-            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola", "Consumer", synchronous: false, protocol: ProtocolType.Amqp);
+            .Connect("Api", "Cola", synchronous: false)
+            .Connect("Cola", "Consumer", synchronous: false);
 
         Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
     }
@@ -130,8 +130,8 @@ public class QueueNoConsumerRuleTests
             .Node("Api", NodeType.Api)
             .Node("Cola", NodeType.Queue)
             .Node("Target", target)
-            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola", "Target", synchronous: false, protocol: ProtocolType.Amqp);
+            .Connect("Api", "Cola", synchronous: false)
+            .Connect("Cola", "Target", synchronous: false);
 
         Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
     }
@@ -143,9 +143,9 @@ public class QueueNoConsumerRuleTests
             .Node("Api", NodeType.Api)
             .Nodes(NodeType.Queue, "Cola1", "Cola2")
             .Node("Worker", NodeType.Worker)
-            .Connect("Api", "Cola1", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola1", "Cola2", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola2", "Worker", synchronous: false, protocol: ProtocolType.Amqp);
+            .Connect("Api", "Cola1", synchronous: false)
+            .Connect("Cola1", "Cola2", synchronous: false)
+            .Connect("Cola2", "Worker", synchronous: false);
 
         Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
     }
@@ -156,8 +156,8 @@ public class QueueNoConsumerRuleTests
         _builder
             .Node("Api", NodeType.Api)
             .Nodes(NodeType.Queue, "Cola1", "Cola2")
-            .Connect("Api", "Cola1", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola1", "Cola2", synchronous: false, protocol: ProtocolType.Amqp);
+            .Connect("Api", "Cola1", synchronous: false)
+            .Connect("Cola1", "Cola2", synchronous: false);
 
         Assert.Equal(2, _rule.Evaluate(_builder.Build()).Findings.Count);
     }
@@ -168,9 +168,9 @@ public class QueueNoConsumerRuleTests
         _builder
             .Node("Api", NodeType.Api)
             .Nodes(NodeType.Queue, "Cola1", "Cola2")
-            .Connect("Api", "Cola1", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola1", "Cola2", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola2", "Cola1", synchronous: false, protocol: ProtocolType.Amqp);
+            .Connect("Api", "Cola1", synchronous: false)
+            .Connect("Cola1", "Cola2", synchronous: false)
+            .Connect("Cola2", "Cola1", synchronous: false);
 
         Assert.Equal(2, _rule.Evaluate(_builder.Build()).Findings.Count);
     }
@@ -181,8 +181,8 @@ public class QueueNoConsumerRuleTests
         _builder
             .Node("Api", NodeType.Api)
             .Node("Cola", NodeType.Queue)
-            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola", "Cola", synchronous: false, protocol: ProtocolType.Amqp);
+            .Connect("Api", "Cola", synchronous: false)
+            .Connect("Cola", "Cola", synchronous: false);
 
         Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
     }
@@ -194,7 +194,7 @@ public class QueueNoConsumerRuleTests
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
             .Node("Cola", NodeType.Queue)
-            .Connect("Api", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Api", "Db", timeoutSeconds: 5);
 
         Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
     }
@@ -205,7 +205,7 @@ public class QueueNoConsumerRuleTests
         _builder
             .Node("Api", NodeType.Api)
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Api", "Db", timeoutSeconds: 5);
 
         Assert.False(_rule.Evaluate(_builder.Build()).IsApplicable);
     }

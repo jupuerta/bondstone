@@ -22,8 +22,8 @@ public class AnalysisContractTests
         {
             var coverage = ReferenceArchitecture.Analyze(name).Coverage;
 
-            Assert.Equal(26, coverage.Count);
-            Assert.Equal(26, coverage.Select(rule => rule.Code).Distinct().Count());
+            Assert.Equal(25, coverage.Count);
+            Assert.Equal(25, coverage.Select(rule => rule.Code).Distinct().Count());
         }
     }
 
@@ -31,14 +31,14 @@ public class AnalysisContractTests
     // of the list on the frontend would be one more table to drift, which is exactly how the area
     // column of the challenge catalogue was wrong for four rules.
     [Fact]
-    public void Coverage_names_the_two_rules_that_talk_about_the_drawing()
+    public void Coverage_names_the_rule_that_talks_about_the_drawing()
     {
         foreach (var name in References)
         {
             var coverage = ReferenceArchitecture.Analyze(name).Coverage;
 
             Assert.Equal(
-                [RuleCodes.ImplausibleDependency, RuleCodes.ProtocolMismatch],
+                [RuleCodes.ImplausibleDependency],
                 coverage.Where(rule => rule.DescribesTheDrawing).Select(rule => rule.Code).Order());
         }
     }
@@ -49,7 +49,7 @@ public class AnalysisContractTests
     [Fact]
     public void The_drawing_rules_score_where_their_consequences_are()
     {
-        var rules = new IArchitectureRule[] { new ProtocolMismatchRule(), new ImplausibleDependencyRule() };
+        var rules = new IArchitectureRule[] { new ImplausibleDependencyRule() };
 
         Assert.All(rules, rule => Assert.Equal(Area.Resilience, rule.Area));
         Assert.All(rules, rule => Assert.True(rule.DescribesTheDrawing));
@@ -138,13 +138,13 @@ public class AnalysisContractTests
     {
         var withoutQueue = ReferenceArchitecture.Analyze(new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Db", NodeType.Database)
-            .Connect("Api", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql)
+            .Connect("Api", "Db", timeoutSeconds: 3)
             .Build());
 
         var withQueue = ReferenceArchitecture.Analyze(new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Cola", NodeType.Queue).Node("W", NodeType.Worker)
-            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola", "W", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Api", "Cola", synchronous: false)
+            .Connect("Cola", "W", synchronous: false)
             .Build());
 
         Assert.Equal(RuleState.NotApplicable, StateOf(withoutQueue, RuleCodes.QueueNoDlq));
@@ -172,12 +172,12 @@ public class AnalysisContractTests
     }
 
     [Fact]
-    public void The_empty_canvas_gets_twenty_six_different_sentences()
+    public void The_empty_canvas_gets_twenty_five_different_sentences()
     {
         var coverage = ReferenceArchitecture.Analyze(new GraphBuilder().Build()).Coverage;
 
         Assert.All(coverage, rule => Assert.Equal(RuleState.NotApplicable, rule.State));
-        Assert.Equal(26, coverage.Select(rule => rule.Reason!.Key).Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(25, coverage.Select(rule => rule.Reason!.Key).Distinct(StringComparer.Ordinal).Count());
     }
 
     [Fact]
@@ -206,8 +206,8 @@ public class AnalysisContractTests
     {
         var withQueue = ReferenceArchitecture.Analyze(new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Cola", NodeType.Queue).Node("W", NodeType.Worker)
-            .Connect("Api", "Cola", synchronous: false, protocol: ProtocolType.Amqp)
-            .Connect("Cola", "W", synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Api", "Cola", synchronous: false)
+            .Connect("Cola", "W", synchronous: false)
             .Build());
 
         Assert.Equal(RuleState.Fired, StateOf(withQueue, RuleCodes.QueueNoDlq));
@@ -230,7 +230,7 @@ public class AnalysisContractTests
             .Node("Api", NodeType.Api, "{\"authentication\":true}")
             .Node("Db", NodeType.Database)
             .Connect("Users", "Api")
-            .Connect("Api", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql)
+            .Connect("Api", "Db", timeoutSeconds: 3)
             .Build();
 
         var result = ReferenceArchitecture.Analyze(graph);
@@ -310,7 +310,7 @@ public class AnalysisContractTests
             .Node("Api", NodeType.Api, "{\"authentication\":true}")
             .Node("Db", NodeType.Database)
             .Connect("Users", "Api")
-            .Connect("Api", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql)
+            .Connect("Api", "Db", timeoutSeconds: 3)
             .Build();
 
         var analysis = ReferenceArchitecture.Analyze(graph);
@@ -341,8 +341,8 @@ public class AnalysisContractTests
             .Node("Db", NodeType.Database, "{\"replicas\":2}")
             .Connect("Api", "A", timeoutSeconds: 3)
             .Connect("Api", "B", timeoutSeconds: 3)
-            .Connect("A", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql)
-            .Connect("B", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql)
+            .Connect("A", "Db", timeoutSeconds: 3)
+            .Connect("B", "Db", timeoutSeconds: 3)
             .Build();
 
         var result = ReferenceArchitecture.Analyze(graph);
@@ -370,7 +370,7 @@ public class AnalysisContractTests
             .Connect("Gw", "B", timeoutSeconds: 3)
             .Connect("A", "Cache", timeoutSeconds: 3)
             .Connect("B", "Cache", timeoutSeconds: 3)
-            .Connect("Cache", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql)
+            .Connect("Cache", "Db", timeoutSeconds: 3)
             .Build();
 
         var result = ReferenceArchitecture.Analyze(graph);
@@ -422,7 +422,7 @@ public class AnalysisContractTests
             .Node("Db", NodeType.Database, "{\"readReplicas\":1}")
             .Connect("Users", "Api")
             .Connect("Api", "Pagos", timeoutSeconds: 3, fallback: true)
-            .Connect("Api", "Db", timeoutSeconds: 3, protocol: ProtocolType.Sql)
+            .Connect("Api", "Db", timeoutSeconds: 3)
             .Build();
 
         var cost = ReferenceArchitecture.Analyze(graph).Cost;

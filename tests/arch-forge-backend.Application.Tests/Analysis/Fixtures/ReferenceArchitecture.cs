@@ -36,7 +36,6 @@ public static class ReferenceArchitecture
             new UnauthenticatedEntryRule(),
             new NoObservabilityRule(),
             new ExternalNoFallbackRule(),
-            new ProtocolMismatchRule(),
             new QueueNoConsumerRule(),
             new CacheAsStoreRule(),
             new SharedDatabaseRule(),
@@ -76,7 +75,6 @@ public static class ReferenceArchitecture
             Id = c.Id,
             SourceNodeId = c.SourceNodeId,
             TargetNodeId = c.TargetNodeId,
-            Protocol = c.Protocol,
             Synchronous = c.Synchronous,
             Configuration = Raw(c.Configuration)
         }).ToList();
@@ -114,7 +112,6 @@ public static class ReferenceArchitecture
         Guid Id,
         Guid SourceNodeId,
         Guid TargetNodeId,
-        ProtocolType Protocol,
         bool Synchronous,
         JsonElement? Configuration);
 }

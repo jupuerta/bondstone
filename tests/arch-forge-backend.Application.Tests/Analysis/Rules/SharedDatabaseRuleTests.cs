@@ -18,8 +18,8 @@ public class SharedDatabaseRuleTests
         _builder
             .Nodes(NodeType.Service, "Users", "Orders")
             .Node("Db", NodeType.Database)
-            .Connect("Users", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Orders", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Users", "Db", timeoutSeconds: 5)
+            .Connect("Orders", "Db", timeoutSeconds: 5);
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
@@ -43,7 +43,7 @@ public class SharedDatabaseRuleTests
         _builder
             .Node("Orders")
             .Node("Db", NodeType.Database)
-            .Connect("Orders", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Orders", "Db", timeoutSeconds: 5);
 
         var result = _rule.Evaluate(_builder.Build());
 
@@ -58,8 +58,8 @@ public class SharedDatabaseRuleTests
             .Node("Api", NodeType.Api)
             .Node("Worker", NodeType.Worker)
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Worker", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Api", "Db", timeoutSeconds: 5)
+            .Connect("Worker", "Db", timeoutSeconds: 5);
 
         Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
     }
@@ -72,8 +72,8 @@ public class SharedDatabaseRuleTests
             .Node("Orders")
             .Node("Db", NodeType.Database)
             .Connect("Api", "Orders", timeoutSeconds: 3)
-            .Connect("Api", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Orders", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Api", "Db", timeoutSeconds: 5)
+            .Connect("Orders", "Db", timeoutSeconds: 5);
 
         Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
     }
@@ -84,8 +84,8 @@ public class SharedDatabaseRuleTests
         _builder
             .Node("Orders")
             .Node("Db", NodeType.Database)
-            .Connect("Orders", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Orders", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Orders", "Db", timeoutSeconds: 5)
+            .Connect("Orders", "Db", timeoutSeconds: 5);
 
         Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
     }
@@ -96,8 +96,8 @@ public class SharedDatabaseRuleTests
         _builder
             .Nodes(NodeType.Service, "Users", "Orders")
             .Node("Db", NodeType.Database, """{"replicas": 2}""")
-            .Connect("Users", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql)
-            .Connect("Orders", "Db", timeoutSeconds: 5, fallback: true, protocol: ProtocolType.Sql);
+            .Connect("Users", "Db", timeoutSeconds: 5, fallback: true)
+            .Connect("Orders", "Db", timeoutSeconds: 5, fallback: true);
 
         Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
         Assert.Empty(new SpofRule().Evaluate(_builder.Build()).Findings);
@@ -122,10 +122,10 @@ public class SharedDatabaseRuleTests
         _builder
             .Nodes(NodeType.Service, "A", "B")
             .Nodes(NodeType.Database, "Db1", "Db2")
-            .Connect("A", "Db1", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("B", "Db1", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("A", "Db2", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("B", "Db2", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("A", "Db1", timeoutSeconds: 5)
+            .Connect("B", "Db1", timeoutSeconds: 5)
+            .Connect("A", "Db2", timeoutSeconds: 5)
+            .Connect("B", "Db2", timeoutSeconds: 5);
 
         Assert.Equal(2, _rule.Evaluate(_builder.Build()).Findings.Count);
     }
@@ -151,8 +151,8 @@ public class SharedDatabaseRuleTests
             .Nodes(NodeType.Service, "Pedidos1", "Pedidos2")
             .Node("Db", NodeType.Database)
             .Connect("LB", "Pedidos1", timeoutSeconds: 3).Connect("LB", "Pedidos2", timeoutSeconds: 3)
-            .Connect("Pedidos1", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Pedidos2", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Pedidos1", "Db", timeoutSeconds: 5)
+            .Connect("Pedidos2", "Db", timeoutSeconds: 5);
 
         var result = _rule.Evaluate(_builder.Build());
 
@@ -168,8 +168,8 @@ public class SharedDatabaseRuleTests
             .Nodes(NodeType.Service, "Users", "Orders")
             .Node("Db", NodeType.Database)
             .Connect("Gw", "Users", timeoutSeconds: 3).Connect("Gw", "Orders", timeoutSeconds: 3)
-            .Connect("Users", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Orders", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Users", "Db", timeoutSeconds: 5)
+            .Connect("Orders", "Db", timeoutSeconds: 5);
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
@@ -186,9 +186,9 @@ public class SharedDatabaseRuleTests
             .Nodes(NodeType.Service, "Pedidos1", "Pedidos2", "Users")
             .Node("Db", NodeType.Database)
             .Connect("LB", "Pedidos1", timeoutSeconds: 3).Connect("LB", "Pedidos2", timeoutSeconds: 3)
-            .Connect("Pedidos1", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Pedidos2", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Users", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Pedidos1", "Db", timeoutSeconds: 5)
+            .Connect("Pedidos2", "Db", timeoutSeconds: 5)
+            .Connect("Users", "Db", timeoutSeconds: 5);
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
@@ -207,10 +207,10 @@ public class SharedDatabaseRuleTests
             .Node("Db", NodeType.Database)
             .Connect("LbUsers", "Users1", timeoutSeconds: 3).Connect("LbUsers", "Users2", timeoutSeconds: 3)
             .Connect("LbOrders", "Orders1", timeoutSeconds: 3).Connect("LbOrders", "Orders2", timeoutSeconds: 3)
-            .Connect("Users1", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Users2", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Orders1", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Orders2", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Users1", "Db", timeoutSeconds: 5)
+            .Connect("Users2", "Db", timeoutSeconds: 5)
+            .Connect("Orders1", "Db", timeoutSeconds: 5)
+            .Connect("Orders2", "Db", timeoutSeconds: 5);
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
@@ -227,8 +227,8 @@ public class SharedDatabaseRuleTests
             .Nodes(NodeType.Service, "Users", "Orders")
             .Node("Db", NodeType.Database)
             .Connect("LB", "Users", timeoutSeconds: 3)
-            .Connect("Users", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Orders", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Users", "Db", timeoutSeconds: 5)
+            .Connect("Orders", "Db", timeoutSeconds: 5);
 
         Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
     }
@@ -241,9 +241,9 @@ public class SharedDatabaseRuleTests
             .Nodes(NodeType.Service, "Orders1", "Orders2", "Billing")
             .Node("Db", NodeType.Database)
             .Connect("LB", "Orders1", timeoutSeconds: 3).Connect("LB", "Orders2", timeoutSeconds: 3)
-            .Connect("Orders1", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql, access: "write")
-            .Connect("Orders2", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql, access: "write")
-            .Connect("Billing", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql, access: "write");
+            .Connect("Orders1", "Db", timeoutSeconds: 5, access: "write")
+            .Connect("Orders2", "Db", timeoutSeconds: 5, access: "write")
+            .Connect("Billing", "Db", timeoutSeconds: 5, access: "write");
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
@@ -260,8 +260,8 @@ public class SharedDatabaseRuleTests
             .Nodes(NodeType.Service, "Users", "Orders")
             .Node("Db", NodeType.Database)
             .Connect("LB", "Users", timeoutSeconds: 3).Connect("LB", "Orders", timeoutSeconds: 3)
-            .Connect("Users", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Orders", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql);
+            .Connect("Users", "Db", timeoutSeconds: 5)
+            .Connect("Orders", "Db", timeoutSeconds: 5);
 
         Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
     }
@@ -273,9 +273,9 @@ public class SharedDatabaseRuleTests
         _builder
             .Nodes(NodeType.Service, "Reports", "Search", "Audit")
             .Node("Db", NodeType.Database)
-            .Connect("Reports", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql, access: "read")
-            .Connect("Search", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql, access: "read")
-            .Connect("Audit", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql, access: "read");
+            .Connect("Reports", "Db", timeoutSeconds: 5, access: "read")
+            .Connect("Search", "Db", timeoutSeconds: 5, access: "read")
+            .Connect("Audit", "Db", timeoutSeconds: 5, access: "read");
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
@@ -294,8 +294,8 @@ public class SharedDatabaseRuleTests
         _builder
             .Nodes(NodeType.Service, "Orders", "Reports")
             .Node("Db", NodeType.Database)
-            .Connect("Orders", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql, access: "write")
-            .Connect("Reports", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql, access: "read");
+            .Connect("Orders", "Db", timeoutSeconds: 5, access: "write")
+            .Connect("Reports", "Db", timeoutSeconds: 5, access: "read");
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
@@ -311,9 +311,9 @@ public class SharedDatabaseRuleTests
         _builder
             .Nodes(NodeType.Service, "Orders", "Reports", "Search")
             .Node("Db", NodeType.Database)
-            .Connect("Orders", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Reports", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql, access: "read")
-            .Connect("Search", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql, access: "read");
+            .Connect("Orders", "Db", timeoutSeconds: 5)
+            .Connect("Reports", "Db", timeoutSeconds: 5, access: "read")
+            .Connect("Search", "Db", timeoutSeconds: 5, access: "read");
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
@@ -328,10 +328,10 @@ public class SharedDatabaseRuleTests
         _builder
             .Nodes(NodeType.Service, "Orders", "Billing", "Reports", "Search")
             .Node("Db", NodeType.Database)
-            .Connect("Orders", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Billing", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql)
-            .Connect("Reports", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql, access: "read")
-            .Connect("Search", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql, access: "read");
+            .Connect("Orders", "Db", timeoutSeconds: 5)
+            .Connect("Billing", "Db", timeoutSeconds: 5)
+            .Connect("Reports", "Db", timeoutSeconds: 5, access: "read")
+            .Connect("Search", "Db", timeoutSeconds: 5, access: "read");
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 
@@ -346,9 +346,9 @@ public class SharedDatabaseRuleTests
         _builder
             .Nodes(NodeType.Service, "Orders", "Billing", "Reports")
             .Node("Db", NodeType.Database)
-            .Connect("Orders", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql, access: "write")
-            .Connect("Billing", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql, access: "write")
-            .Connect("Reports", "Db", timeoutSeconds: 5, protocol: ProtocolType.Sql, access: "read");
+            .Connect("Orders", "Db", timeoutSeconds: 5, access: "write")
+            .Connect("Billing", "Db", timeoutSeconds: 5, access: "write")
+            .Connect("Reports", "Db", timeoutSeconds: 5, access: "read");
 
         var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
 

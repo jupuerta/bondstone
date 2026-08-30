@@ -45,35 +45,30 @@
     {
       "from": "Edge",
       "to": "Storefront",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": { "timeoutSeconds": 2 }
     },
     {
       "from": "Storefront",
       "to": "Catalog",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": { "timeoutSeconds": 2 }
     },
     {
       "from": "Storefront",
       "to": "Reviews",
-      "protocol": "Http",
       "synchronous": true,
       "configuration": { "timeoutSeconds": 2 }
     },
     {
       "from": "Catalog",
       "to": "Products",
-      "protocol": "Sql",
       "synchronous": true,
       "configuration": { "timeoutSeconds": 2 }
     },
     {
       "from": "Reviews",
       "to": "Products",
-      "protocol": "Sql",
       "synchronous": true,
       "configuration": { "timeoutSeconds": 2 }
     }

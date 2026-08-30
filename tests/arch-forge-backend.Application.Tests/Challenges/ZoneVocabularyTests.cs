@@ -106,11 +106,11 @@ public class ZoneFaultResolutionTests
          ("Api", NodeType.Api, """{"zone":"a"}"""),
          ("Api 2", NodeType.Api, second),
          ("Db", NodeType.Database, "{}")],
-        [("Gw", "Lb", ProtocolType.Http, true, """{"timeoutSeconds":2}"""),
-         ("Lb", "Api", ProtocolType.Http, true, """{"timeoutSeconds":2}"""),
-         ("Lb", "Api 2", ProtocolType.Http, true, """{"timeoutSeconds":2}"""),
-         ("Api", "Db", ProtocolType.Sql, true, """{"timeoutSeconds":5}"""),
-         ("Api 2", "Db", ProtocolType.Sql, true, """{"timeoutSeconds":5}""")]);
+        [("Gw", "Lb", true, """{"timeoutSeconds":2}"""),
+         ("Lb", "Api", true, """{"timeoutSeconds":2}"""),
+         ("Lb", "Api 2", true, """{"timeoutSeconds":2}"""),
+         ("Api", "Db", true, """{"timeoutSeconds":5}"""),
+         ("Api 2", "Db", true, """{"timeoutSeconds":5}""")]);
 
     [Fact]
     public void A_zone_travels_as_a_name_and_is_not_expanded_here()

@@ -19,7 +19,7 @@ public class TimeoutTooLongRuleTests
         var b = new GraphBuilder()
             .Node("Api", NodeType.Api, """{"authentication":true,"rateLimit":1000}""")
             .Node("Db", NodeType.Database, """{"replicas":2}""")
-            .Connect("Api", "Db", timeoutSeconds: 600, fallback: true, protocol: ProtocolType.Sql);
+            .Connect("Api", "Db", timeoutSeconds: 600, fallback: true);
 
         var finding = Assert.Single(_rule.Evaluate(b.Build()).Findings);
 
@@ -61,7 +61,7 @@ public class TimeoutTooLongRuleTests
         static GraphBuilder Shape(bool fallback) => new GraphBuilder()
             .Node("Gw", NodeType.Gateway).Node("Api", NodeType.Api).Node("Db", NodeType.Database).Node("Cache", NodeType.Cache)
             .Connect("Gw", "Api", timeoutSeconds: 600, fallback: fallback)
-            .Connect("Api", "Db", timeoutSeconds: 3, fallback: true, protocol: ProtocolType.Sql)
+            .Connect("Api", "Db", timeoutSeconds: 3, fallback: true)
             .Connect("Api", "Cache", timeoutSeconds: 1, fallback: true);
 
         var bare = Shape(fallback: false).Build();
@@ -90,7 +90,7 @@ public class TimeoutTooLongRuleTests
             .Connect("Web", "Api", timeoutSeconds: 600)
             .Connect("Stripe", "Maps", timeoutSeconds: 600)
             .Connect("Obs", "Api", timeoutSeconds: 600)
-            .Connect("Api", "Cola", timeoutSeconds: 600, synchronous: false, protocol: ProtocolType.Amqp)
+            .Connect("Api", "Cola", timeoutSeconds: 600, synchronous: false)
             .Connect("Api", "Stripe", timeoutSeconds: 5, fallback: true);
 
         var result = _rule.Evaluate(b.Build());
@@ -103,7 +103,7 @@ public class TimeoutTooLongRuleTests
     public void WithoutASingleTimeout_ThereIsNothingToCompare()
     {
         var b = new GraphBuilder().Node("Api", NodeType.Api).Node("Db", NodeType.Database)
-            .Connect("Api", "Db", protocol: ProtocolType.Sql);
+            .Connect("Api", "Db");
 
         Assert.False(_rule.Evaluate(b.Build()).IsApplicable);
     }

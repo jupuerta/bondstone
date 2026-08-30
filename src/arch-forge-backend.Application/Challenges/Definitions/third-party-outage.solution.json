@@ -7,8 +7,8 @@
     { "name": "Db", "type": "Database", "x": 560, "y": 320 }
   ],
   "connections": [
-    { "from": "Storefront", "to": "Checkout", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 3, "fallback": true } },
-    { "from": "Checkout", "to": "Payments", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 1, "circuitBreaker": true, "fallback": true } },
-    { "from": "Checkout", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 3, "circuitBreaker": true, "fallback": true } }
+    { "from": "Storefront", "to": "Checkout", "synchronous": true, "configuration": { "timeoutSeconds": 3, "fallback": true } },
+    { "from": "Checkout", "to": "Payments", "synchronous": true, "configuration": { "timeoutSeconds": 1, "circuitBreaker": true, "fallback": true } },
+    { "from": "Checkout", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 3, "circuitBreaker": true, "fallback": true } }
   ]
 }

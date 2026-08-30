@@ -73,7 +73,6 @@ public static class ChallengeHarness
         new UnauthenticatedEntryRule(),
         new NoObservabilityRule(),
         new ExternalNoFallbackRule(),
-        new ProtocolMismatchRule(),
         new QueueNoConsumerRule(),
         new CacheAsStoreRule(),
         new SharedDatabaseRule(),

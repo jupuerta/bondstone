@@ -37,9 +37,6 @@ public class AsyncNoQueueRule : IArchitectureRule
 
         var findings = candidates
             .Where(c => !IsBroker(TypeOf(graph, c.SourceNodeId)) && !IsBroker(TypeOf(graph, c.TargetNodeId)))
-            // Amqp with no broker at either end is a drawing error, and PROTOCOL_MISMATCH already says
-            // «draw the queue or switch to Http» from the «fix this first» band.
-            .Where(c => c.Protocol != ProtocolType.Amqp)
             .OrderBy(c => c.Id)
             .Select(c => Report(graph, c))
             .ToList();

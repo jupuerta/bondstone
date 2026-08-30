@@ -9,7 +9,6 @@ public class ConnectionConfiguration : IEntityTypeConfiguration<Connection>
     public void Configure(EntityTypeBuilder<Connection> builder)
     {
         builder.HasKey(c => c.Id);
-        builder.Property(c => c.Protocol).HasConversion<string>().HasMaxLength(50);
 
         builder.Property(c => c.Configuration)
             .HasColumnType("jsonb")

@@ -17,7 +17,7 @@ public class OverprovisionedRuleTests
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api, """{"instances":8}""")
             .Node("Db", NodeType.Database)
-            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Db")
             .Build();
 
         var result = new OverprovisionedRule().Evaluate(graph);
@@ -87,7 +87,7 @@ public class OverprovisionedRuleTests
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api, """{"requestsPerSecond":40}""")
             .Node("Db", NodeType.Database, """{"readReplicas":5}""")
-            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Db")
             .Build();
 
         var finding = Assert.Single(new OverprovisionedRule().Evaluate(graph).Findings);
@@ -114,7 +114,7 @@ public class OverprovisionedRuleTests
             .Node("Api", NodeType.Api, """{"requestsPerSecond":40}""")
             .Node("Db", NodeType.Database)
             .Node("Suelto", NodeType.Service, """{"instances":9}""")
-            .Connect("Api", "Db", protocol: ProtocolType.Sql)
+            .Connect("Api", "Db")
             .Build();
 
         var orphan = graph.Nodes.Single(n => n.Name == "Suelto").Id;

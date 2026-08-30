@@ -6,7 +6,7 @@
     { "name": "Db", "type": "Database", "x": 340, "y": 160 }
   ],
   "connections": [
-    { "from": "Edge", "to": "Api", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
-    { "from": "Api", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 5 } }
+    { "from": "Edge", "to": "Api", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Api", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 5 } }
   ]
 }

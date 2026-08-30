@@ -35,8 +35,6 @@ public static class DependencyInjection
 
         services.AddScoped<IArchitectureRule, ExternalNoFallbackRule>();
 
-        services.AddScoped<IArchitectureRule, ProtocolMismatchRule>();
-
         services.AddScoped<IArchitectureRule, QueueNoConsumerRule>();
         services.AddScoped<IArchitectureRule, CacheAsStoreRule>();
         services.AddScoped<IArchitectureRule, SharedDatabaseRule>();

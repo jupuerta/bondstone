@@ -7,8 +7,8 @@
     { "name": "Db", "type": "Database", "x": 520, "y": 280 }
   ],
   "connections": [
-    { "from": "Storefront", "to": "Orders", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
-    { "from": "Orders", "to": "Mailer", "protocol": "Http", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
-    { "from": "Orders", "to": "Db", "protocol": "Sql", "synchronous": true, "configuration": { "timeoutSeconds": 5 } }
+    { "from": "Storefront", "to": "Orders", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Orders", "to": "Mailer", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Orders", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 5 } }
   ]
 }
