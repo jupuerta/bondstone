@@ -21,7 +21,9 @@ public class NodeRolesTests
         { NodeType.Gateway, true, true, true },
         { NodeType.LoadBalancer, true, true, true },
         { NodeType.Observability, false, true, true },
-        { NodeType.IdentityProvider, false, true, true },
+        // QA 30-08 §10.3, point 14: you pay an identity SaaS, you do not put it in your aisle of the
+        // data centre — which is what the manual has always said, and what SPOF's advice assumes.
+        { NodeType.IdentityProvider, false, true, false },
         { NodeType.Scheduler, false, true, true },
         { NodeType.Cdn, false, true, false },
         { NodeType.ExternalService, false, false, false },

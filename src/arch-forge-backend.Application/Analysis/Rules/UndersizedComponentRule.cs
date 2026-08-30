@@ -86,6 +86,10 @@ public class UndersizedComponentRule : IArchitectureRule
     {
         Domain.Enums.NodeType.Database => "finding.UNDERSIZED_COMPONENT.suggestion.database",
         Domain.Enums.NodeType.Queue => "finding.UNDERSIZED_COMPONENT.suggestion.queue",
+
+        // The one box the drawing cannot size: replication buys redundancy and no capacity, so
+        // «raise instances» would send the reader to a field that is not there (QA 30-08 §11.4).
+        Domain.Enums.NodeType.ObjectStorage => "finding.UNDERSIZED_COMPONENT.suggestion.objectStorage",
         _ when graph.IncomingByTarget[node.Id].Any(c => c.Synchronous) => "finding.UNDERSIZED_COMPONENT.suggestion.shareWork",
         _ => "finding.UNDERSIZED_COMPONENT.suggestion.addInstances"
     });

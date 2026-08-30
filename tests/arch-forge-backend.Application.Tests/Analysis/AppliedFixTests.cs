@@ -46,8 +46,11 @@ public class AppliedFixTests
         Assert.Null(fix.Fallback);
     }
 
+    // QA 30-08 §10.3, point 12: this rule used to offer «raise the timeout», which is what its own
+    // challenge teaches not to do — what makes the call slower than its timeout is the queue at the
+    // destination, and a bigger number only buys a slower answer. The sentence asks for capacity now.
     [Fact]
-    public void A_timeout_shorter_than_its_own_call_is_raised_above_it()
+    public void A_timeout_shorter_than_its_own_call_asks_for_capacity_and_carries_no_button()
     {
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api, """{"requestsPerSecond":1200}""")
@@ -55,12 +58,10 @@ public class AppliedFixTests
             .Connect("Api", "Db", timeoutSeconds: 1)
             .Build();
 
-        var fix = Assert.Single(new TimeoutTooShortRule().Evaluate(graph).Findings).Fix;
+        var finding = Assert.Single(new TimeoutTooShortRule().Evaluate(graph).Findings);
 
-        Assert.NotNull(fix);
-        Assert.Equal(FixKinds.SetEdgeResilience, fix!.Kind);
-        Assert.True(fix.TimeoutSeconds >= 5);
-        Assert.Null(fix.Fallback);
+        Assert.Null(finding.Fix);
+        Assert.Equal("finding.TIMEOUT_TOO_SHORT.expires.suggestion", finding.Suggestion.Key());
     }
 
     [Fact]

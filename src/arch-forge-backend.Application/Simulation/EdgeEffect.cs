@@ -24,6 +24,8 @@ public enum EffectReason
 
     DegradedDependency,
 
+    BreakerOpen,
+
     InstanceDown,
 
     Saturated,
@@ -34,6 +36,7 @@ public enum EffectReason
 public static class Mechanisms
 {
     public const string Fallback = "fallback";
+    public const string CircuitBreaker = "circuitBreaker";
     public const string Queue = "queue";
     public const string HealthCheck = "healthCheck";
 }
@@ -63,8 +66,14 @@ public static class EdgeEffect
         if (!synchronous)
             return new EdgeOutcome(HealthState.Degraded, true, Mechanisms.Queue, EffectReason.QueueDown);
 
+        // A slow dependency is the failure a fallback does not stop: you are still calling, still
+        // waiting and still answering with whatever comes back. A breaker does stop it — it trips and
+        // stops calling — so it is the one mechanism that contains a degraded dependency, and the
+        // only one the workshop can promise it for (QA 30-08, §10.3 point 13, decided 30-08).
         if (effective == HealthState.Degraded)
-            return new EdgeOutcome(HealthState.Degraded, false, null, EffectReason.DegradedDependency);
+            return resilience.CircuitBreaker
+                ? new EdgeOutcome(HealthState.Degraded, true, Mechanisms.CircuitBreaker, EffectReason.BreakerOpen)
+                : new EdgeOutcome(HealthState.Degraded, false, null, EffectReason.DegradedDependency);
 
         if (resilience.TimeoutSeconds is null)
             return new EdgeOutcome(HealthState.Down, false, null, EffectReason.NoTimeout);

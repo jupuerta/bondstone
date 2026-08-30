@@ -88,7 +88,31 @@ public class ObservabilityFloorTests
 
         var blind = Assert.Single(findings, f => f.Severity == Severity.Critical);
         Assert.Equal("finding.NO_OBSERVABILITY.blind.suggestion.present(telemetry=Obs)", blind.Suggestion.Describe());
-        Assert.Single(findings);
+        Assert.Null(blind.Fix);
+
+        // QA 30-08 §10.2, point 3: the blindness is still one fact and still charged once — the boxes
+        // come back as `Info`, which does not subtract, so each one has its button again.
+        var buttons = findings.Where(f => f.Severity == Severity.Info).ToList();
+
+        Assert.Equal(3, buttons.Count);
+        Assert.All(buttons, f => Assert.Equal("fix.NO_OBSERVABILITY.connect(telemetry=Obs)", f.Fix!.Label.Describe()));
+        Assert.Equal(4, findings.Count);
+    }
+
+    // With no box to wire them to there is no button to give, and the critical already says to draw
+    // one: the drawing gains nothing from three silent rows.
+    [Fact]
+    public void WithNoTelemetryBoxAtAll_TheBlindnessIsStillTheOnlyFinding()
+    {
+        var graph = new GraphBuilder()
+            .Node("Api", NodeType.Api).Node("Svc", NodeType.Service).Node("Db", NodeType.Database)
+            .Connect("Api", "Svc").Connect("Svc", "Db")
+            .Build();
+
+        var finding = Assert.Single(_rule.Evaluate(graph).Findings);
+
+        Assert.Equal(Severity.Critical, finding.Severity);
+        Assert.Equal("finding.NO_OBSERVABILITY.blind.suggestion.absent", finding.Suggestion.Describe());
     }
 
     [Fact]

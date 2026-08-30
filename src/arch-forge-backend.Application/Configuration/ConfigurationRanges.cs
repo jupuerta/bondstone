@@ -11,6 +11,8 @@ public static class ConfigurationRanges
 
     public static readonly string[] Zones = ["a", "b", "c"];
 
+    private static readonly string[] Accesses = ["read", "write", "both"];
+
     public static string? Violation(object configuration) => configuration switch
     {
         ApiConfiguration c => AtLeastOne("instances", c.Instances)
@@ -20,16 +22,22 @@ public static class ConfigurationRanges
         WorkerConfiguration c => AtLeastOne("instances", c.Instances),
         DatabaseConfiguration c => AtLeastZero("replicas", c.Replicas)
                                    ?? AtLeastZero("readReplicas", c.ReadReplicas),
-        CacheConfiguration c => Ratio("hitRatio", c.HitRatio),
+        CacheConfiguration c => Ratio("hitRatio", c.HitRatio)
+                                ?? AtLeastOne("instances", c.Instances),
         CdnConfiguration c => Ratio("hitRatio", c.HitRatio),
         GatewayConfiguration c => AtLeastZero("requestsPerSecond", c.RequestsPerSecond)
-                                  ?? AtLeastOne("rateLimit", c.RateLimit),
-        LoadBalancerConfiguration c => AtLeastZero("requestsPerSecond", c.RequestsPerSecond),
+                                  ?? AtLeastOne("rateLimit", c.RateLimit)
+                                  ?? AtLeastOne("instances", c.Instances),
+        LoadBalancerConfiguration c => AtLeastZero("requestsPerSecond", c.RequestsPerSecond)
+                                       ?? AtLeastOne("instances", c.Instances),
         ClientConfiguration c => AtLeastZero("requestsPerSecond", c.RequestsPerSecond),
         SchedulerConfiguration c => AtLeastZero("jobsPerSecond", c.JobsPerSecond),
-        QueueConfiguration c => AtLeastZero("maxRetries", c.MaxRetries),
+        QueueConfiguration c => AtLeastZero("maxRetries", c.MaxRetries)
+                                ?? AtLeastOne("instances", c.Instances),
+        TopicConfiguration c => AtLeastOne("instances", c.Instances),
         ResilienceConfiguration c => Between("timeoutSeconds", c.TimeoutSeconds, 1, MaxTimeoutSeconds)
-                                     ?? AtLeastZero("retries", c.Retries),
+                                     ?? AtLeastZero("retries", c.Retries)
+                                     ?? OneOf("access", c.Access, Accesses),
         _ => null
     };
 
@@ -52,6 +60,13 @@ public static class ConfigurationRanges
 
         return null;
     }
+
+    // Anything else read as «not a declared write», so two challenges shipped «ReadWrite» — a value
+    // nobody parses — and taught the wrong lesson in silence (QA 30-08, §10.3 point 9).
+    private static string? OneOf(string field, string? value, string[] allowed) =>
+        value is not null && !allowed.Contains(value, StringComparer.OrdinalIgnoreCase)
+            ? $"{field} must be one of {string.Join(", ", allowed)}."
+            : null;
 
     private static string? AtLeastOne(string field, int? value) =>
         value is < 1 ? $"{field} must be 1 or greater." : null;

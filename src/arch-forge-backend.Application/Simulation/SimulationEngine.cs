@@ -297,7 +297,7 @@ public class SimulationEngine
         var degraded = states.Values.Count(s => s == HealthState.Degraded);
         var total = graph.Nodes.Count;
 
-        var affected = graph.EntryNodes.Count(n => states[n.Id] != HealthState.Healthy);
+        var affected = graph.UserEntryNodes.Count(n => states[n.Id] != HealthState.Healthy);
 
         var yield = RequestYield.Of(graph, load, new YieldInputs(
             states.Where(s => s.Value == HealthState.Down).Select(s => s.Key).ToHashSet(),
@@ -311,7 +311,7 @@ public class SimulationEngine
             ComponentsTotal: total,
             BlastRadius: total == 0 ? 0m : Math.Round((decimal)(down + degraded) / total, 4),
             EntryPointsAffected: affected,
-            EntryPointsTotal: graph.EntryNodes.Count,
+            EntryPointsTotal: graph.UserEntryNodes.Count,
             NominalLatencyMs: nominal.WorstFrom(graph.EntryNodes) ?? 0,
             FaultedLatencyMs: live.Count == 0 ? null : faulted.WorstFrom(live),
             RequestAmplification: faulted.WorstAmplificationFrom(live),

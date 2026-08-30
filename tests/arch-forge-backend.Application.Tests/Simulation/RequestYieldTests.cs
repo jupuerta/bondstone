@@ -161,6 +161,51 @@ public class RequestYieldTests
         Assert.Equal(0m, Impact(graph).Affected);
     }
 
+    // QA 30-08 §10.3, point 10. `Users → Api → Db` with a fallback and `Cron → Reports → Db` without
+    // one: with the database down the users were served whole, and the panel still said 100 % of
+    // requests lost and one entry point of two affected — the cron. What a clock sets off is work,
+    // and the manual has always said a flow born in a Scheduler is not user traffic.
+    [Fact]
+    public void What_a_clock_sets_off_is_not_what_the_client_notices()
+    {
+        var graph = new GraphBuilder()
+            .Node("Users", NodeType.Client, """{"requestsPerSecond":100}""")
+            .Node("Api", NodeType.Api)
+            .Node("Cron", NodeType.Scheduler, """{"jobsPerSecond":5}""")
+            .Node("Reports", NodeType.Worker)
+            .Node("Db", NodeType.Database)
+            .Connect("Users", "Api")
+            .Connect("Api", "Db", timeoutSeconds: 3, fallback: true)
+            .Connect("Cron", "Reports")
+            .Connect("Reports", "Db", timeoutSeconds: 3)
+            .Build();
+
+        Assert.Equal(["Users"], graph.UserEntryNodes.Select(n => n.Name));
+
+        var down = new YieldInputs(new HashSet<Guid> { graph.NodeId("Db") }, new HashSet<Guid>());
+
+        Assert.Equal(0m, RequestYield.Of(graph, LoadModel.Of(graph), down).Impact().Affected);
+    }
+
+    // QA 30-08 §10.3, point 11: the alternative answer arrives after the timeout expires, so one
+    // behind a 60 s timeout reaches nobody — the same threshold TIMEOUT_TOO_LONG calls a wait and
+    // not a limit, and the lesson `nobody-noticed` teaches.
+    [Theory]
+    [InlineData(5, 0)]
+    [InlineData(29, 0)]
+    [InlineData(30, 1)]
+    [InlineData(60, 1)]
+    public void A_fallback_that_arrives_too_late_serves_nobody(int timeoutSeconds, decimal affected)
+    {
+        var graph = Loaded(100, builder => builder
+            .Node("Orders", NodeType.Service)
+            .Connect("Api", "Orders", timeoutSeconds: timeoutSeconds, fallback: true));
+
+        var down = new YieldInputs(new HashSet<Guid> { graph.NodeId("Orders") }, new HashSet<Guid>());
+
+        Assert.Equal(affected, RequestYield.Of(graph, LoadModel.Of(graph), down).Impact().Affected);
+    }
+
     private static (decimal Affected, FindingElement? Bottleneck) Impact(ArchitectureGraph graph) =>
         RequestYield.Of(graph, LoadModel.Of(graph), YieldInputs.CapacityOnly).Impact();
 

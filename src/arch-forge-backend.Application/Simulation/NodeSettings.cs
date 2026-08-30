@@ -36,6 +36,15 @@ public static class NodeSettings
         NodeType.Service => Positive(Read<ServiceConfiguration>(node)?.Instances),
         NodeType.Worker => Positive(Read<WorkerConfiguration>(node)?.Instances),
 
+        // QA 30-08 §11.4. The five that were a single box because the schema had no number, not
+        // because one copy is what anybody runs. A store is not among them: its copies are declared
+        // as replication, which buys no capacity (`HasDeclaredReplication`).
+        NodeType.Gateway => Positive(Read<GatewayConfiguration>(node)?.Instances),
+        NodeType.LoadBalancer => Positive(Read<LoadBalancerConfiguration>(node)?.Instances),
+        NodeType.Cache => Positive(Read<CacheConfiguration>(node)?.Instances),
+        NodeType.Queue => Positive(Read<QueueConfiguration>(node)?.Instances),
+        NodeType.Topic => Positive(Read<TopicConfiguration>(node)?.Instances),
+
         NodeType.Database => Read<DatabaseConfiguration>(node) is { } db
             ? 1 + Math.Max(0, db.Replicas ?? 0) + Math.Max(0, db.ReadReplicas ?? 0)
             : 1,
@@ -75,14 +84,28 @@ public static class NodeSettings
         return limit is > 0 ? Math.Min(load, limit.Value) : load;
     }
 
-    public static bool HasDeclaredReplication(Node node) =>
-        node.Type == NodeType.Database && Read<DatabaseConfiguration>(node)?.Replicas is >= 1;
+    public static bool HasDeclaredReplication(Node node) => node.Type switch
+    {
+        NodeType.Database => Read<DatabaseConfiguration>(node)?.Replicas is >= 1,
+
+        // A bucket keeps every object in more than one place or it does not; there is no number to
+        // read. Same exit as a database's replicas: it clears the single point of failure and adds
+        // no capacity (QA 30-08 §11.4).
+        NodeType.ObjectStorage => Read<ObjectStorageConfiguration>(node)?.Replicated == true,
+        _ => false
+    };
 
     public static bool HasDeclaredInstances(Node node) => node.Type switch
     {
         NodeType.Api => Read<ApiConfiguration>(node)?.Instances is >= RedundantInstances,
         NodeType.Service => Read<ServiceConfiguration>(node)?.Instances is >= RedundantInstances,
         NodeType.Worker => Read<WorkerConfiguration>(node)?.Instances is >= RedundantInstances,
+
+        NodeType.Gateway => Read<GatewayConfiguration>(node)?.Instances is >= RedundantInstances,
+        NodeType.LoadBalancer => Read<LoadBalancerConfiguration>(node)?.Instances is >= RedundantInstances,
+        NodeType.Cache => Read<CacheConfiguration>(node)?.Instances is >= RedundantInstances,
+        NodeType.Queue => Read<QueueConfiguration>(node)?.Instances is >= RedundantInstances,
+        NodeType.Topic => Read<TopicConfiguration>(node)?.Instances is >= RedundantInstances,
         _ => false
     };
 

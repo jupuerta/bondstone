@@ -10,8 +10,8 @@
   "connections": [
     { "from": "Storefront", "to": "Orders", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
     { "from": "Storefront", "to": "Invoicing", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
-    { "from": "Orders", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 3, "access": "ReadWrite" } },
-    { "from": "Invoicing", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 3, "access": "ReadWrite" } },
+    { "from": "Orders", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 3, "access": "both" } },
+    { "from": "Invoicing", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 3, "access": "both" } },
     { "from": "Storefront", "to": "Telemetry", "synchronous": false, "configuration": {} },
     { "from": "Orders", "to": "Telemetry", "synchronous": false, "configuration": {} },
     { "from": "Invoicing", "to": "Telemetry", "synchronous": false, "configuration": {} },

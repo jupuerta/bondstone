@@ -68,13 +68,16 @@ public static class NodeRoles
         IsObservable(type) && type is not NodeType.Scheduler;
 
     // Three different sets (zonas V20, Anexo B). IsYoursToSize excludes Observability,
-    // IdentityProvider and Scheduler, and you pay for and place all three; the Cdn is the row that
-    // keeps pay and place apart: its bill reaches you, but being everywhere is its definition.
+    // IdentityProvider and Scheduler, and you pay for all three; the Cdn and the identity provider
+    // are the rows that keep pay and place apart: their bill reaches you, but a CDN's definition is
+    // being everywhere, and an identity SaaS is not in your aisle of the data centre — which is what
+    // the manual has always said and what SPOF.suggestion.identityProvider assumes when it says you
+    // cannot replicate it (QA 30-08, §10.3 point 14).
     public static bool IsYoursToPayFor(NodeType type) =>
         type is not (NodeType.ExternalService or NodeType.Client);
 
     public static bool IsYoursToPlace(NodeType type) =>
-        IsYoursToPayFor(type) && !IsProviderEdge(type);
+        IsYoursToPayFor(type) && !IsProviderEdge(type) && type is not NodeType.IdentityProvider;
 
     public static bool IsProviderEdge(NodeType type) => type is NodeType.Cdn;
 

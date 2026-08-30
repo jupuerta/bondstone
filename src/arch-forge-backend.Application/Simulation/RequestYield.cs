@@ -27,7 +27,7 @@ public sealed class RequestYield
         _load = load;
         _inputs = inputs;
 
-        foreach (var root in graph.EntryNodes.OrderBy(n => n.Id))
+        foreach (var root in graph.UserEntryNodes.OrderBy(n => n.Id))
             Visit(root.Id);
 
         foreach (var node in graph.Nodes.OrderBy(n => n.Id))
@@ -43,7 +43,9 @@ public sealed class RequestYield
     {
         var worst = Served.Whole;
 
-        foreach (var root in _graph.EntryNodes.OrderBy(n => n.Id))
+        // Only what somebody is waiting for: what a clock or a worker sets off is work affected, and
+        // it is not this number (QA 30-08, §10.3 point 10).
+        foreach (var root in _graph.UserEntryNodes.OrderBy(n => n.Id))
         {
             var served = _nodes.GetValueOrDefault(root.Id, Served.Whole);
             if (served.Fraction < worst.Fraction)
@@ -109,8 +111,13 @@ public sealed class RequestYield
 
         // A fallback serves the request only when there is something to answer with — not a router's
         // and not a declared write's: a payment that is not made cannot be approximated (§3.5, §7.4).
-        if (resilience.TimeoutSeconds is not null && _graph.BelievesFallback(edge))
-            return Served.Whole;
+        // And only when it arrives in time: the alternative answer comes after the timeout expires, so
+        // one behind a 60 s timeout reaches nobody — the same threshold the rule calls a wait and not
+        // a limit, and the lesson `nobody-noticed` teaches (QA 30-08, §10.3 point 11).
+        if (resilience.TimeoutSeconds is { } timeout && _graph.BelievesFallback(edge))
+            return LatencyModel.TimeoutMs(timeout) < LatencyModel.UnboundedWait
+                ? Served.Whole
+                : new Served(0m, FindingElement.Connection(edge.Id));
 
         if (_inputs.Down.Contains(edge.TargetNodeId) || _inputs.ExpiredEdges.Contains(edge.Id))
             return new Served(0m, FindingElement.Node(edge.TargetNodeId));

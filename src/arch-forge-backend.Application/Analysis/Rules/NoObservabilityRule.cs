@@ -39,8 +39,19 @@ public class NoObservabilityRule : IArchitectureRule
         // One fact, charged once (QA 30-08, §4.2): a system with no wire at all is blind, and that is
         // the finding. The per-component warnings take over the moment the first wire goes in, so the
         // area still climbs with every wire — without the same fact counted N+1 times before that.
+        //
+        // The blind critical carries no button, though, and it is the commonest state of the rule, so
+        // 7.3.5 left the drawing with no wires as the only one without an automatic fix (§10.2 point
+        // 3). Each box gets its button back as `Info`, which is what V21 made the level for: it does
+        // not subtract, so the fact is still charged once. Only when there is a box to wire them to —
+        // with none, or with several, there is no button to give and the critical already says so.
         if (blind)
-            return RuleResult.Applicable([Blind(unobserved, telemetry, theOnlyTelemetry)]);
+            return RuleResult.Applicable([
+                Blind(unobserved, telemetry, theOnlyTelemetry),
+                .. theOnlyTelemetry is null
+                    ? Array.Empty<RuleFinding>()
+                    : unobserved.Select(node => Report(node, telemetry.Count, theOnlyTelemetry, Severity.Info))
+            ]);
 
         return RuleResult.Applicable(unobserved.Select(node => Report(node, telemetry.Count, theOnlyTelemetry)).ToList());
     }
@@ -68,7 +79,7 @@ public class NoObservabilityRule : IArchitectureRule
             .Concat(graph.OutgoingBySource[node.Id].Select(c => c.TargetNodeId))
             .Any(otherId => graph.NodesById.TryGetValue(otherId, out var other) && NodeRoles.IsTelemetry(other.Type));
 
-    private RuleFinding Report(Node node, int telemetryCount, Node? theOnlyTelemetry)
+    private RuleFinding Report(Node node, int telemetryCount, Node? theOnlyTelemetry, Severity? severity = null)
     {
         var suggestion = theOnlyTelemetry is not null
             ? LocalizedText.Of("finding.NO_OBSERVABILITY.unobserved.suggestion.present",
@@ -82,7 +93,7 @@ public class NoObservabilityRule : IArchitectureRule
         return new RuleFinding(
             Code,
             Area,
-            Severity.Warning,
+            severity ?? Severity.Warning,
             LocalizedText.Of("finding.NO_OBSERVABILITY.unobserved.message", ("node", node.Name)),
             LocalizedText.Of("finding.NO_OBSERVABILITY.unobserved.explanation", ("node", node.Name)),
             suggestion,

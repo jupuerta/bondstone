@@ -48,8 +48,14 @@ public class TimeoutTooShortRule : IArchitectureRule
             var source = graph.NodesById[edge.SourceNodeId].Name;
             var target = graph.NodesById[edge.TargetNodeId].Name;
 
-            var suggested = Math.Max(1, (int)Math.Ceiling(callMs * 2 / 1000m));
-
+            // No button, and the sentence starts with capacity (QA 30-08, §10.3 point 12). What makes
+            // a call take longer than its own timeout is the queue in front of the destination, so
+            // raising the number buys a slower answer — which is exactly what `timeout-was-enough`
+            // teaches not to do: its hints say a breaker makes it fail sooner but does not make it
+            // fit. Measured over the whole model, the calm-destination case does not exist: if the
+            // queue is big enough to pass the timeout, whoever causes it is at its limit, and when
+            // that is a box further down it is critical and `WaitsOnAnOverloadedComponent` has
+            // already stood the rule down. There is nothing left for a button to do here.
             findings.Add(new RuleFinding(
                 Code,
                 Area,
@@ -61,15 +67,10 @@ public class TimeoutTooShortRule : IArchitectureRule
                     ("target", target),
                     ("callMs", callMs),
                     ("timeoutMs", timeoutMs)),
-                LocalizedText.Of("finding.TIMEOUT_TOO_SHORT.expires.suggestion", ("callMs", callMs)),
-                [FindingElement.Connection(edge.Id)])
-            {
-                Fix = new AppliedFix(
-                    FixKinds.SetEdgeResilience,
-                    FindingElement.Connection(edge.Id),
-                    LocalizedText.Of("fix.TIMEOUT_TOO_SHORT.raise", ("seconds", suggested)),
-                    TimeoutSeconds: suggested)
-            });
+                LocalizedText.Of("finding.TIMEOUT_TOO_SHORT.expires.suggestion",
+                    ("callMs", callMs),
+                    ("target", target)),
+                [FindingElement.Connection(edge.Id)]));
         }
 
         return RuleResult.Applicable(findings);

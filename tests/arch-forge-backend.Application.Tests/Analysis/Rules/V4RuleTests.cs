@@ -118,12 +118,18 @@ public class TimeoutTooShortRuleTests
         Assert.Equal("finding.TIMEOUT_TOO_SHORT.expires.message", finding.Message.Key());
     }
 
+    // QA 30-08 §10.3, point 12. What makes the call slower than its own timeout is the queue at the
+    // destination, so raising the number buys a slower answer — which is what `timeout-was-enough`
+    // teaches not to do. With the destination full the sentence starts with capacity and there is no
+    // button; with the destination calm and a slow chain behind it, raising it is the right move.
     [Fact]
-    public void It_needs_CallCost_which_is_why_V2_could_not_have_it()
+    public void It_asks_for_capacity_and_no_longer_offers_to_raise_the_number()
     {
         var finding = Assert.Single(new TimeoutTooShortRule().Evaluate(ApiAndDb(1_200)).Findings);
 
         Assert.Equal("finding.TIMEOUT_TOO_SHORT.expires.suggestion", finding.Suggestion.Key());
+        Assert.Equal("Db", finding.Suggestion.Arg("target"));
+        Assert.Null(finding.Fix);
     }
 
     private static ArchitectureGraph ApiAndDb(int rps) => new GraphBuilder()

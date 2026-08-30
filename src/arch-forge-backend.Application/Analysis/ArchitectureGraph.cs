@@ -55,6 +55,14 @@ public class ArchitectureGraph
             .ToList();
 
         _entryNodeIds = EntryNodes.Select(n => n.Id).ToHashSet();
+
+        // What a person is waiting for. A flow born in a clock is work, not traffic: counting the
+        // cron as a point of entry made «the users notice nothing» read as 1 of 2 affected and 100 %
+        // of requests lost while the users were served whole (QA 30-08, §10.3 point 10). The manual
+        // has said it all along: a flow that starts at a Scheduler is not user traffic.
+        UserEntryNodes = EntryNodes
+            .Where(n => Rules.NodeRoles.ReceivesFromOutside(n.Type) || Rules.NodeRoles.IsTrafficOrigin(n.Type))
+            .ToList();
     }
 
     private readonly HashSet<Guid> _entryNodeIds;
@@ -81,6 +89,8 @@ public class ArchitectureGraph
     public IReadOnlyList<Node> RootNodes { get; }
 
     public IReadOnlyList<Node> EntryNodes { get; }
+
+    public IReadOnlyList<Node> UserEntryNodes { get; }
 
     // What the model believes of a call, as opposed to what the drawing declares. A gateway or a
     // load balancer has nothing to answer with, so a fallback ticked on its call does not exist for

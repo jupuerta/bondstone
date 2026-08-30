@@ -284,4 +284,29 @@ public class SimulationEngineTests
             result.States.Select(s => s.PropagationStep).OrderBy(step => step),
             result.States.Select(s => s.PropagationStep));
     }
+    // QA 30-08 §10.3, point 13, decided that day: «degrade it» used to walk straight up through a
+    // call carrying timeout, breaker and fallback, with mechanism «none» — the workshop card promised
+    // the fallback «cuts the failure backwards» and nothing did. A slow dependency is the failure a
+    // fallback does not stop: you keep calling, keep waiting and answer with whatever arrives. The
+    // breaker does stop it, because it trips and stops calling.
+    [Theory]
+    [InlineData(true, "circuitBreaker")]
+    [InlineData(false, null)]
+    public void A_breaker_is_what_contains_a_degraded_dependency(bool breaker, string? mechanism)
+    {
+        var graph = new GraphBuilder()
+            .Node("Storefront", NodeType.Api, """{"requestsPerSecond":100,"authentication":true}""")
+            .Node("Orders", NodeType.Service)
+            .Connect("Storefront", "Orders", timeoutSeconds: 3, circuitBreaker: breaker, fallback: true)
+            .Build();
+
+        var result = new SimulationEngine().Run(graph, new SimulationScenario(
+            [new Fault(ElementType.Node, graph.NodeId("Orders"), FaultKinds.Degraded)]));
+
+        var storefront = result.States.Single(e => e.Id == graph.NodeId("Storefront"));
+
+        Assert.Equal(HealthState.Degraded, storefront.State);
+        Assert.Equal(mechanism, storefront.Mechanism);
+    }
+
 }

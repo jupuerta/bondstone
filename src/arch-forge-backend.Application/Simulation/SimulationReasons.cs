@@ -35,6 +35,9 @@ public static class SimulationReasons
         EffectReason.DegradedDependency =>
             LocalizedText.Of("sim.node.degradedDependency", ("target", context.Target)),
 
+        EffectReason.BreakerOpen =>
+            LocalizedText.Of("sim.node.breakerOpen", ("target", context.Target)),
+
         EffectReason.InstanceDown => LocalizedText.Of(context.Contained
             ? "sim.node.instanceDown.contained"
             : "sim.node.instanceDown.spreading"),
@@ -77,6 +80,7 @@ public static class SimulationReasons
         EffectReason.QueueDown => LocalizedText.Of("sim.edge.queueDown"),
 
         EffectReason.DegradedDependency => LocalizedText.Of("sim.edge.degradedDependency", ("target", context.Target)),
+        EffectReason.BreakerOpen => LocalizedText.Of("sim.edge.breakerOpen", ("target", context.Target)),
 
         EffectReason.InstanceDown => LocalizedText.Of("sim.edge.instanceDown"),
 
