@@ -30,6 +30,16 @@
       "kind": "maxCost",
       "labelKey": "challenge.latency-budget.requirement.4",
       "max": 30
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.latency-budget.requirement.5",
+      "code": "ASYNC_NO_QUEUE"
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.latency-budget.requirement.6",
+      "code": "TRAFFIC_REJECTED"
     }
   ],
   "optionalGoals": [

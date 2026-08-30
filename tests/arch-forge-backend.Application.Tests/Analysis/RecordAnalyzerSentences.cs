@@ -88,6 +88,30 @@ public class RecordAnalyzerSentences
             .Node("Cron", NodeType.Scheduler).Node("Cache", NodeType.Cache).Node("Store", NodeType.ObjectStorage)
             .Connect("Db", "Users").Connect("Edge", "Cache").Connect("Cron", "Store").Connect("Store", "Users"));
 
+        yield return ("impossibleAsync", new GraphBuilder()
+            .Node("Users", NodeType.Client).Node("Gw", NodeType.Gateway).Node("Api", NodeType.Api)
+            .Node("IdP", NodeType.IdentityProvider).Node("Cache", NodeType.Cache).Node("Db", NodeType.Database)
+            .Node("Svc", NodeType.Service)
+            .Connect("Users", "Gw", synchronous: false).Connect("Gw", "Api", synchronous: false)
+            .Connect("Api", "IdP", synchronous: false).Connect("Api", "Cache", timeoutSeconds: 2)
+            .Connect("Cache", "Db", synchronous: false).Connect("Gw", "Svc", timeoutSeconds: 3)
+            .Connect("Svc", "Db", synchronous: false, access: "read"));
+
+        yield return ("routerShapes", new GraphBuilder()
+            .Node("Users", NodeType.Client).Node("Gw", NodeType.Gateway).Node("Api", NodeType.Api).Node("Db", NodeType.Database)
+            .Connect("Users", "Gw").Connect("Gw", "Api", timeoutSeconds: 3, fallback: true)
+            .Connect("Gw", "Db", timeoutSeconds: 3).Connect("Api", "Db", timeoutSeconds: 3));
+
+        yield return ("writesOverflow", new GraphBuilder()
+            .Node("Api", NodeType.Api, "{\"requestsPerSecond\":500,\"instances\":4,\"authentication\":true}")
+            .Node("Db", NodeType.Database, "{\"readReplicas\":3}")
+            .Connect("Api", "Db", timeoutSeconds: 3, access: "write"));
+
+        yield return ("writesAtCapacity", new GraphBuilder()
+            .Node("Api", NodeType.Api, "{\"requestsPerSecond\":180,\"instances\":2,\"authentication\":true}")
+            .Node("Db", NodeType.Database, "{\"readReplicas\":2}")
+            .Connect("Api", "Db", timeoutSeconds: 3, access: "write"));
+
         yield return ("spofShapes", new GraphBuilder()
             .Node("Gw", NodeType.Gateway).Nodes(NodeType.Service, "A", "B", "C").Node("Db", NodeType.Database)
             .Node("Cache", NodeType.Cache).Node("Store", NodeType.ObjectStorage).Node("Cola", NodeType.Queue)

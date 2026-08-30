@@ -37,6 +37,11 @@
       "kind": "maxCost",
       "labelKey": "challenge.million-a-day.requirement.6",
       "max": 42
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.million-a-day.requirement.7",
+      "code": "TRAFFIC_REJECTED"
     }
   ],
   "optionalGoals": [

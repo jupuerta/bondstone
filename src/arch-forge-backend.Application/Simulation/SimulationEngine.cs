@@ -1,4 +1,5 @@
 using arch_forge_backend.Application.Analysis;
+using arch_forge_backend.Application.Analysis.Rules;
 using arch_forge_backend.Domain.Entities;
 using arch_forge_backend.Domain.Enums;
 
@@ -40,7 +41,7 @@ public class SimulationEngine
     }
 
     private static IReadOnlyList<Node> LiveRoots(ArchitectureGraph graph, InjectedFaults faults) =>
-        graph.RootNodes.Where(n => !faults.IsDown(n.Id)).ToList();
+        graph.EntryNodes.Where(n => !faults.IsDown(n.Id)).ToList();
 
 
     private static void RunPhaseA(
@@ -112,7 +113,7 @@ public class SimulationEngine
 
         return EdgeEffect.Of(
             edge.Synchronous,
-            graph.ResilienceOf(edge),
+            graph.EffectiveResilienceOf(edge),
             severed ? HealthState.Down : target.State,
             !severed && target.Contains,
             probe.Of(edge).Expires);
@@ -123,7 +124,13 @@ public class SimulationEngine
         Node node,
         IReadOnlyDictionary<Guid, EdgeOutcome> outcomes)
     {
-        var outgoing = graph.OutgoingBySource[node.Id].OrderBy(c => c.TargetNodeId).ThenBy(c => c.Id).ToList();
+        // A push to observability carries no request: the collector going down is not the pusher
+        // serving worse. The rules already skip telemetry edges; the propagation did not (QA 30-08,
+        // §4.1), so losing the telemetry read as every entry point affected.
+        var outgoing = graph.OutgoingBySource[node.Id]
+            .Where(c => !NodeRoles.IsTelemetryEdge(graph, c))
+            .OrderBy(c => c.TargetNodeId).ThenBy(c => c.Id)
+            .ToList();
 
         if (node.Type != NodeType.LoadBalancer)
             return outgoing.Select(edge => (outcomes[edge.Id], edge));
@@ -179,10 +186,13 @@ public class SimulationEngine
         }
     }
 
+    // Seeded from where requests enter, not from the roots by the letter: a door the telemetry
+    // consults is nobody's root, and with the collector down every box behind it came out stranded.
+    // A loose box has no edges, so nothing walks into it: leaving it out of the seeds costs nothing.
     private static HashSet<Guid> Reachable(ArchitectureGraph graph, InjectedFaults faults)
     {
         var reachable = new HashSet<Guid>();
-        var pending = new Queue<Guid>(graph.RootNodes.OrderBy(n => n.Id).Select(n => n.Id));
+        var pending = new Queue<Guid>(graph.EntryNodes.OrderBy(n => n.Id).Select(n => n.Id));
 
         while (pending.TryDequeue(out var nodeId))
         {
@@ -256,6 +266,8 @@ public class SimulationEngine
             if (utilization < CapacityModel.SaturationWarning)
                 continue;
 
+            var (loadRps, capacityRps) = load.BindingOf(node.Id);
+
             elements.Raise(
                 FindingElement.Node(node.Id),
                 HealthState.Degraded,
@@ -265,8 +277,8 @@ public class SimulationEngine
                 utilization > 1m ? EffectReason.Overloaded : EffectReason.Saturated,
                 null,
                 new ReasonContext(
-                    LoadRps: load.LoadOf(node.Id),
-                    CapacityRps: load.CapacityOf(node.Id),
+                    LoadRps: loadRps,
+                    CapacityRps: capacityRps,
                     Utilization: utilization));
         }
     }
@@ -285,7 +297,7 @@ public class SimulationEngine
         var degraded = states.Values.Count(s => s == HealthState.Degraded);
         var total = graph.Nodes.Count;
 
-        var affected = graph.RootNodes.Count(n => states[n.Id] != HealthState.Healthy);
+        var affected = graph.EntryNodes.Count(n => states[n.Id] != HealthState.Healthy);
 
         var yield = RequestYield.Of(graph, load, new YieldInputs(
             states.Where(s => s.Value == HealthState.Down).Select(s => s.Key).ToHashSet(),
@@ -299,8 +311,8 @@ public class SimulationEngine
             ComponentsTotal: total,
             BlastRadius: total == 0 ? 0m : Math.Round((decimal)(down + degraded) / total, 4),
             EntryPointsAffected: affected,
-            EntryPointsTotal: graph.RootNodes.Count,
-            NominalLatencyMs: nominal.WorstFrom(graph.RootNodes) ?? 0,
+            EntryPointsTotal: graph.EntryNodes.Count,
+            NominalLatencyMs: nominal.WorstFrom(graph.EntryNodes) ?? 0,
             FaultedLatencyMs: live.Count == 0 ? null : faulted.WorstFrom(live),
             RequestAmplification: faulted.WorstAmplificationFrom(live),
             RequestsAffected: requestsAffected,

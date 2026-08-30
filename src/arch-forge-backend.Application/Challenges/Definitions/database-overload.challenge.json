@@ -27,6 +27,16 @@
       "kind": "maxCost",
       "labelKey": "challenge.database-overload.requirement.4",
       "max": 18
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.database-overload.requirement.5",
+      "code": "TRAFFIC_REJECTED"
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.database-overload.requirement.6",
+      "code": "IMPLAUSIBLE_DEPENDENCY"
     }
   ],
   "optionalGoals": [

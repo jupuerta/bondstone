@@ -30,6 +30,17 @@
       "metric": "entryPointsAffected",
       "operator": "eq",
       "value": 0
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.third-party-outage.requirement.5",
+      "code": "ASYNC_NO_QUEUE"
+    },
+    {
+      "kind": "pathExists",
+      "labelKey": "challenge.third-party-outage.requirement.6",
+      "fromType": "Service",
+      "toType": "ExternalService"
     }
   ],
   "optionalGoals": [

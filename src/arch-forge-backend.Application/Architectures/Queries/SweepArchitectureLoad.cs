@@ -66,7 +66,7 @@ public class SweepArchitectureLoadQueryHandler
         return new LoadCurvePoint(
             scale,
             Math.Round(load.EnteringRps, 2),
-            cost.WorstFrom(graph.RootNodes) ?? 0,
+            cost.WorstFrom(graph.EntryNodes) ?? 0,
             Math.Round(load.BacklogRps, 2),
             load.LoadAmplification,
             Components(graph, load));

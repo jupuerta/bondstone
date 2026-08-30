@@ -13,8 +13,12 @@ public static class RuleThresholds
     public const int CacheMinConsumers = 2;
 
     public const int SharedDatabaseMinServices = 2;
-    public const decimal RejectedTrafficWarning = 0.5m;
-    public const decimal RejectedTrafficCritical = 0.9m;
+    // QA 30-08 §3.4. A limit at half the declared traffic halves the load of everything behind it,
+    // switches UNDERSIZED_COMPONENT and NO_RATE_LIMIT off, and at 0.5 this rule said nothing: six
+    // load challenges were passed by shedding 48 % of the customers. Shedding one in five is already
+    // a design statement; shedding half of them is the drawing hiding its capacity problem.
+    public const decimal RejectedTrafficWarning = 0.2m;
+    public const decimal RejectedTrafficCritical = 0.5m;
 
     public const int CdnWorthTraffic = 1000;
 

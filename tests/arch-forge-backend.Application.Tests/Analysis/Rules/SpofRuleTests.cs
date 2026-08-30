@@ -537,10 +537,12 @@ public class SpofRuleTests
     }
 
     [Fact]
+    // The caller that covers Svc is an Api and not a gateway since 30-08 (QA 7.4): a router has
+    // nothing to answer with, so a fallback on what it forwards no longer contains anything.
     public void AnIdentityProviderBehindACoveredCaller_IsAWarningThatSaysSo()
     {
         _builder
-            .Node("Web", NodeType.Client).Node("Gw", NodeType.Gateway)
+            .Node("Web", NodeType.Client).Node("Gw", NodeType.Api, """{"authentication":true}""")
             .Node("Svc", NodeType.Service).Node("Auth0", NodeType.IdentityProvider)
             .Connect("Web", "Gw")
             .Connect("Gw", "Svc", timeoutSeconds: 5, fallback: true)

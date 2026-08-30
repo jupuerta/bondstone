@@ -25,6 +25,12 @@
       "metric": "entryPointsAffected",
       "operator": "eq",
       "value": 0
+    },
+    {
+      "kind": "containsNode",
+      "labelKey": "challenge.single-point-of-failure.requirement.4",
+      "nodeType": "Api",
+      "min": 2
     }
   ],
   "optionalGoals": [

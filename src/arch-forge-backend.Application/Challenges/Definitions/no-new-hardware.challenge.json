@@ -27,6 +27,11 @@
       "kind": "maxCost",
       "labelKey": "challenge.no-new-hardware.requirement.4",
       "max": 18
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.no-new-hardware.requirement.5",
+      "code": "TRAFFIC_REJECTED"
     }
   ],
   "optionalGoals": [

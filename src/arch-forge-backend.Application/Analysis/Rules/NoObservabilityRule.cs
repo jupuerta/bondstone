@@ -36,14 +36,13 @@ public class NoObservabilityRule : IArchitectureRule
 
         var blind = unobserved.Count == observable.Count && observable.Count >= RuleThresholds.SyncChainWarning;
 
-        var findings = new List<RuleFinding>();
-
+        // One fact, charged once (QA 30-08, §4.2): a system with no wire at all is blind, and that is
+        // the finding. The per-component warnings take over the moment the first wire goes in, so the
+        // area still climbs with every wire — without the same fact counted N+1 times before that.
         if (blind)
-            findings.Add(Blind(unobserved, telemetry, theOnlyTelemetry));
+            return RuleResult.Applicable([Blind(unobserved, telemetry, theOnlyTelemetry)]);
 
-        findings.AddRange(unobserved.Select(node => Report(node, telemetry.Count, theOnlyTelemetry)));
-
-        return RuleResult.Applicable(findings);
+        return RuleResult.Applicable(unobserved.Select(node => Report(node, telemetry.Count, theOnlyTelemetry)).ToList());
     }
 
     private RuleFinding Blind(IReadOnlyList<Node> unobserved, IReadOnlyList<Node> telemetry, Node? theOnlyTelemetry)

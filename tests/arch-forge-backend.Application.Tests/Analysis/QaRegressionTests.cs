@@ -241,7 +241,7 @@ public class QaRegressionTests
 
         var finding = Assert.Single(new UnauthenticatedEntryRule().Evaluate(_builder.Build()).Findings);
 
-        Assert.Equal(Severity.Warning, finding.Severity);
+        Assert.Equal(Severity.Critical, finding.Severity);
         Assert.Equal("finding.UNAUTHENTICATED_ENTRY.undeclared.message", finding.Message.Key());
         Assert.Equal("Api", finding.Message.Arg("node"));
     }

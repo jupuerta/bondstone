@@ -41,6 +41,16 @@
       "kind": "maxInstances",
       "labelKey": "challenge.timeout-was-enough.requirement.6",
       "max": 4
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.timeout-was-enough.requirement.7",
+      "code": "ASYNC_NO_QUEUE"
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.timeout-was-enough.requirement.8",
+      "code": "TRAFFIC_REJECTED"
     }
   ],
   "optionalGoals": [

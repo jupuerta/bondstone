@@ -134,6 +134,8 @@ public sealed class ChallengeCatalog
                     "needs the names of the two ends of the call");
                 Require(requirement.Synchronous is not null || requirement.Mechanism is not null,
                     "asks nothing of the call: it needs a synchronous or a mechanism");
+                Require(requirement.Synchronous != false || requirement.Mechanism is null,
+                    "asks a mechanism of a call it asks not to wait for; a call that does not wait has nothing to declare");
                 Require(requirement.Mechanism is null || RequirementMechanisms.IsKnown(requirement.Mechanism),
                     "needs a known mechanism");
                 break;
@@ -142,6 +144,11 @@ public sealed class ChallengeCatalog
                 Require(requirement.NodeType is not null, "needs a nodeType");
                 Require(requirement.Mechanism is not null && RequirementMechanisms.IsKnown(requirement.Mechanism),
                     "needs a known mechanism");
+                break;
+
+            case RequirementKinds.SpansZones:
+                Require(requirement.NodeType is not null, "needs a nodeType");
+                Require(requirement.Min is null or >= 1, "needs a min of 1 or more");
                 break;
 
             case RequirementKinds.PathExists:

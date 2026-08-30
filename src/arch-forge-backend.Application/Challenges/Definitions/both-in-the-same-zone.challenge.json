@@ -34,6 +34,12 @@
       "metric": "componentsDown",
       "operator": "gte",
       "value": 1
+    },
+    {
+      "kind": "spansZones",
+      "labelKey": "challenge.both-in-the-same-zone.requirement.5",
+      "nodeType": "Api",
+      "min": 2
     }
   ],
   "optionalGoals": [

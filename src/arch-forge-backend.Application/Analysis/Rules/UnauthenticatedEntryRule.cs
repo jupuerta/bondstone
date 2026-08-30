@@ -58,13 +58,15 @@ public class UnauthenticatedEntryRule : IArchitectureRule
             if (authentication == true || delegation is not null)
                 continue;
 
-            var declared = authentication is not null;
-            var variant = declared ? "open" : "undeclared";
+            // Declaring the door open used to cost a critical and saying nothing a warning, so the
+            // honest drawing scored worse than the silent one (QA 30-08, §4.3). A door nobody has
+            // vouched for is open until proven otherwise: same weight, different sentence.
+            var variant = authentication is not null ? "open" : "undeclared";
 
             findings.Add(new RuleFinding(
                 Code,
                 Area,
-                declared ? Severity.Critical : Severity.Warning,
+                Severity.Critical,
                 LocalizedText.Of($"finding.UNAUTHENTICATED_ENTRY.{variant}.message", ("node", node.Name)),
 
                 LocalizedText.Of($"finding.UNAUTHENTICATED_ENTRY.{variant}.explanation"),

@@ -31,6 +31,17 @@
       "kind": "noFinding",
       "labelKey": "challenge.payments-friday.requirement.3",
       "code": "MISSING_RESILIENCE"
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.payments-friday.requirement.4",
+      "code": "ASYNC_NO_QUEUE"
+    },
+    {
+      "kind": "pathExists",
+      "labelKey": "challenge.payments-friday.requirement.5",
+      "fromType": "Service",
+      "toType": "Service"
     }
   ],
   "optionalGoals": [

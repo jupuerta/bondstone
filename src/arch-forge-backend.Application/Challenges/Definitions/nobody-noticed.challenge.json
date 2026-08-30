@@ -43,6 +43,20 @@
       "metric": "requestsAffected",
       "operator": "eq",
       "value": 0
+    },
+    {
+      "kind": "edge",
+      "labelKey": "challenge.nobody-noticed.requirement.6",
+      "from": "Catalog",
+      "to": "Products",
+      "synchronous": true
+    },
+    {
+      "kind": "edge",
+      "labelKey": "challenge.nobody-noticed.requirement.7",
+      "from": "Reviews",
+      "to": "Products",
+      "synchronous": true
     }
   ],
   "optionalGoals": [

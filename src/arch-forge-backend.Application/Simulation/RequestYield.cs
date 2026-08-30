@@ -27,7 +27,7 @@ public sealed class RequestYield
         _load = load;
         _inputs = inputs;
 
-        foreach (var root in graph.RootNodes.OrderBy(n => n.Id))
+        foreach (var root in graph.EntryNodes.OrderBy(n => n.Id))
             Visit(root.Id);
 
         foreach (var node in graph.Nodes.OrderBy(n => n.Id))
@@ -43,7 +43,7 @@ public sealed class RequestYield
     {
         var worst = Served.Whole;
 
-        foreach (var root in _graph.RootNodes.OrderBy(n => n.Id))
+        foreach (var root in _graph.EntryNodes.OrderBy(n => n.Id))
         {
             var served = _nodes.GetValueOrDefault(root.Id, Served.Whole);
             if (served.Fraction < worst.Fraction)
@@ -77,25 +77,28 @@ public sealed class RequestYield
         return worst;
     }
 
+    // Utilization and not load over capacity: for a store the binding side may be the writes, which
+    // the read replicas do not absorb (QA 30-08, 7.4), and the load model is the one that knows.
     private Served Capacity(Node node)
     {
-        var load = _load.LoadOf(node.Id);
-        var capacity = _load.CapacityOf(node.Id);
+        var utilization = _load.UtilizationOf(node.Id);
 
-        if (load <= 0m || capacity <= 0m || load <= capacity)
+        if (utilization <= 1m)
             return Served.Whole;
 
-        return new Served(capacity / load, FindingElement.Node(node.Id));
+        return new Served(1m / utilization, FindingElement.Node(node.Id));
     }
 
     private Served Through(Connection edge)
     {
-        var resilience = _graph.ResilienceOf(edge);
+        var resilience = _graph.EffectiveResilienceOf(edge);
 
         if (!edge.Synchronous)
             return Served.Whole;
 
-        if (resilience.TimeoutSeconds is not null && resilience.Fallback)
+        // A fallback serves the request only when there is something to answer with. A declared
+        // write has nothing: a payment that is not made cannot be approximated (QA 30-08, §3.5).
+        if (resilience.TimeoutSeconds is not null && resilience.Fallback && !resilience.DeclaresWrite)
             return Served.Whole;
 
         if (_inputs.Down.Contains(edge.TargetNodeId) || _inputs.ExpiredEdges.Contains(edge.Id))

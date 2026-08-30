@@ -18,6 +18,14 @@ public static class NodeRoles
     public static bool IsRouter(NodeType type) =>
         type is NodeType.Gateway or NodeType.LoadBalancer;
 
+    // A router's call that carries the client's request onwards, as opposed to the router's own
+    // question — «who is calling?», to an identity provider — which is the one piece of work a
+    // gateway does itself and the one call of its where a fallback (the sessions already open, a
+    // token cache) is real. Everything a router forwards it cannot answer for (QA 30-08, 7.4).
+    public static bool ForwardsRequest(ArchitectureGraph graph, Connection edge) =>
+        graph.NodesById.TryGetValue(edge.SourceNodeId, out var source) && IsRouter(source.Type)
+        && graph.NodesById.TryGetValue(edge.TargetNodeId, out var target) && target.Type != NodeType.IdentityProvider;
+
     public static bool IsDataStore(NodeType type) =>
         IsSystemOfRecord(type) || type is NodeType.Cache;
 

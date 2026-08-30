@@ -43,6 +43,14 @@ public static class NodeSettings
         _ => 1
     };
 
+    // The copies that take a write. A read replica serves reads and nothing else; a full replica
+    // takes both. For everything that is not a store, every copy takes everything.
+    public static int WriteInstances(Node node) => node.Type switch
+    {
+        NodeType.Database => Read<DatabaseConfiguration>(node) is { } db ? 1 + Math.Max(0, db.Replicas ?? 0) : 1,
+        _ => Instances(node)
+    };
+
     public static bool? AuthenticationOf(Node node) => node.Type switch
     {
         NodeType.Api => Read<ApiConfiguration>(node)?.Authentication,

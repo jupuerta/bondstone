@@ -23,6 +23,7 @@ public static class RequirementEvaluator
             RequirementKinds.MaxInstances => MaxInstances(requirement, context),
             RequirementKinds.MaxCost => MaxCost(requirement, context),
             RequirementKinds.Edge => Edge(requirement, context),
+            RequirementKinds.SpansZones => SpansZones(requirement, context),
             RequirementKinds.NoFinding => NoFinding(requirement, context),
             RequirementKinds.HasFinding => HasFinding(requirement, context),
             RequirementKinds.NoSeverity => NoSeverity(requirement, context),
@@ -89,19 +90,35 @@ public static class RequirementEvaluator
             offenders.Select(x => FindingElement.Node(x.Node.Id)).ToList());
     }
 
+    // A call that does not wait has no timeout, breaker or fallback to declare, so it cannot satisfy
+    // this by unticking a box: it is an offender unless a broker sits at one of its ends, which is
+    // the one legitimate way of not waiting. Until 30-08 asynchronous calls were skipped here, and
+    // every mechanism the catalogue asked for was met by leaving «synchronous» blank (QA §3.3).
     private static ChallengeRequirementResult AllEdgesTo(ChallengeRequirement requirement, EvaluationContext context)
     {
         var edges = context.Graph.Connections
-            .Where(c => c.Synchronous)
             .Where(c => context.Graph.NodesById.TryGetValue(c.TargetNodeId, out var target) && target.Type == requirement.NodeType)
+            .Where(c => c.Synchronous || !TouchesABroker(context.Graph, c))
             .ToList();
 
-        var offenders = edges.Where(c => !Has(context.Graph.ResilienceOf(c), requirement.Mechanism!)).ToList();
+        var unwaiting = edges.Where(c => !c.Synchronous).ToList();
+        var offenders = edges.Where(c => !c.Synchronous || !Has(context.Graph.ResilienceOf(c), requirement.Mechanism!)).ToList();
 
         if (offenders.Count == 0)
             return ChallengeRequirementResult.Pass(requirement);
 
         var mechanism = LocalizedText.Of($"mechanism.{requirement.Mechanism!}");
+
+        if (offenders.Count == unwaiting.Count)
+            return ChallengeRequirementResult.Fail(
+                requirement,
+                LocalizedText.Of("challenge.requirement.allEdgesTo.asynchronous",
+                    ("nodeType", requirement.NodeType!),
+                    ("count", unwaiting.Count),
+                    ("total", edges.Count),
+                    ("mechanism", mechanism),
+                    ("calls", Calls(unwaiting, context.Graph))),
+                unwaiting.Select(c => FindingElement.Connection(c.Id)).ToList());
 
         var detail = offenders.Count == edges.Count
             ? LocalizedText.Of("challenge.requirement.allEdgesTo.none",
@@ -149,7 +166,9 @@ public static class RequirementEvaluator
 
     private static ChallengeRequirementResult DeclaresLoad(ChallengeRequirement requirement, EvaluationContext context)
     {
-        var declared = context.Graph.RootNodes.Sum(node => NodeSettings.DeclaredRps(node));
+        // The entry points, not the roots by the letter: a loose box with traffic written on it is
+        // not where anything enters (QA 30-08, 9.5).
+        var declared = context.Graph.EntryNodes.Sum(node => NodeSettings.DeclaredRps(node));
 
         if (declared >= requirement.Min!.Value)
             return ChallengeRequirementResult.Pass(requirement);
@@ -161,7 +180,7 @@ public static class RequirementEvaluator
                 : LocalizedText.Of("challenge.requirement.declaresLoad.tooLittle",
                     ("declared", declared),
                     ("min", requirement.Min!.Value)),
-            context.Graph.RootNodes.Select(n => FindingElement.Node(n.Id)).ToList());
+            context.Graph.EntryNodes.Select(n => FindingElement.Node(n.Id)).ToList());
     }
 
     private static ChallengeRequirementResult MaxNodes(ChallengeRequirement requirement, EvaluationContext context)
@@ -266,7 +285,20 @@ public static class RequirementEvaluator
 
         if (requirement.Mechanism is { } mechanism)
         {
-            var wrong = edges.Where(c => c.Synchronous && !Has(context.Graph.ResilienceOf(c), mechanism)).ToList();
+            // A call that does not wait has nothing to declare: the mechanism asked of it is met by
+            // waiting and declaring it, not by unticking the box (QA 30-08, §3.3).
+            var unwaiting = edges.Where(c => !c.Synchronous).ToList();
+
+            if (unwaiting.Count > 0)
+                return ChallengeRequirementResult.Fail(
+                    requirement,
+                    LocalizedText.Of("challenge.requirement.edge.asynchronous",
+                        ("from", requirement.From!),
+                        ("to", requirement.To!),
+                        ("mechanism", LocalizedText.Of($"mechanism.{mechanism}"))),
+                    unwaiting.Select(c => FindingElement.Connection(c.Id)).ToList());
+
+            var wrong = edges.Where(c => !Has(context.Graph.ResilienceOf(c), mechanism)).ToList();
 
             if (wrong.Count > 0)
                 return ChallengeRequirementResult.Fail(
@@ -279,6 +311,39 @@ public static class RequirementEvaluator
         }
 
         return ChallengeRequirementResult.Pass(requirement);
+    }
+
+    // Two copies are only two if they can go down separately, and the only thing that says where a
+    // copy is, is its zone. A copy that declares none is not "somewhere else": it is unplaced, and it
+    // counts against the drawing here for the same reason SpofRule stays quiet about it there — "I do
+    // not know where it is" cannot pass as "it is in another zone".
+    private static ChallengeRequirementResult SpansZones(ChallengeRequirement requirement, EvaluationContext context)
+    {
+        var min = requirement.Min ?? 2;
+        var nodes = context.Graph.Nodes.Where(n => n.Type == requirement.NodeType).OrderBy(n => n.Id).ToList();
+        var unplaced = nodes.Where(n => NodeSettings.Zone(n) is null).ToList();
+        var zones = nodes.Select(NodeSettings.Zone).OfType<string>().Distinct(StringComparer.Ordinal).Count();
+
+        if (zones >= min)
+            return ChallengeRequirementResult.Pass(requirement);
+
+        if (unplaced.Count > 0)
+            return ChallengeRequirementResult.Fail(
+                requirement,
+                LocalizedText.Of("challenge.requirement.spansZones.unplaced",
+                    ("nodeType", requirement.NodeType!),
+                    ("count", unplaced.Count),
+                    ("nodes", Names(unplaced)),
+                    ("min", min)),
+                unplaced.Select(n => FindingElement.Node(n.Id)).ToList());
+
+        return ChallengeRequirementResult.Fail(
+            requirement,
+            LocalizedText.Of("challenge.requirement.spansZones.tooFew",
+                ("nodeType", requirement.NodeType!),
+                ("count", zones),
+                ("min", min)),
+            nodes.Select(n => FindingElement.Node(n.Id)).ToList());
     }
 
     private static bool Named(EvaluationContext context, Guid nodeId, string name) =>
@@ -403,6 +468,12 @@ public static class RequirementEvaluator
             .Distinct()
             .ToList();
     }
+
+    private static bool TouchesABroker(ArchitectureGraph graph, Connection edge) =>
+        IsBroker(graph, edge.SourceNodeId) || IsBroker(graph, edge.TargetNodeId);
+
+    private static bool IsBroker(ArchitectureGraph graph, Guid nodeId) =>
+        graph.NodesById.TryGetValue(nodeId, out var node) && node.Type is NodeType.Queue or NodeType.Topic;
 
     private static bool Has(ResilienceConfiguration resilience, string mechanism) => mechanism switch
     {

@@ -336,12 +336,15 @@ public class SecurityRuleTests
         Assert.Equal("Api", finding.Message.Arg("node"));
     }
 
+    // QA 30-08 §4.3: declaring the door open cost a critical and saying nothing a warning, so the
+    // honest drawing scored worse than the silent one. A door nobody has vouched for is open until
+    // proven otherwise — same weight, its own sentence.
     [Fact]
-    public void An_entry_point_that_never_declared_it_is_only_a_warning()
+    public void An_entry_point_that_never_declared_it_is_open_until_proven_otherwise()
     {
         var finding = Assert.Single(new UnauthenticatedEntryRule().Evaluate(ApiAndDb("{}")).Findings);
 
-        Assert.Equal(Severity.Warning, finding.Severity);
+        Assert.Equal(Severity.Critical, finding.Severity);
         Assert.Equal("finding.UNAUTHENTICATED_ENTRY.undeclared.message", finding.Message.Key());
         Assert.Equal("Api", finding.Message.Arg("node"));
     }

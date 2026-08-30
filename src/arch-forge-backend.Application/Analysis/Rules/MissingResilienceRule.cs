@@ -70,21 +70,36 @@ public class MissingResilienceRule : IArchitectureRule
                 LocalizedText.Of($"finding.MISSING_RESILIENCE.{variant}.suggestion"),
                 [FindingElement.Connection(edge.Id)])
             {
-                Fix = push ? MakeAsynchronous(edge) : Protect(edge, hasTimeout)
+                Fix = push ? MakeAsynchronous(edge) : Protect(graph, edge, hasTimeout)
             });
         }
 
         return RuleResult.Applicable(findings);
     }
 
-    private static AppliedFix Protect(Connection edge, bool hasTimeout) => new(
-        FixKinds.SetEdgeResilience,
-        FindingElement.Connection(edge.Id),
-        hasTimeout
-            ? LocalizedText.Of("fix.MISSING_RESILIENCE.addFallback")
-            : LocalizedText.Of("fix.MISSING_RESILIENCE.timeoutAndFallback", ("seconds", FixTimeoutSeconds)),
-        TimeoutSeconds: hasTimeout ? null : FixTimeoutSeconds,
-        Fallback: true);
+    // A router has nothing to answer with, so the button never ticks a fallback on its call — the
+    // drawing would gain an IMPLAUSIBLE_DEPENDENCY for it (QA 30-08, 7.4). A breaker it can have.
+    private static AppliedFix Protect(ArchitectureGraph graph, Connection edge, bool hasTimeout)
+    {
+        if (NodeRoles.ForwardsRequest(graph, edge))
+            return new AppliedFix(
+                FixKinds.SetEdgeResilience,
+                FindingElement.Connection(edge.Id),
+                hasTimeout
+                    ? LocalizedText.Of("fix.MISSING_RESILIENCE.addCircuitBreaker")
+                    : LocalizedText.Of("fix.MISSING_RESILIENCE.timeoutAndCircuitBreaker", ("seconds", FixTimeoutSeconds)),
+                TimeoutSeconds: hasTimeout ? null : FixTimeoutSeconds,
+                CircuitBreaker: true);
+
+        return new AppliedFix(
+            FixKinds.SetEdgeResilience,
+            FindingElement.Connection(edge.Id),
+            hasTimeout
+                ? LocalizedText.Of("fix.MISSING_RESILIENCE.addFallback")
+                : LocalizedText.Of("fix.MISSING_RESILIENCE.timeoutAndFallback", ("seconds", FixTimeoutSeconds)),
+            TimeoutSeconds: hasTimeout ? null : FixTimeoutSeconds,
+            Fallback: true);
+    }
 
     private static AppliedFix MakeAsynchronous(Connection edge) => new(
         FixKinds.MakeEdgeAsynchronous,

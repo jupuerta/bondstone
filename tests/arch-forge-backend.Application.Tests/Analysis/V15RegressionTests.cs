@@ -117,8 +117,10 @@ public class V15RegressionTests
             .Node("Obs", NodeType.Observability)
             .Connect("Web", "Edge")
             .Connect("Edge", "LB", timeoutSeconds: 3, fallback: true)
-            .Connect("LB", "Gw1", timeoutSeconds: 3, fallback: true).Connect("LB", "Gw2", timeoutSeconds: 3, fallback: true)
-            .Connect("Gw1", "Api", timeoutSeconds: 3, fallback: true).Connect("Gw2", "Api", timeoutSeconds: 3, fallback: true)
+            // No fallback on what a router forwards: since 30-08 (QA 7.4) a balancer or a gateway has
+            // nothing to answer with, and the best drawing does not declare a plan B it cannot have.
+            .Connect("LB", "Gw1", timeoutSeconds: 3).Connect("LB", "Gw2", timeoutSeconds: 3)
+            .Connect("Gw1", "Api", timeoutSeconds: 3).Connect("Gw2", "Api", timeoutSeconds: 3)
             .Connect("Gw1", "IdP", timeoutSeconds: 2, fallback: true).Connect("Gw2", "IdP", timeoutSeconds: 2, fallback: true)
             .Connect("Api", "Cache", timeoutSeconds: 1, fallback: true)
             .Connect("Api", "Svc", timeoutSeconds: 3, fallback: true)

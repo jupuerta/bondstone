@@ -14,8 +14,11 @@ public class ObservabilityFloorTests
 {
     private readonly NoObservabilityRule _rule = new();
 
+    // QA 30-08 §4.2 / 7.3.5: the critical «blind» plus one warning per component was the same fact
+    // counted N+1 times. Blind is one finding, with every unobserved box on it; the per-component
+    // warnings take over the moment the first wire goes in.
     [Fact]
-    public void TotalBlindness_OnARealDiagram_IsOneCriticalAndAWarningPerBox()
+    public void TotalBlindness_OnARealDiagram_IsOneCriticalAndNothingElse()
     {
         var graph = new GraphBuilder()
             .Node("Api", NodeType.Api).Node("Svc", NodeType.Service).Node("Db", NodeType.Database)
@@ -30,9 +33,7 @@ public class ObservabilityFloorTests
         Assert.Null(blind.Fix);
         Assert.Equal(3, blind.Elements.Count);
 
-        Assert.Equal(3, findings.Count(f => f.Severity == Severity.Warning));
-        Assert.All(findings.Where(f => f.Severity == Severity.Warning),
-            f => Assert.Equal("finding.NO_OBSERVABILITY.unobserved.message", f.Message.Key()));
+        Assert.Single(findings);
     }
 
     [Fact]
@@ -54,8 +55,8 @@ public class ObservabilityFloorTests
         Assert.Single(one, f => f.Severity == Severity.Critical);
         Assert.Single(two, f => f.Severity == Severity.Critical);
 
-        Assert.Equal(3, one.Count(f => f.Severity == Severity.Warning));
-        Assert.Equal(4, two.Count(f => f.Severity == Severity.Warning));
+        Assert.Equal(3, Assert.Single(one).Elements.Count);
+        Assert.Equal(4, Assert.Single(two).Elements.Count);
     }
 
     [Fact]
@@ -87,7 +88,7 @@ public class ObservabilityFloorTests
 
         var blind = Assert.Single(findings, f => f.Severity == Severity.Critical);
         Assert.Equal("finding.NO_OBSERVABILITY.blind.suggestion.present(telemetry=Obs)", blind.Suggestion.Describe());
-        Assert.Equal(3, findings.Count(f => f.Severity == Severity.Warning));
+        Assert.Single(findings);
     }
 
     [Fact]
@@ -104,8 +105,11 @@ public class ObservabilityFloorTests
         Assert.All(findings, f => Assert.Equal(Severity.Warning, f.Severity));
     }
 
+    // One finding is one penalty: blindness costs the same whatever the size, and the per-component
+    // warnings — capped at three times their weight — take over from the first wire. Measured and
+    // written down in QA 30-08 §9.6, cap included.
     [Fact]
-    public void WhatTotalBlindnessCosts_GrowsWithTheSystem()
+    public void WhatTotalBlindnessCosts_IsOneCriticalWhateverTheSize()
     {
         static int Blind(int services)
         {
@@ -115,10 +119,9 @@ public class ObservabilityFloorTests
             return ReferenceArchitecture.Analyze(b.Build()).ScoreOf(Area.Observability)!.Value;
         }
 
-        Assert.Equal(78, Blind(3));
-        Assert.Equal(60, Blind(10));
-        Assert.Equal(55, Blind(12));
-        Assert.Equal(55, Blind(20));
+        Assert.Equal(85, Blind(3));
+        Assert.Equal(85, Blind(10));
+        Assert.Equal(85, Blind(20));
     }
 
     [Fact]
@@ -160,16 +163,27 @@ public class TrafficRejectedRuleTests
         Assert.Equal("100", finding.Explanation.Arg("admittedRps"));
     }
 
+    // QA 30-08 §3.4 / 7.3.2: at 50 % the rule said nothing while a limit at half the traffic switched
+    // UNDERSIZED_COMPONENT and NO_RATE_LIMIT off. One customer in five turned away is a warning;
+    // half of them is critical.
     [Fact]
-    public void StandingInForCapacity_IsAWarning()
+    public void StandingInForCapacity_IsCritical()
     {
-        Assert.Equal(Severity.Warning, Assert.Single(_rule.Evaluate(Door(1_000, 300)).Findings).Severity);
+        Assert.Equal(Severity.Critical, Assert.Single(_rule.Evaluate(Door(1_000, 300)).Findings).Severity);
+        Assert.Equal(Severity.Critical, Assert.Single(_rule.Evaluate(Door(600, 300)).Findings).Severity);
     }
 
     [Fact]
-    public void SheddingAPeak_IsTheLimitDoingItsJob()
+    public void TurningAwayOneInFive_IsAWarning()
     {
-        var result = _rule.Evaluate(Door(500, 300));
+        Assert.Equal(Severity.Warning, Assert.Single(_rule.Evaluate(Door(500, 400)).Findings).Severity);
+        Assert.Equal(Severity.Warning, Assert.Single(_rule.Evaluate(Door(500, 300)).Findings).Severity);
+    }
+
+    [Fact]
+    public void SheddingLessThanAFifth_IsTheLimitDoingItsJob()
+    {
+        var result = _rule.Evaluate(Door(500, 450));
 
         Assert.True(result.IsApplicable);
         Assert.Empty(result.Findings);

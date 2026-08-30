@@ -18,6 +18,7 @@
       "labelKey": "challenge.already-signed-in.requirement.2",
       "from": "Storefront",
       "to": "Auth0",
+      "synchronous": true,
       "mechanism": "fallback"
     },
     {

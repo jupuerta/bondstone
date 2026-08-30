@@ -23,6 +23,8 @@ public static class RequirementKinds
 
     public const string Edge = "edge";
 
+    public const string SpansZones = "spansZones";
+
 
     public const string NoFinding = "noFinding";
 
@@ -35,7 +37,7 @@ public static class RequirementKinds
 
     public static bool IsKnown(string kind) => kind is
         ContainsNode or AbsentNode or MaxFanOut or AllEdgesTo or PathExists or DeclaresLoad or
-        MaxNodes or MaxInstances or MaxCost or Edge or
+        MaxNodes or MaxInstances or MaxCost or Edge or SpansZones or
         NoFinding or HasFinding or NoSeverity or
         UnderScenario;
 }

@@ -57,10 +57,12 @@ public class RequirementEvaluatorTests
         Assert.Equal("challenge.requirement.maxFanOut.exceeded(count=3, max=2, node=Api)", tight.Detail.Describe());
     }
 
+    // Not waiting is legitimate when a broker holds the work; ticking the box off on a straight call
+    // is not a way of having a timeout (QA 30-08, §3.3).
     [Fact]
-    public void AllEdgesTo_ignores_asynchronous_calls()
+    public void AllEdgesTo_lets_a_call_through_a_broker_pass_and_not_one_that_simply_does_not_wait()
     {
-        var blueprint = Blueprint.Of(
+        var published = Blueprint.Of(
             [("Api", NodeType.Api), ("Queue", NodeType.Queue), ("Db", NodeType.Database)],
             [("Api", "Queue", false, "{}"),
              ("Api", "Db", true, """{"timeoutSeconds":5}""")]);
@@ -68,7 +70,33 @@ public class RequirementEvaluatorTests
         Assert.True(Run(new ChallengeRequirement
         {
             Kind = RequirementKinds.AllEdgesTo, LabelKey = "x", NodeType = NodeType.Queue, Mechanism = RequirementMechanisms.Timeout
-        }, blueprint).Met);
+        }, published).Met);
+
+        var delivered = Blueprint.Of(
+            [("Api", NodeType.Api), ("Queue", NodeType.Queue), ("Worker", NodeType.Service)],
+            [("Api", "Queue", false, "{}"),
+             ("Queue", "Worker", false, "{}"),
+             ("Api", "Worker", true, """{"timeoutSeconds":5}""")]);
+
+        var timeouts = new ChallengeRequirement
+        {
+            Kind = RequirementKinds.AllEdgesTo, LabelKey = "x", NodeType = NodeType.Service, Mechanism = RequirementMechanisms.Timeout
+        };
+
+        Assert.True(Run(timeouts, delivered).Met);
+
+        var unticked = Blueprint.Of(
+            [("Api", NodeType.Api), ("A", NodeType.Service), ("B", NodeType.Service)],
+            [("Api", "A", false, "{}"),
+             ("Api", "B", true, """{"timeoutSeconds":5}""")]);
+
+        var result = Run(timeouts, unticked);
+        Assert.False(result.Met);
+        Assert.Equal("challenge.requirement.allEdgesTo.asynchronous", result.Detail.Key());
+        Assert.Equal("1", result.Detail.Arg("count"));
+        Assert.Equal("2", result.Detail.Arg("total"));
+        Assert.Contains("'A'", result.Detail.Arg("calls"));
+        Assert.Single(result.Elements);
     }
 
     [Fact]
@@ -255,6 +283,43 @@ public class NewRequirementKindsTests
         [("Api", "Db", true, """{"timeoutSeconds":5}""")]);
 
     [Fact]
+    public void SpansZones_counts_declared_zones_and_an_unplaced_copy_is_not_somewhere_else()
+    {
+        static ArchitectureBlueprint Apis(string first, string second) => Blueprint.Of(
+            [("Front", NodeType.LoadBalancer, "{}"), ("Api", NodeType.Api, first), ("Api 2", NodeType.Api, second)],
+            [("Front", "Api", true, "{}"), ("Front", "Api 2", true, "{}")]);
+
+        var requirement = new ChallengeRequirement { Kind = RequirementKinds.SpansZones, LabelKey = "x", NodeType = NodeType.Api };
+
+        Assert.True(Run(requirement, Apis("""{"zone":"a"}""", """{"zone":"b"}""")).Met);
+
+        var same = Run(requirement, Apis("""{"zone":"a"}""", """{"zone":"a"}"""));
+        Assert.False(same.Met);
+        Assert.Equal("challenge.requirement.spansZones.tooFew", same.Detail.Key());
+        Assert.Equal("1", same.Detail.Arg("count"));
+        Assert.Equal(2, same.Elements.Count);
+
+        var hidden = Run(requirement, Apis("""{"zone":"a"}""", "{}"));
+        Assert.False(hidden.Met);
+        Assert.Equal("challenge.requirement.spansZones.unplaced", hidden.Detail.Key());
+        Assert.Equal("'Api 2'", hidden.Detail.Arg("nodes"));
+        Assert.Single(hidden.Elements);
+    }
+
+    [Fact]
+    public void DeclaresLoad_counts_the_entry_points_and_not_a_loose_box()
+    {
+        var blueprint = Blueprint.Of(
+            [("Api", NodeType.Api, """{"requestsPerSecond":100}"""), ("Db", NodeType.Database, "{}"), ("Loose", NodeType.Api, """{"requestsPerSecond":900}""")],
+            [("Api", "Db", true, """{"timeoutSeconds":5}""")]);
+
+        var result = Run(new ChallengeRequirement { Kind = RequirementKinds.DeclaresLoad, LabelKey = "x", Min = 300 }, blueprint);
+
+        Assert.False(result.Met);
+        Assert.Equal("100", result.Detail.Arg("declared"));
+    }
+
+    [Fact]
     public void MaxNodes_counts_the_whole_inventory()
     {
         Assert.True(Run(new ChallengeRequirement { Kind = RequirementKinds.MaxNodes, LabelKey = "x", Max = 2 }, ApiDb()).Met);
@@ -379,6 +444,39 @@ public class NewRequirementKindsTests
             [("Api", "Db", false, "{}")]);
 
         Assert.True(Run(requirement, released).Met);
+    }
+
+    [Fact]
+    public void Edge_with_a_mechanism_fails_the_call_that_does_not_wait()
+    {
+        var unticked = Blueprint.Of(
+            [("Api", NodeType.Api), ("Db", NodeType.Database)],
+            [("Api", "Db", false, """{"timeoutSeconds":5}""")]);
+
+        var result = Run(new ChallengeRequirement
+        {
+            Kind = RequirementKinds.Edge, LabelKey = "x", From = "Api", To = "Db", Mechanism = RequirementMechanisms.Timeout
+        }, unticked);
+
+        Assert.False(result.Met);
+        Assert.Equal("challenge.requirement.edge.asynchronous", result.Detail.Key());
+        Assert.Equal("mechanism.timeout", result.Detail.Arg("mechanism"));
+        Assert.Single(result.Elements);
+    }
+
+    [Fact]
+    public void An_edge_asked_not_to_wait_cannot_be_asked_a_mechanism()
+    {
+        var contradiction = new ChallengeRequirement
+        {
+            Kind = RequirementKinds.Edge, LabelKey = "challenge.x.y", From = "Api", To = "Mailer",
+            Synchronous = false, Mechanism = RequirementMechanisms.Timeout
+        };
+
+        var message = Assert.Throws<InvalidChallengeDefinitionException>(
+            () => ChallengeCatalog.ValidateRequirement("x", contradiction)).Message;
+
+        Assert.Contains("nothing to declare", message);
     }
 
     [Fact]

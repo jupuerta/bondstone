@@ -73,7 +73,7 @@ public class MapArchitectureFragilityQueryHandler
 
         return new FragilityMap(
             graph.Nodes.Count,
-            graph.RootNodes.Count,
+            graph.EntryNodes.Count,
             intact.Metrics.NominalLatencyMs,
             rows.OrderByDescending(r => r.BlastRadius).ThenBy(r => r.NodeId).ToList());
     }

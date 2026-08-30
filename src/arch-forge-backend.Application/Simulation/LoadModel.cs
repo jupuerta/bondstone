@@ -11,6 +11,8 @@ public sealed class LoadModel
     private readonly Dictionary<Guid, decimal> _nodeDemand = [];
     private readonly Dictionary<Guid, decimal> _edgeLoad = [];
     private readonly Dictionary<Guid, decimal> _capacity = [];
+    private readonly Dictionary<Guid, decimal> _writeLoad = [];
+    private readonly Dictionary<Guid, decimal> _writeCapacity = [];
     private readonly HashSet<Guid> _backEdges;
     private readonly List<Guid> _order;
     private readonly ArchitectureGraph _graph;
@@ -23,7 +25,15 @@ public sealed class LoadModel
         (_order, _backEdges) = TopologicalOrder(graph);
 
         foreach (var node in graph.Nodes)
+        {
             _capacity[node.Id] = CapacityModel.PerInstance(node.Type) * NodeSettings.Instances(node);
+
+            // A store's read replicas do not write: the declared writes have only the primary and
+            // its full replicas to land on (QA 30-08, §4.7 and 7.4). What nobody declares counts as
+            // a read, which is what it always counted as.
+            if (NodeRoles.IsSystemOfRecord(node.Type))
+                _writeCapacity[node.Id] = CapacityModel.PerInstance(node.Type) * NodeSettings.WriteInstances(node);
+        }
     }
 
     public static LoadModel Of(ArchitectureGraph graph, decimal demandScale = 1m)
@@ -59,7 +69,33 @@ public sealed class LoadModel
     public decimal UtilizationOf(Guid nodeId)
     {
         var capacity = CapacityOf(nodeId);
-        return capacity <= 0m ? 0m : LoadOf(nodeId) / capacity;
+        var utilization = capacity <= 0m ? 0m : LoadOf(nodeId) / capacity;
+
+        return Math.Max(utilization, WriteUtilizationOf(nodeId));
+    }
+
+    public decimal WriteLoadOf(Guid nodeId) => _writeLoad.GetValueOrDefault(nodeId);
+
+    public decimal WriteCapacityOf(Guid nodeId) => _writeCapacity.GetValueOrDefault(nodeId);
+
+    // True when it is the declared writes, and not the whole load, that put the store over.
+    public bool WritesBind(Guid nodeId)
+    {
+        var capacity = CapacityOf(nodeId);
+        var whole = capacity <= 0m ? 0m : LoadOf(nodeId) / capacity;
+
+        return WriteUtilizationOf(nodeId) > whole;
+    }
+
+    // The pair a sentence should quote: the writes against what takes them when those bind, the
+    // whole load against the whole capacity otherwise.
+    public (decimal Load, decimal Capacity) BindingOf(Guid nodeId) =>
+        WritesBind(nodeId) ? (WriteLoadOf(nodeId), WriteCapacityOf(nodeId)) : (LoadOf(nodeId), CapacityOf(nodeId));
+
+    private decimal WriteUtilizationOf(Guid nodeId)
+    {
+        var capacity = WriteCapacityOf(nodeId);
+        return capacity <= 0m ? 0m : WriteLoadOf(nodeId) / capacity;
     }
 
     public decimal QueueingFactorOf(Guid nodeId) => CapacityModel.QueueingFactor(UtilizationOf(nodeId));
@@ -71,7 +107,9 @@ public sealed class LoadModel
 
     public decimal BacklogRps { get; private set; }
 
-    public decimal EnteringRps => _graph.RootNodes.Sum(n => NodeSettings.Admit(n, DeclaredRps(n)));
+    // Traffic is declared where it enters, and only there, so every declaration is entering traffic:
+    // no root by the letter has to vouch for it (a door the telemetry consults is nobody's root).
+    public decimal EnteringRps => _graph.Nodes.Sum(n => NodeSettings.Admit(n, DeclaredRps(n)));
 
     public decimal LoadAmplification
     {
@@ -94,6 +132,7 @@ public sealed class LoadModel
         _nodeLoad.Clear();
         _nodeDemand.Clear();
         _edgeLoad.Clear();
+        _writeLoad.Clear();
         BacklogRps = 0m;
 
         foreach (var nodeId in _order)
@@ -108,6 +147,11 @@ public sealed class LoadModel
             var load = NodeSettings.Admit(node, demand);
             _nodeDemand[nodeId] = demand;
             _nodeLoad[nodeId] = load;
+
+            if (_writeCapacity.ContainsKey(nodeId))
+                _writeLoad[nodeId] = _graph.IncomingByTarget[nodeId]
+                    .Where(edge => !_backEdges.Contains(edge.Id) && _graph.ResilienceOf(edge).DeclaresWrite)
+                    .Sum(edge => _edgeLoad.GetValueOrDefault(edge.Id));
 
             DistributeOutgoing(node, load, amplification);
         }

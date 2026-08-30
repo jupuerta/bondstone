@@ -13,6 +13,71 @@ public class ImplausibleDependencyRuleTests
     private readonly ImplausibleDependencyRule _rule = new();
     private readonly GraphBuilder _builder = new();
 
+    // QA 30-08 §3.1: five arrows that cannot be asynchronous. Unticking the box on them is not a
+    // design, it is the drawing contradicting itself — and the cheapest way there was of making a
+    // dependency vanish from every rule that reads «synchronous».
+    [Theory]
+    [InlineData(NodeType.Client, NodeType.Gateway, null, "asyncClient")]
+    [InlineData(NodeType.Gateway, NodeType.Api, null, "asyncRouter")]
+    [InlineData(NodeType.LoadBalancer, NodeType.Api, null, "asyncRouter")]
+    [InlineData(NodeType.Cdn, NodeType.Api, null, "asyncRouter")]
+    [InlineData(NodeType.Api, NodeType.IdentityProvider, null, "asyncIdentity")]
+    [InlineData(NodeType.Cache, NodeType.Database, null, "asyncCacheMiss")]
+    [InlineData(NodeType.Service, NodeType.Database, "read", "asyncRead")]
+    public void An_arrow_that_cannot_stop_waiting_is_critical_when_it_says_it_does(NodeType source, NodeType target, string? access, string variant)
+    {
+        _builder.Node("A", source).Node("B", target).Connect("A", "B", synchronous: false, access: access);
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal(Severity.Critical, finding.Severity);
+        Assert.Equal($"finding.IMPLAUSIBLE_DEPENDENCY.{variant}.message", finding.Message.Key());
+        Assert.Equal("A", finding.Message.Arg("source"));
+        Assert.Equal("B", finding.Message.Arg("target"));
+    }
+
+    [Theory]
+    [InlineData(NodeType.Service, NodeType.Database, null)]
+    [InlineData(NodeType.Service, NodeType.Database, "write")]
+    [InlineData(NodeType.Api, NodeType.Queue, null)]
+    [InlineData(NodeType.Service, NodeType.Service, null)]
+    public void Not_waiting_is_still_allowed_where_the_work_can_wait(NodeType source, NodeType target, string? access)
+    {
+        _builder.Node("A", source).Node("B", target).Connect("A", "B", synchronous: false, access: access);
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    // QA 30-08 §1.6 and 7.4: a router routes. It does not run SQL — calling the reporting panel a
+    // gateway was how exposed-database was passed without moving a wire — and it has nothing to
+    // answer with, so a fallback on its call is the drawing promising a plan B that is not there.
+    [Fact]
+    public void A_router_that_runs_SQL_or_promises_a_fallback_is_the_drawing_talking()
+    {
+        _builder.Node("Edge", NodeType.Gateway).Node("Front", NodeType.LoadBalancer).Node("Api", NodeType.Api).Node("Db", NodeType.Database)
+            .Connect("Edge", "Db", timeoutSeconds: 3)
+            .Connect("Front", "Api", timeoutSeconds: 3, fallback: true)
+            .Connect("Api", "Db", timeoutSeconds: 3, fallback: true);
+
+        var findings = _rule.Evaluate(_builder.Build()).Findings;
+
+        Assert.Equal(2, findings.Count);
+        Assert.All(findings, f => Assert.Equal(Severity.Warning, f.Severity));
+        Assert.Contains(findings, f => f.Message.Key() == "finding.IMPLAUSIBLE_DEPENDENCY.routerToDatabase.message" && f.Message.Arg("source") == "Edge");
+        Assert.Contains(findings, f => f.Message.Key() == "finding.IMPLAUSIBLE_DEPENDENCY.routerFallback.message" && f.Message.Arg("source") == "Front");
+    }
+
+    [Fact]
+    public void The_same_arrows_waiting_are_not_implausible()
+    {
+        _builder.Node("Users", NodeType.Client).Node("Gw", NodeType.Gateway).Node("Api", NodeType.Api)
+            .Node("IdP", NodeType.IdentityProvider).Node("Cache", NodeType.Cache).Node("Db", NodeType.Database)
+            .Connect("Users", "Gw").Connect("Gw", "Api").Connect("Api", "IdP")
+            .Connect("Api", "Cache").Connect("Cache", "Db").Connect("Api", "Db", access: "read");
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
 
     [Theory]
     [InlineData(NodeType.Cdn, NodeType.Database, "cdn", Severity.Critical)]

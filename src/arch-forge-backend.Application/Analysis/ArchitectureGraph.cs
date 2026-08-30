@@ -40,6 +40,19 @@ public class ArchitectureGraph
             .Where(n => !OutgoingBySource[n.Id].Any() && !IncomingByTarget[n.Id].Any())
             .Select(n => n.Id)
             .ToHashSet();
+
+        // Where a request enters: a node nobody calls, that calls someone. A box with no edges at all
+        // is a root by the letter and an entry point by nothing else — counted as one, deleting a call
+        // turned its target into a «point of entry affected» and passed for a contained failure
+        // (QA 30-08, §3.6). Telemetry is the other letter-of-the-law root: an observability box that
+        // consults components calls someone, and a component only it consults is called by nobody
+        // that carries a request — the same reading TrafficRoots gives the rules. Roots keep the
+        // loose boxes and the telemetry: reachability and the load model need them.
+        EntryNodes = Nodes
+            .Where(n => !Rules.NodeRoles.IsTelemetry(n.Type)
+                        && !OrphanNodes.Contains(n.Id)
+                        && !IncomingByTarget[n.Id].Any(edge => !Rules.NodeRoles.IsTelemetryEdge(this, edge)))
+            .ToList();
     }
 
     public IReadOnlyList<Node> Nodes { get; }
@@ -53,6 +66,29 @@ public class ArchitectureGraph
     public ILookup<Guid, Connection> IncomingByTarget { get; }
 
     public IReadOnlyList<Node> RootNodes { get; }
+
+    public IReadOnlyList<Node> EntryNodes { get; }
+
+    // What the model believes of a call, as opposed to what the drawing declares. A gateway or a
+    // load balancer has nothing to answer with, so a fallback ticked on its call does not exist for
+    // the simulation: it neither serves requests nor contains a failure (QA 30-08, §1.3, 7.4). The
+    // rules keep reading the declaration — IMPLAUSIBLE_DEPENDENCY is the one that says it is wrong.
+    public ResilienceConfiguration EffectiveResilienceOf(Connection connection)
+    {
+        var declared = ResilienceOf(connection);
+
+        if (!declared.Fallback || !Rules.NodeRoles.ForwardsRequest(this, connection))
+            return declared;
+
+        return new ResilienceConfiguration
+        {
+            TimeoutSeconds = declared.TimeoutSeconds,
+            Retries = declared.Retries,
+            CircuitBreaker = declared.CircuitBreaker,
+            Fallback = false,
+            Access = declared.Access
+        };
+    }
 
     public IReadOnlySet<Guid> OrphanNodes { get; }
 

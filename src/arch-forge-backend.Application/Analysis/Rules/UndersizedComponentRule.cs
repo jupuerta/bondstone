@@ -39,6 +39,9 @@ public class UndersizedComponentRule : IArchitectureRule
 
             graph.Facts.Add(new UndersizedComponentFact(node.Id, severity));
 
+            var writesBind = load.WritesBind(node.Id);
+            var (loadRps, capacityRps) = load.BindingOf(node.Id);
+
             findings.Add(new RuleFinding(
                 Code,
                 Area,
@@ -48,12 +51,18 @@ public class UndersizedComponentRule : IArchitectureRule
                         : "finding.UNDERSIZED_COMPONENT.atCapacity.message",
                     ("node", node.Name)),
 
-                LocalizedText.Of(Explanation(graph, node, overloaded),
-                    ("loadRps", load.LoadOf(node.Id)),
-                    ("capacityRps", load.CapacityOf(node.Id)),
+                LocalizedText.Of(writesBind
+                        ? (overloaded
+                            ? "finding.UNDERSIZED_COMPONENT.overloaded.explanation.writes"
+                            : "finding.UNDERSIZED_COMPONENT.atCapacity.explanation.writes")
+                        : Explanation(graph, node, overloaded),
+                    ("loadRps", loadRps),
+                    ("capacityRps", capacityRps),
                     ("utilization", utilization)),
 
-                Suggest(graph, node),
+                writesBind && node.Type == Domain.Enums.NodeType.Database
+                    ? LocalizedText.Of("finding.UNDERSIZED_COMPONENT.suggestion.databaseWrites")
+                    : Suggest(graph, node),
                 [FindingElement.Node(node.Id)]));
         }
 

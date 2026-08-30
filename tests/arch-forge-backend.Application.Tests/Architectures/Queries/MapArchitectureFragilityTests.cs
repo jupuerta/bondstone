@@ -25,7 +25,7 @@ public class MapArchitectureFragilityTests
         var map = MapArchitectureFragilityQueryHandler.Sweep(graph, Engine);
 
         Assert.Equal(graph.Nodes.Count, map.ComponentsTotal);
-        Assert.Equal(graph.RootNodes.Count, map.EntryPointsTotal);
+        Assert.Equal(graph.EntryNodes.Count, map.EntryPointsTotal);
         Assert.Equal(graph.Nodes.Select(n => n.Id).OrderBy(id => id), map.Rows.Select(r => r.NodeId).OrderBy(id => id));
     }
 

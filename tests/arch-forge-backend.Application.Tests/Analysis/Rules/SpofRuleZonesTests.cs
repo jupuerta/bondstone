@@ -43,12 +43,25 @@ public class SpofRuleZonesTests
         Assert.Empty(_rule.Evaluate(Fleet("a", "b").Build()).Findings);
     }
 
+    // Until 30-08 one copy without a zone exempted the whole set, so hiding the datum on a single
+    // box scored better than telling the truth (QA §1.5, §4.3). «I do not know where it is» is not
+    // «it is somewhere else»: the one zone anybody declared is the zone they are all in.
     [Theory]
     [InlineData("a", null)]
     [InlineData(null, "c")]
-    public void OneCopyThatNeverSaidWhereItIs_StopsTheCheckForTheWholeSet(string? first, string? second)
+    public void OneCopyThatNeverSaidWhereItIs_IsNotACopySomewhereElse(string? first, string? second)
     {
-        Assert.Empty(_rule.Evaluate(Fleet(first, second).Build()).Findings);
+        var finding = Assert.Single(_rule.Evaluate(Fleet(first, second).Build()).Findings);
+
+        Assert.Equal("finding.SPOF.sameZone.message", finding.Message.Key());
+        Assert.Equal(first ?? second, finding.Message.Arg("zone"));
+        Assert.Equal(2, finding.Elements.Count);
+    }
+
+    [Fact]
+    public void NobodySayingWhereTheyAre_IsStillTheOptIn()
+    {
+        Assert.Empty(_rule.Evaluate(Fleet(null, null).Build()).Findings);
     }
 
     [Theory]

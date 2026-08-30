@@ -37,6 +37,11 @@
       "kind": "noFinding",
       "labelKey": "challenge.backlog.requirement.5",
       "code": "QUEUE_NO_DLQ"
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.backlog.requirement.6",
+      "code": "TRAFFIC_REJECTED"
     }
   ],
   "optionalGoals": [

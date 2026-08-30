@@ -18,6 +18,7 @@
       "labelKey": "challenge.thirty-seconds.requirement.2",
       "from": "Storefront",
       "to": "Orders",
+      "synchronous": true,
       "mechanism": "timeout"
     },
     {

@@ -133,12 +133,20 @@ public class SpofRule : IArchitectureRule
         return RuleResult.Applicable(findings);
     }
 
+    // A fallback discounts the dependency only when there is something to answer with: not towards
+    // a store, not for a declared write, and not from a router, which has nothing to answer with
+    // (QA 30-08, §3.5 and 7.4).
     private static bool IsHardDependency(ArchitectureGraph graph, Connection edge)
     {
         if (!edge.Synchronous)
             return false;
 
-        if (!graph.ResilienceOf(edge).Fallback)
+        var resilience = graph.ResilienceOf(edge);
+
+        if (!resilience.Fallback || resilience.DeclaresWrite)
+            return true;
+
+        if (NodeRoles.ForwardsRequest(graph, edge))
             return true;
 
         return graph.NodesById.TryGetValue(edge.TargetNodeId, out var target)
@@ -209,9 +217,17 @@ public class SpofRule : IArchitectureRule
         if (PlaceableCopies(graph, node) is not { } copies)
             return null;
 
-        var zones = copies.Select(NodeSettings.Zone).Distinct().ToList();
+        var declared = copies.Select(NodeSettings.Zone).OfType<string>().Distinct().ToList();
 
-        return zones is [{ } zone] ? new Unit(copies[0].Id, copies, zone) : null;
+        // Nobody says where the copies are: the opt-in stays. Two zones: spread. One zone declared —
+        // by every copy or by one of them — is one zone: a copy that does not say where it is has not
+        // been shown to be anywhere else (QA 30-08, §1.5), and «I do not know» is not «elsewhere».
+        return declared switch
+        {
+            [] => null,
+            [{ } zone] => new Unit(copies[0].Id, copies, zone),
+            _ => null
+        };
     }
 
     // The copies a drawing can place. Siblings behind a balancer have one zone each; instances and

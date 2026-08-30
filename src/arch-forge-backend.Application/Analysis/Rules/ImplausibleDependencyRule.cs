@@ -78,6 +78,36 @@ public class ImplausibleDependencyRule : IArchitectureRule
         if (source.Type == NodeType.Scheduler && !IsWork(target.Type))
             return ("scheduler", Severity.Warning);
 
+        // A gateway or a load balancer routes; it does not run SQL. Whatever queries the database is
+        // a door that has to authenticate, and calling it a router was how exposed-database was
+        // passed without moving a wire (QA 30-08, §1.6).
+        if (NodeRoles.IsRouter(source.Type) && target.Type == NodeType.Database)
+            return ("routerToDatabase", Severity.Warning);
+
+        if (edge.Synchronous)
+            return NodeRoles.ForwardsRequest(graph, edge) && graph.ResilienceOf(edge).Fallback
+                ? ("routerFallback", Severity.Warning)
+                : null;
+
+        // An arrow that says «nobody waits» where somebody has to (QA 30-08, §3.1). Unticking the box
+        // does not change what the call is; it makes the drawing contradict itself, and every rule
+        // that reads «synchronous» goes quiet on a dependency that is still there. Critical, not
+        // a warning: the box is the single cheapest way of making a failure disappear from the model.
+        if (NodeRoles.IsTrafficOrigin(source.Type))
+            return ("asyncClient", Severity.Critical);
+
+        if (NodeRoles.IsRouter(source.Type) || source.Type == NodeType.Cdn)
+            return ("asyncRouter", Severity.Critical);
+
+        if (target.Type == NodeType.IdentityProvider)
+            return ("asyncIdentity", Severity.Critical);
+
+        if (source.Type == NodeType.Cache)
+            return ("asyncCacheMiss", Severity.Critical);
+
+        if (NodeRoles.IsSystemOfRecord(target.Type) && graph.ResilienceOf(edge).DeclaresRead)
+            return ("asyncRead", Severity.Critical);
+
         return null;
     }
 

@@ -25,6 +25,26 @@ public class BothInTheSameZoneTests
         Assert.True(result.Requirements[0].Met);
         Assert.True(result.Requirements[1].Met);
         Assert.True(result.Requirements[3].Met);
+        Assert.False(result.Requirements[4].Met);
+    }
+
+    // The shortcut the consistency pass of 30-08 measured: take the zone off everything but one Api
+    // and nothing moves, yet zone a "only" takes three boxes down and the door stays open. A copy
+    // whose zone is unknown is not a copy somewhere else.
+    [Fact]
+    public void Hiding_the_zone_of_one_copy_is_not_spreading_it()
+    {
+        var hidden = Rezoned(
+            ChallengeHarness.Catalog.StarterOf(Slug)!,
+            node => node.Name is "Api" or "Cache" or "Db" ? "a" : null);
+
+        var result = ChallengeHarness.Evaluate(Slug, hidden);
+
+        Assert.True(result.Requirements[2].Met);
+        Assert.True(result.Requirements[3].Met);
+        Assert.False(result.Requirements[4].Met);
+        Assert.Equal("challenge.requirement.spansZones.unplaced", result.Requirements[4].Detail.Key());
+        Assert.False(result.Passed);
     }
 
     [Fact]
@@ -38,6 +58,28 @@ public class BothInTheSameZoneTests
         Assert.Equal(Severity.Warning, sameZone.Severity);
         Assert.Equal("a", sameZone.Message.Arg("zone"));
         Assert.Equal(2, sameZone.Elements.Count);
+    }
+
+    // QA 30-08 §1.5 / 7.3.4: leaving one copy without a zone used to silence the finding, so the
+    // drawing that hid the datum scored better than the one that told the truth. A copy that does
+    // not say where it is has not been shown to be anywhere else.
+    [Fact]
+    public void A_copy_that_declares_no_zone_is_not_a_copy_somewhere_else()
+    {
+        var hidden = Rezoned(ChallengeHarness.Catalog.StarterOf(Slug)!, node => node.Name == "Api 2" ? null : "a");
+
+        var sameZone = Assert.Single(
+            ChallengeHarness.Analyze(hidden).Findings,
+            f => f.Message.Key() == "finding.SPOF.sameZone.message");
+
+        Assert.Equal("a", sameZone.Message.Arg("zone"));
+        Assert.Equal(2, sameZone.Elements.Count);
+
+        var nobodySays = Rezoned(ChallengeHarness.Catalog.StarterOf(Slug)!, _ => null);
+
+        Assert.DoesNotContain(
+            ChallengeHarness.Analyze(nobodySays).Findings,
+            f => f.Message.Key() == "finding.SPOF.sameZone.message");
     }
 
     [Fact]
@@ -81,6 +123,7 @@ public class BothInTheSameZoneTests
         Assert.Equal(0, Losing(moved, "a").ComponentsDown);
         Assert.True(result.Requirements[2].Met);
         Assert.False(result.Requirements[3].Met);
+        Assert.False(result.Requirements[4].Met);
         Assert.False(result.Passed);
     }
 
@@ -89,7 +132,7 @@ public class BothInTheSameZoneTests
             .Run(ChallengeHarness.Graph(blueprint), new SimulationScenario([], [zone]))
             .Metrics;
 
-    private static ArchitectureBlueprint Rezoned(ArchitectureBlueprint blueprint, Func<BlueprintNode, string> zone) => new()
+    private static ArchitectureBlueprint Rezoned(ArchitectureBlueprint blueprint, Func<BlueprintNode, string?> zone) => new()
     {
         Name = blueprint.Name,
         Nodes = blueprint.Nodes
@@ -105,12 +148,14 @@ public class BothInTheSameZoneTests
         Connections = blueprint.Connections
     };
 
-    private static string Rewritten(BlueprintNode node, string zone)
+    private static string Rewritten(BlueprintNode node, string? zone)
     {
         var fields = node.Configuration!.Value.EnumerateObject()
             .Where(p => !p.Name.Equals("zone", StringComparison.OrdinalIgnoreCase))
-            .Select(p => $"{JsonSerializer.Serialize(p.Name)}:{p.Value.GetRawText()}")
-            .Append($"\"zone\":{JsonSerializer.Serialize(zone)}");
+            .Select(p => $"{JsonSerializer.Serialize(p.Name)}:{p.Value.GetRawText()}");
+
+        if (zone is not null)
+            fields = fields.Append($"\"zone\":{JsonSerializer.Serialize(zone)}");
 
         return $"{{{string.Join(",", fields)}}}";
     }
