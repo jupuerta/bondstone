@@ -166,9 +166,12 @@ public static class RequirementEvaluator
 
     private static ChallengeRequirementResult DeclaresLoad(ChallengeRequirement requirement, EvaluationContext context)
     {
-        // The entry points, not the roots by the letter: a loose box with traffic written on it is
-        // not where anything enters (QA 30-08, 9.5).
-        var declared = context.Graph.EntryNodes.Sum(node => NodeSettings.DeclaredRps(node));
+        // The same reading as the load model: where traffic enters, or a client. A loose box with a
+        // number on it is not where anything enters (QA 30-08, 9.5), and neither is a box that
+        // stopped being an entry and kept its number (§10.3 point 8).
+        var declared = context.Graph.Nodes
+            .Where(context.Graph.DeclaresTraffic)
+            .Sum(node => NodeSettings.DeclaredRps(node));
 
         if (declared >= requirement.Min!.Value)
             return ChallengeRequirementResult.Pass(requirement);

@@ -27,10 +27,15 @@ public class SharedDatabaseRule : IArchitectureRule
 
         foreach (var store in stores.OrderBy(s => s.Id))
         {
-            var sharing = graph.IncomingByTarget[store.Id]
-                .Where(edge => graph.NodesById.GetValueOrDefault(edge.SourceNodeId)?.Type == NodeType.Service)
-                .GroupBy(edge => edge.SourceNodeId)
-                .Select(group => (Service: graph.NodesById[group.Key], Edge: group.OrderBy(e => e.Id).First()))
+            var sharing = Callers(graph, store.Id, [])
+                .Where(pair => pair.Service.Type == NodeType.Service)
+                .GroupBy(pair => pair.Service.Id)
+                .Select(group => (
+                    Service: graph.NodesById[group.Key],
+                    Edge: group.Select(pair => pair.Edge)
+                        .OrderByDescending(edge => graph.ResilienceOf(edge).DeclaresWrite)
+                        .ThenBy(edge => edge.Id)
+                        .First()))
                 .OrderBy(pair => pair.Service.Id)
                 .ToList();
 
@@ -74,6 +79,33 @@ public class SharedDatabaseRule : IArchitectureRule
         }
 
         return RuleResult.Applicable(findings);
+    }
+
+    // The callers of a store, read through any cache in front of it: a service that reaches the
+    // schema through a cache still shares it — putting a box in between hid the coupling from this
+    // rule without removing it (QA 30-08, §10.3 point 5) — the same way ReplicaSetOf reads through a
+    // balancer. The edge kept is the service's own, where its access is declared.
+    private static IEnumerable<(Node Service, Connection Edge)> Callers(ArchitectureGraph graph, Guid targetId, HashSet<Guid> visited)
+    {
+        if (!visited.Add(targetId))
+            yield break;
+
+        foreach (var edge in graph.IncomingByTarget[targetId])
+        {
+            var source = graph.NodesById.GetValueOrDefault(edge.SourceNodeId);
+            if (source is null)
+                continue;
+
+            if (source.Type == NodeType.Cache)
+            {
+                foreach (var behind in Callers(graph, source.Id, visited))
+                    yield return behind;
+
+                continue;
+            }
+
+            yield return (source, edge);
+        }
     }
 
     private static string Names(IEnumerable<Node> services) =>

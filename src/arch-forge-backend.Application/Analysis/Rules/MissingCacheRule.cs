@@ -45,9 +45,12 @@ public class MissingCacheRule : IArchitectureRule
             if (ReadReplicasOf(database) is > 0)
                 continue;
 
+            // Only what a cache can take: a read, declared or undeclared. A call that also writes is
+            // one arrow, and the button cannot send half of it through a cache — it used to reroute
+            // the whole call and the declared writes vanished with it (QA 30-08, §10.3 point 5).
             var direct = graph.IncomingByTarget[database.Id]
                 .Where(c => c.Synchronous && !NodeRoles.IsTelemetryEdge(graph, c))
-                .Where(c => graph.ResilienceOf(c).Reads)
+                .Where(c => !graph.ResilienceOf(c).DeclaresWrite)
                 .ToList();
             var effective = direct.Where(edge => IsEffectiveConsumer(graph, edge.SourceNodeId, database.Id)).ToList();
 

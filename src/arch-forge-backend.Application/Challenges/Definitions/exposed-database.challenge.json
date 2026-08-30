@@ -28,6 +28,11 @@
       "kind": "noFinding",
       "labelKey": "challenge.exposed-database.requirement.4",
       "code": "IMPLAUSIBLE_DEPENDENCY"
+    },
+    {
+      "kind": "declaresLoad",
+      "labelKey": "challenge.exposed-database.requirement.5",
+      "min": 100
     }
   ],
   "optionalGoals": [

@@ -9,6 +9,76 @@ namespace arch_forge_backend.Application.Tests.Simulation;
 
 public class LoadModelTests
 {
+    // QA 30-08 §10.3, point 8: a number declared while the box was an entry kept adding up after a
+    // door was put in front of it — the inspector hides the field, it does not delete it — and what
+    // sat behind was sized for traffic that never arrives (100 declared, 500 measured).
+    [Fact]
+    public void A_number_left_on_a_box_behind_a_door_does_not_count()
+    {
+        var graph = new GraphBuilder()
+            .Node("Edge", NodeType.Gateway, """{"requestsPerSecond":100}""")
+            .Node("Api", NodeType.Api, """{"requestsPerSecond":400}""")
+            .Node("Db", NodeType.Database)
+            .Connect("Edge", "Api")
+            .Connect("Api", "Db")
+            .Build();
+
+        var load = LoadModel.Of(graph);
+
+        Assert.Equal(100m, load.EnteringRps);
+        Assert.Equal(100m, load.LoadOf(graph.NodeId("Api")));
+        Assert.Equal(100m, load.LoadOf(graph.NodeId("Db")));
+    }
+
+    [Fact]
+    public void A_loose_box_with_a_number_on_it_declares_nothing()
+    {
+        var graph = new GraphBuilder()
+            .Node("Api", NodeType.Api, """{"requestsPerSecond":100}""")
+            .Node("Db", NodeType.Database)
+            .Node("Suelto", NodeType.Api, """{"requestsPerSecond":900}""")
+            .Connect("Api", "Db")
+            .Build();
+
+        var load = LoadModel.Of(graph);
+
+        Assert.Equal(100m, load.EnteringRps);
+        Assert.Equal(0m, load.LoadOf(graph.NodeId("Suelto")));
+    }
+
+    // The two readings of «entry» that §10.3 found apart: the engine's (no incoming call that is not
+    // telemetry) is the one that counts, so a door the observability consults still declares —
+    // which is what §9.7 wanted the amplification to see.
+    [Fact]
+    public void A_door_only_the_telemetry_consults_still_declares()
+    {
+        var graph = new GraphBuilder()
+            .Node("Api", NodeType.Api, """{"requestsPerSecond":100}""")
+            .Node("Db", NodeType.Database)
+            .Node("Obs", NodeType.Observability)
+            .Connect("Api", "Db")
+            .Connect("Obs", "Api", synchronous: false)
+            .Build();
+
+        var load = LoadModel.Of(graph);
+
+        Assert.Equal(100m, load.EnteringRps);
+        Assert.Equal(100m, load.LoadOf(graph.NodeId("Db")));
+    }
+
+    [Fact]
+    public void A_client_something_calls_back_is_still_where_traffic_is_born()
+    {
+        var graph = new GraphBuilder()
+            .Node("Users", NodeType.Client, """{"requestsPerSecond":100}""")
+            .Node("Svc", NodeType.Service)
+            .Connect("Users", "Svc")
+            .Connect("Svc", "Users")
+            .Build();
+
+        Assert.Equal(100m, LoadModel.Of(graph).EnteringRps);
+    }
+
     [Fact]
     public void With_nothing_declared_every_factor_is_one()
     {

@@ -180,6 +180,25 @@ public class ChallengeShortcutTests
                 Retyped(Starter("exposed-database"), "Reports", NodeType.Gateway, """{"requestsPerSecond":20,"authentication":true}"""),
                 "Edge", """{"authentication":true}"""),
             ["requirement.4"]),
+
+        // F — rubbing out the traffic. Since QA §10.2 (point 1) a door nobody calls is not asked
+        // whether it authenticates: with no rps reaching it and no client drawn, UNAUTHENTICATED_ENTRY
+        // stands down, so a `noFinding` on it passes by deleting the number instead of answering the
+        // question. The load guard is what stops it; exposed-database gained one for this.
+        ["who-is-calling · requestsPerSecond deleted, authentication still no"] = new(
+            "who-is-calling",
+            () => Stripped(Starter("who-is-calling"), "requestsPerSecond"),
+            ["requirement.1"]),
+
+        ["million-a-day · the solution with no traffic and no authentication on the gateway"] = new(
+            "million-a-day",
+            () => Stripped(Solution("million-a-day"), "requestsPerSecond", "authentication"),
+            ["requirement.1"]),
+
+        ["exposed-database · the solution with no traffic and no authentication anywhere"] = new(
+            "exposed-database",
+            () => Stripped(Solution("exposed-database"), "requestsPerSecond", "authentication"),
+            ["requirement.5"]),
     };
 
     // Empty since 7.4 closed the last of the measured shortcuts. It stays: the next pass that finds
@@ -332,6 +351,15 @@ public class ChallengeShortcutTests
         copy.Nodes.Add(new BlueprintNode { Name = "Worker 2", Type = NodeType.Worker, Configuration = Json("{}") });
         copy.Connections.Add(new BlueprintConnection { From = "Jobs", To = "Worker 2", Synchronous = false, Configuration = Json("{}") });
         copy.Connections.Add(new BlueprintConnection { From = "Worker 2", To = "Db", Synchronous = true, Configuration = Json("""{"timeoutSeconds":5}""") });
+        return copy;
+    }
+
+    private static ArchitectureBlueprint Stripped(ArchitectureBlueprint blueprint, params string[] fields)
+    {
+        var copy = Copy(blueprint);
+        foreach (var node in copy.Nodes)
+            node.Configuration = Json(Object(
+                Fields(node.Configuration).Where(f => !fields.Contains(f.Key)).ToDictionary(f => f.Key, f => f.Value)));
         return copy;
     }
 

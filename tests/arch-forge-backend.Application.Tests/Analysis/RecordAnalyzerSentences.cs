@@ -377,6 +377,28 @@ public class RecordAnalyzerSentences
             .Connect("Api1", "Cola", synchronous: false)
             .Connect("Api2", "Cola", synchronous: false));
 
+        yield return ("asyncDoor", new GraphBuilder()
+            .Node("Storefront", NodeType.Api, "{\"requestsPerSecond\":100,\"authentication\":true}").Node("Core", NodeType.Service)
+            .Connect("Storefront", "Core", synchronous: false));
+
+        yield return ("writeFallback", new GraphBuilder()
+            .Node("Shop", NodeType.Api, "{\"requestsPerSecond\":100,\"authentication\":true}").Node("Db", NodeType.Database)
+            .Connect("Shop", "Db", timeoutSeconds: 2, fallback: true, access: "write"));
+
+        yield return ("writersNoTimeout", new GraphBuilder()
+            .Node("Gw", NodeType.Gateway).Nodes(NodeType.Service, "U1", "U2", "U3").Node("Db", NodeType.Database)
+            .Connect("Gw", "U1", timeoutSeconds: 3).Connect("Gw", "U2", timeoutSeconds: 3).Connect("Gw", "U3", timeoutSeconds: 3)
+            .Connect("U1", "Db", access: "write")
+            .Connect("U2", "Db", access: "write")
+            .Connect("U3", "Db", access: "write"));
+
+        yield return ("writersOnSpof", new GraphBuilder()
+            .Node("Gw", NodeType.Gateway).Nodes(NodeType.Service, "V1", "V2", "V3").Node("Db", NodeType.Database)
+            .Connect("Gw", "V1", timeoutSeconds: 3).Connect("Gw", "V2", timeoutSeconds: 3).Connect("Gw", "V3", timeoutSeconds: 3)
+            .Connect("V1", "Db", timeoutSeconds: 3, access: "write")
+            .Connect("V2", "Db", timeoutSeconds: 3, access: "write")
+            .Connect("V3", "Db", timeoutSeconds: 3, access: "write"));
+
         yield return ("unguarded", new GraphBuilder()
             .Node("Users", NodeType.Client).Node("Edge", NodeType.Cdn).Node("W", NodeType.Worker)
             .Connect("Users", "Edge").Connect("Edge", "W"));

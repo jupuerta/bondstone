@@ -20,13 +20,15 @@ public class ReferenceArchitectureTests
         Assert.Equal(100, result.ScoreOf(Area.Coupling));
         Assert.Equal(100, result.ScoreOf(Area.Scalability));
 
-        // 85 desde el 30-08 (QA §7.3.6): la puerta que no declara autenticación con datos detrás es
-        // crítico, el mismo peso que declararla abierta. Antes 95, y la nota global 98.
-        Assert.Equal(85, result.ScoreOf(Area.Security));
+        // 100 desde el 30-08 (QA §10.2, punto 1): a una puerta a la que nadie llama —sin tráfico
+        // declarado que le llegue ni un cliente dibujado— no se le pregunta, y la regla no aplica,
+        // como NO_RATE_LIMIT. Dos cajas y una flecha vuelven a no abrir en rojo (V13 D2.1); 7.3.6
+        // las había subido a crítico (85, nota 96), y antes de eso era un aviso (95, nota 98).
+        Assert.Equal(100, result.ScoreOf(Area.Security));
         Assert.Equal(93, result.ScoreOf(Area.Observability));
-        Assert.Equal(96, result.Score);
+        Assert.Equal(99, result.Score);
 
-        Assert.Equal(new AnalysisSummary(Critical: 1, Warning: 2, Info: 0, Passed: 12), result.Summary);
+        Assert.Equal(new AnalysisSummary(Critical: 0, Warning: 2, Info: 0, Passed: 12), result.Summary);
     }
 
     [Fact]
@@ -52,7 +54,7 @@ public class ReferenceArchitectureTests
     }
 
     [Fact]
-    public void GatewayMicroservices_ScoresEightyFour()
+    public void GatewayMicroservices_ScoresEightySeven()
     {
         var result = ReferenceArchitecture.Analyze("gateway-microservices");
 
@@ -61,17 +63,18 @@ public class ReferenceArchitectureTests
         Assert.Equal(65, result.ScoreOf(Area.Resilience));
 
         Assert.Equal(95, result.ScoreOf(Area.Coupling));
-        // Ver `WorstCase_ScoresSeventyThree`: `MISSING_CACHE` en `Info` no resta.
+        // Ver `WorstCase_ScoresSeventySix`: `MISSING_CACHE` en `Info` no resta.
         Assert.Equal(100, result.ScoreOf(Area.Scalability));
-        // 30-08 (QA §7.3): la puerta sin declarar pasa de 95 a 85, y la ceguera se cobra una sola vez
-        // — el crítico sin los avisos por caja — y sube de 73 a 85. La nota global no se mueve.
-        Assert.Equal(85, result.ScoreOf(Area.Security));
+        // 30-08 (QA §7.3): la ceguera se cobra una sola vez — el crítico sin los avisos por caja — y
+        // sube de 73 a 85. Y (QA §10.2, punto 1) la puerta a la que nadie llama no se pregunta:
+        // Seguridad 95 → 85 → 100, y la nota global 84 → 87.
+        Assert.Equal(100, result.ScoreOf(Area.Security));
 
         Assert.Equal(85, result.ScoreOf(Area.Observability));
 
-        Assert.Equal(84, result.Score);
+        Assert.Equal(87, result.Score);
 
-        Assert.Equal(new AnalysisSummary(Critical: 7, Warning: 3, Info: 1, Passed: 8), result.Summary);
+        Assert.Equal(new AnalysisSummary(Critical: 6, Warning: 3, Info: 1, Passed: 8), result.Summary);
     }
 
     [Fact]
@@ -96,7 +99,7 @@ public class ReferenceArchitectureTests
     }
 
     [Fact]
-    public void ResilientAsync_ScoresNinetyTwo()
+    public void ResilientAsync_ScoresNinetySix()
     {
         var result = ReferenceArchitecture.Analyze("resilient-async");
 
@@ -107,15 +110,16 @@ public class ReferenceArchitectureTests
         Assert.Equal(100, result.ScoreOf(Area.Coupling));
         Assert.Equal(100, result.ScoreOf(Area.Scalability));
 
-        // 30-08 (QA §7.3): dos puertas sin declarar, las dos críticas ahora (93 → 78); la ceguera
-        // cobrada una vez (68 → 85). La nota global no se mueve.
-        Assert.Equal(78, result.ScoreOf(Area.Security));
+        // 30-08 (QA §7.3): la ceguera cobrada una vez (68 → 85). Y (QA §10.2, punto 1) sus dos
+        // puertas sin declarar, a las que nadie llama, ya no se preguntan: 93 → 78 → 100, y la nota
+        // global 92 → 96.
+        Assert.Equal(100, result.ScoreOf(Area.Security));
 
         Assert.Equal(85, result.ScoreOf(Area.Observability));
 
-        Assert.Equal(92, result.Score);
+        Assert.Equal(96, result.Score);
 
-        Assert.Equal(new AnalysisSummary(Critical: 3, Warning: 2, Info: 0, Passed: 14), result.Summary);
+        Assert.Equal(new AnalysisSummary(Critical: 1, Warning: 2, Info: 0, Passed: 14), result.Summary);
     }
 
     [Fact]
@@ -163,7 +167,7 @@ public class ReferenceArchitectureTests
     }
 
     [Fact]
-    public void WorstCase_ScoresSeventyThree()
+    public void WorstCase_ScoresSeventySix()
     {
         var result = ReferenceArchitecture.Analyze("worst-case");
 
@@ -176,15 +180,15 @@ public class ReferenceArchitectureTests
         // y en `Info` ya no resta. La arquitectura no ha mejorado; hemos dejado de cobrarle por una
         // sugerencia de velocidad.
         Assert.Equal(100, result.ScoreOf(Area.Scalability));
-        // 30-08 (QA §7.3): 95 → 85 por la puerta sin declarar; 60 → 85 porque la ceguera de diez
-        // cajas se cobra una vez y no once. 71 → 73: el peor caso sale mejor parado de la limpieza
-        // que del castigo, y está medido y escrito en QA §9.6.
-        Assert.Equal(85, result.ScoreOf(Area.Security));
+        // 30-08 (QA §7.3): 60 → 85 porque la ceguera de diez cajas se cobra una vez y no once, y el
+        // peor caso salió mejor parado de la limpieza que del castigo (71 → 73, QA §9.6). Después
+        // (QA §10.2, punto 1) la puerta a la que nadie llama deja de preguntarse: Seguridad 100 y 76.
+        Assert.Equal(100, result.ScoreOf(Area.Security));
         Assert.Equal(85, result.ScoreOf(Area.Observability));
 
-        Assert.Equal(73, result.Score);
+        Assert.Equal(76, result.Score);
 
-        Assert.Equal(13, result.Summary.Critical);
+        Assert.Equal(12, result.Summary.Critical);
     }
 
     [Fact]
@@ -196,7 +200,7 @@ public class ReferenceArchitectureTests
             [
                 RuleCodes.Cycle, RuleCodes.HighCoupling, RuleCodes.MissingCache,
                 RuleCodes.MissingResilience, RuleCodes.NoObservability, RuleCodes.RetryAmplification,
-                RuleCodes.SharedDatabase, RuleCodes.Spof, RuleCodes.SyncChain, RuleCodes.UnauthenticatedEntry
+                RuleCodes.SharedDatabase, RuleCodes.Spof, RuleCodes.SyncChain
             ],
             result.Findings.Where(f => f.Severity != Severity.Good).Select(f => f.Code).Distinct().Order());
 
@@ -246,9 +250,8 @@ public class ReferenceArchitectureTests
                 RuleCodes.MissingResilience, RuleCodes.MissingResilience,
                 RuleCodes.RetryAmplification,
                 RuleCodes.Cycle, RuleCodes.HighCoupling,
-                // 30-08: la puerta sin declarar sube a los críticos, y los diez avisos de
-                // observabilidad desaparecen — la ceguera es un hallazgo, no once.
-                RuleCodes.UnauthenticatedEntry,
+                // 30-08: los diez avisos de observabilidad desaparecen — la ceguera es un hallazgo,
+                // no once — y la puerta a la que nadie llama no se pregunta (QA §10.2, punto 1).
                 RuleCodes.NoObservability,
                 RuleCodes.Spof, RuleCodes.MissingResilience, RuleCodes.SyncChain,
                 RuleCodes.SharedDatabase,

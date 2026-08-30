@@ -119,6 +119,150 @@ public class AccessAndRouterTests
         Assert.Contains(new SpofRule().Evaluate(graph).Findings, f => f.Message.Arg("node") == "Api");
     }
 
+    // QA 30-08 §10.3, point 4: on a declared write the button offered a fallback, MISSING_RESILIENCE
+    // called the call protected, and the simulator lost every request anyway. Now the button offers
+    // what the model believes — timeout and breaker — and the sentence says queue.
+    [Fact]
+    public void The_button_on_a_declared_write_offers_a_breaker_and_the_sentence_says_queue()
+    {
+        // Three writers: a shared dependency is critical from three dependents (SpofRule).
+        static ArchitectureGraph Writers(int? timeout) => Graph(new GraphBuilder()
+            .Node("Gw", NodeType.Gateway, """{"requestsPerSecond":100,"authentication":true}""")
+            .Nodes(NodeType.Service, "Orders", "Invoicing", "Reports").Node("Db", NodeType.Database)
+            .Connect("Gw", "Orders", timeoutSeconds: 3).Connect("Gw", "Invoicing", timeoutSeconds: 3).Connect("Gw", "Reports", timeoutSeconds: 3)
+            .Connect("Orders", "Db", timeoutSeconds: timeout, access: "write")
+            .Connect("Invoicing", "Db", timeoutSeconds: timeout, access: "write")
+            .Connect("Reports", "Db", timeoutSeconds: timeout, access: "write"));
+
+        foreach (var (timeout, suggestion) in new[] { ((int?)null, "noTimeoutAndSpof"), (3, "exposedToSpof") })
+        {
+            var graph = Writers(timeout);
+            var writes = ReferenceArchitecture.Analyze(graph).Findings
+                .Where(f => f.Code == RuleCodes.MissingResilience && f.Severity == Severity.Critical)
+                .ToList();
+
+            Assert.Equal(3, writes.Count);
+            Assert.All(writes, f =>
+            {
+                Assert.Equal($"finding.MISSING_RESILIENCE.{suggestion}.suggestion.write", f.Suggestion!.Key());
+                Assert.True(f.Fix!.CircuitBreaker);
+                Assert.Null(f.Fix.Fallback);
+                Assert.Equal(timeout is null ? 5 : null, f.Fix.TimeoutSeconds);
+            });
+        }
+    }
+
+    [Fact]
+    public void A_fallback_on_a_declared_write_is_the_drawing_talking()
+    {
+        static ArchitectureGraph Shop(string? access) => Graph(new GraphBuilder()
+            .Node("Shop", NodeType.Api, """{"requestsPerSecond":100,"authentication":true}""").Node("Db", NodeType.Database)
+            .Connect("Shop", "Db", timeoutSeconds: 2, fallback: true, access: access));
+
+        Assert.Empty(new ImplausibleDependencyRule().Evaluate(Shop(null)).Findings);
+        Assert.Empty(new ImplausibleDependencyRule().Evaluate(Shop("read")).Findings);
+
+        var finding = Assert.Single(new ImplausibleDependencyRule().Evaluate(Shop("write")).Findings);
+
+        Assert.Equal(Severity.Warning, finding.Severity);
+        Assert.Equal("finding.IMPLAUSIBLE_DEPENDENCY.writeFallback.message", finding.Message.Key());
+        Assert.Equal("Shop", finding.Message.Arg("source"));
+        Assert.Equal("Db", finding.Suggestion!.Arg("target"));
+    }
+
+    // QA 30-08 §10.3, point 5: the automatic cache rerouted every call, declared writes included, and
+    // SHARED_DATABASE went quiet because the schema was now «behind a box». The button reroutes only
+    // the reads, and the rule reads through the cache the way it reads through a balancer.
+    [Fact]
+    public void Services_sharing_a_schema_through_a_cache_still_share_it()
+    {
+        static GraphBuilder Readers(string? access) => new GraphBuilder()
+            .Node("Gw", NodeType.Gateway, """{"requestsPerSecond":100,"authentication":true}""")
+            .Nodes(NodeType.Service, "Orders", "Invoicing").Node("Db", NodeType.Database)
+            .Connect("Gw", "Orders", timeoutSeconds: 3).Connect("Gw", "Invoicing", timeoutSeconds: 3)
+            .Connect("Orders", "Db", timeoutSeconds: 3, access: access)
+            .Connect("Invoicing", "Db", timeoutSeconds: 3, access: access);
+
+        static ArchitectureGraph Cached(string? access) => Graph(new GraphBuilder()
+            .Node("Gw", NodeType.Gateway, """{"requestsPerSecond":100,"authentication":true}""")
+            .Nodes(NodeType.Service, "Orders", "Invoicing").Node("Cache", NodeType.Cache).Node("Db", NodeType.Database)
+            .Connect("Gw", "Orders", timeoutSeconds: 3).Connect("Gw", "Invoicing", timeoutSeconds: 3)
+            .Connect("Orders", "Cache", timeoutSeconds: 3, fallback: true, access: access)
+            .Connect("Invoicing", "Cache", timeoutSeconds: 3, fallback: true, access: access)
+            .Connect("Cache", "Db", timeoutSeconds: 5, access: "read"));
+
+        foreach (var access in new[] { null, "read" })
+        {
+            var before = Assert.Single(new SharedDatabaseRule().Evaluate(Graph(Readers(access))).Findings);
+            var after = Assert.Single(new SharedDatabaseRule().Evaluate(Cached(access)).Findings);
+
+            Assert.Equal(before.Message.Key(), after.Message.Key());
+            Assert.Equal(before.Message.Arg("names"), after.Message.Arg("names"));
+        }
+
+        Assert.Single(new MissingCacheRule().Evaluate(Graph(Readers(null))).Findings);
+        Assert.Empty(new MissingCacheRule().Evaluate(Cached(null)).Findings);
+    }
+
+    // The counterpart of «reroute only the reads»: a call that also writes is one arrow, and the
+    // button cannot send half of it through a cache, so the rule does not ask for one.
+    [Fact]
+    public void A_call_that_also_writes_cannot_go_behind_a_cache_so_it_is_not_counted()
+    {
+        var both = Graph(new GraphBuilder()
+            .Nodes(NodeType.Service, "Orders", "Invoicing").Node("Db", NodeType.Database)
+            .Connect("Orders", "Db", timeoutSeconds: 3, access: "both")
+            .Connect("Invoicing", "Db", timeoutSeconds: 3, access: "both"));
+
+        Assert.Empty(new MissingCacheRule().Evaluate(both).Findings);
+        Assert.Equal("finding.SHARED_DATABASE.writers.message", Assert.Single(new SharedDatabaseRule().Evaluate(both).Findings).Message.Key());
+    }
+
+    // QA 30-08 §10.2, point 2: with the Api a critical SPOF, ticking a fallback on the balancer's
+    // call turned a critical MISSING_RESILIENCE (−15) into an IMPLAUSIBLE warning (+5) and the score
+    // went up, by a box the model says is not there. The two rules read the same fallback the
+    // simulator reads now, so the critical stays and the warning is added on top.
+    [Fact]
+    public void A_fallback_a_router_cannot_honour_does_not_buy_the_call_out_of_its_finding()
+    {
+        static ArchitectureGraph Shop(bool fallback) => Graph(new GraphBuilder()
+            .Node("Edge", NodeType.Gateway, """{"requestsPerSecond":100,"authentication":true}""")
+            .Node("Front", NodeType.LoadBalancer).Node("Api", NodeType.Api)
+            .Node("Db", NodeType.Database, """{"replicas":2}""").Node("Cache", NodeType.Cache)
+            .Connect("Edge", "Front", timeoutSeconds: 5)
+            .Connect("Front", "Api", timeoutSeconds: 5, fallback: fallback)
+            .Connect("Api", "Cache", timeoutSeconds: 2, fallback: true)
+            .Connect("Api", "Db", timeoutSeconds: 5, fallback: true));
+
+        var bare = ReferenceArchitecture.Analyze(Shop(false));
+        var ticked = ReferenceArchitecture.Analyze(Shop(true));
+
+        Assert.Contains(bare.Findings, f => f.Code == RuleCodes.MissingResilience && f.Severity == Severity.Critical);
+        Assert.Contains(ticked.Findings, f => f.Code == RuleCodes.MissingResilience && f.Severity == Severity.Critical);
+        Assert.Contains(ticked.Findings, f => f.Message.Key() == "finding.IMPLAUSIBLE_DEPENDENCY.routerFallback.message");
+
+        Assert.True(ticked.Score <= bare.Score, $"ticking a box the model does not believe raised the score: {bare.Score} → {ticked.Score}.");
+    }
+
+    [Fact]
+    public void A_long_timeout_towards_a_critical_spof_is_not_covered_by_a_write_fallback()
+    {
+        static ArchitectureGraph Shop(string? access) => Graph(new GraphBuilder()
+            .Node("Gw", NodeType.Gateway, """{"requestsPerSecond":100,"authentication":true}""")
+            .Nodes(NodeType.Service, "Orders", "Invoicing", "Reports").Node("Db", NodeType.Database)
+            .Connect("Gw", "Orders", timeoutSeconds: 3).Connect("Gw", "Invoicing", timeoutSeconds: 3).Connect("Gw", "Reports", timeoutSeconds: 3)
+            .Connect("Orders", "Db", timeoutSeconds: 600, fallback: true, access: access)
+            .Connect("Invoicing", "Db", timeoutSeconds: 3, access: access)
+            .Connect("Reports", "Db", timeoutSeconds: 3, access: access));
+
+        Severity LongCall(string? access) => Assert.Single(
+            ReferenceArchitecture.Analyze(Shop(access)).Findings,
+            f => f.Code == RuleCodes.TimeoutTooLong).Severity;
+
+        Assert.Equal(Severity.Warning, LongCall(null));
+        Assert.Equal(Severity.Critical, LongCall("write"));
+    }
+
     [Fact]
     public void The_button_on_a_routers_call_offers_a_breaker_and_never_a_fallback()
     {

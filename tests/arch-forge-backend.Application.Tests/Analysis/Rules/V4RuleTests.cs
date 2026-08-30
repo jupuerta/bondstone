@@ -329,7 +329,7 @@ public class SecurityRuleTests
     public void An_entry_point_that_declares_no_authentication_is_critical()
     {
         var finding = Assert.Single(
-            new UnauthenticatedEntryRule().Evaluate(ApiAndDb("""{"authentication":false}""")).Findings);
+            new UnauthenticatedEntryRule().Evaluate(ApiAndDb("""{"requestsPerSecond":100,"authentication":false}""")).Findings);
 
         Assert.Equal(Severity.Critical, finding.Severity);
         Assert.Equal("finding.UNAUTHENTICATED_ENTRY.open.message", finding.Message.Key());
@@ -342,17 +342,68 @@ public class SecurityRuleTests
     [Fact]
     public void An_entry_point_that_never_declared_it_is_open_until_proven_otherwise()
     {
-        var finding = Assert.Single(new UnauthenticatedEntryRule().Evaluate(ApiAndDb("{}")).Findings);
+        var finding = Assert.Single(new UnauthenticatedEntryRule().Evaluate(ApiAndDb("""{"requestsPerSecond":100}""")).Findings);
 
         Assert.Equal(Severity.Critical, finding.Severity);
         Assert.Equal("finding.UNAUTHENTICATED_ENTRY.undeclared.message", finding.Message.Key());
         Assert.Equal("Api", finding.Message.Arg("node"));
     }
 
+    // V13 D2.1 kept two boxes and an arrow out of the red, and 7.3.6 put them back by making the
+    // undeclared door a critical (QA 30-08 §10.2, point 1). Both hold: a door nobody calls — no
+    // traffic reaching it, no client drawn — is not asked, whatever it declares, so saying «no»
+    // costs exactly what saying nothing costs. NoRateLimitRule has stood down the same way since V4.
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("""{"authentication":false}""")]
+    public void Two_boxes_and_an_arrow_are_not_an_open_door(string configuration)
+    {
+        var result = new UnauthenticatedEntryRule().Evaluate(ApiAndDb(configuration));
+
+        Assert.False(result.IsApplicable);
+        Assert.Equal("rule.na.UNAUTHENTICATED_ENTRY.noTrafficAtDoor", result.NotApplicableReason!.Key());
+    }
+
+    [Fact]
+    public void A_drawn_client_is_the_traffic_number_or_not()
+    {
+        var graph = new GraphBuilder()
+            .Node("Users", NodeType.Client)
+            .Node("Api", NodeType.Api)
+            .Node("Db", NodeType.Database)
+            .Connect("Users", "Api")
+            .Connect("Api", "Db")
+            .Build();
+
+        var finding = Assert.Single(new UnauthenticatedEntryRule().Evaluate(graph).Findings);
+
+        Assert.Equal(Severity.Critical, finding.Severity);
+        Assert.Equal("finding.UNAUTHENTICATED_ENTRY.undeclared.message", finding.Message.Key());
+    }
+
+    [Fact]
+    public void Traffic_declared_upstream_reaches_the_door()
+    {
+        var graph = new GraphBuilder()
+            .Node("LB", NodeType.LoadBalancer, """{"requestsPerSecond":100}""")
+            .Node("Api", NodeType.Api)
+            .Node("Db", NodeType.Database)
+            .Connect("LB", "Api")
+            .Connect("Api", "Db")
+            .Build();
+
+        var finding = Assert.Single(new UnauthenticatedEntryRule().Evaluate(graph).Findings);
+
+        Assert.Equal("Api", finding.Message.Arg("node"));
+    }
+
     [Fact]
     public void Authentication_silences_it()
     {
-        Assert.Empty(new UnauthenticatedEntryRule().Evaluate(ApiAndDb("""{"authentication":true}""")).Findings);
+        var result = new UnauthenticatedEntryRule().Evaluate(ApiAndDb("""{"authentication":true}"""));
+
+        Assert.True(result.IsApplicable);
+        Assert.Empty(result.Findings);
     }
 
     [Fact]
@@ -371,7 +422,7 @@ public class SecurityRuleTests
     public void Everything_a_balancer_fronts_is_public_too()
     {
         var graph = new GraphBuilder()
-            .Node("LB", NodeType.LoadBalancer)
+            .Node("LB", NodeType.LoadBalancer, """{"requestsPerSecond":100}""")
             .Node("Api1", NodeType.Api)
             .Node("Api2", NodeType.Api)
             .Node("Db", NodeType.Database)

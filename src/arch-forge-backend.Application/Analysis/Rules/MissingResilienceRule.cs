@@ -46,9 +46,11 @@ public class MissingResilienceRule : IArchitectureRule
 
             var push = NodeRoles.IsTelemetryPush(graph, edge);
 
+            // The fallback counts here only where the model counts it: a router's and a declared
+            // write's exist in the drawing alone (QA 30-08, §10.2 point 2).
             var exposedToSpof = !push
                                 && !resilience.CircuitBreaker
-                                && !resilience.Fallback
+                                && !graph.BelievesFallback(edge)
                                 && criticalSpofs.Contains(edge.TargetNodeId);
 
             if (hasTimeout && !exposedToSpof)
@@ -59,6 +61,12 @@ public class MissingResilienceRule : IArchitectureRule
             var target = graph.NodesById[edge.TargetNodeId].Name;
             var variant = push ? "telemetryPush" : Variant(hasTimeout, exposedToSpof);
 
+            // A write that does not happen cannot be approximated, so where the sentence would offer
+            // a fallback it offers the breaker and a queue instead (QA 30-08, §10.3 point 4).
+            var suggestion = resilience.DeclaresWrite && variant is "exposedToSpof" or "noTimeoutAndSpof"
+                ? $"finding.MISSING_RESILIENCE.{variant}.suggestion.write"
+                : $"finding.MISSING_RESILIENCE.{variant}.suggestion";
+
             findings.Add(new RuleFinding(
                 Code,
                 Area,
@@ -67,7 +75,7 @@ public class MissingResilienceRule : IArchitectureRule
                     ("source", source),
                     ("target", target)),
                 LocalizedText.Of($"finding.MISSING_RESILIENCE.{variant}.explanation", ("target", target)),
-                LocalizedText.Of($"finding.MISSING_RESILIENCE.{variant}.suggestion"),
+                LocalizedText.Of(suggestion),
                 [FindingElement.Connection(edge.Id)])
             {
                 Fix = push ? MakeAsynchronous(edge) : Protect(graph, edge, hasTimeout)
@@ -77,11 +85,13 @@ public class MissingResilienceRule : IArchitectureRule
         return RuleResult.Applicable(findings);
     }
 
-    // A router has nothing to answer with, so the button never ticks a fallback on its call — the
-    // drawing would gain an IMPLAUSIBLE_DEPENDENCY for it (QA 30-08, 7.4). A breaker it can have.
+    // A router has nothing to answer with, and a declared write nothing to approximate with, so the
+    // button never ticks a fallback on those calls — the drawing would gain an IMPLAUSIBLE_DEPENDENCY
+    // for it, and the model would discount it one step later (QA 30-08, 7.4 and §10.3 point 4). A
+    // breaker they can have.
     private static AppliedFix Protect(ArchitectureGraph graph, Connection edge, bool hasTimeout)
     {
-        if (NodeRoles.ForwardsRequest(graph, edge))
+        if (NodeRoles.ForwardsRequest(graph, edge) || graph.ResilienceOf(edge).DeclaresWrite)
             return new AppliedFix(
                 FixKinds.SetEdgeResilience,
                 FindingElement.Connection(edge.Id),

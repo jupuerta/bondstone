@@ -52,6 +52,9 @@ public static class NodeRoles
 
     public static bool IsTelemetry(NodeType type) => type is NodeType.Observability;
 
+    // Where work can wait: the one place an arrow that does not wait still leaves something behind.
+    public static bool IsBroker(NodeType type) => type is NodeType.Queue or NodeType.Topic;
+
     public static bool IsTelemetryEdge(ArchitectureGraph graph, Connection edge) =>
         (graph.NodesById.TryGetValue(edge.SourceNodeId, out var source) && IsTelemetry(source.Type))
         || (graph.NodesById.TryGetValue(edge.TargetNodeId, out var target) && IsTelemetry(target.Type));

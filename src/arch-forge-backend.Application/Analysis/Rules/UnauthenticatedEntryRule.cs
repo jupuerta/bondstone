@@ -26,7 +26,15 @@ public class UnauthenticatedEntryRule : IArchitectureRule
         if (exposed.Count == 0 && unguarded.Count == 0)
             return RuleResult.NotApplicable("rule.na.UNAUTHENTICATED_ENTRY.nothingExposed");
 
+        // A door nobody calls is not asked: two boxes and an arrow are a sketch, not an open door
+        // (V13 D2.1, QA 30-08 §10.2). What calls a door is traffic that reaches it — declared on it
+        // or upstream — or a drawn client, number or not; the same honesty NoRateLimitRule has had
+        // since V4. Declared-no and undeclared stand down together, so silence never pays.
+        var load = LoadModel.Of(graph);
+        var drawnClient = graph.Nodes.Any(n => NodeRoles.IsTrafficOrigin(n.Type));
+
         var findings = new List<RuleFinding>();
+        var answered = 0;
 
         foreach (var node in exposed)
         {
@@ -56,6 +64,12 @@ public class UnauthenticatedEntryRule : IArchitectureRule
             }
 
             if (authentication == true || delegation is not null)
+            {
+                answered++;
+                continue;
+            }
+
+            if (!drawnClient && load.LoadOf(node.Id) <= 0)
                 continue;
 
             // Declaring the door open used to cost a critical and saying nothing a warning, so the
@@ -85,6 +99,9 @@ public class UnauthenticatedEntryRule : IArchitectureRule
                 LocalizedText.Of("finding.UNAUTHENTICATED_ENTRY.unguarded.suggestion", ("node", node.Name)),
                 [FindingElement.Node(node.Id)]));
         }
+
+        if (findings.Count == 0 && answered == 0)
+            return RuleResult.NotApplicable("rule.na.UNAUTHENTICATED_ENTRY.noTrafficAtDoor");
 
         return RuleResult.Applicable(findings);
     }

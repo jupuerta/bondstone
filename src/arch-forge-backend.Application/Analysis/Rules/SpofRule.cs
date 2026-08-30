@@ -141,12 +141,7 @@ public class SpofRule : IArchitectureRule
         if (!edge.Synchronous)
             return false;
 
-        var resilience = graph.ResilienceOf(edge);
-
-        if (!resilience.Fallback || resilience.DeclaresWrite)
-            return true;
-
-        if (NodeRoles.ForwardsRequest(graph, edge))
+        if (!graph.BelievesFallback(edge))
             return true;
 
         return graph.NodesById.TryGetValue(edge.TargetNodeId, out var target)

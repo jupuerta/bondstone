@@ -53,7 +53,20 @@ public class ArchitectureGraph
                         && !OrphanNodes.Contains(n.Id)
                         && !IncomingByTarget[n.Id].Any(edge => !Rules.NodeRoles.IsTelemetryEdge(this, edge)))
             .ToList();
+
+        _entryNodeIds = EntryNodes.Select(n => n.Id).ToHashSet();
     }
+
+    private readonly HashSet<Guid> _entryNodeIds;
+
+    // Where a declared number counts, and the only place: an entry node, or a client — the origin by
+    // definition, even when something calls it back. A number declared while a box was an entry kept
+    // adding up once a door was put in front of it (the inspector hides the field, it did not delete
+    // it), and what sat behind was sized for traffic that never arrives (QA 30-08, §10.3 point 8). A
+    // loose box declares nothing either (§9.5). The load model and `declaresLoad` read this together.
+    public bool DeclaresTraffic(Node node) =>
+        !OrphanNodes.Contains(node.Id)
+        && (Rules.NodeRoles.IsTrafficOrigin(node.Type) || _entryNodeIds.Contains(node.Id));
 
     public IReadOnlyList<Node> Nodes { get; }
 
@@ -89,6 +102,14 @@ public class ArchitectureGraph
             Access = declared.Access
         };
     }
+
+    // The one question four places ask: is there a fallback the model believes? A router has nothing
+    // to answer with (§7.4) and a declared write nothing to approximate (§3.5), so on those calls the
+    // ticked box exists only in the drawing — IMPLAUSIBLE_DEPENDENCY says so, and until §10.4 two
+    // rules paid for it: ticking it turned a critical MISSING_RESILIENCE into a +5 warning and the
+    // score went up by a box the model says is not there (QA 30-08, §10.2 point 2).
+    public bool BelievesFallback(Connection connection) =>
+        EffectiveResilienceOf(connection).Fallback && !ResilienceOf(connection).DeclaresWrite;
 
     public IReadOnlySet<Guid> OrphanNodes { get; }
 

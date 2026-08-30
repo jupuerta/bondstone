@@ -121,6 +121,46 @@ public class RequestYieldTests
         Assert.Equal(0m, Impact(graph).Affected);
     }
 
+    // QA 30-08 §10.3, point 7 (P19). The door's only call did not wait, so nothing behind it could
+    // ever reduce what it served: `Core` down gave 0 % of requests affected while the entry point
+    // itself was counted as affected. A door that answers nobody serves nothing, fault or no fault.
+    [Fact]
+    public void A_door_that_waits_for_nobody_serves_nobody()
+    {
+        var graph = Loaded(100, builder => builder
+            .Node("Core", NodeType.Service)
+            .Connect("Api", "Core", synchronous: false));
+
+        var (affected, bottleneck) = Impact(graph);
+
+        Assert.Equal(1m, affected);
+        Assert.Equal(FindingElement.Node(graph.NodeId("Api")), bottleneck);
+    }
+
+    [Fact]
+    public void A_door_that_queues_the_work_serves_the_request_it_accepted()
+    {
+        var graph = Loaded(100, builder => builder
+            .Node("Jobs", NodeType.Queue)
+            .Node("Worker", NodeType.Worker)
+            .Connect("Api", "Jobs", synchronous: false)
+            .Connect("Jobs", "Worker", synchronous: false));
+
+        Assert.Equal(0m, Impact(graph).Affected);
+    }
+
+    [Fact]
+    public void One_call_that_waits_is_enough_for_the_door_to_be_answering()
+    {
+        var graph = Loaded(100, builder => builder
+            .Node("Core", NodeType.Service)
+            .Node("Mailer", NodeType.Service)
+            .Connect("Api", "Core", timeoutSeconds: 3)
+            .Connect("Api", "Mailer", synchronous: false));
+
+        Assert.Equal(0m, Impact(graph).Affected);
+    }
+
     private static (decimal Affected, FindingElement? Bottleneck) Impact(ArchitectureGraph graph) =>
         RequestYield.Of(graph, LoadModel.Of(graph), YieldInputs.CapacityOnly).Impact();
 

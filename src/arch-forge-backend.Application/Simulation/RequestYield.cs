@@ -63,6 +63,17 @@ public sealed class RequestYield
             return Served.Whole;
 
         var node = _graph.NodesById[nodeId];
+
+        // A door whose every call says «I do not wait», with no broker holding the work, serves
+        // nothing: the caller outside gets no answer, whatever happens behind (QA 30-08, §10.3
+        // point 7). Without this, the drawing that unticks every box came out serving 100 %.
+        if (Analysis.Rules.ImplausibleDependencyRule.WaitsForNobody(_graph, node))
+        {
+            _onPath.Remove(nodeId);
+            _nodes[nodeId] = new Served(0m, FindingElement.Node(nodeId));
+            return _nodes[nodeId];
+        }
+
         var worst = Capacity(node);
 
         foreach (var edge in _graph.OutgoingBySource[nodeId].OrderBy(c => c.TargetNodeId).ThenBy(c => c.Id))
@@ -96,9 +107,9 @@ public sealed class RequestYield
         if (!edge.Synchronous)
             return Served.Whole;
 
-        // A fallback serves the request only when there is something to answer with. A declared
-        // write has nothing: a payment that is not made cannot be approximated (QA 30-08, §3.5).
-        if (resilience.TimeoutSeconds is not null && resilience.Fallback && !resilience.DeclaresWrite)
+        // A fallback serves the request only when there is something to answer with — not a router's
+        // and not a declared write's: a payment that is not made cannot be approximated (§3.5, §7.4).
+        if (resilience.TimeoutSeconds is not null && _graph.BelievesFallback(edge))
             return Served.Whole;
 
         if (_inputs.Down.Contains(edge.TargetNodeId) || _inputs.ExpiredEdges.Contains(edge.Id))

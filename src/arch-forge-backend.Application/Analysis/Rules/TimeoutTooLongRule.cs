@@ -48,8 +48,10 @@ public class TimeoutTooLongRule : IArchitectureRule
             var source = graph.NodesById[edge.SourceNodeId].Name;
             var target = graph.NodesById[edge.TargetNodeId].Name;
 
+            // Same reading as the simulator: a fallback a router or a write cannot honour does not
+            // hold the call open any less (QA 30-08, §10.2 point 2).
             var heldOpenOnSpof = !resilience.CircuitBreaker
-                                 && !resilience.Fallback
+                                 && !graph.BelievesFallback(edge)
                                  && criticalSpofs.Contains(edge.TargetNodeId);
 
             var suggested = Math.Max(FixTimeoutSeconds, (int)Math.Ceiling(callMs * 2 / 1000m));

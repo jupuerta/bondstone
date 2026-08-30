@@ -107,8 +107,8 @@ public sealed class LoadModel
 
     public decimal BacklogRps { get; private set; }
 
-    // Traffic is declared where it enters, and only there, so every declaration is entering traffic:
-    // no root by the letter has to vouch for it (a door the telemetry consults is nobody's root).
+    // Traffic counts where it enters, and only there: a door only the telemetry consults is still
+    // an entry, a number left on a box that stopped being one is not (ArchitectureGraph.DeclaresTraffic).
     public decimal EnteringRps => _graph.Nodes.Sum(n => NodeSettings.Admit(n, DeclaredRps(n)));
 
     public decimal LoadAmplification
@@ -125,7 +125,8 @@ public sealed class LoadModel
     }
 
 
-    private decimal DeclaredRps(Node node) => NodeSettings.DeclaredRps(node) * _demandScale;
+    private decimal DeclaredRps(Node node) =>
+        _graph.DeclaresTraffic(node) ? NodeSettings.DeclaredRps(node) * _demandScale : 0m;
 
     private void Propagate(Func<Connection, decimal> amplification)
     {

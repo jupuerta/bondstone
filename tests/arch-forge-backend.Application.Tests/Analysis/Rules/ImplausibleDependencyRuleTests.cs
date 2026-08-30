@@ -24,6 +24,10 @@ public class ImplausibleDependencyRuleTests
     [InlineData(NodeType.Api, NodeType.IdentityProvider, null, "asyncIdentity")]
     [InlineData(NodeType.Cache, NodeType.Database, null, "asyncCacheMiss")]
     [InlineData(NodeType.Service, NodeType.Database, "read", "asyncRead")]
+    // Undeclared is the default and the model counts it as a read (QA 30-08, §10.3 point 6): the
+    // commonest drawing of all used to be the one nobody checked.
+    [InlineData(NodeType.Service, NodeType.Database, null, "asyncRead")]
+    [InlineData(NodeType.Service, NodeType.ObjectStorage, null, "asyncRead")]
     public void An_arrow_that_cannot_stop_waiting_is_critical_when_it_says_it_does(NodeType source, NodeType target, string? access, string variant)
     {
         _builder.Node("A", source).Node("B", target).Connect("A", "B", synchronous: false, access: access);
@@ -37,13 +41,80 @@ public class ImplausibleDependencyRuleTests
     }
 
     [Theory]
-    [InlineData(NodeType.Service, NodeType.Database, null)]
     [InlineData(NodeType.Service, NodeType.Database, "write")]
     [InlineData(NodeType.Api, NodeType.Queue, null)]
     [InlineData(NodeType.Service, NodeType.Service, null)]
     public void Not_waiting_is_still_allowed_where_the_work_can_wait(NodeType source, NodeType target, string? access)
     {
         _builder.Node("A", source).Node("B", target).Connect("A", "B", synchronous: false, access: access);
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    // QA 30-08 §10.3, point 7. A door's callers are outside watching a screen: if every call it makes
+    // says «I do not wait», there is no answer to give — and P19 measured the model serving 100 % of
+    // them. Queueing the work is the honest version of the same shape, which is what `backlog`
+    // teaches, so a broker among its calls answers the question.
+    [Fact]
+    public void A_door_that_waits_for_nobody_is_the_drawing_talking()
+    {
+        _builder.Node("Door", NodeType.Api, """{"requestsPerSecond":100}""").Node("Core", NodeType.Service)
+            .Connect("Door", "Core", synchronous: false);
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal(Severity.Critical, finding.Severity);
+        Assert.Equal("finding.IMPLAUSIBLE_DEPENDENCY.asyncDoor.message", finding.Message.Key());
+        Assert.Equal("Door", finding.Message.Arg("source"));
+    }
+
+    // The gap this variant fills is the Api: a gateway, a balancer or a CDN in the same shape already
+    // have a sentence of their own, and it is the more specific of the two — routing without waiting
+    // is impossible whether or not the box behind is the only one it calls.
+    [Theory]
+    [InlineData(NodeType.Gateway)]
+    [InlineData(NodeType.LoadBalancer)]
+    [InlineData(NodeType.Cdn)]
+    public void A_router_in_the_same_shape_keeps_its_own_sentence(NodeType router)
+    {
+        _builder.Node("Door", router, """{"requestsPerSecond":100}""").Node("Core", NodeType.Service)
+            .Connect("Door", "Core", synchronous: false);
+
+        var finding = Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+
+        Assert.Equal(Severity.Critical, finding.Severity);
+        Assert.Equal("finding.IMPLAUSIBLE_DEPENDENCY.asyncRouter.message", finding.Message.Key());
+    }
+
+    [Fact]
+    public void A_door_that_queues_the_work_has_accepted_it()
+    {
+        _builder.Node("Storefront", NodeType.Api, """{"requestsPerSecond":500}""")
+            .Node("Jobs", NodeType.Queue).Node("Worker", NodeType.Worker)
+            .Connect("Storefront", "Jobs", synchronous: false)
+            .Connect("Jobs", "Worker", synchronous: false);
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Fact]
+    public void One_synchronous_call_is_enough_to_be_answering_somebody()
+    {
+        _builder.Node("Door", NodeType.Api, """{"requestsPerSecond":100}""")
+            .Nodes(NodeType.Service, "Core", "Mailer")
+            .Connect("Door", "Core", timeoutSeconds: 3)
+            .Connect("Door", "Mailer", synchronous: false);
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    // A box behind a door is not a door: what does not wait there is ASYNC_NO_QUEUE's question.
+    [Fact]
+    public void What_hangs_behind_a_door_is_not_asked_this()
+    {
+        _builder.Node("Edge", NodeType.Gateway).Node("Api", NodeType.Api).Node("Core", NodeType.Service)
+            .Connect("Edge", "Api", timeoutSeconds: 3)
+            .Connect("Api", "Core", synchronous: false);
 
         Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
     }

@@ -58,26 +58,49 @@ public class TimeoutTooLongRuleTests
     [Fact]
     public void HeldOpenOnACriticalSpof_IsCritical_AndACoveredCallIsNot()
     {
-        static GraphBuilder Shape(bool fallback) => new GraphBuilder()
-            .Node("Gw", NodeType.Gateway).Node("Api", NodeType.Api).Node("Db", NodeType.Database).Node("Cache", NodeType.Cache)
-            .Connect("Gw", "Api", timeoutSeconds: 600, fallback: fallback)
+        // The caller matters since QA 30-08 §10.2 point 2: the rule counts the fallback where the
+        // model counts it, and a router has nothing to answer with, so ticking the box on its call
+        // no longer turns this critical into a warning.
+        static GraphBuilder Shape(NodeType caller, bool fallback) => new GraphBuilder()
+            .Node("Caller", caller).Node("Api", NodeType.Api).Node("Db", NodeType.Database).Node("Cache", NodeType.Cache)
+            .Connect("Caller", "Api", timeoutSeconds: 600, fallback: fallback)
             .Connect("Api", "Db", timeoutSeconds: 3, fallback: true)
             .Connect("Api", "Cache", timeoutSeconds: 1, fallback: true);
 
-        var bare = Shape(fallback: false).Build();
-        bare.Facts.Add(new SinglePointOfFailureFact(bare.NodeId("Api"), Severity.Critical));
+        static ArchitectureGraph WithSpof(GraphBuilder builder, Severity severity)
+        {
+            var graph = builder.Build();
+            graph.Facts.Add(new SinglePointOfFailureFact(graph.NodeId("Api"), severity));
+            return graph;
+        }
+
+        var bare = WithSpof(Shape(NodeType.Gateway, fallback: false), Severity.Critical);
         var critical = Assert.Single(_rule.Evaluate(bare).Findings);
         Assert.Equal(Severity.Critical, critical.Severity);
         Assert.Equal("finding.TIMEOUT_TOO_LONG.unboundedToSpof.explanation", critical.Explanation.Key());
 
-        var covered = Shape(fallback: true).Build();
-        covered.Facts.Add(new SinglePointOfFailureFact(covered.NodeId("Api"), Severity.Critical));
+        var covered = WithSpof(Shape(NodeType.Service, fallback: true), Severity.Critical);
         var warning = Assert.Single(_rule.Evaluate(covered).Findings);
         Assert.Equal(Severity.Warning, warning.Severity);
         Assert.Equal("finding.TIMEOUT_TOO_LONG.unbounded.explanation", warning.Explanation.Key());
 
-        var soft = Shape(fallback: false).Build();
-        soft.Facts.Add(new SinglePointOfFailureFact(soft.NodeId("Api"), Severity.Warning));
+        var pretended = WithSpof(Shape(NodeType.Gateway, fallback: true), Severity.Critical);
+        var stillCritical = Assert.Single(_rule.Evaluate(pretended).Findings);
+        Assert.Equal(Severity.Critical, stillCritical.Severity);
+        Assert.Equal("finding.TIMEOUT_TOO_LONG.unboundedToSpof.explanation", stillCritical.Explanation.Key());
+
+        // Two calls of the same shape between the same pair: the plain fallback is believed and its
+        // call is a warning, the one that declares a write is not and stays critical.
+        var written = WithSpof(
+            Shape(NodeType.Service, fallback: true).Connect("Caller", "Api", timeoutSeconds: 600, fallback: true, access: "write"),
+            Severity.Critical);
+        var both = _rule.Evaluate(written).Findings;
+
+        Assert.Equal(2, both.Count);
+        Assert.Single(both, f => f.Severity == Severity.Critical);
+        Assert.Single(both, f => f.Severity == Severity.Warning);
+
+        var soft = WithSpof(Shape(NodeType.Gateway, fallback: false), Severity.Warning);
         Assert.Equal(Severity.Warning, Assert.Single(_rule.Evaluate(soft).Findings).Severity);
     }
 

@@ -85,9 +85,20 @@ public class ImplausibleDependencyRule : IArchitectureRule
             return ("routerToDatabase", Severity.Warning);
 
         if (edge.Synchronous)
-            return NodeRoles.ForwardsRequest(graph, edge) && graph.ResilienceOf(edge).Fallback
-                ? ("routerFallback", Severity.Warning)
-                : null;
+        {
+            var resilience = graph.ResilienceOf(edge);
+
+            if (NodeRoles.ForwardsRequest(graph, edge) && resilience.Fallback)
+                return ("routerFallback", Severity.Warning);
+
+            // A write that does not happen cannot be approximated (QA 30-08, §3.5 and §10.3 point 4):
+            // the model neither serves the request with the fallback nor discounts the dependency,
+            // and the button never offers one — a ticked one is the drawing promising a plan B.
+            if (resilience.Fallback && resilience.DeclaresWrite)
+                return ("writeFallback", Severity.Warning);
+
+            return null;
+        }
 
         // An arrow that says «nobody waits» where somebody has to (QA 30-08, §3.1). Unticking the box
         // does not change what the call is; it makes the drawing contradict itself, and every rule
@@ -105,10 +116,38 @@ public class ImplausibleDependencyRule : IArchitectureRule
         if (source.Type == NodeType.Cache)
             return ("asyncCacheMiss", Severity.Critical);
 
-        if (NodeRoles.IsSystemOfRecord(target.Type) && graph.ResilienceOf(edge).DeclaresRead)
+        // Not «declares a read» but «is not a declared write», because undeclared is the default and
+        // LoadModel already counts it as a read: asking for a box to be ticked before believing the
+        // arrow made the commonest drawing of all the one nobody checked (QA 30-08, §10.3 point 6).
+        if (NodeRoles.IsSystemOfRecord(target.Type) && !graph.ResilienceOf(edge).DeclaresWrite)
             return ("asyncRead", Severity.Critical);
 
+        // A door that waits for nobody. Its callers are outside, watching a screen, and every call it
+        // makes says «I do not wait» — so there is no answer to give and nothing was left anywhere to
+        // do later either. A door that queues the work has accepted it and can say «received», which
+        // is what `backlog` teaches, so a broker among its calls is the honest version of this shape
+        // (QA 30-08, §10.3 point 7).
+        if (WaitsForNobody(graph, source))
+            return ("asyncDoor", Severity.Critical);
+
         return null;
+    }
+
+    // The shape, not the arrow: every call this door makes is asynchronous and none of them leaves the
+    // work in a broker. Shared by the rule and by RequestYield, which serves nothing through it.
+    public static bool WaitsForNobody(ArchitectureGraph graph, Node door)
+    {
+        if (!NodeRoles.ReceivesFromOutside(door.Type) || !graph.EntryNodes.Any(n => n.Id == door.Id))
+            return false;
+
+        var calls = graph.OutgoingBySource[door.Id]
+            .Where(edge => !NodeRoles.IsTelemetryEdge(graph, edge))
+            .ToList();
+
+        return calls.Count > 0
+               && calls.All(edge => !edge.Synchronous)
+               && !calls.Any(edge => graph.NodesById.TryGetValue(edge.TargetNodeId, out var target)
+                                     && NodeRoles.IsBroker(target.Type));
     }
 
     private static bool IsOrigin(NodeType type) =>

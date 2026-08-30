@@ -61,7 +61,7 @@ public class AsyncNoQueueRule : IArchitectureRule
         type is NodeType.Api or NodeType.Service or NodeType.Worker;
 
     private static bool IsBroker(NodeType? type) =>
-        type is NodeType.Queue or NodeType.Topic;
+        type is { } value && NodeRoles.IsBroker(value);
 
     private static NodeType? TypeOf(ArchitectureGraph graph, Guid nodeId) =>
         graph.NodesById.TryGetValue(nodeId, out var node) ? node.Type : null;

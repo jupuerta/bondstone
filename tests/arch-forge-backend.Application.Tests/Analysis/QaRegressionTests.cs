@@ -235,7 +235,7 @@ public class QaRegressionTests
     public void B3_ADoorToObjectStorage_IsAskedAboutAuthenticationToo()
     {
         _builder
-            .Node("Api", NodeType.Api)
+            .Node("Api", NodeType.Api, """{"requestsPerSecond":50}""")
             .Node("Ficheros", NodeType.ObjectStorage)
             .Connect("Api", "Ficheros", timeoutSeconds: 3);
 

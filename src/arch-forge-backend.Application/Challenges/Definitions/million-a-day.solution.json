@@ -13,7 +13,7 @@
     { "name": "Db", "type": "Database", "x": 880, "y": 120, "configuration": { "readReplicas": 1 } }
   ],
   "connections": [
-    { "from": "Gateway", "to": "Api", "synchronous": true, "configuration": { "timeoutSeconds": 5, "fallback": true } },
+    { "from": "Gateway", "to": "Api", "synchronous": true, "configuration": { "timeoutSeconds": 5, "circuitBreaker": true } },
     { "from": "Api", "to": "Uploads", "synchronous": true, "configuration": { "timeoutSeconds": 5, "fallback": true } },
     { "from": "Api", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 5, "circuitBreaker": true, "fallback": true } },
     { "from": "Api", "to": "Jobs", "synchronous": false },
