@@ -418,11 +418,16 @@ public class ArchitectureFlowTests : IClassFixture<PostgresApiFactory>
             {
                 new
                 {
+                    // The traffic is what makes the door a door: since QA 30-08 §10.6 the security
+                    // rule does not question an entry point nobody calls, so without it declaring
+                    // authentication moved nothing and this test's Security assertion could not hold.
                     id = api,
                     type = "Api",
                     name = "Api",
                     position = new { x = 0, y = 0 },
-                    configuration = fixedUp ? new { authentication = true } : null
+                    configuration = fixedUp
+                        ? (object)new { requestsPerSecond = 50, authentication = true }
+                        : new { requestsPerSecond = 50 }
                 },
                 new { id = db, type = "Database", name = "Db", position = new { x = 200, y = 0 } }
             },

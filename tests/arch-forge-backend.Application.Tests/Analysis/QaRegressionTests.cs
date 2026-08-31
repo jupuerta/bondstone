@@ -662,6 +662,66 @@ public class QaRegressionTests
         Assert.DoesNotContain(forwards.Findings, f => f.Code == RuleCodes.TimeoutTooShort && f.Severity != Severity.Good);
     }
 
+    // ── QA 30-08 §11.4: la sugerencia que el inspector no podía cumplir ──────────────────────────
+
+    [Theory]
+    [InlineData(NodeType.Gateway, 2_000)]
+    [InlineData(NodeType.LoadBalancer, 10_000)]
+    [InlineData(NodeType.Cache, 5_000)]
+    [InlineData(NodeType.Queue, 5_000)]
+    [InlineData(NodeType.Topic, 5_000)]
+    public void QA11_TheFiveThatWereASingleBox_MultiplyTheirCapacityByTheirCopies(NodeType type, int perInstance)
+    {
+        _builder.Node("Box", type, """{"instances": 3}""").Node("Peer").Connect("Box", "Peer");
+
+        Assert.Equal(perInstance * 3, LoadModel.Of(_builder.Build()).CapacityOf(_builder.IdOf("Box")));
+    }
+
+    [Fact]
+    public void QA11_ASaturatedGateway_IsAnsweredWithTheFieldItNowHas()
+    {
+        _builder
+            .Node("Users", NodeType.Client, """{"requestsPerSecond": 3000}""")
+            .Node("Edge", NodeType.Gateway, """{"authentication": true, "instances": 2}""")
+            .Node("Api", NodeType.Api, """{"instances": 10}""")
+            .Connect("Users", "Edge").Connect("Edge", "Api", timeoutSeconds: 3);
+
+        Assert.DoesNotContain(new UndersizedComponentRule().Evaluate(_builder.Build()).Findings,
+            f => f.Elements.Contains(_builder.NodeElement("Edge")));
+    }
+
+    [Fact]
+    public void QA11_ASaturatedBucket_IsNotToldToRaiseInstancesItDoesNotHave()
+    {
+        _builder
+            .Node("Users", NodeType.Client, """{"requestsPerSecond": 3000}""")
+            .Node("Api", NodeType.Api, """{"authentication": true, "instances": 10}""")
+            .Node("Bucket", NodeType.ObjectStorage)
+            .Connect("Users", "Api").Connect("Api", "Bucket", timeoutSeconds: 3);
+
+        var finding = Assert.Single(new UndersizedComponentRule().Evaluate(_builder.Build()).Findings,
+            f => f.Elements.Contains(_builder.NodeElement("Bucket")));
+
+        Assert.Equal("finding.UNDERSIZED_COMPONENT.suggestion.objectStorage", finding.Suggestion.Key());
+    }
+
+    [Fact]
+    public void QA11_ReplicatingTheBucket_BuysRedundancyAndNoCapacity()
+    {
+        _builder
+            .Node("Users", NodeType.Client, """{"requestsPerSecond": 3000}""")
+            .Node("Api", NodeType.Api, """{"authentication": true, "instances": 10}""")
+            .Node("Bucket", NodeType.ObjectStorage, """{"replicated": true}""")
+            .Connect("Users", "Api").Connect("Api", "Bucket", timeoutSeconds: 3);
+
+        var graph = _builder.Build();
+
+        Assert.Equal(2_000, LoadModel.Of(graph).CapacityOf(_builder.IdOf("Bucket")));
+        Assert.Contains(new UndersizedComponentRule().Evaluate(graph).Findings,
+            f => f.Elements.Contains(_builder.NodeElement("Bucket")));
+        Assert.Empty(new SpofRule().Evaluate(graph).Findings);
+    }
+
     private static string Describe(AnalysisResult result) => string.Join("\n", result.Findings
         .Select(f => $"{f.Severity} {f.Area} {f.Code} {f.Message.Describe()} {f.Explanation.Describe()}"));
 }

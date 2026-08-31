@@ -238,15 +238,43 @@ public class SpofRuleTests
         Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
     }
 
+    // QA 30-08 §11.4 moved the line: a broker, a door, a balancer and a cache own `instances` now,
+    // and a store never will — its copies are replication, which buys redundancy and no capacity.
     [Fact]
     public void DeclaringInstancesOnATypeThatHasNoSuchField_ClearsNothing()
     {
         _builder
-            .Node("Queue", NodeType.Queue, """{"instances": 5}""")
+            .Node("Bucket", NodeType.ObjectStorage, """{"instances": 5}""")
             .Nodes(NodeType.Api, "Orders", "Payments")
-            .Connect("Orders", "Queue").Connect("Payments", "Queue");
+            .Connect("Orders", "Bucket").Connect("Payments", "Bucket");
 
         Assert.Single(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Fact]
+    public void ABucketThatDeclaresItsReplication_IsNotASinglePointOfFailure()
+    {
+        _builder
+            .Node("Bucket", NodeType.ObjectStorage, """{"replicated": true}""")
+            .Nodes(NodeType.Api, "Orders", "Payments")
+            .Connect("Orders", "Bucket").Connect("Payments", "Bucket");
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
+    }
+
+    [Theory]
+    [InlineData(NodeType.Queue)]
+    [InlineData(NodeType.Topic)]
+    [InlineData(NodeType.Cache)]
+    [InlineData(NodeType.Gateway)]
+    public void ABrokerADoorOrACacheThatDeclaresItsCopies_IsNotASinglePointOfFailure(NodeType type)
+    {
+        _builder
+            .Node("Shared", type, """{"instances": 2}""")
+            .Nodes(NodeType.Api, "Orders", "Payments")
+            .Connect("Orders", "Shared").Connect("Payments", "Shared");
+
+        Assert.Empty(_rule.Evaluate(_builder.Build()).Findings);
     }
 
     [Fact]
@@ -839,9 +867,9 @@ public class SpofRuleTests
     {
         _builder
             .Node("LB", NodeType.LoadBalancer)
-            .Node("Gw", NodeType.Gateway, """{"instances": 5}""")
+            .Node("Idp", NodeType.IdentityProvider, """{"instances": 5}""")
             .Nodes(NodeType.Service, "Users", "Orders")
-            .Connect("LB", "Gw").Connect("Gw", "Users").Connect("Gw", "Orders");
+            .Connect("Users", "LB").Connect("Orders", "LB").Connect("LB", "Idp");
 
         Assert.Contains(_rule.Evaluate(_builder.Build()).Findings, f => f.Elements.Contains(_builder.NodeElement("LB")));
     }

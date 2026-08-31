@@ -399,6 +399,18 @@ public class RecordAnalyzerSentences
             .Connect("V2", "Db", timeoutSeconds: 3, access: "write")
             .Connect("V3", "Db", timeoutSeconds: 3, access: "write"));
 
+        yield return ("saturatedBucket", new GraphBuilder()
+            .Node("Users", NodeType.Client, "{\"requestsPerSecond\":3000}")
+            .Node("Api", NodeType.Api, "{\"authentication\":true,\"instances\":10}")
+            .Node("Bucket", NodeType.ObjectStorage, "{\"replicated\":true}")
+            .Connect("Users", "Api").Connect("Api", "Bucket", timeoutSeconds: 3));
+
+        yield return ("saturatedBucket", new GraphBuilder()
+            .Node("Users", NodeType.Client, "{\"requestsPerSecond\":3000}")
+            .Node("Api", NodeType.Api, "{\"authentication\":true,\"instances\":10}")
+            .Node("Bucket", NodeType.ObjectStorage, "{\"replicated\":true}")
+            .Connect("Users", "Api").Connect("Api", "Bucket", timeoutSeconds: 3));
+
         yield return ("unguarded", new GraphBuilder()
             .Node("Users", NodeType.Client).Node("Edge", NodeType.Cdn).Node("W", NodeType.Worker)
             .Connect("Users", "Edge").Connect("Edge", "W"));
