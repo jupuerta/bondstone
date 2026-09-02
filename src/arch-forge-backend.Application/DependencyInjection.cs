@@ -77,6 +77,8 @@ public static class DependencyInjection
 
         services.AddScoped<IValidator<CreateArchitectureCommand>, CreateArchitectureCommandValidator>();
         services.AddScoped<IValidator<UpdateArchitectureCommand>, UpdateArchitectureCommandValidator>();
+        services.AddScoped<IValidator<StartChallengeCommand>, StartChallengeCommandValidator>();
+        services.AddScoped<IValidator<OpenChallengeSolutionCommand>, OpenChallengeSolutionCommandValidator>();
 
         services.AddScoped<CreateArchitectureCommandHandler>();
         services.AddScoped<UpdateArchitectureCommandHandler>();

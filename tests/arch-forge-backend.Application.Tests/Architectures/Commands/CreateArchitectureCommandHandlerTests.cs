@@ -1,6 +1,7 @@
 using arch_forge_backend.Application.Architectures.Commands;
 using arch_forge_backend.Application.Tests.TestDoubles;
 using FluentValidation;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Architectures.Commands;
@@ -12,7 +13,7 @@ public class CreateArchitectureCommandHandlerTests
 
     public CreateArchitectureCommandHandlerTests()
     {
-        _handler = new CreateArchitectureCommandHandler(_repository, new CreateArchitectureCommandValidator());
+        _handler = new CreateArchitectureCommandHandler(_repository, new CreateArchitectureCommandValidator(), NullLogger<CreateArchitectureCommandHandler>.Instance);
     }
 
     [Fact]

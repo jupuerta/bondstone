@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using arch_forge_backend.Application.Architectures;
 using arch_forge_backend.Domain.Entities;
 using arch_forge_backend.Domain.Enums;
 
@@ -18,8 +19,8 @@ public sealed class ArchitectureBlueprint
         {
             Id = Guid.NewGuid(),
             Name = name,
-            ShareToken = Guid.NewGuid().ToString("N")[..10],
-            EditToken = Guid.NewGuid().ToString("N"),
+            ShareToken = ArchitectureTokens.NewShareToken(),
+            EditToken = ArchitectureTokens.NewEditToken(),
             Version = 1,
             CreatedAt = now,
             UpdatedAt = now

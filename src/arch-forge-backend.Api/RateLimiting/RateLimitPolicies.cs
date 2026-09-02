@@ -4,8 +4,8 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace arch_forge_backend.Api.RateLimiting;
 
-// Two limits, because there are two different things to protect against and one number cannot do
-// both jobs.
+// Three limits, because there are three different things to protect against and one number cannot
+// do all three jobs.
 //
 // **The global one is a backstop, not a policy.** This editor is chatty by design: the autosave
 // debounces at 1 000 ms and the live analysis at 800, and a session in Simulate also asks for the
@@ -21,9 +21,16 @@ namespace arch_forge_backend.Api.RateLimiting;
 //
 // V20's browser pass left 21 stray rows in one afternoon just by visiting `/c/{slug}` at seven
 // widths. That is one person being careless; a script would not stop at 21.
+//
+// **The health one is a muzzle.** `/api/health` is public through the nginx and every call asks the
+// database whether it is still there. Its callers are machines with known rhythms — a 10s container
+// probe, an occasional `check:stack` — so it gets a ceiling sized for them instead of the exemption
+// it used to have, which also exempted it from the global backstop.
 public static class RateLimitPolicies
 {
     public const string Mint = "mint";
+
+    public const string Health = "health";
 
     public static void AddArchForgeRateLimiting(this IServiceCollection services, IConfiguration configuration)
     {
@@ -44,6 +51,18 @@ public static class RateLimitPolicies
                         QueueLimit = 0,
                     }));
 
+            // Sized for machines, not people: a 10s container probe is 6 a minute and check:stack
+            // adds a handful. Anything an order of magnitude above that is not a health check.
+            options.AddPolicy(Health, context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    ClientOf(context),
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = limits.HealthPermitsPerMinute,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                    }));
+
             options.AddPolicy(Mint, context =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     ClientOf(context),
@@ -58,6 +77,18 @@ public static class RateLimitPolicies
             // so a refusal says something a person can read rather than "status 429".
             options.OnRejected = async (context, cancellationToken) =>
             {
+                // The endpoint name and not the path: on this API the path is where the tokens
+                // live, and a refusal log that collects capability tokens is a worse problem than
+                // the one it observes. This line is how abuse becomes visible at all — the
+                // limiter otherwise refuses in silence and the graphs just look quiet.
+                context.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger(typeof(RateLimitPolicies).FullName!)
+                    .LogWarning("Rate limit hit by {Client} on {Method} {Endpoint}.",
+                        ClientOf(context.HttpContext),
+                        context.HttpContext.Request.Method,
+                        context.HttpContext.GetEndpoint()?.DisplayName ?? "unknown endpoint");
+
                 if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
                 {
                     context.HttpContext.Response.Headers.RetryAfter =
@@ -71,10 +102,11 @@ public static class RateLimitPolicies
         });
     }
 
-    // Behind the proxy this is the real client, because `UseForwardedHeaders` runs first and
-    // `X-Forwarded-For` has already been applied by the time any limiter is consulted. Without a
-    // remote address there is nothing to partition by, and everything anonymous shares one bucket —
-    // which is the safe direction to be wrong in.
+    // Behind the declared proxy this is the real client, because `UseForwardedHeaders` runs first
+    // and has applied `X-Forwarded-For` by the time any limiter is consulted — and only the proxy
+    // named in `ForwardedHeaders:KnownProxies` gets to be believed, so a direct caller cannot mint
+    // itself a fresh partition per request. Without a remote address there is nothing to partition
+    // by, and everything anonymous shares one bucket — which is the safe direction to be wrong in.
     private static string ClientOf(HttpContext context) =>
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 }

@@ -109,6 +109,17 @@ public static class ChallengeHarness
         public Task<IReadOnlyList<ArchitectureSnapshot>> GetSnapshotsAsync(Guid architectureId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<ArchitectureSnapshot>>([]);
 
+        public Task<IReadOnlyList<ArchitectureSnapshot>> GetLatestSnapshotsAsync(Guid architectureId, int count, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ArchitectureSnapshot>>([]);
+
+        public Task<int> CountSnapshotsAsync(Guid architectureId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(0);
+
+        public Task<IReadOnlyList<ArchitectureSnapshot>> GetOldestSnapshotsAsync(Guid architectureId, int count, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ArchitectureSnapshot>>([]);
+
+        public void RemoveSnapshots(IReadOnlyCollection<ArchitectureSnapshot> snapshots) { }
+
         public Task SaveChangesAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }

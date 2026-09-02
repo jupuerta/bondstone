@@ -19,4 +19,8 @@ public sealed class RateLimitOptions
     public int MintPermits { get; set; } = 20;
 
     public int MintWindowMinutes { get; set; } = 10;
+
+    /// <summary>The health probe's own ceiling, per client per minute. High enough that no honest
+    /// probe meets it, low enough that the endpoint is not a free hammer at the database.</summary>
+    public int HealthPermitsPerMinute { get; set; } = 60;
 }

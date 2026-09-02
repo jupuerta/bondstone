@@ -24,5 +24,15 @@ public interface IArchitectureRepository
 
     Task<IReadOnlyList<ArchitectureSnapshot>> GetSnapshotsAsync(Guid architectureId, CancellationToken cancellationToken = default);
 
+    /// <summary>Newest first, tracked — the retention policy in the update handler mutates the tail in place.</summary>
+    Task<IReadOnlyList<ArchitectureSnapshot>> GetLatestSnapshotsAsync(Guid architectureId, int count, CancellationToken cancellationToken = default);
+
+    Task<int> CountSnapshotsAsync(Guid architectureId, CancellationToken cancellationToken = default);
+
+    /// <summary>Oldest first — what the retention belt trims, always sparing the first row.</summary>
+    Task<IReadOnlyList<ArchitectureSnapshot>> GetOldestSnapshotsAsync(Guid architectureId, int count, CancellationToken cancellationToken = default);
+
+    void RemoveSnapshots(IReadOnlyCollection<ArchitectureSnapshot> snapshots);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

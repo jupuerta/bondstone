@@ -82,6 +82,33 @@ public class ArchitectureRepository : IArchitectureRepository
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
+    // Tracked on purpose: the caller moves the tail of a flat run forward by mutating the row.
+    public async Task<IReadOnlyList<ArchitectureSnapshot>> GetLatestSnapshotsAsync(
+        Guid architectureId,
+        int count,
+        CancellationToken cancellationToken = default) =>
+        await _context.ArchitectureSnapshots
+            .Where(s => s.ArchitectureId == architectureId)
+            .OrderByDescending(s => s.Version)
+            .Take(count)
+            .ToListAsync(cancellationToken);
+
+    public Task<int> CountSnapshotsAsync(Guid architectureId, CancellationToken cancellationToken = default) =>
+        _context.ArchitectureSnapshots.CountAsync(s => s.ArchitectureId == architectureId, cancellationToken);
+
+    public async Task<IReadOnlyList<ArchitectureSnapshot>> GetOldestSnapshotsAsync(
+        Guid architectureId,
+        int count,
+        CancellationToken cancellationToken = default) =>
+        await _context.ArchitectureSnapshots
+            .Where(s => s.ArchitectureId == architectureId)
+            .OrderBy(s => s.Version)
+            .Take(count)
+            .ToListAsync(cancellationToken);
+
+    public void RemoveSnapshots(IReadOnlyCollection<ArchitectureSnapshot> snapshots) =>
+        _context.ArchitectureSnapshots.RemoveRange(snapshots);
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         try

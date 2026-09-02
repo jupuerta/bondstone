@@ -1,6 +1,7 @@
 using arch_forge_backend.Application.Architectures.Commands;
 using arch_forge_backend.Application.Tests.TestDoubles;
 using arch_forge_backend.Domain.Entities;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Architectures.Commands;
@@ -12,7 +13,7 @@ public class DeleteArchitectureCommandHandlerTests
 
     public DeleteArchitectureCommandHandlerTests()
     {
-        _handler = new DeleteArchitectureCommandHandler(_repository);
+        _handler = new DeleteArchitectureCommandHandler(_repository, NullLogger<DeleteArchitectureCommandHandler>.Instance);
     }
 
     [Fact]

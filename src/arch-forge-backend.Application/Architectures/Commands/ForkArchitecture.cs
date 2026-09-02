@@ -1,6 +1,7 @@
 using arch_forge_backend.Application.Architectures.DTOs;
 using arch_forge_backend.Application.Common.Interfaces;
 using arch_forge_backend.Domain.Entities;
+using Microsoft.Extensions.Logging;
 
 namespace arch_forge_backend.Application.Architectures.Commands;
 
@@ -12,10 +13,12 @@ public class ForkArchitectureCommand
 public class ForkArchitectureCommandHandler
 {
     private readonly IArchitectureRepository _repository;
+    private readonly ILogger<ForkArchitectureCommandHandler> _logger;
 
-    public ForkArchitectureCommandHandler(IArchitectureRepository repository)
+    public ForkArchitectureCommandHandler(IArchitectureRepository repository, ILogger<ForkArchitectureCommandHandler> logger)
     {
         _repository = repository;
+        _logger = logger;
     }
 
     public async Task<ArchitectureCreatedDto?> Handle(ForkArchitectureCommand command, CancellationToken cancellationToken = default)
@@ -29,8 +32,8 @@ public class ForkArchitectureCommandHandler
         {
             Id = Guid.NewGuid(),
             Name = source.Name,
-            ShareToken = Guid.NewGuid().ToString("N")[..10],
-            EditToken = Guid.NewGuid().ToString("N"),
+            ShareToken = ArchitectureTokens.NewShareToken(),
+            EditToken = ArchitectureTokens.NewEditToken(),
             Version = 1,
             CreatedAt = now,
             UpdatedAt = now
@@ -67,6 +70,8 @@ public class ForkArchitectureCommandHandler
 
         await _repository.AddAsync(fork, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Forked architecture {SourceArchitectureId} into {ArchitectureId}.", source.Id, fork.Id);
 
         return fork.ToCreatedDto();
     }

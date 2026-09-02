@@ -22,4 +22,11 @@ RUN apt-get update \
 WORKDIR /app
 COPY --from=build /app .
 EXPOSE 8080
+
+# The image ships a non-root `app` user and the process listens on 8080, which needs no privilege
+# to bind — so root buys nothing here and costs the whole container if anything in the stack is
+# ever wrong. Last, so the apt-get above still runs as root; the files are copied read-only for
+# `app`, which is all a published .NET app needs.
+USER app
+
 ENTRYPOINT ["dotnet", "arch-forge-backend.Api.dll"]

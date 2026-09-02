@@ -53,6 +53,30 @@ public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
     }
 
     [Fact]
+    public async Task Starting_with_a_name_over_the_column_limit_is_a_400_not_a_500()
+    {
+        var response = await _client.PostAsJsonAsync(
+            "/api/challenges/payments-friday/start", new { name = new string('x', 201) });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var body = await response.Content.ReadFromJsonAsync<JsonObject>();
+        Assert.False(string.IsNullOrWhiteSpace(body?["message"]?.GetValue<string>()));
+    }
+
+    [Fact]
+    public async Task Opening_a_solution_with_a_name_over_the_column_limit_is_a_400_not_a_500()
+    {
+        var response = await _client.PostAsJsonAsync(
+            "/api/challenges/payments-friday/solution", new { name = new string('x', 201) });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var body = await response.Content.ReadFromJsonAsync<JsonObject>();
+        Assert.False(string.IsNullOrWhiteSpace(body?["message"]?.GetValue<string>()));
+    }
+
+    [Fact]
     public async Task Starting_a_challenge_persists_an_ordinary_architecture()
     {
         var started = await StartAsync();

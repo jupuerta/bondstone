@@ -11,6 +11,7 @@ using arch_forge_backend.Application.Tests.TestDoubles;
 using arch_forge_backend.Domain.Entities;
 using arch_forge_backend.Domain.Enums;
 using FluentValidation;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace arch_forge_backend.Application.Tests.Architectures.Commands;
@@ -36,7 +37,8 @@ public class UpdateArchitectureCommandHandlerTests
             _repository,
             registry,
             new UpdateArchitectureCommandValidator(),
-            new ArchitectureAnalyzer([new SpofRule(), new MissingResilienceRule(), new NoObservabilityRule()]));
+            new ArchitectureAnalyzer([new SpofRule(), new MissingResilienceRule(), new NoObservabilityRule()]),
+            NullLogger<UpdateArchitectureCommandHandler>.Instance);
     }
 
     [Fact]
@@ -618,6 +620,161 @@ public class UpdateArchitectureCommandHandlerTests
         });
 
         Assert.Single(_repository.Snapshots);
+    }
+
+    [Fact]
+    public async Task Handle_MoreNodesThanTheCeiling_ThrowsValidationException()
+    {
+        var architecture = await SeedArchitecture();
+
+        var command = new UpdateArchitectureCommand
+        {
+            EditToken = architecture.EditToken,
+            Name = "Renamed",
+            Version = architecture.Version,
+            Nodes = Enumerable.Range(0, UpdateArchitectureCommandValidator.MaxNodes + 1)
+                .Select(i => Node(NodeType.Service, $"Service {i}"))
+                .ToList()
+        };
+
+        await Assert.ThrowsAsync<ValidationException>(() => _handler.Handle(command));
+    }
+
+    [Fact]
+    public async Task Handle_MoreConnectionsThanTheCeiling_ThrowsValidationException()
+    {
+        var architecture = await SeedArchitecture();
+        var api = Node(NodeType.Api, "Api");
+        var db = Node(NodeType.Database, "Db");
+
+        var command = new UpdateArchitectureCommand
+        {
+            EditToken = architecture.EditToken,
+            Name = "Renamed",
+            Version = architecture.Version,
+            Nodes = [api, db],
+            Connections = Enumerable.Range(0, UpdateArchitectureCommandValidator.MaxConnections + 1)
+                .Select(_ => Connect(api, db))
+                .ToList()
+        };
+
+        await Assert.ThrowsAsync<ValidationException>(() => _handler.Handle(command));
+    }
+
+    [Fact]
+    public async Task Handle_NodeConfigurationOverTheByteBudget_ThrowsValidationException()
+    {
+        var architecture = await SeedArchitecture();
+        var node = Node(NodeType.Service, "Orders");
+        node.Configuration = Json($$"""{"comment":"{{new string('x', UpdateArchitectureCommandValidator.MaxConfigurationBytes)}}"}""");
+
+        var command = new UpdateArchitectureCommand
+        {
+            EditToken = architecture.EditToken,
+            Name = "Renamed",
+            Version = architecture.Version,
+            Nodes = [node]
+        };
+
+        await Assert.ThrowsAsync<ValidationException>(() => _handler.Handle(command));
+    }
+
+    [Fact]
+    public async Task Handle_ConnectionConfigurationOverTheByteBudget_ThrowsValidationException()
+    {
+        var architecture = await SeedArchitecture();
+        var api = Node(NodeType.Api, "Api");
+        var db = Node(NodeType.Database, "Db");
+        var oversized = Json($$"""{"comment":"{{new string('x', UpdateArchitectureCommandValidator.MaxConfigurationBytes)}}"}""");
+
+        var command = new UpdateArchitectureCommand
+        {
+            EditToken = architecture.EditToken,
+            Name = "Renamed",
+            Version = architecture.Version,
+            Nodes = [api, db],
+            Connections = [Connect(api, db, oversized)]
+        };
+
+        await Assert.ThrowsAsync<ValidationException>(() => _handler.Handle(command));
+    }
+
+
+    [Fact]
+    public async Task Handle_AFlatRunKeepsItsFirstPointAndAMovingTail()
+    {
+        var architecture = Seed();
+
+        await _handler.Handle(Command(architecture, "Save 1"));
+        await _handler.Handle(Command(architecture, "Save 2"));
+        await _handler.Handle(Command(architecture, "Save 3"));
+        await _handler.Handle(Command(architecture, "Save 4"));
+
+        // Same graph four times: the score never moves, so storage owes the run exactly two rows —
+        // where it started (v2) and where the editor is now (v5).
+        Assert.Equal([2, 5], _repository.Snapshots.Select(s => s.Version).OrderBy(v => v).ToList());
+    }
+
+    [Fact]
+    public async Task Handle_AScoreChangeStartsANewRunInsteadOfMovingTheTail()
+    {
+        var architecture = Seed();
+        architecture.Version = 3;
+
+        // A finished run at a score no analysis can produce (-1): whatever the next save scores,
+        // it differs, so the save must open a new run — insert, never a tail-move.
+        foreach (var version in new[] { 2, 3 })
+        {
+            _repository.Snapshots.Add(new ArchitectureSnapshot
+            {
+                Id = Guid.NewGuid(),
+                ArchitectureId = architecture.Id,
+                Version = version,
+                ScoringVersion = "v12",
+                Score = -1,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        await _handler.Handle(Command(architecture, "Changed"));
+
+        var byVersion = _repository.Snapshots.ToDictionary(s => s.Version);
+
+        Assert.Equal([2, 3, 4], byVersion.Keys.OrderBy(v => v).ToList());
+        Assert.NotEqual(-1, byVersion[4].Score);
+    }
+
+    [Fact]
+    public async Task Handle_TheBeltPrunesTheOldestRowsButSparesTheFirst()
+    {
+        var architecture = Seed();
+        architecture.Version = 502;
+
+        // Alternating scores: every row is a run boundary, which is exactly the client the belt
+        // exists for — tail-collapsing never fires and only the hard cap stands between this and
+        // a row per save forever.
+        for (var version = 2; version <= 502; version++)
+        {
+            _repository.Snapshots.Add(new ArchitectureSnapshot
+            {
+                Id = Guid.NewGuid(),
+                ArchitectureId = architecture.Id,
+                Version = version,
+                ScoringVersion = "v12",
+                Score = version % 2,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        await _handler.Handle(Command(architecture, "Over the belt"));
+
+        var versions = _repository.Snapshots.Select(s => s.Version).ToHashSet();
+
+        Assert.Equal(UpdateArchitectureCommandHandler.MaxSnapshotsPerArchitecture, versions.Count);
+        Assert.Contains(2, versions);
+        Assert.Contains(503, versions);
+        Assert.DoesNotContain(3, versions);
+        Assert.DoesNotContain(4, versions);
     }
 
     private Architecture Seed()

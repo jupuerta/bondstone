@@ -52,5 +52,22 @@ public class FakeArchitectureRepository : IArchitectureRepository
         Task.FromResult<IReadOnlyList<ArchitectureSnapshot>>(
             Snapshots.Where(s => s.ArchitectureId == architectureId).OrderBy(s => s.Version).ToList());
 
+    public Task<IReadOnlyList<ArchitectureSnapshot>> GetLatestSnapshotsAsync(Guid architectureId, int count, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<ArchitectureSnapshot>>(
+            Snapshots.Where(s => s.ArchitectureId == architectureId).OrderByDescending(s => s.Version).Take(count).ToList());
+
+    public Task<int> CountSnapshotsAsync(Guid architectureId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Snapshots.Count(s => s.ArchitectureId == architectureId));
+
+    public Task<IReadOnlyList<ArchitectureSnapshot>> GetOldestSnapshotsAsync(Guid architectureId, int count, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<ArchitectureSnapshot>>(
+            Snapshots.Where(s => s.ArchitectureId == architectureId).OrderBy(s => s.Version).Take(count).ToList());
+
+    public void RemoveSnapshots(IReadOnlyCollection<ArchitectureSnapshot> snapshots)
+    {
+        foreach (var snapshot in snapshots)
+            Snapshots.Remove(snapshot);
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 }

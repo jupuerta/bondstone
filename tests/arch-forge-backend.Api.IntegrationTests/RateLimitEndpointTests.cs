@@ -60,8 +60,11 @@ public class RateLimitEndpointTests(TightMintLimitFactory factory) : IClassFixtu
         }
     }
 
+    // It used to be exempt from every limiter; now it has a generous one of its own (S10), so what
+    // this pins is the part that matters to the container: a burst far past the mint ceiling still
+    // answers, because a probe that gets throttled reports the throttle as an outage.
     [Fact]
-    public async Task The_health_probe_is_never_rationed()
+    public async Task The_health_probe_outlasts_the_mint_ceiling()
     {
         var client = factory.CreateClient();
 
@@ -70,5 +73,38 @@ public class RateLimitEndpointTests(TightMintLimitFactory factory) : IClassFixtu
             var response = await client.GetAsync("/api/health");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
+    }
+}
+
+// No database behind it: the muzzle is middleware, so it answers before the health check ever asks
+// anything. Whether the probe says healthy or not is beside the point — what is pinned is that the
+// endpoint stops answering at all once the ceiling is met, which is what "no longer exempt" means.
+public class MuzzledHealthFactory : SwitchFactory
+{
+    public const int Permits = 3;
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.UseSetting("RateLimiting:HealthPermitsPerMinute", Permits.ToString());
+    }
+}
+
+public class HealthCeilingTests(MuzzledHealthFactory factory) : IClassFixture<MuzzledHealthFactory>
+{
+    [Fact]
+    public async Task The_probe_has_a_ceiling_of_its_own()
+    {
+        var client = factory.Client();
+
+        for (var i = 0; i < MuzzledHealthFactory.Permits; i++)
+        {
+            var allowed = await client.GetAsync("/api/health");
+            Assert.NotEqual(HttpStatusCode.TooManyRequests, allowed.StatusCode);
+        }
+
+        var refused = await client.GetAsync("/api/health");
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, refused.StatusCode);
     }
 }
