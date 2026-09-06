@@ -2001,5 +2001,12 @@
   "editor.legend.downNote": "It has stopped responding, and the call reaching it is drawn dashed.",
   "editor.legend.healthyNote": "No mark: healthy components are drawn as always.",
   "editor.legend.loadNote": "How much of its capacity the component uses under the declared load. The notch marks {value:percent}, where the analysis starts to speak; past capacity, the bar changes ink again.",
-  "editor.legend.zoneDownNote": "The frame changes when everything inside it is down. This is what breaking a zone looks like, as opposed to breaking a component: the failure takes down everything that shares the location at once."
+  "editor.legend.zoneDownNote": "The frame changes when everything inside it is down. This is what breaking a zone looks like, as opposed to breaking a component: the failure takes down everything that shares the location at once.",
+  "editor.challenge.passedDetail": "Your architecture meets everything the challenge asked for.",
+  "editor.challenge.met": "Met",
+  "editor.challenge.unmet": "Missing",
+  "editor.challenge.progress": "{met} of {total}",
+  "editor.challenge.evaluationNote": "Every save clears the evaluation: press “Evaluate” again once you change something.",
+  "editor.challenge.highlightHint": "Hover an unmet requirement to see it on the canvas; click it to keep it marked.",
+  "editor.challenge.visitorNote": "You are evaluating somebody else’s architecture: the result is not added to your progress."
 }

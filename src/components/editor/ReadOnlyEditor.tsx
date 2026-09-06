@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getChallenge } from "../../api/challengeClient";
 import { editorPrefs, rememberEditorPrefs } from "../../domain/editorPrefs";
 import { scenarioFromSearch } from "../../domain/scenarioUrl";
+import { useChallenge } from "../../hooks/useChallenge";
 import { useLoadCurve } from "../../hooks/useLoadCurve";
 import { useNarrowViewport } from "../../hooks/useMediaQuery";
 import { usePageTitle } from "../../hooks/usePageTitle";
@@ -16,10 +16,14 @@ import { pointAt } from "./canvas/trafficDial";
 import type { CanvasMarks, Selection } from "./canvas/types";
 import { ViewStrip } from "./canvas/ViewStrip";
 import { ZoomPill } from "./canvas/ZoomPill";
+import { BriefBand } from "./challenge/BriefBand";
+import { ChallengeJournal } from "./challenge/ChallengeJournal";
+import { journalOf, type Journal } from "./challenge/journal";
 import { EdgeInspector } from "./inspector/EdgeInspector";
 import { NodeInspector } from "./inspector/NodeInspector";
 import { EditorLoading } from "./overlays/EditorLoading";
 import { EditorNotFound } from "./overlays/EditorNotFound";
+import { SolutionCompare } from "./overlays/SolutionCompare";
 import { AnalysisPanel, type FindingGraph } from "./panel/AnalysisPanel";
 import { callLookup } from "./panel/protagonist";
 import { connectedComponents } from "./panel/scoreExplain";
@@ -46,7 +50,9 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
   const [menuOpen, setMenuOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const challengeSlug = useMemo(() => new URLSearchParams(search).get("challenge"), [search]);
-  const [challenge, setChallenge] = useState<ChallengeDetail | null>(null);
+  const challenge = useChallenge({ slug: challengeSlug, shareToken, own: false });
+  const [briefCollapsed, setBriefCollapsed] = useState(() => narrow || editorPrefs().briefCollapsed);
+  const [solutionOpen, setSolutionOpen] = useState(false);
   const [preview, setPreview] = useState<FindingElement[] | null>(null);
   const [pinned, setPinned] = useState<{ id: string; elements: FindingElement[] } | null>(null);
   const highlighted = useMemo(() => new Set((preview ?? pinned?.elements ?? []).map((element) => element.id)), [preview, pinned]);
@@ -95,19 +101,17 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
     return { highlighted, dimmed, badges, loads, loadScale: trafficPoint?.scale ?? 1 };
   }, [simulating, lens, ready, highlighted, showBadges, result, trafficPoint]);
 
-  useEffect(() => {
-    setChallenge(null);
-    if (!challengeSlug) return;
-    let cancelled = false;
-    getChallenge(challengeSlug)
-      .then((detail) => {
-        if (!cancelled) setChallenge(detail);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [challengeSlug]);
+  const journal = useMemo<Journal | null>(() => {
+    if (!challenge.definition || !challenge.result?.passed || !ready) return null;
+    return journalOf({ definition: challenge.definition, startingPoint: null, current: ready, first: null, analysis: result });
+  }, [challenge.definition, challenge.result, ready, result]);
+
+  const toggleBrief = useCallback(() => {
+    setBriefCollapsed((current) => {
+      if (!narrow) rememberEditorPrefs({ briefCollapsed: !current });
+      return !current;
+    });
+  }, [narrow]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -135,7 +139,7 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
 
   const { architecture, analysis, simulation } = state.data;
   const faultIds = new Set(state.data.faults.flatMap((fault) => ("id" in fault ? [fault.id] : [])));
-  const chips = chipsOf(state.data, challenge, t);
+  const chips = chipsOf(state.data, challenge.definition, t);
   const selected = selection ? elementOf(architecture, selection) : null;
   const openCopy = (size: "sm" | "md") => (
     <Button variant="panelPrimary" size={size} onClick={onOpenCopy} loading={copying} loadingLabel={t("ui.editor.openingCopy")} className={size === "md" ? "w-full" : undefined}>
@@ -196,18 +200,39 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
     />
   );
   const motor = (
-    <AnalysisPanel
-      status="idle"
-      result={analysis}
-      error={null}
-      onPreview={setPreview}
-      onPin={handlePin}
-      pinnedId={pinned?.id ?? null}
-      components={components}
-      shareToken={shareToken}
-      graph={findingGraph}
+    <div className="flex flex-col gap-[11px]">
+      <AnalysisPanel
+        status="idle"
+        result={analysis}
+        error={null}
+        onPreview={setPreview}
+        onPin={handlePin}
+        pinnedId={pinned?.id ?? null}
+        components={components}
+        shareToken={shareToken}
+        graph={findingGraph}
+        narrow={narrow}
+      />
+      {journal && <ChallengeJournal journal={journal} own={false} onCompare={() => setSolutionOpen(true)} onShare={copy} shared={copied} narrow={narrow} />}
+    </div>
+  );
+  const band = challenge.definition && (
+    <BriefBand
+      key={challenge.definition.slug}
+      definition={challenge.definition}
+      result={challenge.result}
+      status={challenge.status}
+      error={challenge.error}
+      collapsed={briefCollapsed}
+      onToggle={toggleBrief}
+      onEvaluate={() => void challenge.evaluate()}
+      own={false}
       narrow={narrow}
+      actions={{ onPreview: setPreview, onPin: handlePin, pinnedId: pinned?.id ?? null }}
     />
+  );
+  const overlays = solutionOpen && challenge.definition && (
+    <SolutionCompare slug={challenge.definition.slug} referenceName={t("challenge.referenceSolutionName", { title: challenge.definition.title })} shareToken={shareToken} onClose={() => setSolutionOpen(false)} />
   );
   const inspector = selected && (
     <div className="flex flex-col gap-3">
@@ -223,6 +248,7 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         {shell}
+        {band}
         {canvas}
         <BottomDrawer
           title={selected ? titleOf(selected, architecture, t) : `${t("ui.analysis.title")} · ${analysis.score ?? "—"}`}
@@ -239,6 +265,7 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
           {inspector ?? motor}
         </BottomDrawer>
         {menuOpen && <NarrowMenu shareToken={shareToken} onClose={closeMenu} primary={openCopy("md")} onShare={copy} shared={copied} />}
+        {overlays}
       </div>
     );
   }
@@ -246,6 +273,7 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {shell}
+      {band}
       <div className="flex min-h-0 flex-1">
         {inspector && (
           <aside className="flex w-[264px] shrink-0 flex-col border-r border-panel-line bg-panel">
@@ -266,13 +294,14 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
           <div className="min-h-0 flex-1 overflow-y-auto p-3">{motor}</div>
         </aside>
       </div>
+      {overlays}
     </div>
   );
 }
 
 function chipsOf(data: EngineData, challenge: ChallengeDetail | null, t: ReturnType<typeof useT>): BarChip[] {
   const chips: BarChip[] = [{ key: "readOnly", label: t("web.engine.readOnly") }];
-  if (challenge) chips.push({ key: "challenge", label: `${t("ui.challenge.title")} · ${t(challenge.title)}` });
+  if (challenge) chips.push({ key: "challenge", label: t("ui.challenge.title") });
   for (const fault of data.faults) {
     if (!("id" in fault)) continue;
     const node = data.architecture.nodes.find((candidate) => candidate.id === fault.id);

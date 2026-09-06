@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getArchitectureHistory } from "../../api/architectureClient";
-import { getChallenge } from "../../api/challengeClient";
 import { editorPrefs, rememberEditorPrefs } from "../../domain/editorPrefs";
 import { rememberWork, scoreWork, touchWork } from "../../domain/savedWork";
+import { startingPointOf } from "../../domain/startingPoint";
 import { useAutosave } from "../../hooks/useAutosave";
+import { useChallenge } from "../../hooks/useChallenge";
 import { useLiveAnalysis } from "../../hooks/useLiveAnalysis";
 import { useLoadCurve } from "../../hooks/useLoadCurve";
 import { useNarrowViewport } from "../../hooks/useMediaQuery";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useT } from "../../i18n";
-import type { AnalysisResult, Area, ArchitectureDto, ArchitectureSnapshot, ChallengeDetail, ComponentLoad, FindingElement, NodeType, PositionDto, ResilienceConfiguration, RuleFinding, UpdateArchitectureResult } from "../../types/architecture";
+import type { AnalysisResult, Area, ArchitectureDto, ArchitectureSnapshot, ComponentLoad, FindingElement, NodeType, PositionDto, ResilienceConfiguration, RuleFinding, UpdateArchitectureResult } from "../../types/architecture";
 import { Button } from "../ui/Button";
 import { applyFix } from "./canvas/applyFix";
 import { Canvas, type CanvasEdits } from "./canvas/Canvas";
@@ -21,10 +22,14 @@ import { pointAt } from "./canvas/trafficDial";
 import type { CanvasMarks, Selection } from "./canvas/types";
 import { ViewStrip } from "./canvas/ViewStrip";
 import { ZoomPill } from "./canvas/ZoomPill";
+import { BriefBand } from "./challenge/BriefBand";
+import { ChallengeJournal } from "./challenge/ChallengeJournal";
+import { journalOf, type Journal } from "./challenge/journal";
 import { EdgeInspector } from "./inspector/EdgeInspector";
 import { NodeInspector } from "./inspector/NodeInspector";
 import { ConflictDialog } from "./overlays/ConflictDialog";
 import { FixDiff, type FixShots } from "./overlays/FixDiff";
+import { SolutionCompare } from "./overlays/SolutionCompare";
 import { Palette } from "./palette/Palette";
 import { AnalysisPanel, type FindingGraph, type FixControls } from "./panel/AnalysisPanel";
 import { scoreSnapshot, whatWasDone, type FixReceipt } from "./panel/fixReceipt";
@@ -73,7 +78,14 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
   const [conflict, setConflict] = useState(false);
   const [savedRevision, setSavedRevision] = useState(0);
   const challengeSlug = useMemo(() => new URLSearchParams(search).get("challenge"), [search]);
-  const [challenge, setChallenge] = useState<ChallengeDetail | null>(null);
+  const challenge = useChallenge({ slug: challengeSlug, shareToken: architecture.shareToken, own: true });
+  const [briefCollapsed, setBriefCollapsed] = useState(() => narrow || editorPrefs().briefCollapsed);
+  const [startingPoint] = useState(() => startingPointOf(challengeSlug));
+  const [solutionOpen, setSolutionOpen] = useState(false);
+  const [evaluateQueued, setEvaluateQueued] = useState(false);
+  const evaluateAfterSave = useRef(false);
+  const evaluateRef = useRef(challenge.evaluate);
+  evaluateRef.current = challenge.evaluate;
   const { copy, copied } = useShareLink(`${window.location.origin}/a/${encodeURIComponent(architecture.shareToken)}${search}`);
   usePageTitle(name);
 
@@ -91,20 +103,6 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
     rememberWork({ editToken, shareToken: architecture.shareToken, name: architecture.name, challengeSlug });
   }, [editToken, architecture.shareToken, architecture.name, challengeSlug]);
 
-  useEffect(() => {
-    setChallenge(null);
-    if (!challengeSlug) return;
-    let cancelled = false;
-    getChallenge(challengeSlug)
-      .then((detail) => {
-        if (!cancelled) setChallenge(detail);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [challengeSlug]);
-
   const getSnapshot = useCallback(() => flowToUpdateRequest(nameRef.current, versionRef.current, graphRef.current.nodes, graphRef.current.edges), []);
   const onSaved = useCallback(
     (result: UpdateArchitectureResult) => {
@@ -114,7 +112,11 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
     },
     [editToken],
   );
-  const onConflict = useCallback(() => setConflict(true), []);
+  const onConflict = useCallback(() => {
+    evaluateAfterSave.current = false;
+    setEvaluateQueued(false);
+    setConflict(true);
+  }, []);
   const autosave = useAutosave({ editToken, enabled: editable, getSnapshot, onSaved, onConflict });
 
   const lastScheduled = useRef({ graph, name });
@@ -124,6 +126,15 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
     lastScheduled.current = { graph, name };
     scheduleSave();
   }, [graph, name, scheduleSave]);
+
+  const invalidateChallenge = challenge.invalidate;
+  useEffect(() => {
+    invalidateChallenge();
+    if (!evaluateAfterSave.current) return;
+    evaluateAfterSave.current = false;
+    setEvaluateQueued(false);
+    void evaluateRef.current();
+  }, [savedRevision, invalidateChallenge]);
 
   const analysis = useLiveAnalysis({ shareToken: architecture.shareToken, savedRevision });
   useEffect(() => {
@@ -208,6 +219,30 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
   const handlePin = useCallback((id: string, elements: FindingElement[]) => {
     setPinned((current) => (current?.id === id ? null : { id, elements }));
   }, []);
+
+  const saveStatus = autosave.status;
+  const { retryNow } = autosave;
+  const { evaluate } = challenge;
+  const requestEvaluate = useCallback(() => {
+    if (saveStatus === "pending" || saveStatus === "saving") {
+      evaluateAfterSave.current = true;
+      setEvaluateQueued(true);
+      if (saveStatus === "pending") retryNow();
+      return;
+    }
+    void evaluate();
+  }, [saveStatus, retryNow, evaluate]);
+  const toggleBrief = useCallback(() => {
+    setBriefCollapsed((current) => {
+      if (!narrow) rememberEditorPrefs({ briefCollapsed: !current });
+      return !current;
+    });
+  }, [narrow]);
+
+  const journal = useMemo<Journal | null>(() => {
+    if (!challenge.definition || !challenge.result?.passed) return null;
+    return journalOf({ definition: challenge.definition, startingPoint, current: dto, first: comparable.length > 0 ? comparable[0] : null, analysis: analysis.result });
+  }, [challenge.definition, challenge.result, startingPoint, dto, comparable, analysis.result]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -322,7 +357,7 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
 
   const selected = selection ? elementOf(dto, selection) : null;
   const faultIds = EMPTY_FAULTS;
-  const chips: BarChip[] = challenge ? [{ key: "challenge", label: `${t("ui.challenge.title")} · ${t(challenge.title)}` }] : [];
+  const chips: BarChip[] = challenge.definition ? [{ key: "challenge", label: t("ui.challenge.title") }] : [];
   const saveState = <SaveState status={autosave.status} version={version} error={autosave.error} onRetry={autosave.retryNow} narrow={narrow} />;
 
   const findingGraph = useMemo<FindingGraph>(
@@ -378,20 +413,39 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
   );
 
   const motor = (
-    <AnalysisPanel
-      status={analysis.status}
-      result={analysis.result}
-      error={analysis.error}
-      onRetry={analysis.retry}
-      onPreview={setPreview}
-      onPin={handlePin}
-      pinnedId={pinned?.id ?? null}
-      fixes={fixes}
-      history={{ entries: comparable, olderScoring: history.length - comparable.length }}
-      components={components}
-      shareToken={architecture.shareToken}
-      graph={findingGraph}
+    <div className="flex flex-col gap-[11px]">
+      <AnalysisPanel
+        status={analysis.status}
+        result={analysis.result}
+        error={analysis.error}
+        onRetry={analysis.retry}
+        onPreview={setPreview}
+        onPin={handlePin}
+        pinnedId={pinned?.id ?? null}
+        fixes={fixes}
+        history={{ entries: comparable, olderScoring: history.length - comparable.length }}
+        components={components}
+        shareToken={architecture.shareToken}
+        graph={findingGraph}
+        narrow={narrow}
+      />
+      {journal && <ChallengeJournal journal={journal} own onCompare={() => setSolutionOpen(true)} onShare={copy} shared={copied} narrow={narrow} />}
+    </div>
+  );
+
+  const band = challenge.definition && (
+    <BriefBand
+      key={challenge.definition.slug}
+      definition={challenge.definition}
+      result={challenge.result}
+      status={evaluateQueued ? "evaluating" : challenge.status}
+      error={challenge.error}
+      collapsed={briefCollapsed}
+      onToggle={toggleBrief}
+      onEvaluate={requestEvaluate}
+      own
       narrow={narrow}
+      actions={{ onPreview: setPreview, onPin: handlePin, pinnedId: pinned?.id ?? null }}
     />
   );
 
@@ -466,6 +520,9 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
   const overlays = (
     <>
       {compareOpen && shots && receipt && <FixDiff shots={shots} receipt={receipt} onUndo={handleUndoFix} onClose={closeCompare} />}
+      {solutionOpen && challenge.definition && (
+        <SolutionCompare slug={challenge.definition.slug} referenceName={t("challenge.referenceSolutionName", { title: challenge.definition.title })} shareToken={architecture.shareToken} onClose={() => setSolutionOpen(false)} />
+      )}
       {conflict && <ConflictDialog onReload={onReload} />}
     </>
   );
@@ -474,6 +531,7 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         {shell}
+        {band}
         <p className="shrink-0 border-b border-panel-line bg-panel-3 px-3 py-2 text-meta text-panel-ink-2">{t("web.engine.narrow")}</p>
         {canvas}
         <BottomDrawer
@@ -499,6 +557,7 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {shell}
+      {band}
       <div className="flex min-h-0 flex-1">
         <aside className={`flex shrink-0 border-r border-panel-line bg-panel ${inspector || paletteCollapsed ? "w-auto" : "w-[240px]"}`}>
           {inspector ? (

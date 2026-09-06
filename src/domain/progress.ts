@@ -11,13 +11,28 @@ export function startedChallenges(): Set<string> {
 
 const PASSED_KEY = "archforge.challenges.passed";
 
-/** Los retos superados que este navegador recuerda. La clave la escribe el editor al evaluar. */
-export function passedChallenges(): Set<string> {
+function readPassed(): string[] {
   try {
     const raw = window.localStorage.getItem(PASSED_KEY);
     const parsed: unknown = raw ? JSON.parse(raw) : [];
-    return new Set(Array.isArray(parsed) ? parsed.filter((slug): slug is string => typeof slug === "string") : []);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((slug): slug is string => typeof slug === "string");
   } catch {
-    return new Set();
+    return [];
+  }
+}
+
+/** Los retos superados que este navegador recuerda. La clave la escribe el editor al evaluar. */
+export function passedChallenges(): Set<string> {
+  return new Set(readPassed());
+}
+
+export function rememberPassed(slug: string): void {
+  try {
+    const passed = readPassed();
+    if (passed.includes(slug)) return;
+    window.localStorage.setItem(PASSED_KEY, JSON.stringify([...passed, slug]));
+  } catch {
+    return;
   }
 }

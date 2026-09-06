@@ -2001,5 +2001,12 @@
   "editor.legend.downNote": "Ha dejado de responder, y la llamada que llega hasta él se dibuja discontinua.",
   "editor.legend.healthyNote": "Sin marca: los componentes sanos se dibujan como siempre.",
   "editor.legend.loadNote": "Cuánto de su capacidad usa el componente con la carga declarada. La muesca marca el {value:percent}, donde el análisis empieza a avisar; pasada la capacidad, la barra cambia de tinta otra vez.",
-  "editor.legend.zoneDownNote": "El recuadro cambia cuando todo lo que hay dentro está caído. Así se ve romper una zona en vez de un componente: el fallo se lleva a la vez todo lo que comparte ubicación."
+  "editor.legend.zoneDownNote": "El recuadro cambia cuando todo lo que hay dentro está caído. Así se ve romper una zona en vez de un componente: el fallo se lleva a la vez todo lo que comparte ubicación.",
+  "editor.challenge.passedDetail": "Tu arquitectura cumple todo lo que el reto pedía.",
+  "editor.challenge.met": "Cumple",
+  "editor.challenge.unmet": "Falta",
+  "editor.challenge.progress": "{met} de {total}",
+  "editor.challenge.evaluationNote": "Cada guardado vacía la evaluación: vuelve a pulsar «Evaluar» cuando cambies algo.",
+  "editor.challenge.highlightHint": "Pasa el cursor por un requisito sin cumplir para verlo en el lienzo; púlsalo para dejarlo señalado.",
+  "editor.challenge.visitorNote": "Estás evaluando la arquitectura de otra persona: el resultado no se apunta en tu progreso."
 }
