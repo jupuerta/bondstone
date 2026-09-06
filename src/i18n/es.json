@@ -1991,5 +1991,15 @@
   "editor.a11y.minimap": "Minimapa",
   "editor.canvas.empty": "Arrastra un componente de la paleta para empezar.",
   "editor.save.clean": "Sin cambios",
-  "editor.save.pending": "Sin guardar"
+  "editor.save.pending": "Sin guardar",
+  "editor.fixCompare.lit": "Resaltado: lo que el arreglo tocó.",
+  "editor.analysis.safe": "Tu arquitectura está a salvo: lo que ha fallado es el análisis.",
+  "editor.legend.badgesNote": "Un punto por componente que aparece en algún hallazgo, con la tinta de su severidad: crítico o aviso. Se encienden con «{toggle}».",
+  "editor.legend.containedNote": "Un anillo y, dentro del componente, el nombre del mecanismo que detuvo la cascada. Marca la diferencia entre tres componentes caídos y siete.",
+  "editor.legend.highlightedNote": "Un anillo sobre los componentes y las llamadas del hallazgo que estás leyendo en el panel.",
+  "editor.legend.degradedNote": "Sigue en pie, pero contestando peor, y lo arrastra hacia arriba.",
+  "editor.legend.downNote": "Ha dejado de responder, y la llamada que llega hasta él se dibuja discontinua.",
+  "editor.legend.healthyNote": "Sin marca: los componentes sanos se dibujan como siempre.",
+  "editor.legend.loadNote": "Cuánto de su capacidad usa el componente con la carga declarada. La muesca marca el {value:percent}, donde el análisis empieza a avisar; pasada la capacidad, la barra cambia de tinta otra vez.",
+  "editor.legend.zoneDownNote": "El recuadro cambia cuando todo lo que hay dentro está caído. Así se ve romper una zona en vez de un componente: el fallo se lleva a la vez todo lo que comparte ubicación."
 }

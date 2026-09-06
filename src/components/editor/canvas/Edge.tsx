@@ -26,6 +26,7 @@ export function EditorEdge({ id, source, target, data, selected, interactionWidt
           <path d={`M0,0 L${ARROW_HEAD},${ARROW_HEAD / 2} L0,${ARROW_HEAD} z`} fill={ink.stroke} fillOpacity={ink.opacity} />
         </marker>
       </defs>
+      {data?.highlighted && !selected && <path d={path} fill="none" stroke="var(--af-warm-panel)" strokeWidth={7} strokeOpacity={0.4} strokeLinecap="round" />}
       {selected && <path d={path} fill="none" stroke="var(--af-accent-panel)" strokeWidth={7} strokeOpacity={0.35} strokeLinecap="round" />}
       <BaseEdge
         id={id}

@@ -1,17 +1,22 @@
 import { useId } from "react";
 import type { ConnectionDto, NodeDto } from "../../../types/architecture";
-import { layoutOf, segmentOf } from "../../engine/layout";
+import { layoutOf, segmentOf, type DiagramLayout } from "../../engine/layout";
 import { tintOf } from "../../engine/tints";
 
 interface ThumbnailProps {
   nodes: readonly NodeDto[];
   connections: readonly ConnectionDto[];
+  frame?: DiagramLayout;
+  highlighted?: ReadonlySet<string>;
   className?: string;
 }
 
-export function Thumbnail({ nodes, connections, className = "" }: ThumbnailProps) {
+const NONE: ReadonlySet<string> = new Set();
+
+export function Thumbnail({ nodes, connections, frame, highlighted = NONE, className = "" }: ThumbnailProps) {
   const id = useId();
-  const layout = layoutOf({ nodes });
+  const own = layoutOf({ nodes });
+  const layout = frame ? { ...frame, boxes: own.boxes } : own;
   const k = layout.fontScale;
 
   return (
@@ -24,6 +29,7 @@ export function Thumbnail({ nodes, connections, className = "" }: ThumbnailProps
       {connections.map((connection) => {
         const segment = segmentOf(connection, layout.boxes);
         if (!segment) return null;
+        const lit = highlighted.has(connection.id);
         return (
           <line
             key={connection.id}
@@ -31,9 +37,9 @@ export function Thumbnail({ nodes, connections, className = "" }: ThumbnailProps
             y1={segment.y1}
             x2={segment.x2}
             y2={segment.y2}
-            stroke="var(--af-panel-ink)"
-            strokeOpacity={0.5}
-            strokeWidth={1.6 * k}
+            stroke={lit ? "var(--af-warm-panel)" : "var(--af-panel-ink)"}
+            strokeOpacity={lit ? 1 : 0.5}
+            strokeWidth={(lit ? 2.2 : 1.6) * k}
             strokeDasharray={connection.synchronous ? undefined : `${7 * k} ${5 * k}`}
             markerEnd={`url(#thumb-arrow-${id})`}
           />
@@ -42,8 +48,10 @@ export function Thumbnail({ nodes, connections, className = "" }: ThumbnailProps
       {nodes.map((node) => {
         const box = layout.boxes.get(node.id)!;
         const r = 6 * k;
+        const lit = highlighted.has(node.id);
         return (
           <g key={node.id}>
+            {lit && <rect x={box.x - 4 * k} y={box.y - 4 * k} width={box.w + 8 * k} height={box.h + 8 * k} rx={r + 4 * k} fill="none" stroke="var(--af-warm-panel)" strokeWidth={2 * k} />}
             <rect x={box.x} y={box.y} width={box.w} height={box.h} rx={r} fill="var(--af-panel-2)" stroke="var(--af-panel-line)" strokeWidth={1 * k} />
             <rect x={box.x} y={box.y} width={box.w} height={box.h} rx={r} fill={tintOf(node.type)} fillOpacity={0.09} />
             <path d={`M${box.x + r} ${box.y} h${box.w - 2 * r} a${r} ${r} 0 0 1 ${r} ${r} v${2 * k} h-${box.w} v-${2 * k} a${r} ${r} 0 0 1 ${r} -${r} z`} fill={tintOf(node.type)} />

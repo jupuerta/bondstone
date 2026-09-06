@@ -3,7 +3,9 @@ import type { ArchitectureDto, ConnectionLoad, ElementState, ElementType } from 
 import { callFlows } from "./callFlow";
 import { dtoConnectionsToFlow, dtoNodesToFlow } from "./mapping";
 import { NODE_H, NODE_W } from "./marks";
-import type { ArchNodeData, ConnectionData, NodeStatus, Selection } from "./types";
+import { NO_MARKS, type ArchNodeData, type CanvasMarks, type ConnectionData, type NodeStatus, type Selection } from "./types";
+
+const DIM = "af-dim";
 
 export function statesOf(states: readonly ElementState[] | null, type: ElementType): ReadonlyMap<string, ElementState> {
   const map = new Map<string, ElementState>();
@@ -34,13 +36,22 @@ export function displayNodes(
   faultIds: ReadonlySet<string>,
   simulated: boolean,
   selection: Selection | null,
+  marks: CanvasMarks = NO_MARKS,
 ): Node<ArchNodeData>[] {
   return dtoNodesToFlow(architecture.nodes).map((node) => ({
     ...node,
     width: NODE_W,
     height: NODE_H,
     selected: selection?.kind === "node" && selection.id === node.id,
-    data: { ...node.data, status: nodeStatusOf(node.id, nodeStates, faultIds, simulated) },
+    className: marks.dimmed.has(node.id) ? DIM : undefined,
+    data: {
+      ...node.data,
+      status: nodeStatusOf(node.id, nodeStates, faultIds, simulated),
+      highlighted: marks.highlighted.has(node.id),
+      badge: marks.badges.get(node.id) ?? null,
+      load: simulated ? null : (marks.loads.get(node.id) ?? null),
+      loadScale: marks.loadScale,
+    },
   }));
 }
 
@@ -50,6 +61,7 @@ export function displayEdges(
   connectionStates: ReadonlyMap<string, ElementState>,
   callLoad: readonly ConnectionLoad[] | null | undefined,
   selection: Selection | null,
+  marks: CanvasMarks = NO_MARKS,
 ): Edge<ConnectionData>[] {
   const flows = callFlows(callLoad);
   return dtoConnectionsToFlow(architecture.connections).map((edge) => {
@@ -58,7 +70,8 @@ export function displayEdges(
     return {
       ...edge,
       selected: selection?.kind === "edge" && selection.id === edge.id,
-      data: { ...edge.data!, flow: flows.get(edge.id) ?? null, state: own ?? (targetDown ? "Down" : null) },
+      className: marks.dimmed.has(edge.id) ? DIM : undefined,
+      data: { ...edge.data!, flow: flows.get(edge.id) ?? null, state: own ?? (targetDown ? "Down" : null), highlighted: marks.highlighted.has(edge.id) },
     };
   });
 }

@@ -1,22 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getChallenge } from "../../api/challengeClient";
+import { editorPrefs, rememberEditorPrefs } from "../../domain/editorPrefs";
 import { scenarioFromSearch } from "../../domain/scenarioUrl";
+import { useLoadCurve } from "../../hooks/useLoadCurve";
 import { useNarrowViewport } from "../../hooks/useMediaQuery";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useT } from "../../i18n";
-import type { ChallengeDetail } from "../../types/architecture";
+import type { Area, ChallengeDetail, ComponentLoad, FindingElement } from "../../types/architecture";
 import { useEngine, type EngineData } from "../engine/useEngine";
 import { Button } from "../ui/Button";
 import { Canvas } from "./canvas/Canvas";
 import { isEntryPoint } from "./canvas/entryPoint";
-import type { Selection } from "./canvas/types";
+import { lensTabs, lensView } from "./canvas/lens";
+import { pointAt } from "./canvas/trafficDial";
+import type { CanvasMarks, Selection } from "./canvas/types";
+import { ViewStrip } from "./canvas/ViewStrip";
+import { ZoomPill } from "./canvas/ZoomPill";
 import { EdgeInspector } from "./inspector/EdgeInspector";
 import { NodeInspector } from "./inspector/NodeInspector";
 import { EditorLoading } from "./overlays/EditorLoading";
 import { EditorNotFound } from "./overlays/EditorNotFound";
+import { AnalysisPanel, type FindingGraph } from "./panel/AnalysisPanel";
+import { callLookup } from "./panel/protagonist";
+import { connectedComponents } from "./panel/scoreExplain";
 import { BottomDrawer } from "./shell/BottomDrawer";
 import { EditorBar, type BarChip } from "./shell/EditorBar";
-import { MotorSummary } from "./shell/MotorSummary";
 import { NarrowMenu } from "./shell/NarrowMenu";
 import { useShareLink } from "./shell/useShareLink";
 import { elementOf, endsOf, titleOf } from "./selection";
@@ -39,8 +47,53 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
   const [drawerOpen, setDrawerOpen] = useState(false);
   const challengeSlug = useMemo(() => new URLSearchParams(search).get("challenge"), [search]);
   const [challenge, setChallenge] = useState<ChallengeDetail | null>(null);
+  const [preview, setPreview] = useState<FindingElement[] | null>(null);
+  const [pinned, setPinned] = useState<{ id: string; elements: FindingElement[] } | null>(null);
+  const highlighted = useMemo(() => new Set((preview ?? pinned?.elements ?? []).map((element) => element.id)), [preview, pinned]);
+  const [legendOpen, setLegendOpen] = useState(() => editorPrefs().legendOpen);
+  const [lensArea, setLensArea] = useState<Area | null>(null);
+  const [showBadges, setShowBadges] = useState(false);
+  const [dialOpen, setDialOpen] = useState(false);
+  const [dialIndex, setDialIndex] = useState(0);
+  const simulating = faults.length > 0;
+  const loadCurve = useLoadCurve({ shareToken, enabled: dialOpen && !simulating, savedRevision: 0 });
+  const trafficPoint = dialOpen && dialIndex > 0 ? pointAt(loadCurve.curve, dialIndex) : null;
+  const toggleLegend = useCallback(() => {
+    setLegendOpen((current) => {
+      rememberEditorPrefs({ legendOpen: !current });
+      return !current;
+    });
+  }, []);
+  const closeLegend = useCallback(() => {
+    setLegendOpen(false);
+    rememberEditorPrefs({ legendOpen: false });
+  }, []);
+  const closeDial = useCallback(() => {
+    setDialOpen(false);
+    setDialIndex(0);
+  }, []);
   const { copy, copied } = useShareLink(`${window.location.origin}/a/${encodeURIComponent(shareToken)}${search}`);
   usePageTitle(state.status === "ready" ? state.data.architecture.name : t("web.engine.readOnly"));
+  const ready = state.status === "ready" ? state.data.architecture : null;
+  const findingGraph = useMemo<FindingGraph>(
+    () => ({ names: new Map((ready?.nodes ?? []).map((node) => [node.id, node.name])), calls: callLookup(ready?.connections ?? []) }),
+    [ready],
+  );
+  const components = useMemo(() => (ready ? connectedComponents(ready.nodes, ready.connections) : 0), [ready]);
+  const result = state.status === "ready" ? state.data.analysis : null;
+  const lens = useMemo(() => lensView(result, lensArea), [result, lensArea]);
+  const tabs = useMemo(() => lensTabs(result), [result]);
+  const marks = useMemo<CanvasMarks>(() => {
+    const lensed = !simulating && lens.analyzed && lens.area !== null;
+    const dimmed = new Set<string>();
+    if (lensed && ready) {
+      for (const id of [...ready.nodes.map((node) => node.id), ...ready.connections.map((call) => call.id)]) if (!lens.ids.has(id) && !highlighted.has(id)) dimmed.add(id);
+    }
+    const badges = simulating ? new Map() : lensed ? lens.severities : showBadges ? lensView(result, null).severities : new Map();
+    const loads = new Map<string, ComponentLoad>();
+    for (const load of trafficPoint?.components ?? result?.load ?? []) loads.set(load.nodeId, load);
+    return { highlighted, dimmed, badges, loads, loadScale: trafficPoint?.scale ?? 1 };
+  }, [simulating, lens, ready, highlighted, showBadges, result, trafficPoint]);
 
   useEffect(() => {
     setChallenge(null);
@@ -58,7 +111,10 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setSelection(null);
+      if (event.key === "Escape") {
+        setSelection(null);
+        setPinned(null);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -70,6 +126,9 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
   }, []);
 
   const closeMenu = useCallback(() => setMenuOpen(false), []);
+  const handlePin = useCallback((id: string, elements: FindingElement[]) => {
+    setPinned((current) => (current?.id === id ? null : { id, elements }));
+  }, []);
 
   if (state.status === "loading") return <EditorLoading />;
   if (state.status === "error") return <EditorNotFound message={state.message} onRetry={retry} />;
@@ -105,6 +164,48 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
       callLoad={analysis.callLoad ?? null}
       selection={selection}
       onSelect={select}
+      marks={marks}
+      strip={
+        <ViewStrip
+          narrow={narrow}
+          drawn={architecture.nodes.length > 0}
+          lens={simulating ? undefined : { tabs, view: lens, onChange: setLensArea }}
+          badges={simulating ? undefined : { on: showBadges, onToggle: () => setShowBadges((current) => !current) }}
+          legend={{ open: legendOpen, onToggle: toggleLegend }}
+          dial={
+            simulating
+              ? undefined
+              : {
+                  status: loadCurve.status,
+                  curve: loadCurve.curve,
+                  error: loadCurve.error,
+                  index: dialIndex,
+                  scale: trafficPoint?.scale ?? 1,
+                  nameOf: (nodeId) => architecture.nodes.find((node) => node.id === nodeId)?.name ?? "?",
+                  onIndexChange: setDialIndex,
+                  onOpen: () => setDialOpen(true),
+                  onClose: closeDial,
+                  onRetry: loadCurve.retry,
+                }
+          }
+          aside={<ZoomPill />}
+        />
+      }
+      legend={{ mode: simulating ? "simulate" : "design", open: legendOpen, onClose: closeLegend }}
+      narrow={narrow}
+    />
+  );
+  const motor = (
+    <AnalysisPanel
+      status="idle"
+      result={analysis}
+      error={null}
+      onPreview={setPreview}
+      onPin={handlePin}
+      pinnedId={pinned?.id ?? null}
+      components={components}
+      shareToken={shareToken}
+      graph={findingGraph}
       narrow={narrow}
     />
   );
@@ -135,7 +236,7 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
             ) : undefined
           }
         >
-          {inspector ?? <MotorSummary analysis={analysis} shareToken={shareToken} faultIds={faultIds} />}
+          {inspector ?? motor}
         </BottomDrawer>
         {menuOpen && <NarrowMenu shareToken={shareToken} onClose={closeMenu} primary={openCopy("md")} onShare={copy} shared={copied} />}
       </div>
@@ -162,9 +263,7 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
           <div className="flex h-11 items-center border-b border-panel-line px-3">
             <h2 className="font-display text-panel font-semibold text-panel-ink">{t("ui.analysis.title")}</h2>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto p-3">
-            <MotorSummary analysis={analysis} shareToken={shareToken} faultIds={faultIds} />
-          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">{motor}</div>
         </aside>
       </div>
     </div>

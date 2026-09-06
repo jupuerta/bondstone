@@ -2,9 +2,10 @@ const KEY = "archforge.editor.ui";
 
 export interface EditorPrefs {
   paletteCollapsed: boolean;
+  legendOpen: boolean;
 }
 
-const DEFAULTS: EditorPrefs = { paletteCollapsed: false };
+const DEFAULTS: EditorPrefs = { paletteCollapsed: false, legendOpen: false };
 
 export function editorPrefs(): EditorPrefs {
   try {
@@ -12,7 +13,10 @@ export function editorPrefs(): EditorPrefs {
     const parsed: unknown = raw ? JSON.parse(raw) : null;
     if (parsed === null || typeof parsed !== "object") return DEFAULTS;
     const stored = parsed as Partial<EditorPrefs>;
-    return { paletteCollapsed: typeof stored.paletteCollapsed === "boolean" ? stored.paletteCollapsed : DEFAULTS.paletteCollapsed };
+    return {
+      paletteCollapsed: typeof stored.paletteCollapsed === "boolean" ? stored.paletteCollapsed : DEFAULTS.paletteCollapsed,
+      legendOpen: typeof stored.legendOpen === "boolean" ? stored.legendOpen : DEFAULTS.legendOpen,
+    };
   } catch {
     return DEFAULTS;
   }

@@ -1,0 +1,682 @@
+{
+  "scoringVersion": "v12",
+  "score": 96,
+  "areas": [
+    {
+      "area": "Availability",
+      "score": 95,
+      "state": "Scored",
+      "penalties": [
+        {
+          "code": "SPOF",
+          "severity": "Warning",
+          "findings": 1,
+          "penalty": 5,
+          "capped": false
+        }
+      ]
+    },
+    {
+      "area": "Resilience",
+      "score": 95,
+      "state": "Scored",
+      "penalties": [
+        {
+          "code": "QUEUE_NO_DLQ",
+          "severity": "Warning",
+          "findings": 1,
+          "penalty": 5,
+          "capped": false
+        }
+      ]
+    },
+    {
+      "area": "Coupling",
+      "score": 100,
+      "state": "Scored",
+      "penalties": []
+    },
+    {
+      "area": "Scalability",
+      "score": 100,
+      "state": "Scored",
+      "penalties": []
+    },
+    {
+      "area": "Security",
+      "score": 100,
+      "state": "Scored",
+      "penalties": []
+    },
+    {
+      "area": "Observability",
+      "score": 85,
+      "state": "Scored",
+      "penalties": [
+        {
+          "code": "NO_OBSERVABILITY",
+          "severity": "Critical",
+          "findings": 1,
+          "penalty": 15,
+          "capped": false
+        }
+      ]
+    },
+    {
+      "area": "Cost",
+      "score": null,
+      "state": "NotApplicable",
+      "penalties": []
+    }
+  ],
+  "summary": {
+    "critical": 1,
+    "warning": 2,
+    "info": 0,
+    "passed": 14
+  },
+  "findings": [
+    {
+      "code": "NO_OBSERVABILITY",
+      "area": "Observability",
+      "severity": "Critical",
+      "message": {
+        "key": "finding.NO_OBSERVABILITY.blind.message",
+        "args": {
+          "count": 7
+        }
+      },
+      "explanation": {
+        "key": "finding.NO_OBSERVABILITY.blind.explanation",
+        "args": null
+      },
+      "suggestion": {
+        "key": "finding.NO_OBSERVABILITY.blind.suggestion.absent",
+        "args": null
+      },
+      "elements": [
+        {
+          "type": "Node",
+          "id": "a0000000-0000-0000-0000-000000000001"
+        },
+        {
+          "type": "Node",
+          "id": "a0000000-0000-0000-0000-000000000002"
+        },
+        {
+          "type": "Node",
+          "id": "a0000000-0000-0000-0000-000000000003"
+        },
+        {
+          "type": "Node",
+          "id": "a0000000-0000-0000-0000-000000000004"
+        },
+        {
+          "type": "Node",
+          "id": "a0000000-0000-0000-0000-000000000005"
+        },
+        {
+          "type": "Node",
+          "id": "a0000000-0000-0000-0000-000000000006"
+        },
+        {
+          "type": "Node",
+          "id": "a0000000-0000-0000-0000-000000000007"
+        }
+      ],
+      "fix": null
+    },
+    {
+      "code": "SPOF",
+      "area": "Availability",
+      "severity": "Warning",
+      "message": {
+        "key": "finding.SPOF.shared.message",
+        "args": {
+          "node": "Db",
+          "count": 2
+        }
+      },
+      "explanation": {
+        "key": "finding.SPOF.explanation.covered",
+        "args": {
+          "node": "Db"
+        }
+      },
+      "suggestion": {
+        "key": "finding.SPOF.suggestion.database",
+        "args": null
+      },
+      "elements": [
+        {
+          "type": "Node",
+          "id": "a0000000-0000-0000-0000-000000000007"
+        }
+      ],
+      "fix": null
+    },
+    {
+      "code": "QUEUE_NO_DLQ",
+      "area": "Resilience",
+      "severity": "Warning",
+      "message": {
+        "key": "finding.QUEUE_NO_DLQ.missing.message",
+        "args": {
+          "node": "Queue"
+        }
+      },
+      "explanation": {
+        "key": "finding.QUEUE_NO_DLQ.missing.explanation",
+        "args": null
+      },
+      "suggestion": {
+        "key": "finding.QUEUE_NO_DLQ.missing.suggestion",
+        "args": null
+      },
+      "elements": [
+        {
+          "type": "Node",
+          "id": "a0000000-0000-0000-0000-000000000005"
+        }
+      ],
+      "fix": {
+        "kind": "setNodeFlag",
+        "element": {
+          "type": "Node",
+          "id": "a0000000-0000-0000-0000-000000000005"
+        },
+        "label": {
+          "key": "fix.QUEUE_NO_DLQ.enable",
+          "args": null
+        },
+        "timeoutSeconds": null,
+        "circuitBreaker": null,
+        "fallback": null,
+        "configurationKey": "deadLetterQueue",
+        "configurationValue": true,
+        "targetNodeId": null
+      }
+    },
+    {
+      "code": "ASYNC_NO_QUEUE",
+      "area": "Resilience",
+      "severity": "Good",
+      "message": {
+        "key": "finding.ASYNC_NO_QUEUE.passed.message",
+        "args": null
+      },
+      "explanation": {
+        "key": "finding.ASYNC_NO_QUEUE.passed.explanation",
+        "args": null
+      },
+      "suggestion": null,
+      "elements": [],
+      "fix": null
+    },
+    {
+      "code": "CACHE_AS_STORE",
+      "area": "Resilience",
+      "severity": "Good",
+      "message": {
+        "key": "finding.CACHE_AS_STORE.passed.message",
+        "args": null
+      },
+      "explanation": {
+        "key": "finding.CACHE_AS_STORE.passed.explanation",
+        "args": null
+      },
+      "suggestion": null,
+      "elements": [],
+      "fix": null
+    },
+    {
+      "code": "IMPLAUSIBLE_DEPENDENCY",
+      "area": "Resilience",
+      "severity": "Good",
+      "message": {
+        "key": "finding.IMPLAUSIBLE_DEPENDENCY.passed.message",
+        "args": null
+      },
+      "explanation": {
+        "key": "finding.IMPLAUSIBLE_DEPENDENCY.passed.explanation",
+        "args": null
+      },
+      "suggestion": null,
+      "elements": [],
+      "fix": null
+    },
+    {
+      "code": "MISSING_RESILIENCE",
+      "area": "Resilience",
+      "severity": "Good",
+      "message": {
+        "key": "finding.MISSING_RESILIENCE.passed.message",
+        "args": null
+      },
+      "explanation": {
+        "key": "finding.MISSING_RESILIENCE.passed.explanation",
+        "args": null
+      },
+      "suggestion": null,
+      "elements": [],
+      "fix": null
+    },
+    {
+      "code": "SYNC_CHAIN",
+      "area": "Resilience",
+      "severity": "Good",
+      "message": {
+        "key": "finding.SYNC_CHAIN.passed.message",
+        "args": null
+      },
+      "explanation": {
+        "key": "finding.SYNC_CHAIN.passed.explanation",
+        "args": null
+      },
+      "suggestion": null,
+      "elements": [],
+      "fix": null
+    },
+    {
+      "code": "TIMEOUT_TOO_LONG",
+      "area": "Resilience",
+      "severity": "Good",
+      "message": {
+        "key": "finding.TIMEOUT_TOO_LONG.passed.message",
+        "args": null
+      },
+      "explanation": {
+        "key": "finding.TIMEOUT_TOO_LONG.passed.explanation",
+        "args": null
+      },
+      "suggestion": null,
+      "elements": [],
+      "fix": null
+    },
+    {
+      "code": "TIMEOUT_TOO_SHORT",
+      "area": "Resilience",
+      "severity": "Good",
+      "message": {
+        "key": "finding.TIMEOUT_TOO_SHORT.passed.message",
+        "args": null
+      },
+      "explanation": {
+        "key": "finding.TIMEOUT_TOO_SHORT.passed.explanation",
+        "args": null
+      },
+      "suggestion": null,
+      "elements": [],
+      "fix": null
+    },
+    {
+      "code": "CYCLE",
+      "area": "Coupling",
+      "severity": "Good",
+      "message": {
+        "key": "finding.CYCLE.passed.message",
+        "args": null
+      },
+      "explanation": {
+        "key": "finding.CYCLE.passed.explanation",
+        "args": null
+      },
+      "suggestion": null,
+      "elements": [],
+      "fix": null
+    },
+    {
+      "code": "HIGH_COUPLING",
+      "area": "Coupling",
+      "severity": "Good",
+      "message": {
+        "key": "finding.HIGH_COUPLING.passed.message",
+        "args": null
+      },
+      "explanation": {
+        "key": "finding.HIGH_COUPLING.passed.explanation",
+        "args": null
+      },
+      "suggestion": null,
+      "elements": [],
+      "fix": null
+    },
+    {
+      "code": "ORPHAN_NODE",
+      "area": "Coupling",
+      "severity": "Good",
+      "message": {
+        "key": "finding.ORPHAN_NODE.passed.message",
+        "args": null
+      },
+      "explanation": {
+        "key": "finding.ORPHAN_NODE.passed.explanation",
+        "args": null
+      },
+      "suggestion": null,
+      "elements": [],
+      "fix": null
+    },
+    {
+      "code": "QUEUE_NO_CONSUMER",
+      "area": "Coupling",
+      "severity": "Good",
+      "message": {
+        "key": "finding.QUEUE_NO_CONSUMER.passed.message",
+        "args": null
+      },
+      "explanation": {
+        "key": "finding.QUEUE_NO_CONSUMER.passed.explanation",
+        "args": null
+      },
+      "suggestion": null,
+      "elements": [],
+      "fix": null
+    },
+    {
+      "code": "SHARED_DATABASE",
+      "area": "Coupling",
+      "severity": "Good",
+      "message": {
+        "key": "finding.SHARED_DATABASE.passed.message",
+        "args": null
+      },
+      "explanation": {
+        "key": "finding.SHARED_DATABASE.passed.explanation",
+        "args": null
+      },
+      "suggestion": null,
+      "elements": [],
+      "fix": null
+    },
+    {
+      "code": "MISSING_CACHE",
+      "area": "Scalability",
+      "severity": "Good",
+      "message": {
+        "key": "finding.MISSING_CACHE.passed.message",
+        "args": null
+      },
+      "explanation": {
+        "key": "finding.MISSING_CACHE.passed.explanation",
+        "args": null
+      },
+      "suggestion": null,
+      "elements": [],
+      "fix": null
+    },
+    {
+      "code": "EXPOSED_DATABASE",
+      "area": "Security",
+      "severity": "Good",
+      "message": {
+        "key": "finding.EXPOSED_DATABASE.passed.message",
+        "args": null
+      },
+      "explanation": {
+        "key": "finding.EXPOSED_DATABASE.passed.explanation",
+        "args": null
+      },
+      "suggestion": null,
+      "elements": [],
+      "fix": null
+    }
+  ],
+  "load": [],
+  "callLoad": [],
+  "coverage": [
+    {
+      "code": "SPOF",
+      "area": "Availability",
+      "state": "Fired",
+      "reason": null,
+      "describesTheDrawing": false
+    },
+    {
+      "code": "TRAFFIC_REJECTED",
+      "area": "Availability",
+      "state": "NotApplicable",
+      "reason": {
+        "key": "rule.na.TRAFFIC_REJECTED.noLoad",
+        "args": null
+      },
+      "describesTheDrawing": false
+    },
+    {
+      "code": "ASYNC_NO_QUEUE",
+      "area": "Resilience",
+      "state": "Passed",
+      "reason": null,
+      "describesTheDrawing": false
+    },
+    {
+      "code": "CACHE_AS_STORE",
+      "area": "Resilience",
+      "state": "Passed",
+      "reason": null,
+      "describesTheDrawing": false
+    },
+    {
+      "code": "EXTERNAL_NO_FALLBACK",
+      "area": "Resilience",
+      "state": "NotApplicable",
+      "reason": {
+        "key": "rule.na.EXTERNAL_NO_FALLBACK.noExternalCall",
+        "args": null
+      },
+      "describesTheDrawing": false
+    },
+    {
+      "code": "IMPLAUSIBLE_DEPENDENCY",
+      "area": "Resilience",
+      "state": "Passed",
+      "reason": null,
+      "describesTheDrawing": true
+    },
+    {
+      "code": "MISSING_RESILIENCE",
+      "area": "Resilience",
+      "state": "Passed",
+      "reason": null,
+      "describesTheDrawing": false
+    },
+    {
+      "code": "QUEUE_NO_DLQ",
+      "area": "Resilience",
+      "state": "Fired",
+      "reason": null,
+      "describesTheDrawing": false
+    },
+    {
+      "code": "RETRY_AMPLIFICATION",
+      "area": "Resilience",
+      "state": "NotApplicable",
+      "reason": {
+        "key": "rule.na.RETRY_AMPLIFICATION.noRetries",
+        "args": null
+      },
+      "describesTheDrawing": false
+    },
+    {
+      "code": "SYNC_CHAIN",
+      "area": "Resilience",
+      "state": "Passed",
+      "reason": null,
+      "describesTheDrawing": false
+    },
+    {
+      "code": "TIMEOUT_TOO_LONG",
+      "area": "Resilience",
+      "state": "Passed",
+      "reason": null,
+      "describesTheDrawing": false
+    },
+    {
+      "code": "TIMEOUT_TOO_SHORT",
+      "area": "Resilience",
+      "state": "Passed",
+      "reason": null,
+      "describesTheDrawing": false
+    },
+    {
+      "code": "CYCLE",
+      "area": "Coupling",
+      "state": "Passed",
+      "reason": null,
+      "describesTheDrawing": false
+    },
+    {
+      "code": "HIGH_COUPLING",
+      "area": "Coupling",
+      "state": "Passed",
+      "reason": null,
+      "describesTheDrawing": false
+    },
+    {
+      "code": "ORPHAN_NODE",
+      "area": "Coupling",
+      "state": "Passed",
+      "reason": null,
+      "describesTheDrawing": false
+    },
+    {
+      "code": "QUEUE_NO_CONSUMER",
+      "area": "Coupling",
+      "state": "Passed",
+      "reason": null,
+      "describesTheDrawing": false
+    },
+    {
+      "code": "SHARED_DATABASE",
+      "area": "Coupling",
+      "state": "Passed",
+      "reason": null,
+      "describesTheDrawing": false
+    },
+    {
+      "code": "MISSING_CACHE",
+      "area": "Scalability",
+      "state": "Passed",
+      "reason": null,
+      "describesTheDrawing": false
+    },
+    {
+      "code": "MISSING_CDN",
+      "area": "Scalability",
+      "state": "NotApplicable",
+      "reason": {
+        "key": "rule.na.MISSING_CDN.noLoad",
+        "args": null
+      },
+      "describesTheDrawing": false
+    },
+    {
+      "code": "UNDERSIZED_COMPONENT",
+      "area": "Scalability",
+      "state": "NotApplicable",
+      "reason": {
+        "key": "rule.na.UNDERSIZED_COMPONENT.noLoad",
+        "args": null
+      },
+      "describesTheDrawing": false
+    },
+    {
+      "code": "EXPOSED_DATABASE",
+      "area": "Security",
+      "state": "Passed",
+      "reason": null,
+      "describesTheDrawing": false
+    },
+    {
+      "code": "NO_RATE_LIMIT",
+      "area": "Security",
+      "state": "NotApplicable",
+      "reason": {
+        "key": "rule.na.NO_RATE_LIMIT.noTrafficAtDoor",
+        "args": null
+      },
+      "describesTheDrawing": false
+    },
+    {
+      "code": "UNAUTHENTICATED_ENTRY",
+      "area": "Security",
+      "state": "NotApplicable",
+      "reason": {
+        "key": "rule.na.UNAUTHENTICATED_ENTRY.noTrafficAtDoor",
+        "args": null
+      },
+      "describesTheDrawing": false
+    },
+    {
+      "code": "NO_OBSERVABILITY",
+      "area": "Observability",
+      "state": "Fired",
+      "reason": null,
+      "describesTheDrawing": false
+    },
+    {
+      "code": "OVERPROVISIONED",
+      "area": "Cost",
+      "state": "NotApplicable",
+      "reason": {
+        "key": "rule.na.OVERPROVISIONED.noLoad",
+        "args": null
+      },
+      "describesTheDrawing": false
+    }
+  ],
+  "cost": {
+    "total": 30,
+    "components": [
+      {
+        "nodeId": "a0000000-0000-0000-0000-000000000002",
+        "name": "Api1",
+        "perInstance": 4,
+        "instances": 1,
+        "total": 4
+      },
+      {
+        "nodeId": "a0000000-0000-0000-0000-000000000003",
+        "name": "Api2",
+        "perInstance": 4,
+        "instances": 1,
+        "total": 4
+      },
+      {
+        "nodeId": "a0000000-0000-0000-0000-000000000007",
+        "name": "Db",
+        "perInstance": 10,
+        "instances": 1,
+        "total": 10
+      },
+      {
+        "nodeId": "a0000000-0000-0000-0000-000000000006",
+        "name": "Orders",
+        "perInstance": 4,
+        "instances": 1,
+        "total": 4
+      },
+      {
+        "nodeId": "a0000000-0000-0000-0000-000000000005",
+        "name": "Queue",
+        "perInstance": 3,
+        "instances": 1,
+        "total": 3
+      },
+      {
+        "nodeId": "a0000000-0000-0000-0000-000000000004",
+        "name": "Cache",
+        "perInstance": 2,
+        "instances": 1,
+        "total": 2
+      },
+      {
+        "nodeId": "a0000000-0000-0000-0000-000000000001",
+        "name": "LB",
+        "perInstance": 3,
+        "instances": 1,
+        "total": 3
+      }
+    ]
+  }
+}

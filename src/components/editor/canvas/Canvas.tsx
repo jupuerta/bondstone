@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, type DragEvent, type ReactNode
 import {
   Background,
   BackgroundVariant,
-  Controls,
   MiniMap,
   ReactFlow,
   ReactFlowProvider,
@@ -20,9 +19,11 @@ import { tintOf } from "../../engine/tints";
 import { DND_NODE_TYPE_FORMAT } from "../palette/nodeMeta";
 import { displayEdges, displayNodes, statesOf } from "./display";
 import { EditorEdge } from "./Edge";
+import { LegendDrawer } from "./LegendDrawer";
+import type { LegendMode } from "./legend";
 import { NODE_H, NODE_W } from "./marks";
 import { EditorNode } from "./Node";
-import { NODE_TYPES, type ArchNodeData, type ConnectionData, type Selection } from "./types";
+import { NODE_TYPES, NO_MARKS, type ArchNodeData, type CanvasMarks, type ConnectionData, type Selection } from "./types";
 import { ZoneBand } from "./ZoneBand";
 import { bandDown, zoneBands } from "./zoneBands";
 
@@ -37,6 +38,12 @@ export interface CanvasEdits {
   onDelete: (nodeIds: Set<string>, edgeIds: Set<string>) => void;
 }
 
+export interface CanvasLegend {
+  mode: LegendMode;
+  open: boolean;
+  onClose: () => void;
+}
+
 interface CanvasProps {
   architecture: ArchitectureDto;
   states: ElementState[] | null;
@@ -44,6 +51,9 @@ interface CanvasProps {
   callLoad?: ConnectionLoad[] | null;
   selection: Selection | null;
   onSelect: (selection: Selection | null) => void;
+  marks?: CanvasMarks;
+  strip?: ReactNode;
+  legend?: CanvasLegend;
   narrow: boolean;
   edits?: CanvasEdits;
   empty?: ReactNode;
@@ -57,14 +67,14 @@ export function Canvas(props: CanvasProps) {
   );
 }
 
-function CanvasInner({ architecture, states, faultIds, callLoad, selection, onSelect, narrow, edits, empty }: CanvasProps) {
+function CanvasInner({ architecture, states, faultIds, callLoad, selection, onSelect, marks = NO_MARKS, strip, legend, narrow, edits, empty }: CanvasProps) {
   const t = useT();
   const simulated = states !== null;
   const editable = edits !== undefined;
   const nodeStates = useMemo(() => statesOf(states, "Node"), [states]);
   const connectionStates = useMemo(() => statesOf(states, "Connection"), [states]);
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node<ArchNodeData>>(displayNodes(architecture, nodeStates, faultIds, simulated, selection));
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<ConnectionData>>(displayEdges(architecture, nodeStates, connectionStates, callLoad, selection));
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node<ArchNodeData>>(displayNodes(architecture, nodeStates, faultIds, simulated, selection, marks));
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<ConnectionData>>(displayEdges(architecture, nodeStates, connectionStates, callLoad, selection, marks));
   const bands = useMemo(
     () => zoneBands(nodes.map((node) => ({ id: node.id, type: node.type as NodeType, position: node.position, width: node.measured?.width, height: node.measured?.height, configuration: node.data.configuration }))),
     [nodes],
@@ -73,16 +83,16 @@ function CanvasInner({ architecture, states, faultIds, callLoad, selection, onSe
   useEffect(() => {
     setNodes((current) => {
       const kept = new Set(current.filter((node) => node.selected).map((node) => node.id));
-      return displayNodes(architecture, nodeStates, faultIds, simulated, null).map((node) => ({ ...node, selected: kept.has(node.id) }));
+      return displayNodes(architecture, nodeStates, faultIds, simulated, null, marks).map((node) => ({ ...node, selected: kept.has(node.id) }));
     });
-  }, [architecture, nodeStates, faultIds, simulated, setNodes]);
+  }, [architecture, nodeStates, faultIds, simulated, marks, setNodes]);
 
   useEffect(() => {
     setEdges((current) => {
       const kept = new Set(current.filter((edge) => edge.selected).map((edge) => edge.id));
-      return displayEdges(architecture, nodeStates, connectionStates, callLoad, null).map((edge) => ({ ...edge, selected: kept.has(edge.id) }));
+      return displayEdges(architecture, nodeStates, connectionStates, callLoad, null, marks).map((edge) => ({ ...edge, selected: kept.has(edge.id) }));
     });
-  }, [architecture, nodeStates, connectionStates, callLoad, setEdges]);
+  }, [architecture, nodeStates, connectionStates, callLoad, marks, setEdges]);
 
   useEffect(() => {
     if (selection !== null) return;
@@ -182,61 +192,65 @@ function CanvasInner({ architecture, states, faultIds, callLoad, selection, onSe
     <section
       ref={frame}
       aria-label={t("editor.a11y.canvas", { name: architecture.name })}
-      className={`relative min-h-0 min-w-0 flex-1 bg-canvas ${editable ? "af-editable" : ""}`}
+      className={`flex min-h-0 min-w-0 flex-1 flex-col bg-canvas ${editable ? "af-editable" : ""} ${legend?.open ? "af-legend-open" : ""}`}
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
-      <ReactFlow<Node<ArchNodeData>, Edge<ConnectionData>>
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={NODE_COMPONENTS}
-        edgeTypes={EDGE_COMPONENTS}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={edits ? (connection) => edits.onConnect(connection.source, connection.target) : undefined}
-        isValidConnection={(connection) => connection.source !== connection.target}
-        onNodeDragStop={edits ? (_, __, dragged) => edits.onMove(new Map(dragged.map((node) => [node.id, node.position]))) : undefined}
-        onDelete={edits ? ({ nodes: gone, edges: goneEdges }) => edits.onDelete(new Set(gone.map((node) => node.id)), new Set(goneEdges.map((edge) => edge.id))) : undefined}
-        nodesDraggable={editable}
-        nodesConnectable={editable}
-        edgesReconnectable={false}
-        elementsSelectable
-        deleteKeyCode={editable ? DELETE_KEYS : null}
-        selectionKeyCode={null}
-        multiSelectionKeyCode={null}
-        zoomOnDoubleClick={false}
-        minZoom={0.25}
-        maxZoom={2}
-        fitView
-        fitViewOptions={{ padding, maxZoom: 1 }}
-        colorMode="dark"
-        ariaLabelConfig={ariaLabels}
-      >
-        <Background variant={BackgroundVariant.Dots} gap={24} size={1} />
-        <ViewportPortal>
-          {bands.map((band) => (
-            <ZoneBand key={band.zone} band={band} down={bandDown(band, nodeStates)} />
-          ))}
-        </ViewportPortal>
-        {!narrow && <Controls showInteractive={false} position="bottom-left" />}
-        {!narrow && (
-          <MiniMap
-            pannable
-            zoomable
-            nodeColor={(node) => tintOf(node.type as ArchitectureDto["nodes"][number]["type"])}
-            nodeStrokeWidth={0}
-            position="bottom-right"
-            style={{ width: 150, height: 96 }}
-          />
-        )}
-      </ReactFlow>
+      {strip}
+      <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+        <ReactFlow<Node<ArchNodeData>, Edge<ConnectionData>>
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={NODE_COMPONENTS}
+          edgeTypes={EDGE_COMPONENTS}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={edits ? (connection) => edits.onConnect(connection.source, connection.target) : undefined}
+          isValidConnection={(connection) => connection.source !== connection.target}
+          onNodeDragStop={edits ? (_, __, dragged) => edits.onMove(new Map(dragged.map((node) => [node.id, node.position]))) : undefined}
+          onDelete={edits ? ({ nodes: gone, edges: goneEdges }) => edits.onDelete(new Set(gone.map((node) => node.id)), new Set(goneEdges.map((edge) => edge.id))) : undefined}
+          nodesDraggable={editable}
+          nodesConnectable={editable}
+          edgesReconnectable={false}
+          elementsSelectable
+          deleteKeyCode={editable ? DELETE_KEYS : null}
+          selectionKeyCode={null}
+          multiSelectionKeyCode={null}
+          zoomOnDoubleClick={false}
+          minZoom={0.25}
+          maxZoom={2}
+          fitView
+          fitViewOptions={{ padding, maxZoom: 1 }}
+          colorMode="dark"
+          ariaLabelConfig={ariaLabels}
+        >
+          <Background variant={BackgroundVariant.Dots} gap={24} size={1} />
+          <ViewportPortal>
+            {bands.map((band) => (
+              <ZoneBand key={band.zone} band={band} down={bandDown(band, nodeStates)} />
+            ))}
+          </ViewportPortal>
+          {!narrow && (
+            <MiniMap
+              pannable
+              zoomable
+              nodeColor={(node) => tintOf(node.type as ArchitectureDto["nodes"][number]["type"])}
+              nodeStrokeWidth={0}
+              position="bottom-right"
+              style={{ width: 150, height: 96 }}
+            />
+          )}
+        </ReactFlow>
 
-      {!drawn && (
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-5 overflow-y-auto p-6">
-          <p className="rounded-card border border-panel-line bg-panel-2 px-4 py-2 text-small text-panel-ink-2">{t(editable ? "editor.canvas.empty" : "editor.canvas.emptyReadOnly")}</p>
-          {empty}
-        </div>
-      )}
+        {!drawn && (
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-5 overflow-y-auto p-6">
+            <p className="rounded-card border border-panel-line bg-panel-2 px-4 py-2 text-small text-panel-ink-2">{t(editable ? "editor.canvas.empty" : "editor.canvas.emptyReadOnly")}</p>
+            {empty}
+          </div>
+        )}
+
+        {legend && <LegendDrawer mode={legend.mode} open={legend.open} onClose={legend.onClose} narrow={narrow} />}
+      </div>
     </section>
   );
 }

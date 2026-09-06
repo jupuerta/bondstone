@@ -1,28 +1,38 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getArchitectureHistory } from "../../api/architectureClient";
 import { getChallenge } from "../../api/challengeClient";
 import { editorPrefs, rememberEditorPrefs } from "../../domain/editorPrefs";
 import { rememberWork, scoreWork, touchWork } from "../../domain/savedWork";
 import { useAutosave } from "../../hooks/useAutosave";
 import { useLiveAnalysis } from "../../hooks/useLiveAnalysis";
+import { useLoadCurve } from "../../hooks/useLoadCurve";
 import { useNarrowViewport } from "../../hooks/useMediaQuery";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useT } from "../../i18n";
-import type { ArchitectureDto, ChallengeDetail, NodeType, PositionDto, ResilienceConfiguration, UpdateArchitectureResult } from "../../types/architecture";
+import type { AnalysisResult, Area, ArchitectureDto, ArchitectureSnapshot, ChallengeDetail, ComponentLoad, FindingElement, NodeType, PositionDto, ResilienceConfiguration, RuleFinding, UpdateArchitectureResult } from "../../types/architecture";
 import { Button } from "../ui/Button";
-import { Skeleton } from "../ui/Skeleton";
+import { applyFix } from "./canvas/applyFix";
 import { Canvas, type CanvasEdits } from "./canvas/Canvas";
 import { addNode, connect, connectedEdges, entryPointOf, importGraph, isTypingTarget, moveNodes, patchEdge, patchNode, removeEdges, removeNodes, setNodeField } from "./canvas/graphEdits";
 import { EMPTY_HISTORY, record, redo, undo, type Graph, type GraphHistory } from "./canvas/graphHistory";
+import { lensTabs, lensView } from "./canvas/lens";
 import { flowToArchitecture, flowToUpdateRequest } from "./canvas/mapping";
-import type { Selection } from "./canvas/types";
+import { pointAt } from "./canvas/trafficDial";
+import type { CanvasMarks, Selection } from "./canvas/types";
+import { ViewStrip } from "./canvas/ViewStrip";
+import { ZoomPill } from "./canvas/ZoomPill";
 import { EdgeInspector } from "./inspector/EdgeInspector";
 import { NodeInspector } from "./inspector/NodeInspector";
 import { ConflictDialog } from "./overlays/ConflictDialog";
+import { FixDiff, type FixShots } from "./overlays/FixDiff";
 import { Palette } from "./palette/Palette";
+import { AnalysisPanel, type FindingGraph, type FixControls } from "./panel/AnalysisPanel";
+import { scoreSnapshot, whatWasDone, type FixReceipt } from "./panel/fixReceipt";
+import { callLookup } from "./panel/protagonist";
+import { connectedComponents } from "./panel/scoreExplain";
 import { elementOf, endsOf, titleOf } from "./selection";
 import { BottomDrawer } from "./shell/BottomDrawer";
 import { EditorBar, type BarChip } from "./shell/EditorBar";
-import { MotorSummary } from "./shell/MotorSummary";
 import { NarrowMenu } from "./shell/NarrowMenu";
 import { SaveState } from "./shell/SaveState";
 import { useShareLink } from "./shell/useShareLink";
@@ -34,6 +44,11 @@ interface EditorProps {
   editToken: string;
   search: string;
   onReload: () => void;
+}
+
+interface Pinned {
+  id: string;
+  elements: FindingElement[];
 }
 
 const EMPTY_FAULTS: ReadonlySet<string> = new Set();
@@ -50,6 +65,11 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
   const [menuOpen, setMenuOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [paletteCollapsed, setPaletteCollapsed] = useState(() => editorPrefs().paletteCollapsed);
+  const [legendOpen, setLegendOpen] = useState(() => editorPrefs().legendOpen);
+  const [lensArea, setLensArea] = useState<Area | null>(null);
+  const [showBadges, setShowBadges] = useState(false);
+  const [dialOpen, setDialOpen] = useState(false);
+  const [dialIndex, setDialIndex] = useState(0);
   const [conflict, setConflict] = useState(false);
   const [savedRevision, setSavedRevision] = useState(0);
   const challengeSlug = useMemo(() => new URLSearchParams(search).get("challenge"), [search]);
@@ -110,6 +130,31 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
     if (analysis.result) scoreWork(editToken, analysis.result.score);
   }, [analysis.result, editToken]);
 
+  const [history, setHistory] = useState<ArchitectureSnapshot[]>([]);
+  const [historyRevision, setHistoryRevision] = useState(0);
+  const scoringVersion = analysis.result?.scoringVersion;
+  useEffect(() => {
+    if (!scoringVersion) return;
+    let cancelled = false;
+    getArchitectureHistory(architecture.shareToken)
+      .then((entries) => {
+        if (!cancelled) setHistory(entries);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [architecture.shareToken, scoringVersion, historyRevision]);
+
+  const comparable = useMemo(() => history.filter((entry) => entry.scoringVersion === scoringVersion), [history, scoringVersion]);
+  const lastPlotted = comparable.length > 0 ? comparable[comparable.length - 1].score : null;
+  const liveScore = analysis.result?.score ?? null;
+  useEffect(() => {
+    if (savedRevision === 0 || analysis.status !== "idle" || analysis.result === null) return;
+    if (liveScore === lastPlotted) return;
+    setHistoryRevision((current) => current + 1);
+  }, [savedRevision, liveScore, lastPlotted, analysis.status, analysis.result]);
+
   const commit = useCallback((update: (current: Graph) => Graph) => {
     const current = graphRef.current;
     const next = update(current);
@@ -127,9 +172,47 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
     setGraph(stepped.graph);
   }, []);
 
+  const [preview, setPreview] = useState<FindingElement[] | null>(null);
+  const [pinned, setPinned] = useState<Pinned | null>(null);
+  const highlighted = useMemo(() => new Set((preview ?? pinned?.elements ?? []).map((element) => element.id)), [preview, pinned]);
+
+  const loadCurve = useLoadCurve({ shareToken: architecture.shareToken, enabled: dialOpen, savedRevision });
+  const trafficPoint = dialOpen && dialIndex > 0 ? pointAt(loadCurve.curve, dialIndex) : null;
+  const lens = useMemo(() => lensView(analysis.result, lensArea), [analysis.result, lensArea]);
+  const tabs = useMemo(() => lensTabs(analysis.result), [analysis.result]);
+  const marks = useMemo<CanvasMarks>(() => {
+    const lensed = lens.analyzed && lens.area !== null;
+    const dimmed = new Set<string>();
+    if (lensed) {
+      for (const id of [...dto.nodes.map((node) => node.id), ...dto.connections.map((call) => call.id)]) if (!lens.ids.has(id) && !highlighted.has(id)) dimmed.add(id);
+    }
+    const badges = lensed ? lens.severities : showBadges ? lensView(analysis.result, null).severities : new Map();
+    const loads = new Map<string, ComponentLoad>();
+    for (const load of trafficPoint?.components ?? analysis.result?.load ?? []) loads.set(load.nodeId, load);
+    return { highlighted, dimmed, badges, loads, loadScale: trafficPoint?.scale ?? 1 };
+  }, [lens, dto, highlighted, showBadges, analysis.result, trafficPoint]);
+  const toggleLegend = useCallback(() => {
+    setLegendOpen((current) => {
+      rememberEditorPrefs({ legendOpen: !current });
+      return !current;
+    });
+  }, []);
+  const closeLegend = useCallback(() => {
+    setLegendOpen(false);
+    rememberEditorPrefs({ legendOpen: false });
+  }, []);
+  const closeDial = useCallback(() => {
+    setDialOpen(false);
+    setDialIndex(0);
+  }, []);
+  const handlePin = useCallback((id: string, elements: FindingElement[]) => {
+    setPinned((current) => (current?.id === id ? null : { id, elements }));
+  }, []);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        setPinned(null);
         if (!isTypingTarget(event.target)) setSelection(null);
         return;
       }
@@ -143,6 +226,66 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [editable, step]);
+
+  const [receipt, setReceipt] = useState<FixReceipt | null>(null);
+  const [shots, setShots] = useState<FixShots | null>(null);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const undoRef = useRef<Graph | null>(null);
+  const fixedAtRef = useRef(0);
+  const analysisBeforeFixRef = useRef<AnalysisResult | null>(null);
+
+  const clearFix = useCallback(() => {
+    undoRef.current = null;
+    setReceipt(null);
+    setShots(null);
+    setCompareOpen(false);
+  }, []);
+
+  const handleApplyFix = useCallback(
+    (finding: RuleFinding) => {
+      if (!finding.fix) return;
+      const before = graphRef.current;
+      const next = applyFix(before, finding.fix);
+      commit(() => next);
+      setPinned(null);
+      setPreview(null);
+
+      undoRef.current = before;
+      fixedAtRef.current = savedRevision;
+      analysisBeforeFixRef.current = analysis.result;
+
+      const shot = (current: Graph) => {
+        const { nodes, connections } = flowToUpdateRequest(nameRef.current, versionRef.current, current.nodes, current.edges);
+        return { nodes, connections };
+      };
+      setShots({ before: shot(before), after: shot(next) });
+      setCompareOpen(true);
+      setReceipt({ area: finding.area, code: finding.code, done: whatWasDone(finding.fix), before: scoreSnapshot(analysis.result), after: null });
+    },
+    [commit, savedRevision, analysis.result],
+  );
+
+  useEffect(() => {
+    if (!receipt) return;
+    if (savedRevision > fixedAtRef.current + 1) {
+      clearFix();
+      return;
+    }
+    if (receipt.after !== null || savedRevision !== fixedAtRef.current + 1) return;
+    if (analysis.status !== "idle" || analysis.result === null) return;
+    if (analysis.result === analysisBeforeFixRef.current) return;
+    const after = scoreSnapshot(analysis.result);
+    setReceipt((current) => (current && current.after === null ? { ...current, after } : current));
+  }, [receipt, savedRevision, analysis.status, analysis.result, clearFix]);
+
+  const handleUndoFix = useCallback(() => {
+    const previous = undoRef.current;
+    clearFix();
+    if (previous) commit(() => previous);
+  }, [clearFix, commit]);
+
+  const openCompare = useCallback(() => setCompareOpen(true), []);
+  const closeCompare = useCallback(() => setCompareOpen(false), []);
 
   const select = useCallback((next: Selection | null) => {
     setSelection(next);
@@ -181,6 +324,15 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
   const faultIds = EMPTY_FAULTS;
   const chips: BarChip[] = challenge ? [{ key: "challenge", label: `${t("ui.challenge.title")} · ${t(challenge.title)}` }] : [];
   const saveState = <SaveState status={autosave.status} version={version} error={autosave.error} onRetry={autosave.retryNow} narrow={narrow} />;
+
+  const findingGraph = useMemo<FindingGraph>(
+    () => ({ names: new Map(dto.nodes.map((node) => [node.id, node.name])), calls: callLookup(dto.connections) }),
+    [dto],
+  );
+  const components = useMemo(() => connectedComponents(dto.nodes, dto.connections), [dto]);
+  const fixes: FixControls | undefined = editable
+    ? { onApplyFix: handleApplyFix, receipt, onUndoFix: handleUndoFix, onDismissFix: clearFix, onOpenFixCompare: shots ? openCompare : null }
+    : undefined;
 
   const inspector = selected && (
     <div className="flex flex-col gap-3">
@@ -225,16 +377,22 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
     </div>
   );
 
-  const motor = analysis.result ? (
-    <MotorSummary analysis={analysis.result} shareToken={architecture.shareToken} faultIds={faultIds} />
-  ) : analysis.status === "error" ? (
-    <p className="text-small text-hot-panel">{analysis.error}</p>
-  ) : (
-    <div className="flex flex-col gap-3" aria-busy>
-      <Skeleton height={96} dark />
-      <Skeleton width="70%" dark />
-      <Skeleton width="50%" dark />
-    </div>
+  const motor = (
+    <AnalysisPanel
+      status={analysis.status}
+      result={analysis.result}
+      error={analysis.error}
+      onRetry={analysis.retry}
+      onPreview={setPreview}
+      onPin={handlePin}
+      pinnedId={pinned?.id ?? null}
+      fixes={fixes}
+      history={{ entries: comparable, olderScoring: history.length - comparable.length }}
+      components={components}
+      shareToken={architecture.shareToken}
+      graph={findingGraph}
+      narrow={narrow}
+    />
   );
 
   const shell = (
@@ -252,6 +410,29 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
     />
   );
 
+  const strip = (
+    <ViewStrip
+      narrow={narrow}
+      drawn={dto.nodes.length > 0}
+      lens={{ tabs, view: lens, onChange: setLensArea }}
+      badges={{ on: showBadges, onToggle: () => setShowBadges((current) => !current) }}
+      legend={{ open: legendOpen, onToggle: toggleLegend }}
+      dial={{
+        status: loadCurve.status,
+        curve: loadCurve.curve,
+        error: loadCurve.error,
+        index: dialIndex,
+        scale: trafficPoint?.scale ?? 1,
+        nameOf: (nodeId) => dto.nodes.find((node) => node.id === nodeId)?.name ?? "?",
+        onIndexChange: setDialIndex,
+        onOpen: () => setDialOpen(true),
+        onClose: closeDial,
+        onRetry: loadCurve.retry,
+      }}
+      aside={<ZoomPill />}
+    />
+  );
+
   const canvas = (
     <Canvas
       architecture={dto}
@@ -260,6 +441,9 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
       callLoad={analysis.result?.callLoad ?? null}
       selection={selection}
       onSelect={select}
+      marks={marks}
+      strip={strip}
+      legend={{ mode: "design", open: legendOpen, onClose: closeLegend }}
       narrow={narrow}
       edits={editable ? edits : undefined}
       empty={
@@ -277,6 +461,13 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
         )
       }
     />
+  );
+
+  const overlays = (
+    <>
+      {compareOpen && shots && receipt && <FixDiff shots={shots} receipt={receipt} onUndo={handleUndoFix} onClose={closeCompare} />}
+      {conflict && <ConflictDialog onReload={onReload} />}
+    </>
   );
 
   if (narrow) {
@@ -300,7 +491,7 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
           {inspector ?? motor}
         </BottomDrawer>
         {menuOpen && <NarrowMenu shareToken={architecture.shareToken} onClose={closeMenu} onShare={copy} shared={copied} />}
-        {conflict && <ConflictDialog onReload={onReload} />}
+        {overlays}
       </div>
     );
   }
@@ -335,7 +526,7 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
           <div className="min-h-0 flex-1 overflow-y-auto p-3">{motor}</div>
         </aside>
       </div>
-      {conflict && <ConflictDialog onReload={onReload} />}
+      {overlays}
     </div>
   );
 }

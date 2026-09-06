@@ -17,6 +17,7 @@ interface UseLiveAnalysisResult {
   status: AnalysisStatus;
   result: AnalysisResult | null;
   error: string | null;
+  retry: () => void;
 }
 
 export function useLiveAnalysis({ shareToken, savedRevision, enabled = true }: UseLiveAnalysisOptions): UseLiveAnalysisResult {
@@ -63,5 +64,5 @@ export function useLiveAnalysis({ shareToken, savedRevision, enabled = true }: U
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  return { status, result, error };
+  return { status, result, error, retry: run };
 }

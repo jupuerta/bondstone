@@ -1991,5 +1991,15 @@
   "editor.a11y.minimap": "Minimap",
   "editor.canvas.empty": "Drag a component from the palette to get started.",
   "editor.save.clean": "No changes",
-  "editor.save.pending": "Unsaved"
+  "editor.save.pending": "Unsaved",
+  "editor.fixCompare.lit": "Highlighted: what the fix touched.",
+  "editor.analysis.safe": "Your architecture is safe: what failed is the analysis.",
+  "editor.legend.badgesNote": "One dot per component named by a finding, in the ink of its severity: critical or warning. Enabled with “{toggle}”.",
+  "editor.legend.containedNote": "A ring and, inside the component, the name of the mechanism that stopped the cascade. It marks the difference between three components down and seven.",
+  "editor.legend.highlightedNote": "A ring around the components and calls of the finding you are reading in the panel.",
+  "editor.legend.degradedNote": "Still up, but responding worse, and propagating that upstream.",
+  "editor.legend.downNote": "It has stopped responding, and the call reaching it is drawn dashed.",
+  "editor.legend.healthyNote": "No mark: healthy components are drawn as always.",
+  "editor.legend.loadNote": "How much of its capacity the component uses under the declared load. The notch marks {value:percent}, where the analysis starts to speak; past capacity, the bar changes ink again.",
+  "editor.legend.zoneDownNote": "The frame changes when everything inside it is down. This is what breaking a zone looks like, as opposed to breaking a component: the failure takes down everything that shares the location at once."
 }
