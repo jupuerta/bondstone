@@ -10,15 +10,17 @@ Lo que hay es la **web pública** tal como la fijaron los cuatro entregables de 
 (`docs/Design/`): portada, retos, un reto, el enlace compartido, las tres páginas de referencia,
 «cómo está hecho», las legales y el 404. Escritorio y móvil, español e inglés.
 
-Lo que **no** hay todavía es el editor: `/e/{token}` abre el del frontend actual
-(`VITE_LEGACY_APP_URL`). Cuando el editor se reescriba aquí, esa página desaparece.
+El editor se está construyendo por rebanadas (`docs/Design/Editor/00_plan_y_prompts.md` §5). La
+rebanada 1 está: `/a/{token}` es ya el editor en modo lectura, con el lienzo de `@xyflow/react`.
+Lo que **no** hay todavía es la edición: `/e/{token}` abre el del frontend actual
+(`VITE_LEGACY_APP_URL`). Cuando llegue la rebanada 2, esa página desaparece.
 
 | Ruta | Qué es | De dónde salen los datos |
 | --- | --- | --- |
 | `/` | Portada. La demostración es el motor de verdad sobre «la tienda», con Postgres caído, antes y después | `GET /architectures/{token}`, `POST …/analyze`, `POST …/simulate` |
 | `/challenges` | Los 23 retos en tres bandas, con filtros, progreso y «Tu trabajo» | `GET /challenges` + `localStorage` |
 | `/c/:slug` | Un reto: historia, lección, requisitos y «Empezar el reto». **No crea nada al cargar**; solo el botón | `GET /challenges/{slug}`, `POST …/start` |
-| `/a/:token` | La arquitectura de otra persona, en solo lectura, con la franja pública encima y el fallo de la URL aplicado | Los tres de arriba + `POST …/fork` |
+| `/a/:token` | El editor en modo lectura: la franja pública encima y, debajo, la barra propia, el lienzo interactivo (pan, zoom, seleccionar), las bandas de zona, el fallo de la URL pintado sobre los nodos, la ficha de lo que tocas y la voz del motor. En pantalla estrecha, cajón inferior y menú | Los tres de arriba + `POST …/fork` (solo al pulsar «Abrir una copia»); `GET /challenges/{slug}` si la URL trae `?challenge=` |
 | `/rules`, `/rules/:token` | Las 25 reglas; con token, qué hizo cada una sobre esa arquitectura | Catálogo local + `POST …/analyze` |
 | `/model` | El modelo: capacidades, red, umbrales, encolamiento | `GET /model` |
 | `/mechanisms` | Los once mecanismos, sin el «Pruébalo» (que necesita el editor) | Catálogo local |
@@ -26,10 +28,12 @@ Lo que **no** hay todavía es el editor: `/e/{token}` abre el del frontend actua
 
 ## Stack
 
-React 19 · Vite 6 · TypeScript · Tailwind 4 · react-router 7 · vitest. El mismo que el frontend
-actual, a propósito: comparten el catálogo de textos (`src/i18n/{es,en}.json`, las 1 691 claves del
-producto más las `web.*` de la web), los clientes HTTP (`src/api/`), el contrato (`src/types/`) y
-la forma de guardar el trabajo en el navegador (`src/domain/savedWork.ts`, misma clave).
+React 19 · Vite 6 · TypeScript · Tailwind 4 · react-router 7 · vitest · `@xyflow/react` 12.11.2
+(fijada, solo para el lienzo interactivo). El mismo stack que el frontend actual, a propósito:
+comparten el catálogo de textos (`src/i18n/{es,en}.json`, las claves del producto más las `web.*`
+de la web y las `editor.*` del editor nuevo), los clientes HTTP (`src/api/`), el contrato
+(`src/types/`) y la forma de guardar el trabajo en el navegador (`src/domain/savedWork.ts`, misma
+clave).
 
 Las tipografías (Bricolage Grotesque, Instrument Sans, IBM Plex Mono) se sirven desde aquí, con
 `@fontsource`. Nada llama a Google.
@@ -44,6 +48,9 @@ src/
 ├── components/ui/       Button, Chip, FilterChip, Segmented, Callout, Skeleton, InlineError, Icons
 ├── components/layout/   SiteHeader (con el menú en pantalla estrecha), SiteFooter, PageShell, PageHead, ReferenceBack
 ├── components/engine/   EnginePanel y sus piezas: useEngine, Diagram (SVG), NodeList, FindingCard
+├── components/editor/   el editor (docs/Design/Editor/06_ui.md §6): canvas/ (xyflow, nodo, arista, banda de zona,
+│                        zoneBands, callFlow, mapping), shell/ (barra, menú estrecho, cajón, referencia),
+│                        inspector/ (fichas de lectura), palette/ (los 16 iconos), overlays/
 └── pages/               una por ruta
 ```
 
@@ -81,9 +88,10 @@ conserva). Los tokens son de esa base de datos: en otro entorno hay que volver a
 
 ## Lo que queda
 
-- El editor, y con él el modo Simulate, las zonas, el coste, exportar: todo lo que hoy vive en el
-  frontend actual.
+- Las rebanadas 2 a 6 del editor: edición, análisis en el panel, retos, Simulate con sus controles,
+  exportar y ayuda. La 1 (lectura) está.
 - El «Pruébalo» de los mecanismos y los dibujos de patrón de sus fichas.
 - «Qué llevas aprendido» en el catálogo (necesita el historial de puntuaciones que escribe el editor).
 - Los textos legales.
-- Partir el bundle: hoy el catálogo entero viaja en el primer JS (~750 KB sin comprimir).
+- Partir el bundle: hoy el catálogo entero viaja en el primer JS (~775 KB sin comprimir); xyflow va
+  en su propio chunk (~197 KB, 64 KB gzip).

@@ -1971,5 +1971,22 @@
   "web.engine.severity.Critical": "Critical",
   "web.engine.severity.Warning": "Warning",
   "web.engine.severity.Info": "Suggestion",
-  "web.engine.severity.Good": "Passed"
+  "web.engine.severity.Good": "Passed",
+  "editor.canvas.emptyReadOnly": "Nothing has been drawn yet.",
+  "editor.docs": "Reference: model, rules and mechanisms",
+  "editor.bar.reference": "Reference",
+  "editor.bar.home": "Back to the site",
+  "editor.inspector.component": "Component",
+  "editor.inspector.callBetween": "{source} → {target}",
+  "editor.drawer.open": "Open the drawer",
+  "editor.drawer.close": "Collapse the drawer",
+  "editor.selection.back": "Back to the findings",
+  "editor.a11y.canvas": "Canvas of {name}",
+  "editor.a11y.node": "Press Enter or Space to select the component and Escape to release it.",
+  "editor.a11y.edge": "Press Enter or Space to select the call and Escape to release it.",
+  "editor.a11y.controls": "Canvas controls",
+  "editor.a11y.zoomIn": "Zoom in",
+  "editor.a11y.zoomOut": "Zoom out",
+  "editor.a11y.fitView": "Fit the drawing",
+  "editor.a11y.minimap": "Minimap"
 }

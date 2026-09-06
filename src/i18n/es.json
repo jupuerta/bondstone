@@ -1971,5 +1971,22 @@
   "web.engine.severity.Critical": "Crítico",
   "web.engine.severity.Warning": "Aviso",
   "web.engine.severity.Info": "Sugerencia",
-  "web.engine.severity.Good": "Correcto"
+  "web.engine.severity.Good": "Correcto",
+  "editor.canvas.emptyReadOnly": "Todavía no hay nada dibujado.",
+  "editor.docs": "Referencia: modelo, reglas y mecanismos",
+  "editor.bar.reference": "Referencia",
+  "editor.bar.home": "Volver a la web",
+  "editor.inspector.component": "Componente",
+  "editor.inspector.callBetween": "{source} → {target}",
+  "editor.drawer.open": "Desplegar el cajón",
+  "editor.drawer.close": "Plegar el cajón",
+  "editor.selection.back": "Volver a los hallazgos",
+  "editor.a11y.canvas": "Lienzo de {name}",
+  "editor.a11y.node": "Pulsa Intro o espacio para seleccionar el componente y Escape para soltarlo.",
+  "editor.a11y.edge": "Pulsa Intro o espacio para seleccionar la llamada y Escape para soltarla.",
+  "editor.a11y.controls": "Controles del lienzo",
+  "editor.a11y.zoomIn": "Acercar",
+  "editor.a11y.zoomOut": "Alejar",
+  "editor.a11y.fitView": "Encuadrar el dibujo",
+  "editor.a11y.minimap": "Minimapa"
 }

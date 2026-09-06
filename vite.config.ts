@@ -11,6 +11,13 @@ export default defineConfig({
       "/api": { target: "http://localhost:5012", changeOrigin: true },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: { xyflow: ["@xyflow/react"] },
+      },
+    },
+  },
   test: {
     environment: "jsdom",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],

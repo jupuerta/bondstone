@@ -46,6 +46,10 @@ export function segmentOf(connection: ConnectionDto, boxes: Map<string, Box>): S
   const from = boxes.get(connection.sourceNodeId);
   const to = boxes.get(connection.targetNodeId);
   if (!from || !to) return null;
+  return segmentBetween(from, to);
+}
+
+export function segmentBetween(from: Box, to: Box): Segment {
   const a = clip(from, center(to));
   const b = clip(to, center(from));
   return { x1: a.x, y1: a.y, x2: b.x, y2: b.y };

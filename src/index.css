@@ -31,6 +31,10 @@
   --color-hot-panel: var(--af-hot-panel);
   --color-warm-panel: var(--af-warm-panel);
   --color-ok-panel: var(--af-ok-panel);
+  --color-canvas: var(--af-canvas);
+  --color-panel-3: var(--af-panel-3);
+  --color-panel-line-2: var(--af-panel-line-2);
+  --color-accent-panel: var(--af-accent-panel);
 
   --font-sans: var(--af-font-ui);
   --font-display: var(--af-font-display);
@@ -65,6 +69,9 @@
   --text-label: 11px;
   --text-label--line-height: 1.2;
   --text-label--letter-spacing: 0.08em;
+  --text-panel: 15px;
+  --text-panel--line-height: 1.2;
+  --text-panel--letter-spacing: -0.01em;
 
   --radius-pill: 999px;
   --radius-card: 8px;
@@ -100,6 +107,12 @@
   --af-hot-panel: #ff5f5f;
   --af-warm-panel: #f3b64f;
   --af-ok-panel: #3ecf8e;
+
+  /* Lo que el editor añade al panel: docs/Design/Editor/06_ui.md §2. */
+  --af-canvas: #0a0c0e;
+  --af-panel-3: #1b1f27;
+  --af-panel-line-2: rgba(255, 255, 255, 0.24);
+  --af-accent-panel: oklch(0.72 0.17 267);
 
   /* Un tinte por tipo de componente, misma luminosidad y saturación, distinto tono.
      Pensados para el panel oscuro. */
@@ -235,4 +248,98 @@ p {
   .spin {
     animation-duration: 2s;
   }
+}
+
+/* ── el lienzo del editor ──────────────────────────────────────────────── */
+
+.react-flow {
+  --xy-background-color: var(--af-canvas);
+  --xy-background-pattern-color: rgba(255, 255, 255, 0.055);
+  --xy-edge-stroke: var(--af-panel-ink);
+  --xy-edge-stroke-width: 1.6;
+  --xy-edge-stroke-selected: var(--af-accent-panel);
+  --xy-handle-background-color: var(--af-panel);
+  --xy-handle-border-color: var(--af-accent-panel);
+  --xy-controls-button-background-color: var(--af-panel-2);
+  --xy-controls-button-background-color-hover: var(--af-panel-3);
+  --xy-controls-button-color: var(--af-panel-ink-2);
+  --xy-controls-button-color-hover: var(--af-panel-ink);
+  --xy-controls-button-border-color: var(--af-panel-line);
+  --xy-controls-box-shadow: none;
+  --xy-minimap-background-color: rgba(255, 255, 255, 0.03);
+  --xy-minimap-mask-background-color: rgba(10, 12, 14, 0.6);
+  --xy-minimap-node-background-color: var(--af-panel-line-2);
+  --xy-attribution-background-color: transparent;
+  --xy-selection-background-color: color-mix(in oklab, var(--af-accent-panel) 10%, transparent);
+  --xy-selection-border: 1px dashed var(--af-accent-panel);
+}
+
+.react-flow__viewport-portal {
+  z-index: -1;
+}
+
+.react-flow__controls {
+  overflow: hidden;
+  border: 1px solid var(--af-panel-line);
+  border-radius: 8px;
+}
+
+.react-flow__controls-button {
+  width: 30px;
+  height: 30px;
+  border-bottom: 1px solid var(--af-panel-line);
+}
+
+.react-flow__controls-button svg {
+  fill: currentColor;
+}
+
+.react-flow__minimap {
+  border: 1px solid var(--af-panel-line);
+  border-radius: 8px;
+}
+
+.react-flow__attribution a {
+  color: var(--af-panel-ink-3);
+}
+
+.react-flow__node:focus-visible {
+  outline: none;
+}
+
+.af-node {
+  background: var(--af-node-plate);
+}
+
+.af-node:hover {
+  background: color-mix(in oklab, #ffffff 6%, var(--af-node-plate));
+}
+
+.react-flow__node.selected .af-node {
+  outline: 2px solid var(--af-accent-panel);
+  outline-offset: 3px;
+}
+
+.react-flow__node:focus-visible .af-node {
+  outline: 2px solid #ffffff;
+  outline-offset: 3px;
+}
+
+.af-node-contained {
+  box-shadow:
+    0 0 0 3px var(--af-canvas),
+    0 0 0 5px var(--af-warm-panel);
+}
+
+.react-flow__handle.af-port {
+  width: 9px;
+  height: 9px;
+  border-width: 2px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.react-flow__node.selected .af-port-live {
+  opacity: 1;
+  pointer-events: auto;
 }
