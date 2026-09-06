@@ -4,7 +4,6 @@ export type FlowTone = "quiet" | "busiest";
 
 export interface CallFlow {
   rps: number;
-  share: number;
   tone: FlowTone;
 }
 
@@ -18,12 +17,9 @@ export function callFlows(callLoad: readonly ConnectionLoad[] | undefined | null
   const unanimous = callLoad.every((call) => call.rps >= busiest);
 
   for (const call of callLoad) {
-    const share = Math.min(Math.max(call.rps, 0) / busiest, 1);
-
     flows.set(call.connectionId, {
       rps: call.rps,
-      share: Math.round(share * 100) / 100,
-      tone: share >= 1 && !unanimous ? "busiest" : "quiet",
+      tone: call.rps >= busiest && !unanimous ? "busiest" : "quiet",
     });
   }
 

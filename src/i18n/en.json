@@ -1988,5 +1988,8 @@
   "editor.a11y.zoomIn": "Zoom in",
   "editor.a11y.zoomOut": "Zoom out",
   "editor.a11y.fitView": "Fit the drawing",
-  "editor.a11y.minimap": "Minimap"
+  "editor.a11y.minimap": "Minimap",
+  "editor.canvas.empty": "Drag a component from the palette to get started.",
+  "editor.save.clean": "No changes",
+  "editor.save.pending": "Unsaved"
 }

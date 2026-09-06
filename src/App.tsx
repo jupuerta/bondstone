@@ -3,7 +3,7 @@ import { Route, Routes, useLocation } from "react-router-dom";
 import { AboutPage } from "./pages/AboutPage";
 import { ChallengePage } from "./pages/ChallengePage";
 import { ChallengesPage } from "./pages/ChallengesPage";
-import { EditorPendingPage } from "./pages/EditorPendingPage";
+import { EditorPage } from "./pages/EditorPage";
 import { HomePage } from "./pages/HomePage";
 import { LegalPage } from "./pages/LegalPage";
 import { MechanismsPage } from "./pages/MechanismsPage";
@@ -21,7 +21,7 @@ export function App() {
         <Route path="/challenges" element={<ChallengesPage />} />
         <Route path="/c/:slug" element={<ChallengePage />} />
         <Route path="/a/:token" element={<SharedPage />} />
-        <Route path="/e/:token" element={<EditorPendingPage />} />
+        <Route path="/e/:token" element={<EditorPage />} />
         <Route path="/rules" element={<RulesPage />} />
         <Route path="/rules/:token" element={<RulesPage />} />
         <Route path="/model" element={<ModelPage />} />

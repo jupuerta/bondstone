@@ -11,9 +11,11 @@ Lo que hay es la **web pública** tal como la fijaron los cuatro entregables de 
 «cómo está hecho», las legales y el 404. Escritorio y móvil, español e inglés.
 
 El editor se está construyendo por rebanadas (`docs/Design/Editor/00_plan_y_prompts.md` §5). La
-rebanada 1 está: `/a/{token}` es ya el editor en modo lectura, con el lienzo de `@xyflow/react`.
-Lo que **no** hay todavía es la edición: `/e/{token}` abre el del frontend actual
-(`VITE_LEGACY_APP_URL`). Cuando llegue la rebanada 2, esa página desaparece.
+rebanada 1 está: `/a/{token}` es el editor en modo lectura, con el lienzo de `@xyflow/react`. La
+rebanada 2 también: `/e/{token}` es el editor en edición (paleta, conectar, inspectores, autoguardado,
+deshacer, conflicto, arquitecturas de partida y el «Pruébalo» de los mecanismos), y ya no se proxya
+al editor antiguo. Lo que sigue detrás de la imagen antigua, bajo el mismo origen, es `/manual*` y los
+assets que aquí no existen; se van con la rebanada 6.
 
 | Ruta | Qué es | De dónde salen los datos |
 | --- | --- | --- |
@@ -71,11 +73,11 @@ cp .env.example .env
 npm install
 docker compose up -d postgres api     # desde la raíz, una vez
 node scripts/create-demo.mjs          # crea «la tienda» y devuelve los tokens para el .env
-npm run dev                           # → http://localhost:5174
+npm run dev                           # → http://localhost:5174 (/manual* va al editor antiguo en :8080)
 ```
 
 `npm run build` deja el sitio en `dist/`; `npm test` corre los tests; `npm run typecheck`, los
-tipos. El `Dockerfile` y `nginx.conf` son los de siempre: el servicio `frontend-next` del
+tipos. La CI (`.github/workflows/ci.yml`) ejecuta los tres sobre `master` y en cada pull request. El `Dockerfile` y `nginx.conf` son los de siempre: el servicio `frontend-next` del
 `docker-compose.yml` de la raíz lo sirve en `:8082` bajo el perfil `next`.
 
 ### La demostración de la portada
@@ -88,9 +90,9 @@ conserva). Los tokens son de esa base de datos: en otro entorno hay que volver a
 
 ## Lo que queda
 
-- Las rebanadas 2 a 6 del editor: edición, análisis en el panel, retos, Simulate con sus controles,
-  exportar y ayuda. La 1 (lectura) está.
-- El «Pruébalo» de los mecanismos y los dibujos de patrón de sus fichas.
+- Las rebanadas 3 a 6 del editor: análisis en el panel, retos, Simulate con sus controles, exportar
+  y ayuda. La 1 (lectura) y la 2 (edición) están.
+- Los dibujos de patrón de las fichas de mecanismo.
 - «Qué llevas aprendido» en el catálogo (necesita el historial de puntuaciones que escribe el editor).
 - Los textos legales.
 - Partir el bundle: hoy el catálogo entero viaja en el primer JS (~775 KB sin comprimir); xyflow va

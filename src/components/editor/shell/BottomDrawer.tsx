@@ -30,7 +30,7 @@ export function BottomDrawer({ title, aside, open, onToggle, children }: BottomD
           </svg>
         </button>
       </div>
-      <div id="editor-drawer" hidden={!open} className="max-h-[50dvh] overflow-y-auto border-t border-panel-line bg-panel p-3">
+      <div id="editor-drawer" hidden={!open} className="max-h-[42dvh] overflow-y-auto border-t border-panel-line bg-panel p-3">
         {children}
       </div>
     </div>

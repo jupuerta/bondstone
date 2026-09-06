@@ -1,17 +1,28 @@
 import { useT } from "../../../i18n";
-import { ZONES, isYoursToPlace, nodeZone } from "../../../domain/zone";
+import { ZONES, isYoursToPlace, nodeZone, type Zone } from "../../../domain/zone";
 import type { NodeDto } from "../../../types/architecture";
+import { Button } from "../../ui/Button";
 import { TypeIcon } from "../palette/TypeIcons";
 import { CONFIG_SCHEMAS, type ConfigField } from "./configSchemas";
-import { Field } from "./Field";
+import { CheckField, ChoiceField, Field, TextField } from "./Field";
+
+const NAME_MAX_LENGTH = 100;
+
+export interface NodeEdits {
+  onRename: (name: string) => void;
+  onField: (key: string, value: string | number | boolean | undefined) => void;
+  onDelete: () => void;
+  connectedEdges: number;
+}
 
 interface NodeInspectorProps {
   node: NodeDto;
   isEntryPoint: boolean;
   heading?: boolean;
+  edits?: NodeEdits;
 }
 
-export function NodeInspector({ node, isEntryPoint, heading = true }: NodeInspectorProps) {
+export function NodeInspector({ node, isEntryPoint, heading = true, edits }: NodeInspectorProps) {
   const t = useT();
   const configuration = node.configuration ?? {};
   const fields = CONFIG_SCHEMAS[node.type].filter((field) => isEntryPoint || !field.entryPointOnly);
@@ -25,27 +36,89 @@ export function NodeInspector({ node, isEntryPoint, heading = true }: NodeInspec
         <span className="text-[13px] font-semibold text-panel-ink">{t(`ui.node.${node.type}`)}</span>
         {isEntryPoint && <span className="font-mono text-label uppercase tracking-[0.06em] text-panel-ink-3">{t("ui.inspector.entryPoint")}</span>}
       </div>
-      <Field label={t("ui.inspector.name")} disabled>
-        {node.name}
-      </Field>
-      {isYoursToPlace(node.type) && (
-        <div className="flex flex-col gap-1">
-          <span className="eyebrow text-panel-ink-3">{t("ui.inspector.zone")}</span>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("ui.inspector.zone")}>
-            <ZoneChip label={t("ui.inspector.zone.none")} on={zone === null} />
-            {ZONES.map((candidate) => (
-              <ZoneChip key={candidate} label={candidate.toUpperCase()} on={zone === candidate} />
-            ))}
-          </div>
-        </div>
-      )}
-      {fields.map((field) => (
-        <Field key={field.key} label={t(field.label)} disabled>
-          {valueOf(field, configuration[field.key], t)}
+      {edits ? (
+        <TextField label={t("ui.inspector.name")} value={node.name} maxLength={NAME_MAX_LENGTH} onChange={edits.onRename} />
+      ) : (
+        <Field label={t("ui.inspector.name")} disabled>
+          {node.name}
         </Field>
-      ))}
+      )}
+      {isYoursToPlace(node.type) &&
+        (edits ? (
+          <ChoiceField<Zone | undefined>
+            label={t("ui.inspector.zone")}
+            value={zone ?? undefined}
+            options={[{ value: undefined, label: t("ui.inspector.zone.none") }, ...ZONES.map((candidate) => ({ value: candidate, label: candidate.toUpperCase() }))]}
+            onChange={(value) => edits.onField("zone", value)}
+          />
+        ) : (
+          <div className="flex flex-col gap-1">
+            <span className="eyebrow text-panel-ink-3">{t("ui.inspector.zone")}</span>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("ui.inspector.zone")}>
+              <ZoneChip label={t("ui.inspector.zone.none")} on={zone === null} />
+              {ZONES.map((candidate) => (
+                <ZoneChip key={candidate} label={candidate.toUpperCase()} on={zone === candidate} />
+              ))}
+            </div>
+          </div>
+        ))}
+      {fields.map((field) =>
+        edits ? (
+          <EditableField key={field.key} field={field} value={configuration[field.key]} onChange={(value) => edits.onField(field.key, value)} />
+        ) : (
+          <Field key={field.key} label={t(field.label)} disabled>
+            {valueOf(field, configuration[field.key], t)}
+          </Field>
+        ),
+      )}
       {fields.length === 0 && <p className="text-meta text-panel-ink-3">{t("ui.inspector.noFields")}</p>}
+      {edits && (
+        <Button variant="panel" size="sm" onClick={edits.onDelete} className="mt-2 flex-col gap-0 border-hot-panel/60 py-1.5 text-hot-panel hover:border-hot-panel hover:bg-hot-panel/10">
+          {t("ui.inspector.deleteNode")}
+          {edits.connectedEdges > 0 && <span className="text-meta font-normal text-panel-ink-3">{t("ui.inspector.deleteNode.edges", { count: edits.connectedEdges })}</span>}
+        </Button>
+      )}
     </div>
+  );
+}
+
+function EditableField({ field, value, onChange }: { field: ConfigField; value: unknown; onChange: (value: string | number | boolean | undefined) => void }) {
+  const t = useT();
+
+  if (field.kind === "tristate") {
+    return (
+      <ChoiceField<boolean | undefined>
+        label={t(field.label)}
+        value={typeof value === "boolean" ? value : undefined}
+        options={[
+          { value: undefined, label: t("ui.config.tristate.undeclared") },
+          { value: true, label: t("ui.config.tristate.yes") },
+          { value: false, label: t("ui.config.tristate.no") },
+        ]}
+        onChange={onChange}
+      />
+    );
+  }
+
+  if (field.kind === "boolean") {
+    return <CheckField label={t(field.label)} checked={value === true} onChange={onChange} />;
+  }
+
+  return (
+    <TextField
+      label={t(field.label)}
+      kind={field.kind}
+      min={field.kind === "number" ? (field.min ?? 0) : undefined}
+      max={field.max}
+      step={field.step}
+      value={typeof value === "string" || typeof value === "number" ? value : ""}
+      onChange={(raw) => {
+        if (raw === "") return onChange(undefined);
+        if (field.kind !== "number") return onChange(raw);
+        const bounded = Math.min(Math.max(Number(raw), field.min ?? 0), field.max ?? Infinity);
+        if (!Number.isNaN(bounded)) onChange(bounded);
+      }}
+    />
   );
 }
 

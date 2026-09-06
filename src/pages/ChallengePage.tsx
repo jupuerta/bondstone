@@ -11,6 +11,7 @@ import { InlineError } from "../components/ui/InlineError";
 import { Skeleton } from "../components/ui/Skeleton";
 import { bandLabelKey, positionInBand } from "../domain/challengeBands";
 import { attemptsOf, rememberWork, type SavedWork } from "../domain/savedWork";
+import { rememberStartingPoint } from "../domain/startingPoint";
 import { useT } from "../i18n";
 import { usePageTitle } from "../hooks/usePageTitle";
 import type { ChallengeDetail, ChallengeSummary } from "../types/architecture";
@@ -53,7 +54,8 @@ export function ChallengePage() {
     startChallenge(slug, t(challenge.title))
       .then((architecture) => {
         rememberWork({ editToken: architecture.editToken, shareToken: architecture.shareToken, name: architecture.name, challengeSlug: slug });
-        navigate(`/e/${encodeURIComponent(architecture.editToken)}`);
+        rememberStartingPoint(slug, architecture);
+        navigate(`/e/${encodeURIComponent(architecture.editToken)}?challenge=${encodeURIComponent(slug)}`);
       })
       .catch((err: unknown) => {
         setStarting(false);

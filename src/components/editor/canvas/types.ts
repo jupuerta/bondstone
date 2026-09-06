@@ -1,4 +1,4 @@
-import type { ElementState, NodeConfiguration, NodeType, ProtocolType, ResilienceConfiguration } from "../../../types/architecture";
+import type { ElementState, NodeConfiguration, NodeType, ResilienceConfiguration } from "../../../types/architecture";
 import type { CallFlow } from "./callFlow";
 
 export interface NodeStatus {
@@ -16,7 +16,6 @@ export interface ArchNodeData {
 }
 
 export interface ConnectionData {
-  protocol: ProtocolType;
   synchronous: boolean;
   configuration: ResilienceConfiguration;
   flow?: CallFlow | null;
@@ -25,7 +24,6 @@ export interface ConnectionData {
 }
 
 export const DEFAULT_CONNECTION_DATA: ConnectionData = {
-  protocol: "Http",
   synchronous: true,
   configuration: {},
 };

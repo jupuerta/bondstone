@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useT } from "../../../i18n";
 import { LanguageToggle } from "../../layout/LanguageToggle";
 import { Button } from "../../ui/Button";
@@ -8,13 +8,12 @@ import { DOCS_WINDOW, docsLinks } from "./docsWindow";
 interface NarrowMenuProps {
   shareToken: string;
   onClose: () => void;
-  onOpenCopy: () => void;
-  copying: boolean;
+  primary?: ReactNode;
   onShare: () => void;
   shared: boolean;
 }
 
-export function NarrowMenu({ shareToken, onClose, onOpenCopy, copying, onShare, shared }: NarrowMenuProps) {
+export function NarrowMenu({ shareToken, onClose, primary, onShare, shared }: NarrowMenuProps) {
   const t = useT();
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -41,9 +40,7 @@ export function NarrowMenu({ shareToken, onClose, onOpenCopy, copying, onShare, 
         </button>
       </div>
       <div className="flex flex-col gap-3 px-3 py-4">
-        <Button variant="panelPrimary" size="md" onClick={onOpenCopy} loading={copying} loadingLabel={t("ui.editor.openingCopy")} className="w-full">
-          {t("ui.editor.openCopy")}
-        </Button>
+        {primary}
         <Button variant="panel" size="md" onClick={onShare} className="w-full">
           {shared ? t("ui.copied") : t("ui.share")}
         </Button>

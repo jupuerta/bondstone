@@ -1,7 +1,7 @@
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useT } from "../../../i18n";
 import { LanguageToggle } from "../../layout/LanguageToggle";
-import { Button } from "../../ui/Button";
 import { Chip } from "../../ui/Chip";
 import { LogoMark, MenuIcon } from "../../ui/Icons";
 import { ReferenceMenu } from "./ReferenceMenu";
@@ -14,19 +14,22 @@ export interface BarChip {
 
 interface EditorBarProps {
   name: string;
+  onRename?: (name: string) => void;
   shareToken: string;
   chips: BarChip[];
   narrow: boolean;
-  onOpenCopy: () => void;
-  copying: boolean;
-  copyError: string | null;
+  status?: ReactNode;
+  primary?: ReactNode;
+  notice?: string | null;
   onShare: () => void;
   shared: boolean;
   onOpenMenu: () => void;
   menuOpen: boolean;
 }
 
-export function EditorBar({ name, shareToken, chips, narrow, onOpenCopy, copying, copyError, onShare, shared, onOpenMenu, menuOpen }: EditorBarProps) {
+const NAME_MAX_LENGTH = 200;
+
+export function EditorBar({ name, onRename, shareToken, chips, narrow, status, primary, notice, onShare, shared, onOpenMenu, menuOpen }: EditorBarProps) {
   const t = useT();
 
   if (narrow) {
@@ -37,6 +40,7 @@ export function EditorBar({ name, shareToken, chips, narrow, onOpenCopy, copying
             <LogoMark size={20} />
           </Link>
           <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-panel-ink">{name}</span>
+          {status}
           <button
             type="button"
             onClick={onOpenMenu}
@@ -68,7 +72,7 @@ export function EditorBar({ name, shareToken, chips, narrow, onOpenCopy, copying
           <LogoMark size={20} />
           ArchForge
         </Link>
-        <span className="min-w-0 truncate text-[14px] font-semibold text-panel-ink">{name}</span>
+        {onRename ? <NameField name={name} onRename={onRename} /> : <span className="min-w-0 truncate text-[14px] font-semibold text-panel-ink">{name}</span>}
         {chips.map((chip) => (
           <Chip key={chip.key} variant={chip.variant ?? "panel"} className="shrink-0">
             {chip.label}
@@ -76,10 +80,9 @@ export function EditorBar({ name, shareToken, chips, narrow, onOpenCopy, copying
         ))}
       </div>
       <div className="flex shrink-0 items-center gap-3.5">
-        {copyError && <span className="text-meta text-hot-panel">{copyError}</span>}
-        <Button variant="panelPrimary" size="sm" onClick={onOpenCopy} loading={copying} loadingLabel={t("ui.editor.openingCopy")}>
-          {t("ui.editor.openCopy")}
-        </Button>
+        {notice && <span className="text-meta text-hot-panel">{notice}</span>}
+        {status}
+        {primary}
         <button type="button" onClick={onShare} className="inline-flex min-h-10 items-center rounded-pill px-2 text-[13px] text-panel-ink-2 hover:text-panel-ink">
           {shared ? t("ui.copied") : t("ui.share")}
         </button>
@@ -87,5 +90,39 @@ export function EditorBar({ name, shareToken, chips, narrow, onOpenCopy, copying
         <LanguageToggle dark />
       </div>
     </header>
+  );
+}
+
+function NameField({ name, onRename }: { name: string; onRename: (name: string) => void }) {
+  const t = useT();
+  const [draft, setDraft] = useState(name);
+  const editing = useRef(false);
+
+  useEffect(() => {
+    if (!editing.current) setDraft(name);
+  }, [name]);
+
+  return (
+    <input
+      type="text"
+      value={draft}
+      maxLength={NAME_MAX_LENGTH}
+      aria-label={t("ui.canvas.architectureName")}
+      onFocus={() => {
+        editing.current = true;
+      }}
+      onChange={(event) => {
+        setDraft(event.target.value);
+        if (event.target.value.trim() !== "") onRename(event.target.value);
+      }}
+      onBlur={() => {
+        editing.current = false;
+        if (draft.trim() === "") setDraft(name);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === "Escape") event.currentTarget.blur();
+      }}
+      className="min-w-0 max-w-[320px] flex-1 truncate rounded-node border border-transparent bg-transparent px-2 py-1 text-[14px] font-semibold text-panel-ink outline-none hover:border-panel-line focus-visible:border-accent-panel"
+    />
   );
 }

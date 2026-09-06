@@ -5,6 +5,7 @@ import { PageShell } from "../components/layout/PageShell";
 import { ReferenceBack } from "../components/layout/ReferenceBack";
 import { Callout } from "../components/ui/Callout";
 import { Chip } from "../components/ui/Chip";
+import { TryIt } from "../components/mechanisms/TryIt";
 import { MECHANISMS, MECHANISM_GROUPS, MECHANISM_IDS, mechanismBand, mechanismLabel, scores, type MechanismId } from "../domain/mechanisms";
 import { useT } from "../i18n";
 import { usePageTitle } from "../hooks/usePageTitle";
@@ -102,6 +103,7 @@ function Sheet({ id }: { id: MechanismId }) {
           )}
         </span>
       </div>
+      <TryIt id={id} />
     </article>
   );
 }

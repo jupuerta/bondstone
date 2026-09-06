@@ -28,7 +28,7 @@ export interface DiagramLayout {
 }
 
 /** Coloca cada nodo donde lo dejó su autor y encuadra el conjunto. */
-export function layoutOf(architecture: ArchitectureDto): DiagramLayout {
+export function layoutOf(architecture: { nodes: readonly NodeDto[] }): DiagramLayout {
   const boxes = new Map<string, Box>();
   for (const node of architecture.nodes) boxes.set(node.id, { x: node.position.x, y: node.position.y, w: NODE_W, h: NODE_H });
   const all = [...boxes.values()];

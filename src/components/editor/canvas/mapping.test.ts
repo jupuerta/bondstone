@@ -35,7 +35,7 @@ const flowEdge = (overrides: Partial<Edge<ConnectionData>> = {}): Edge<Connectio
   id: "c1",
   source: "n1",
   target: "n2",
-  data: { protocol: "Sql", synchronous: true, configuration: { timeoutSeconds: 2 } },
+  data: { synchronous: true, configuration: { timeoutSeconds: 2 } },
   ...overrides,
 });
 
@@ -70,7 +70,7 @@ describe("coming in", () => {
 
     expect(edge.source).toBe("n1");
     expect(edge.target).toBe("n2");
-    expect(edge.data).toEqual({ protocol: "Sql", synchronous: true, configuration: { timeoutSeconds: 2 } });
+    expect(edge.data).toEqual({ synchronous: true, configuration: { timeoutSeconds: 2 } });
   });
 
   it("keeps an asynchronous call asynchronous", () => {
@@ -97,7 +97,16 @@ describe("going out", () => {
     expect(request.connections).toEqual([dtoConnection()]);
   });
 
-  it("defaults an edge with no data to a synchronous Http call", () => {
+  it("derives the protocol from the two ends instead of carrying the one it was given", () => {
+    // The selector went away on 30-08: a call against a database speaks Sql whoever is asking, and
+    // the same wire redrawn against a queue speaks Amqp. Nothing stores the answer.
+    const nodes = dtoNodesToFlow([dtoNode(), dtoNode({ id: "n2", type: "Queue", name: "Cola" })]);
+    const edges = dtoConnectionsToFlow([dtoConnection({ protocol: "Sql" })]);
+
+    expect(flowToUpdateRequest("Tienda", 4, nodes, edges).connections[0].protocol).toBe("Amqp");
+  });
+
+  it("defaults an edge with no data to a synchronous call", () => {
     const request = flowToUpdateRequest("Tienda", 1, [], [flowEdge({ data: undefined })]);
 
     expect(request.connections[0].protocol).toBe("Http");

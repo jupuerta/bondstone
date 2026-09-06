@@ -1,5 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
 import type { ArchitectureDto, ConnectionDto, NodeDto, NodeType, UpdateArchitectureRequest } from "../../../types/architecture";
+import { protocolOf } from "../../../domain/protocol";
 import { DEFAULT_CONNECTION_DATA, type ArchNodeData, type ConnectionData } from "./types";
 
 export function dtoNodesToFlow(nodes: readonly NodeDto[]): Node<ArchNodeData>[] {
@@ -17,7 +18,6 @@ export function dtoConnectionsToFlow(connections: readonly ConnectionDto[]): Edg
     source: connection.sourceNodeId,
     target: connection.targetNodeId,
     data: {
-      protocol: connection.protocol,
       synchronous: connection.synchronous,
       configuration: connection.configuration ?? {},
     },
@@ -30,6 +30,8 @@ export function flowToUpdateRequest(
   nodes: readonly Node<ArchNodeData>[],
   edges: readonly Edge<ConnectionData>[],
 ): UpdateArchitectureRequest {
+  const typeOf = (id: string) => nodes.find((node) => node.id === id)?.type as NodeType | undefined;
+
   return {
     name,
     version,
@@ -46,7 +48,7 @@ export function flowToUpdateRequest(
         id: edge.id,
         sourceNodeId: edge.source,
         targetNodeId: edge.target,
-        protocol: data.protocol,
+        protocol: protocolOf(typeOf(edge.source), typeOf(edge.target)),
         synchronous: data.synchronous,
         configuration: data.configuration,
       };

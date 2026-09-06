@@ -4,10 +4,11 @@ import { scenarioFromSearch } from "../../domain/scenarioUrl";
 import { useNarrowViewport } from "../../hooks/useMediaQuery";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useT } from "../../i18n";
-import type { ArchitectureDto, ChallengeDetail } from "../../types/architecture";
+import type { ChallengeDetail } from "../../types/architecture";
 import { useEngine, type EngineData } from "../engine/useEngine";
 import { Button } from "../ui/Button";
 import { Canvas } from "./canvas/Canvas";
+import { isEntryPoint } from "./canvas/entryPoint";
 import type { Selection } from "./canvas/types";
 import { EdgeInspector } from "./inspector/EdgeInspector";
 import { NodeInspector } from "./inspector/NodeInspector";
@@ -18,6 +19,7 @@ import { EditorBar, type BarChip } from "./shell/EditorBar";
 import { MotorSummary } from "./shell/MotorSummary";
 import { NarrowMenu } from "./shell/NarrowMenu";
 import { useShareLink } from "./shell/useShareLink";
+import { elementOf, endsOf, titleOf } from "./selection";
 
 interface ReadOnlyEditorProps {
   shareToken: string;
@@ -76,15 +78,19 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
   const faultIds = new Set(state.data.faults.flatMap((fault) => ("id" in fault ? [fault.id] : [])));
   const chips = chipsOf(state.data, challenge, t);
   const selected = selection ? elementOf(architecture, selection) : null;
+  const openCopy = (size: "sm" | "md") => (
+    <Button variant="panelPrimary" size={size} onClick={onOpenCopy} loading={copying} loadingLabel={t("ui.editor.openingCopy")} className={size === "md" ? "w-full" : undefined}>
+      {t("ui.editor.openCopy")}
+    </Button>
+  );
   const shell = (
     <EditorBar
       name={architecture.name}
       shareToken={shareToken}
       chips={chips}
       narrow={narrow}
-      onOpenCopy={onOpenCopy}
-      copying={copying}
-      copyError={copyError}
+      primary={openCopy("sm")}
+      notice={copyError}
       onShare={copy}
       shared={copied}
       onOpenMenu={() => setMenuOpen(true)}
@@ -105,14 +111,9 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
   const inspector = selected && (
     <div className="flex flex-col gap-3">
       {selected.kind === "node" ? (
-        <NodeInspector node={selected.node} isEntryPoint={!architecture.connections.some((connection) => connection.targetNodeId === selected.node.id)} heading={narrow} />
+        <NodeInspector node={selected.node} isEntryPoint={isEntryPoint(selected.node.id, architecture.nodes, architecture.connections)} heading={narrow} />
       ) : (
-        <EdgeInspector
-          connection={selected.connection}
-          source={architecture.nodes.find((node) => node.id === selected.connection.sourceNodeId)}
-          target={architecture.nodes.find((node) => node.id === selected.connection.targetNodeId)}
-          heading={narrow}
-        />
+        <EdgeInspector connection={selected.connection} {...endsOf(architecture, selected.connection)} heading={narrow} />
       )}
     </div>
   );
@@ -123,7 +124,7 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
         {shell}
         {canvas}
         <BottomDrawer
-          title={selected ? nameOf(selected, architecture, t) : `${t("ui.analysis.title")} · ${analysis.score ?? "—"}`}
+          title={selected ? titleOf(selected, architecture, t) : `${t("ui.analysis.title")} · ${analysis.score ?? "—"}`}
           open={drawerOpen}
           onToggle={() => setDrawerOpen((open) => !open)}
           aside={
@@ -136,7 +137,7 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
         >
           {inspector ?? <MotorSummary analysis={analysis} shareToken={shareToken} faultIds={faultIds} />}
         </BottomDrawer>
-        {menuOpen && <NarrowMenu shareToken={shareToken} onClose={closeMenu} onOpenCopy={onOpenCopy} copying={copying} onShare={copy} shared={copied} />}
+        {menuOpen && <NarrowMenu shareToken={shareToken} onClose={closeMenu} primary={openCopy("md")} onShare={copy} shared={copied} />}
       </div>
     );
   }
@@ -168,24 +169,6 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
       </div>
     </div>
   );
-}
-
-type SelectedElement = { kind: "node"; node: ArchitectureDto["nodes"][number] } | { kind: "edge"; connection: ArchitectureDto["connections"][number] };
-
-function elementOf(architecture: ArchitectureDto, selection: Selection): SelectedElement | null {
-  if (selection.kind === "node") {
-    const node = architecture.nodes.find((candidate) => candidate.id === selection.id);
-    return node ? { kind: "node", node } : null;
-  }
-  const connection = architecture.connections.find((candidate) => candidate.id === selection.id);
-  return connection ? { kind: "edge", connection } : null;
-}
-
-function nameOf(selected: SelectedElement, architecture: ArchitectureDto, t: ReturnType<typeof useT>): string {
-  if (selected.kind === "node") return selected.node.name;
-  const source = architecture.nodes.find((node) => node.id === selected.connection.sourceNodeId)?.name ?? "?";
-  const target = architecture.nodes.find((node) => node.id === selected.connection.targetNodeId)?.name ?? "?";
-  return t("editor.inspector.callBetween", { source, target });
 }
 
 function chipsOf(data: EngineData, challenge: ChallengeDetail | null, t: ReturnType<typeof useT>): BarChip[] {

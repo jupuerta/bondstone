@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { analyzeArchitecture, ApiError, getArchitectureByShareToken } from "../api/architectureClient";
 import { PageHead } from "../components/layout/PageHead";
 import { PageShell } from "../components/layout/PageShell";
@@ -7,12 +7,17 @@ import { ReferenceBack } from "../components/layout/ReferenceBack";
 import { readRules, type RuleReading } from "../domain/rulesCatalog";
 import { useT } from "../i18n";
 import { usePageTitle } from "../hooks/usePageTitle";
-import type { AnalysisResult } from "../types/architecture";
+import type { AnalysisResult, RuleState } from "../types/architecture";
+
+const STATES: RuleState[] = ["Fired", "Passed", "NotApplicable"];
 
 export function RulesPage() {
   const t = useT();
   usePageTitle(t("ui.rules.eyebrow"));
   const { token } = useParams<{ token?: string }>();
+  const { search } = useLocation();
+  const wanted = new URLSearchParams(search).get("state");
+  const filter = token !== undefined ? STATES.find((state) => state === wanted) ?? null : null;
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [name, setName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +44,8 @@ export function RulesPage() {
     if (id) document.getElementById(id)?.scrollIntoView({ block: "center" });
   }, []);
 
-  const rules = readRules(analysis);
+  const allRules = readRules(analysis);
+  const rules = filter === null ? allRules : allRules.filter((rule) => rule.state === filter);
   const overArchitecture = token !== undefined;
   const cols = overArchitecture ? "md:grid-cols-[220px_1fr_150px_110px_190px]" : "md:grid-cols-[220px_1fr_160px_120px]";
 
@@ -52,6 +58,14 @@ export function RulesPage() {
           {overArchitecture ? (name ? t("ui.rules.overNamed", { name }) : t("ui.rules.over")) : t("ui.rules.noArchitecture")}
         </p>
         {error && <p className="font-mono text-meta text-hot">{error}</p>}
+        {filter !== null && analysis !== null && (
+          <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-small">
+            <span className="font-semibold">{t(`ui.rules.state.${filter}.count`, { count: rules.length })}</span>
+            <Link to={`/rules/${encodeURIComponent(token ?? "")}`} className="link">
+              {t("ui.rules.filter.clear")}
+            </Link>
+          </p>
+        )}
 
         <div className={`eyebrow hidden gap-5 py-2.5 md:grid ${cols}`}>
           <span>{t("web.reference.rules.col.rule")}</span>
@@ -83,6 +97,7 @@ export function RulesPage() {
             </li>
           ))}
         </ul>
+        {filter !== null && analysis !== null && rules.length === 0 && <p className="text-small text-ink-2">{t("ui.rules.filter.empty")}</p>}
         <p className="max-w-[880px] pt-4 text-small text-ink-2">{t("ui.rules.whyNotAll")}</p>
       </section>
 

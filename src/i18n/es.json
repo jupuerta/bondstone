@@ -1988,5 +1988,8 @@
   "editor.a11y.zoomIn": "Acercar",
   "editor.a11y.zoomOut": "Alejar",
   "editor.a11y.fitView": "Encuadrar el dibujo",
-  "editor.a11y.minimap": "Minimapa"
+  "editor.a11y.minimap": "Minimapa",
+  "editor.canvas.empty": "Arrastra un componente de la paleta para empezar.",
+  "editor.save.clean": "Sin cambios",
+  "editor.save.pending": "Sin guardar"
 }

@@ -339,7 +339,24 @@ p {
   pointer-events: none;
 }
 
-.react-flow__node.selected .af-port-live {
+
+.af-editable .react-flow__node:hover .af-port,
+.af-editable .react-flow__node.selected .af-port,
+.af-editable .react-flow__node.dragging .af-port {
   opacity: 1;
   pointer-events: auto;
+}
+
+.af-editable .react-flow__node.selected .af-node {
+  cursor: grab;
+}
+
+.af-editable .react-flow__node.dragging .af-node {
+  cursor: grabbing;
+}
+
+.react-flow__connectionline path {
+  stroke: var(--af-accent-panel);
+  stroke-width: 1.6;
+  stroke-dasharray: 4 4;
 }
