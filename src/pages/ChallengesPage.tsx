@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ApiError, createArchitecture } from "../api/architectureClient";
+import { ApiError, createArchitecture, getArchitectureHistory } from "../api/architectureClient";
 import { listChallenges } from "../api/challengeClient";
 import { PageHead } from "../components/layout/PageHead";
 import { PageShell } from "../components/layout/PageShell";
 import { Button } from "../components/ui/Button";
+import { Callout } from "../components/ui/Callout";
 import { Chip, FilterChip } from "../components/ui/Chip";
 import { ArrowIcon } from "../components/ui/Icons";
 import { InlineError } from "../components/ui/InlineError";
 import { Segmented } from "../components/ui/Segmented";
 import { Skeleton } from "../components/ui/Skeleton";
+import { bestGains, type AreaGain } from "../domain/areasImproved";
 import { bandLabelKey, bandLeadKey, groupByBand } from "../domain/challengeBands";
 import { passedChallenges, startedChallenges } from "../domain/progress";
 import { rememberWork, savedWork } from "../domain/savedWork";
@@ -18,6 +20,8 @@ import { usePageTitle } from "../hooks/usePageTitle";
 import { AREA_ORDER, type Area, type ChallengeSummary } from "../types/architecture";
 
 type Status = "all" | "pending" | "passed";
+
+const HISTORIES_READ = 8;
 
 export function ChallengesPage() {
   const t = useT();
@@ -33,6 +37,21 @@ export function ChallengesPage() {
   const [work] = useState(() => savedWork().slice(0, 3));
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [gains, setGains] = useState<AreaGain[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const tokens = savedWork()
+      .slice(0, HISTORIES_READ)
+      .map((entry) => entry.shareToken);
+    if (tokens.length === 0) return;
+    Promise.all(tokens.map((shareToken) => getArchitectureHistory(shareToken).catch(() => []))).then((histories) => {
+      if (!cancelled) setGains(bestGains(histories));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -224,6 +243,23 @@ export function ChallengesPage() {
               ))}
             </ul>
           )}
+          {gains.length > 0 && (
+            <div className="mt-3 flex flex-col gap-2.5 border-t border-line pt-4">
+              <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
+                <h3 className="text-[17px] tracking-[-0.01em]">{t("ui.home.learned")}</h3>
+                <p className="text-small text-ink-2">{t("ui.home.learnedLead")}</p>
+              </div>
+              <ul className="flex flex-wrap gap-2">
+                {gains.map((gain) => (
+                  <li key={gain.area}>
+                    <Chip variant="passed" className="num">
+                      {t("ui.home.learnedGain", { area: t(`ui.area.${gain.area}`), from: gain.from, to: gain.to })}
+                    </Chip>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </section>
 
@@ -235,6 +271,9 @@ export function ChallengesPage() {
           </Button>
           {createError && <InlineError>{createError}</InlineError>}
         </div>
+        <Callout label={t("web.challenge.narrow.label")} compact className="mt-4 lg:hidden">
+          <p className="text-small">{t("web.challenges.scratch.narrow")}</p>
+        </Callout>
       </section>
     </PageShell>
   );

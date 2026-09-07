@@ -71,7 +71,7 @@ export function FindingRow({ finding, shareToken, narrow, first, onPreview, onPi
               event.stopPropagation();
               onApplyFix(finding);
             }}
-            className={`ml-auto inline-flex max-w-full shrink-0 items-center justify-center rounded-pill border border-panel-line-2 px-[11px] text-[12px] font-semibold text-panel-ink hover:bg-white/8 disabled:cursor-not-allowed disabled:border-dashed disabled:text-panel-ink-3 disabled:hover:bg-transparent ${narrow ? "min-h-11" : "min-h-[26px]"}`}
+            className={`ml-auto inline-flex max-w-full shrink-0 items-center justify-center rounded-pill border border-panel-line-2 px-[11px] text-[12px] font-semibold text-panel-ink hover:bg-wash/8 disabled:cursor-not-allowed disabled:border-dashed disabled:text-panel-ink-3 disabled:hover:bg-transparent ${narrow ? "min-h-11" : "min-h-[26px]"}`}
           >
             {t(finding.fix.label)}
           </button>

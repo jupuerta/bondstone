@@ -22,7 +22,7 @@ export function LoadMeter({ type, load, gap = 1.5 }: { type: NodeType; load: Com
   return (
     <span aria-hidden className="absolute inset-x-0 bottom-0 flex h-1" style={{ gap }}>
       {Array.from({ length: METER_SEGMENTS }, (_, index) => (
-        <span key={index} className={`min-w-0 flex-1 ${index < lit ? INK[meter.tone] : "bg-white/10"}`} />
+        <span key={index} className={`min-w-0 flex-1 ${index < lit ? INK[meter.tone] : "bg-wash/10"}`} />
       ))}
       <span className="absolute -top-0.5 -bottom-px w-px bg-panel-ink opacity-80" style={{ left: `${SATURATION * 100}%` }} />
     </span>

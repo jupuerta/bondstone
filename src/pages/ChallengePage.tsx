@@ -124,7 +124,7 @@ export function ChallengePage() {
               </Button>
               <p className="text-small text-ink-2">{t("web.challenge.start.note")}</p>
               {startError && <InlineError>{startError}</InlineError>}
-              <Callout label={t("web.challenge.narrow.label")} compact className="md:hidden">
+              <Callout label={t("web.challenge.narrow.label")} compact className="lg:hidden">
                 <p className="text-small">{t("web.challenge.narrow")}</p>
               </Callout>
               {latest && (

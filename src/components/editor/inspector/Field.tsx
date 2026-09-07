@@ -103,7 +103,7 @@ export function ChoiceField<T extends string | boolean | undefined>({ label, opt
               aria-checked={on}
               onClick={() => onChange(option.value)}
               className={`inline-flex min-h-[26px] items-center rounded-pill border px-2.5 font-mono text-label uppercase tracking-[0.06em] transition-colors ${
-                on ? "border-panel-ink bg-panel-ink font-semibold text-panel" : "border-panel-line text-panel-ink-2 hover:border-panel-line-2 hover:text-panel-ink"
+                on ? "border-panel-ink bg-panel-ink font-semibold text-panel-on-ink" : "border-panel-line text-panel-ink-2 hover:border-panel-line-2 hover:text-panel-ink"
               }`}
             >
               {option.label}

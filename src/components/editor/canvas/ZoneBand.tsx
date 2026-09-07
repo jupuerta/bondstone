@@ -12,7 +12,7 @@ export function ZoneBand({ band, down }: { band: Band; down: boolean }) {
       style={{ transform: `translate(${band.x}px, ${band.y}px)`, width: band.w, height: band.h }}
     >
       <span
-        className={`absolute -top-[9px] left-2.5 bg-canvas px-1.5 font-mono text-[10px] uppercase tracking-[0.1em] ${down ? "font-semibold text-hot-panel" : "text-panel-ink-3"}`}
+        className={`absolute -top-[9px] left-2.5 bg-canvas px-1.5 font-mono text-[10px] uppercase tracking-[0.1em] ${down ? "font-semibold text-hot-panel" : "text-zone-ink"}`}
       >
         {down ? t("ui.canvas.zoneDown", { zone }) : t("ui.canvas.zone", { zone })}
       </span>

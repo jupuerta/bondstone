@@ -113,10 +113,10 @@ function Bar({ bar, name, active, onPreview, onSelect, narrow }: BarProps) {
         onFocus={() => onPreview(row)}
         onBlur={() => onPreview(null)}
         onClick={() => onSelect(row)}
-        className={`block w-full rounded-node px-1.5 py-1.5 text-left transition-[background-color] ${active ? "bg-white/10" : "hover:bg-white/6"} ${narrow ? "min-h-11" : ""}`}
+        className={`block w-full rounded-node px-1.5 py-1.5 text-left transition-[background-color] ${active ? "bg-wash/10" : "hover:bg-wash/6"} ${narrow ? "min-h-11" : ""}`}
       >
         <span className="block truncate text-[12px] font-semibold text-panel-ink">{name}</span>
-        <span className="mt-1.5 flex h-2 overflow-hidden rounded-[4px] bg-white/10" aria-hidden>
+        <span className="mt-1.5 flex h-2 overflow-hidden rounded-[4px] bg-wash/10" aria-hidden>
           <span className="h-full bg-hot-panel" style={{ width: `${bar.downShare * 100}%` }} />
           <span className="h-full bg-warm-panel" style={{ width: `${bar.degradedShare * 100}%` }} />
         </span>

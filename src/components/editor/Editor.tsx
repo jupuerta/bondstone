@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getArchitectureHistory } from "../../api/architectureClient";
-import { editorPrefs, rememberEditorPrefs } from "../../domain/editorPrefs";
+import { editorPrefs, rememberEditorPrefs, type EditorTheme } from "../../domain/editorPrefs";
+import { PanelHandle } from "./shell/PanelHandle";
 import { rememberWork, scoreWork, touchWork } from "../../domain/savedWork";
 import { startingPointOf } from "../../domain/startingPoint";
 import { useAutosave } from "../../hooks/useAutosave";
@@ -98,6 +99,8 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
   const [exporting, setExporting] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [glossesOpen, setGlossesOpen] = useState(() => editorPrefs().glossesOpen);
+  const [theme, setTheme] = useState<EditorTheme>(() => editorPrefs().theme);
+  const [panelWidth, setPanelWidth] = useState(() => editorPrefs().panelWidth);
   const help = useComponentHelp();
   const canvasBox = useRef<HTMLDivElement>(null);
   const [savedRevision, setSavedRevision] = useState(0);
@@ -389,6 +392,15 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
       return !current;
     });
   }, []);
+  const chooseTheme = useCallback((next: EditorTheme) => {
+    rememberEditorPrefs({ theme: next });
+    setTheme(next);
+  }, []);
+  const toggleTheme = useCallback(() => chooseTheme(theme === "light" ? "dark" : "light"), [chooseTheme, theme]);
+  const resizePanel = useCallback((width: number) => {
+    rememberEditorPrefs({ panelWidth: width });
+    setPanelWidth(width);
+  }, []);
 
   const edits = useMemo<CanvasEdits>(
     () => ({
@@ -556,6 +568,8 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
       onExport={() => setExporting(true)}
       onOpenMenu={() => setMenuOpen(true)}
       menuOpen={menuOpen}
+      theme={theme}
+      onToggleTheme={toggleTheme}
     />
   );
 
@@ -649,7 +663,7 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
 
   if (narrow) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div data-theme={theme} className="flex min-h-0 flex-1 flex-col bg-panel text-panel-ink">
         {shell}
         {band}
         {!simulating && <p className="shrink-0 border-b border-panel-line bg-panel-3 px-3 py-2 text-meta text-panel-ink-2">{t("web.engine.narrow")}</p>}
@@ -671,14 +685,14 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
         >
           {selected ? (simulating && picker ? <FaultPicker {...picker} narrow /> : (sheet ?? inspector)) : simulating ? impact : motor}
         </BottomDrawer>
-        {menuOpen && <NarrowMenu shareToken={architecture.shareToken} onClose={closeMenu} onShare={copy} shared={copied} onExport={() => setExporting(true)} />}
+        {menuOpen && <NarrowMenu shareToken={architecture.shareToken} onClose={closeMenu} onShare={copy} shared={copied} onExport={() => setExporting(true)} theme={theme} onTheme={chooseTheme} />}
         {overlays}
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div data-theme={theme} className="flex min-h-0 flex-1 flex-col bg-panel text-panel-ink">
       {shell}
       {band}
       <div className="flex min-h-0 flex-1">
@@ -708,7 +722,8 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
           {canvas}
           {help.type !== null && canEdit && <ComponentCard type={help.type} canvas={canvasBox.current} anchorTop={help.anchorTop} onMouseEnter={help.keep} onMouseLeave={help.leaveCard} />}
         </div>
-        <aside className="flex w-[336px] shrink-0 flex-col border-l border-panel-line bg-panel">
+        <aside className="relative flex shrink-0 flex-col border-l border-panel-line bg-panel" style={{ width: panelWidth }}>
+          <PanelHandle width={panelWidth} onChange={resizePanel} />
           <div className="flex h-11 shrink-0 items-center justify-between border-b border-panel-line px-3">
             <h2 className="font-display text-panel font-semibold text-panel-ink">{panelTitle}</h2>
             {panelBusy && <SpinnerIcon size={12} className="text-panel-ink-3" />}

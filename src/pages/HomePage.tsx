@@ -227,7 +227,7 @@ function Demo() {
           }
         />
         {DEMO_AFTER && <p className="font-mono text-code text-ink-3">{t("web.home.demo.after")}: {t("web.home.demo.afterNote")}</p>}
-        <p className="font-mono text-meta text-ink-3 md:hidden">{t("web.engine.narrow")}</p>
+        <p className="font-mono text-meta text-ink-3 lg:hidden">{t("web.engine.narrow")}</p>
       </div>
     </section>
   );

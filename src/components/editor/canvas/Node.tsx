@@ -17,7 +17,7 @@ export function EditorNode({ type, data }: EditorNodeProps) {
   const status = data.status ?? null;
   const tone = statusTone(status);
   const simulated = status !== null;
-  const plate = `color-mix(in oklab, var(--af-t-${nodeType}) 9%, var(--af-panel-2))`;
+  const plate = `color-mix(in oklab, var(--af-t-${nodeType}) var(--af-node-tint), var(--af-panel-2))`;
   const ring = status?.mechanism ? "af-node-contained" : data.highlighted ? "af-node-highlighted" : "";
   const load = data.load ?? null;
   const metered = load !== null && loadMeter(nodeType, load) !== null;
@@ -30,7 +30,7 @@ export function EditorNode({ type, data }: EditorNodeProps) {
         className={`af-node relative h-full overflow-hidden rounded-node border ${ring}`}
         style={{
           "--af-node-plate": tone.color ? `color-mix(in oklab, ${tone.color} 12%, ${plate})` : plate,
-          borderColor: tone.color ?? "var(--af-panel-line)",
+          borderColor: tone.color ?? "var(--af-node-line)",
         } as React.CSSProperties}
       >
         <Handle type="target" position={Position.Top} className="af-port" />

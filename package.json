@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "acceptance:slice-2-3": "node scripts/acceptance/slice-2-3.mjs",
+    "acceptance:theme-panel-web": "node scripts/acceptance/theme-panel-web.mjs",
     "regenerate:goldens": "vite-node scripts/regenerate-export-goldens.ts"
   },
   "dependencies": {

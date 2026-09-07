@@ -47,7 +47,7 @@ export function ReferenceMenu({ shareToken }: { shareToken: string }) {
               href={link.href}
               target={DOCS_WINDOW}
               onClick={() => setOpen(false)}
-              className="rounded-node px-3 py-2.5 text-small text-panel-ink no-underline hover:bg-white/8"
+              className="rounded-node px-3 py-2.5 text-small text-panel-ink no-underline hover:bg-wash/8"
             >
               {t(link.key)}
             </a>

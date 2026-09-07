@@ -164,7 +164,7 @@ function ZoneChip({ label, on }: { label: string; on: boolean }) {
   return (
     <span
       aria-current={on || undefined}
-      className={`inline-flex min-h-[26px] items-center rounded-pill border px-2.5 font-mono text-label uppercase tracking-[0.06em] opacity-50 ${on ? "border-panel-ink bg-panel-ink font-semibold text-panel" : "border-panel-line text-panel-ink-2"}`}
+      className={`inline-flex min-h-[26px] items-center rounded-pill border px-2.5 font-mono text-label uppercase tracking-[0.06em] opacity-50 ${on ? "border-panel-ink bg-panel-ink font-semibold text-panel-on-ink" : "border-panel-line text-panel-ink-2"}`}
     >
       {label}
     </span>

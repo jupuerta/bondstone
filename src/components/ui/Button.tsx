@@ -32,9 +32,9 @@ const VARIANT: Record<ButtonVariant, string> = {
   ghost:
     "bg-transparent text-ink border-ink hover:bg-[color-mix(in_oklab,var(--af-ink)_6%,transparent)] active:bg-[color-mix(in_oklab,var(--af-ink)_12%,transparent)]",
   panel:
-    "bg-transparent text-panel-ink border-panel-line hover:bg-white/8 hover:border-white/30 active:bg-white/14",
+    "bg-transparent text-panel-ink border-panel-line hover:bg-wash/8 hover:border-wash/30 active:bg-wash/14",
   panelPrimary:
-    "bg-accent-panel text-panel border-accent-panel hover:bg-[color-mix(in_oklab,var(--af-accent-panel)_84%,#fff)] hover:border-[color-mix(in_oklab,var(--af-accent-panel)_84%,#fff)] active:bg-[color-mix(in_oklab,var(--af-accent-panel)_72%,#000)]",
+    "bg-accent-panel text-panel-on-ink border-accent-panel hover:bg-[color-mix(in_oklab,var(--af-accent-panel)_84%,#fff)] hover:border-[color-mix(in_oklab,var(--af-accent-panel)_84%,#fff)] active:bg-[color-mix(in_oklab,var(--af-accent-panel)_72%,#000)]",
 };
 
 const DISABLED = "disabled:bg-line disabled:text-ink-3 disabled:border-line disabled:border-dashed disabled:cursor-not-allowed disabled:hover:bg-line";

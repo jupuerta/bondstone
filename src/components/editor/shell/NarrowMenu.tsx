@@ -3,6 +3,8 @@ import { useT } from "../../../i18n";
 import { useEscape } from "../../../hooks/useEscape";
 import { LanguageToggle } from "../../layout/LanguageToggle";
 import { Button } from "../../ui/Button";
+import { Segmented } from "../../ui/Segmented";
+import type { EditorTheme } from "../../../domain/editorPrefs";
 import { CloseIcon, LogoMark } from "../../ui/Icons";
 import { DOCS_WINDOW, docsLinks } from "./docsWindow";
 
@@ -13,9 +15,11 @@ interface NarrowMenuProps {
   onShare: () => void;
   shared: boolean;
   onExport?: () => void;
+  theme?: EditorTheme;
+  onTheme?: (theme: EditorTheme) => void;
 }
 
-export function NarrowMenu({ shareToken, onClose, primary, onShare, shared, onExport }: NarrowMenuProps) {
+export function NarrowMenu({ shareToken, onClose, primary, onShare, shared, onExport, theme = "dark", onTheme }: NarrowMenuProps) {
   const t = useT();
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -65,9 +69,26 @@ export function NarrowMenu({ shareToken, onClose, primary, onShare, shared, onEx
           </a>
         ))}
       </nav>
-      <div className="mt-auto flex items-center justify-between border-t border-panel-line px-3 py-4">
-        <span className="eyebrow text-panel-ink-3">{t("web.nav.language")}</span>
-        <LanguageToggle dark />
+      <div className="mt-auto flex flex-col border-t border-panel-line">
+        <div className="flex items-center justify-between px-3 py-4">
+          <span className="eyebrow text-panel-ink-3">{t("web.nav.language")}</span>
+          <LanguageToggle dark />
+        </div>
+        {onTheme && (
+          <div className="flex items-center justify-between border-t border-panel-line px-3 py-4">
+            <span className="eyebrow text-panel-ink-3">{t("editor.theme.label")}</span>
+            <Segmented
+              dark
+              label={t("editor.theme.label")}
+              value={theme}
+              onChange={onTheme}
+              options={[
+                { value: "dark", label: t("editor.theme.dark") },
+                { value: "light", label: t("editor.theme.light") },
+              ]}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

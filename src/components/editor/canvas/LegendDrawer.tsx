@@ -127,7 +127,7 @@ function Mark({ mark }: { mark: LegendMark }): ReactElement {
         <Box>
           <span aria-hidden className="absolute inset-x-0 bottom-0 flex h-[3px] gap-px">
             {Array.from({ length: 10 }, (_, index) => (
-              <span key={index} className={`min-w-0 flex-1 ${index < 7 ? "bg-panel-ink-3" : "bg-white/10"}`} />
+              <span key={index} className={`min-w-0 flex-1 ${index < 7 ? "bg-panel-ink-3" : "bg-wash/10"}`} />
             ))}
             <span className="absolute -top-0.5 -bottom-px w-px bg-panel-ink opacity-80" style={{ left: `${SATURATION * 100}%` }} />
           </span>

@@ -32,10 +32,10 @@ export function Segmented<T extends string>({ options, value, onChange, label, d
             className={`rounded-pill px-3.5 transition-colors ${tap ? "min-h-[38px] flex-1" : "min-h-8"} ${
               on
                 ? dark
-                  ? "bg-panel-ink font-semibold text-panel"
+                  ? "bg-panel-ink font-semibold text-panel-on-ink"
                   : "bg-ink font-semibold text-white"
                 : dark
-                  ? "text-panel-ink-2 hover:bg-white/8"
+                  ? "text-panel-ink-2 hover:bg-wash/8"
                   : "text-ink-2 hover:bg-[color-mix(in_oklab,var(--af-ink)_6%,transparent)]"
             }`}
           >

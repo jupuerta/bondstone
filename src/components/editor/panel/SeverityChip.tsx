@@ -8,7 +8,7 @@ interface Tone {
 }
 
 const TONE: Record<Severity, Tone> = {
-  Critical: { chip: "bg-hot-panel text-[#210505]", dot: "bg-[#210505]", filled: true },
+  Critical: { chip: "bg-hot-panel text-panel-on-hot", dot: "bg-panel-on-hot", filled: true },
   Warning: { chip: "border border-[color-mix(in_oklab,var(--af-warm-panel)_60%,transparent)] text-warm-panel", dot: "", filled: false },
   Info: { chip: "border border-panel-line text-panel-ink-2", dot: "", filled: false },
   Good: { chip: "border border-[color-mix(in_oklab,var(--af-ok-panel)_55%,transparent)] text-ok-panel", dot: "", filled: false },

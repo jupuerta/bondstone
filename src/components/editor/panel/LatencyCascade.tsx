@@ -119,7 +119,7 @@ function Hop({ row, budget, first, nameOf, showArithmetic }: HopProps) {
         <span className="mt-1 inline-flex h-[20px] items-center rounded-pill border border-[color-mix(in_oklab,var(--af-warm-panel)_60%,transparent)] px-2 font-mono text-[10.5px] text-warm-panel">{t("ui.impact.cascade.queueingFactor", { value: hop.queueingFactor })}</span>
       )}
 
-      <div className="relative mt-[5px] h-[9px] overflow-hidden rounded-[3px] bg-white/6">
+      <div className="relative mt-[5px] h-[9px] overflow-hidden rounded-[3px] bg-wash/6">
         <div
           className="absolute inset-y-0 flex overflow-hidden rounded-[2px]"
           style={{

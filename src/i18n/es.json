@@ -1890,6 +1890,7 @@
   "web.challenges.progress": "{passed:number} / {total:number} superados",
   "web.challenges.scratch.lead": "¿Traes tu propio sistema?",
   "web.challenges.scratch.cta": "Empezar de cero",
+  "web.challenges.scratch.narrow": "En una pantalla estrecha el lienzo se abre en modo lectura y no hay con qué dibujar. Para empezar de cero necesitas una más ancha.",
   "web.challenges.filter.allAreas": "Todas las áreas",
   "web.challenges.work.empty": "Aquí aparecerá lo que abras en este navegador. Todavía no hay nada.",
   "web.challenges.loadFailed": "No se han podido cargar los retos.",
@@ -2009,5 +2010,10 @@
   "editor.help.sheet": "Ficha del componente",
   "editor.help.backToInspector": "Volver al inspector",
   "editor.export.copy": "Copiar el Markdown",
-  "editor.export.safe": "Tu arquitectura está a salvo: lo que ha fallado es componer el documento."
+  "editor.export.safe": "Tu arquitectura está a salvo: lo que ha fallado es componer el documento.",
+  "editor.theme.label": "Aspecto",
+  "editor.theme.dark": "Oscuro",
+  "editor.theme.light": "Claro",
+  "editor.theme.toLight": "Modo claro",
+  "editor.theme.toDark": "Modo oscuro"
 }

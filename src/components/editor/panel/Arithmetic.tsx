@@ -92,7 +92,7 @@ function AreaLine({ area, findings, onPreview, onPin, pinnedId }: AreaLineProps)
         <span className="w-[92px] shrink-0 truncate text-[12px] text-panel-ink-2">{t(`ui.area.${area.area}`)}</span>
         {scored ? (
           <>
-            <span className="h-1.5 min-w-6 flex-1 overflow-hidden rounded-full bg-white/10">
+            <span className="h-1.5 min-w-6 flex-1 overflow-hidden rounded-full bg-wash/10">
               <span className="block h-full rounded-full" style={{ width: `${area.score}%`, background: areaTone(area.score!) }} />
             </span>
             <span className="num w-5 shrink-0 text-right text-[11px] text-panel-ink-2">{area.score}</span>
@@ -104,7 +104,7 @@ function AreaLine({ area, findings, onPreview, onPin, pinnedId }: AreaLineProps)
 
       {bar && (
         <>
-          <span className="relative mt-1.5 block h-2.5 overflow-hidden rounded-[5px] bg-white/10" aria-hidden>
+          <span className="relative mt-1.5 block h-2.5 overflow-hidden rounded-[5px] bg-wash/10" aria-hidden>
             <span className="absolute inset-y-0 left-0" style={{ width: `${bar.remaining}%`, background: areaTone(area.score ?? 0) }} />
             {bar.segments.map(({ line, start, width }) => (
               <button
@@ -160,7 +160,7 @@ function AreaLine({ area, findings, onPreview, onPin, pinnedId }: AreaLineProps)
                   onFocus={() => enter(line)}
                   onBlur={leave}
                   onClick={() => press(line)}
-                  className={`${chip} border ${tone} ${pinned ? "bg-white/12" : hovered === line.code ? "bg-white/8" : ""}`}
+                  className={`${chip} border ${tone} ${pinned ? "bg-wash/12" : hovered === line.code ? "bg-wash/8" : ""}`}
                 >
                   {line.capped && <CappedMark />}
                   {text}

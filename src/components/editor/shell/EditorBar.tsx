@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { useT } from "../../../i18n";
 import { LanguageToggle } from "../../layout/LanguageToggle";
 import { Chip } from "../../ui/Chip";
-import { LogoMark, MenuIcon } from "../../ui/Icons";
+import { LogoMark, MenuIcon, MoonIcon, SunIcon } from "../../ui/Icons";
+import type { EditorTheme } from "../../../domain/editorPrefs";
 import { ReferenceMenu } from "./ReferenceMenu";
 
 export interface BarChip {
@@ -27,11 +28,13 @@ interface EditorBarProps {
   onExport?: () => void;
   onOpenMenu: () => void;
   menuOpen: boolean;
+  theme?: EditorTheme;
+  onToggleTheme?: () => void;
 }
 
 const NAME_MAX_LENGTH = 200;
 
-export function EditorBar({ name, onRename, shareToken, chips, narrow, status, mode, primary, notice, onShare, shared, onExport, onOpenMenu, menuOpen }: EditorBarProps) {
+export function EditorBar({ name, onRename, shareToken, chips, narrow, status, mode, primary, notice, onShare, shared, onExport, onOpenMenu, menuOpen, theme = "dark", onToggleTheme }: EditorBarProps) {
   const t = useT();
 
   if (narrow) {
@@ -97,6 +100,17 @@ export function EditorBar({ name, onRename, shareToken, chips, narrow, status, m
         )}
         <ReferenceMenu shareToken={shareToken} />
         <LanguageToggle dark />
+        {onToggleTheme && (
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            aria-label={t(theme === "light" ? "editor.theme.toDark" : "editor.theme.toLight")}
+            title={t(theme === "light" ? "editor.theme.toDark" : "editor.theme.toLight")}
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-pill border border-panel-line text-panel-ink-2 hover:border-panel-line-2 hover:text-panel-ink"
+          >
+            {theme === "light" ? <MoonIcon size={16} /> : <SunIcon size={16} />}
+          </button>
+        )}
       </div>
     </header>
   );

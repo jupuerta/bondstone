@@ -1890,6 +1890,7 @@
   "web.challenges.progress": "{passed:number} / {total:number} passed",
   "web.challenges.scratch.lead": "Bringing your own system?",
   "web.challenges.scratch.cta": "Start from scratch",
+  "web.challenges.scratch.narrow": "On a narrow screen the canvas opens read-only and there is nothing to draw with. To start from scratch you need a wider one.",
   "web.challenges.filter.allAreas": "All areas",
   "web.challenges.work.empty": "What you open in this browser will show up here. Nothing yet.",
   "web.challenges.loadFailed": "The challenges could not be loaded.",
@@ -2009,5 +2010,10 @@
   "editor.help.sheet": "Component sheet",
   "editor.help.backToInspector": "Back to the inspector",
   "editor.export.copy": "Copy the Markdown",
-  "editor.export.safe": "Your architecture is safe: what failed is composing the document."
+  "editor.export.safe": "Your architecture is safe: what failed is composing the document.",
+  "editor.theme.label": "Appearance",
+  "editor.theme.dark": "Dark",
+  "editor.theme.light": "Light",
+  "editor.theme.toLight": "Light mode",
+  "editor.theme.toDark": "Dark mode"
 }

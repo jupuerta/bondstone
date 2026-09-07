@@ -44,7 +44,7 @@ function CostLine({ component, worst, onPreview }: { component: ComponentCost; w
     <li>
       <button type="button" title={t("ui.analysis.cost.highlight")} onMouseEnter={preview} onFocus={preview} onBlur={() => onPreview(null)} className="group flex w-full items-center gap-2 text-left">
         <span className="w-[84px] shrink-0 truncate text-[11.5px] text-panel-ink-2 group-hover:text-panel-ink">{component.name}</span>
-        <span className="h-1.5 min-w-6 flex-1 overflow-hidden rounded-full bg-white/10">
+        <span className="h-1.5 min-w-6 flex-1 overflow-hidden rounded-full bg-wash/10">
           <span className="block h-full rounded-full bg-accent-panel opacity-70 group-hover:opacity-100" style={{ width: `${worst === 0 ? 0 : (component.total / worst) * 100}%` }} />
         </span>
         <span className="num w-[76px] shrink-0 text-right text-[11px] whitespace-nowrap text-panel-ink-3">

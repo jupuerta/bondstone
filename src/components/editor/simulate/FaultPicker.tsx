@@ -20,7 +20,7 @@ export interface FaultPickerProps {
 }
 
 const VERB =
-  "inline-flex w-full items-center justify-center gap-2 rounded-pill border border-panel-line px-3 text-[12px] font-semibold text-panel-ink transition-[color,background-color,border-color] hover:border-panel-line-2 hover:bg-white/8 disabled:cursor-not-allowed disabled:border-dashed disabled:text-panel-ink-3 disabled:hover:border-panel-line disabled:hover:bg-transparent";
+  "inline-flex w-full items-center justify-center gap-2 rounded-pill border border-panel-line px-3 text-[12px] font-semibold text-panel-ink transition-[color,background-color,border-color] hover:border-panel-line-2 hover:bg-wash/8 disabled:cursor-not-allowed disabled:border-dashed disabled:text-panel-ink-3 disabled:hover:border-panel-line disabled:hover:bg-transparent";
 
 export function FaultPicker({ target, id, name, type, state, faults, onChange, loading, narrow }: FaultPickerProps) {
   const t = useT();

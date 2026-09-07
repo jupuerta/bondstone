@@ -273,7 +273,7 @@ function Stop({ frame, reached, active, label, onSelect, narrow }: StopProps) {
       type="button"
       onClick={onSelect}
       aria-pressed={active}
-      className={`inline-flex h-[26px] items-center gap-1.5 rounded-pill border px-2.5 font-mono text-[11px] uppercase tracking-[0.06em] whitespace-nowrap transition-[color,background-color,border-color] ${active ? "border-panel-ink bg-panel-ink font-semibold text-panel" : reached ? "border-panel-line-2 text-panel-ink" : "border-panel-line text-panel-ink-2 hover:border-panel-line-2"} ${narrow ? "min-h-11" : ""}`}
+      className={`inline-flex h-[26px] items-center gap-1.5 rounded-pill border px-2.5 font-mono text-[11px] uppercase tracking-[0.06em] whitespace-nowrap transition-[color,background-color,border-color] ${active ? "border-panel-ink bg-panel-ink font-semibold text-panel-on-ink" : reached ? "border-panel-line-2 text-panel-ink" : "border-panel-line text-panel-ink-2 hover:border-panel-line-2"} ${narrow ? "min-h-11" : ""}`}
     >
       <span aria-hidden className={`size-2 shrink-0 rounded-full ${frame.contained ? "border-2" : ""}`} style={frame.contained ? { borderColor: active ? "var(--af-panel)" : "var(--af-warm-panel)" } : { background: active ? "var(--af-panel)" : tone }} />
       {label}
@@ -317,7 +317,7 @@ function Group({ group, nameOf, narrow }: { group: CauseGroup; nameOf: (element:
 
   return (
     <div className="rounded-card border border-panel-line bg-panel-2">
-      <button type="button" aria-expanded={open} onClick={() => setOpen((current) => !current)} className={`flex w-full items-center gap-2 px-[9px] py-2 text-left text-[13px] leading-[1.4] text-panel-ink hover:bg-white/6 ${narrow ? "min-h-11" : ""}`}>
+      <button type="button" aria-expanded={open} onClick={() => setOpen((current) => !current)} className={`flex w-full items-center gap-2 px-[9px] py-2 text-left text-[13px] leading-[1.4] text-panel-ink hover:bg-wash/6 ${narrow ? "min-h-11" : ""}`}>
         <Caret open={open} />
         <span className="min-w-0 flex-1">{group.cause ? t("ui.impact.groupBecause", { count: nodes.length, cause: nameOf(group.cause) }) : t("ui.impact.group", { count: nodes.length })}</span>
       </button>

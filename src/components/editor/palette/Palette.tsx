@@ -48,7 +48,7 @@ export function Palette({ collapsed, onToggle, help }: PaletteProps) {
     return (
       <div className="flex w-12 shrink-0 flex-col items-center border-r border-panel-line bg-panel">
         <div className="flex h-11 w-full shrink-0 items-center justify-center border-b border-panel-line">
-          <button type="button" onClick={onToggle} aria-label={t("ui.palette.expand")} title={t("ui.palette.expand")} className="inline-flex size-8 items-center justify-center rounded-pill text-panel-ink-2 hover:bg-white/8 hover:text-panel-ink">
+          <button type="button" onClick={onToggle} aria-label={t("ui.palette.expand")} title={t("ui.palette.expand")} className="inline-flex size-8 items-center justify-center rounded-pill text-panel-ink-2 hover:bg-wash/8 hover:text-panel-ink">
             <Chevron open={false} />
           </button>
         </div>
@@ -82,7 +82,7 @@ export function Palette({ collapsed, onToggle, help }: PaletteProps) {
         <span className="font-display text-panel font-semibold text-panel-ink">{t("ui.palette.title")}</span>
         <span className="flex items-center gap-2">
           <span className="font-mono text-label text-panel-ink-3">{TOTAL}</span>
-          <button type="button" onClick={onToggle} aria-label={t("ui.palette.collapse")} title={t("ui.palette.collapse")} className="inline-flex size-8 items-center justify-center rounded-pill text-panel-ink-2 hover:bg-white/8 hover:text-panel-ink">
+          <button type="button" onClick={onToggle} aria-label={t("ui.palette.collapse")} title={t("ui.palette.collapse")} className="inline-flex size-8 items-center justify-center rounded-pill text-panel-ink-2 hover:bg-wash/8 hover:text-panel-ink">
             <Chevron open />
           </button>
         </span>

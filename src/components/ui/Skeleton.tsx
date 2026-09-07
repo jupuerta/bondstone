@@ -2,7 +2,7 @@ export function Skeleton({ width = "100%", height = 14, dark = false }: { width?
   return (
     <span
       aria-hidden
-      className={`block animate-pulse rounded ${dark ? "bg-white/10" : "bg-line"}`}
+      className={`block animate-pulse rounded ${dark ? "bg-wash/10" : "bg-line"}`}
       style={{ width, height }}
     />
   );

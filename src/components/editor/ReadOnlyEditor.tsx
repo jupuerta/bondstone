@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { editorPrefs, rememberEditorPrefs } from "../../domain/editorPrefs";
+import { editorPrefs, rememberEditorPrefs, type EditorTheme } from "../../domain/editorPrefs";
+import { PanelHandle } from "./shell/PanelHandle";
 import { useChallenge } from "../../hooks/useChallenge";
 import { useLoadCurve } from "../../hooks/useLoadCurve";
 import { useNarrowViewport } from "../../hooks/useMediaQuery";
@@ -82,6 +83,17 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
   const [exporting, setExporting] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [glossesOpen, setGlossesOpen] = useState(() => editorPrefs().glossesOpen);
+  const [theme, setTheme] = useState<EditorTheme>(() => editorPrefs().theme);
+  const [panelWidth, setPanelWidth] = useState(() => editorPrefs().panelWidth);
+  const chooseTheme = useCallback((next: EditorTheme) => {
+    rememberEditorPrefs({ theme: next });
+    setTheme(next);
+  }, []);
+  const toggleTheme = useCallback(() => chooseTheme(theme === "light" ? "dark" : "light"), [chooseTheme, theme]);
+  const resizePanel = useCallback((width: number) => {
+    rememberEditorPrefs({ panelWidth: width });
+    setPanelWidth(width);
+  }, []);
   const glosses = useMemo<GlossControls>(
     () => ({
       open: glossesOpen,
@@ -205,6 +217,8 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
       onExport={() => setExporting(true)}
       onOpenMenu={() => setMenuOpen(true)}
       menuOpen={menuOpen}
+      theme={theme}
+      onToggleTheme={toggleTheme}
     />
   );
   const strip = simulating ? (
@@ -337,7 +351,7 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
 
   if (narrow) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div data-theme={theme} className="flex min-h-0 flex-1 flex-col bg-panel text-panel-ink">
         {shell}
         {band}
         {canvas}
@@ -358,14 +372,14 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
         >
           {selected ? (simulating && picker ? <FaultPicker {...picker} narrow /> : (sheet ?? inspector)) : simulating ? impact : motor}
         </BottomDrawer>
-        {menuOpen && <NarrowMenu shareToken={shareToken} onClose={closeMenu} primary={openCopy("md")} onShare={copy} shared={copied} onExport={() => setExporting(true)} />}
+        {menuOpen && <NarrowMenu shareToken={shareToken} onClose={closeMenu} primary={openCopy("md")} onShare={copy} shared={copied} onExport={() => setExporting(true)} theme={theme} onTheme={chooseTheme} />}
         {overlays}
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div data-theme={theme} className="flex min-h-0 flex-1 flex-col bg-panel text-panel-ink">
       {shell}
       {band}
       <div className="flex min-h-0 flex-1">
@@ -385,7 +399,8 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
           )
         )}
         {canvas}
-        <aside className="flex w-[336px] shrink-0 flex-col border-l border-panel-line bg-panel">
+        <aside className="relative flex shrink-0 flex-col border-l border-panel-line bg-panel" style={{ width: panelWidth }}>
+          <PanelHandle width={panelWidth} onChange={resizePanel} />
           <div className="flex h-11 items-center justify-between border-b border-panel-line px-3">
             <h2 className="font-display text-panel font-semibold text-panel-ink">{panelTitle}</h2>
             {simulating && simulate.simulation.status === "loading" && <SpinnerIcon size={12} className="text-panel-ink-3" />}

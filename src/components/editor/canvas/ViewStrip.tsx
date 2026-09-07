@@ -174,7 +174,7 @@ export function ViewStrip({ narrow, drawn, lens, badges, legend, dial, wave, asi
                 role="menuitemradio"
                 aria-checked={current}
                 onClick={() => pick(tab.area)}
-                className={`flex w-full flex-col gap-0.5 rounded-card px-2.5 py-2 text-left hover:bg-white/8 ${current ? "bg-white/10" : ""} ${narrow ? "min-h-11" : ""}`}
+                className={`flex w-full flex-col gap-0.5 rounded-card px-2.5 py-2 text-left hover:bg-wash/8 ${current ? "bg-wash/10" : ""} ${narrow ? "min-h-11" : ""}`}
               >
                 <span className="flex items-baseline justify-between gap-2">
                   <span className="text-[13px] font-semibold text-panel-ink">{t(tab.label)}</span>

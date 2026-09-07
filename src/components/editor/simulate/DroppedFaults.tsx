@@ -10,7 +10,7 @@ export function DroppedFaults({ count, onDismiss }: { count: number; onDismiss: 
         <path d="M12 10v4M12 17v.5" />
       </svg>
       <span className="min-w-0 flex-1">{t("ui.canvas.faultsDropped", { count })}</span>
-      <button type="button" onClick={onDismiss} aria-label={t("ui.dismiss")} className="inline-flex size-7 shrink-0 items-center justify-center rounded-pill text-warm-panel hover:bg-white/8">
+      <button type="button" onClick={onDismiss} aria-label={t("ui.dismiss")} className="inline-flex size-7 shrink-0 items-center justify-center rounded-pill text-warm-panel hover:bg-wash/8">
         <CloseIcon size={14} />
       </button>
     </div>
