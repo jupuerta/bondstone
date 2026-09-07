@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { useT } from "../../../i18n";
+import { useEscape } from "../../../hooks/useEscape";
 import { LanguageToggle } from "../../layout/LanguageToggle";
 import { Button } from "../../ui/Button";
 import { CloseIcon, LogoMark } from "../../ui/Icons";
@@ -11,20 +12,18 @@ interface NarrowMenuProps {
   primary?: ReactNode;
   onShare: () => void;
   shared: boolean;
+  onExport?: () => void;
 }
 
-export function NarrowMenu({ shareToken, onClose, primary, onShare, shared }: NarrowMenuProps) {
+export function NarrowMenu({ shareToken, onClose, primary, onShare, shared, onExport }: NarrowMenuProps) {
   const t = useT();
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     closeRef.current?.focus();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, []);
+
+  useEscape(onClose);
 
   const row = "flex min-h-[52px] items-center text-[16px] text-panel-ink no-underline";
 
@@ -44,6 +43,19 @@ export function NarrowMenu({ shareToken, onClose, primary, onShare, shared }: Na
         <Button variant="panel" size="md" onClick={onShare} className="w-full">
           {shared ? t("ui.copied") : t("ui.share")}
         </Button>
+        {onExport && (
+          <Button
+            variant="panel"
+            size="md"
+            onClick={() => {
+              onExport();
+              onClose();
+            }}
+            className="w-full"
+          >
+            {t("ui.editor.export")}
+          </Button>
+        )}
       </div>
       <nav aria-label={t("editor.docs")} className="flex flex-col border-t border-panel-line px-3">
         <span className="eyebrow pt-4 pb-1 text-panel-ink-3">{t("editor.bar.reference")}</span>

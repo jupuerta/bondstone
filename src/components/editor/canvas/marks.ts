@@ -1,5 +1,6 @@
 export const NODE_W = 156;
 export const NODE_H = 62;
+export const NODE_H_SIMULATE = 78;
 
 export const EDGE_STROKE_WIDTH = 1.6;
 export const EDGE_INK = "var(--af-panel-ink)";

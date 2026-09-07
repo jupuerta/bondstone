@@ -1,5 +1,6 @@
 import type { AnalysisResult, AppliedFix, Area, ArchitectureSnapshot, LocalizedText } from "../../../types/architecture";
 import { areasImproved } from "../../../domain/areasImproved";
+import type { PatternId } from "../patterns/patterns";
 
 export interface ScoreSnapshot {
   scoringVersion: string;
@@ -25,6 +26,7 @@ export interface FixReceipt {
   area: Area;
   code: string;
   done: LocalizedText;
+  pattern: PatternId | null;
   before: ScoreSnapshot | null;
   after: ScoreSnapshot | null;
 }

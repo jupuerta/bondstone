@@ -309,6 +309,9 @@ p {
 
 .af-node {
   background: var(--af-node-plate);
+  transition:
+    background-color 240ms ease-out,
+    border-color 240ms ease-out;
 }
 
 .af-node:hover {
@@ -422,6 +425,7 @@ p {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .af-node,
   .react-flow__node.af-dim,
   .react-flow__edge.af-dim,
   .af-legend,

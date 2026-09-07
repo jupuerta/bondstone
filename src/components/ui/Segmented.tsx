@@ -9,15 +9,16 @@ interface SegmentedProps<T extends string> {
   onChange: (value: T) => void;
   label: string;
   dark?: boolean;
+  tap?: boolean;
 }
 
 /** Filtro exclusivo: una opción activa, en negro (o en blanco sobre el panel). */
-export function Segmented<T extends string>({ options, value, onChange, label, dark = false }: SegmentedProps<T>) {
+export function Segmented<T extends string>({ options, value, onChange, label, dark = false, tap = false }: SegmentedProps<T>) {
   return (
     <div
       role="radiogroup"
       aria-label={label}
-      className={`inline-flex rounded-pill border p-[3px] font-mono text-code ${dark ? "border-panel-line" : "border-line-2"}`}
+      className={`inline-flex rounded-pill border p-[3px] font-mono text-code ${dark ? "border-panel-line" : "border-line-2"} ${tap ? "w-full" : ""}`}
     >
       {options.map((option) => {
         const on = option.value === value;
@@ -28,7 +29,7 @@ export function Segmented<T extends string>({ options, value, onChange, label, d
             role="radio"
             aria-checked={on}
             onClick={() => onChange(option.value)}
-            className={`min-h-8 rounded-pill px-3.5 transition-colors ${
+            className={`rounded-pill px-3.5 transition-colors ${tap ? "min-h-[38px] flex-1" : "min-h-8"} ${
               on
                 ? dark
                   ? "bg-panel-ink font-semibold text-panel"

@@ -3,7 +3,6 @@ import type {
   ArchitectureCreatedDto,
   ArchitectureDto,
   ArchitectureSnapshot,
-  Fault,
   FragilityMap,
   LoadCurve,
   SimulationResult,
@@ -140,30 +139,6 @@ export async function updateArchitecture(
 
   if (!response.ok) return parseErrorResponse(response);
   return response.json();
-}
-
-export async function exportArchitecture(
-  id: string,
-  faults?: Fault[],
-  options?: { signal?: AbortSignal; acceptLanguage?: string },
-): Promise<string> {
-  const language: Record<string, string> = options?.acceptLanguage
-    ? { "Accept-Language": options.acceptLanguage }
-    : {};
-
-  const response = await fetch(`${API_URL}/architectures/${id}/export`, {
-    method: "POST",
-    signal: options?.signal,
-    ...(faults === undefined
-      ? { headers: language }
-      : {
-          headers: { ...language, "Content-Type": "application/json" },
-          body: JSON.stringify({ faults }),
-        }),
-  });
-
-  if (!response.ok) return parseErrorResponse(response);
-  return response.text();
 }
 
 export async function analyzeArchitecture(

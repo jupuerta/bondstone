@@ -4,9 +4,10 @@ export interface EditorPrefs {
   paletteCollapsed: boolean;
   legendOpen: boolean;
   briefCollapsed: boolean;
+  glossesOpen: boolean;
 }
 
-const DEFAULTS: EditorPrefs = { paletteCollapsed: false, legendOpen: false, briefCollapsed: false };
+const DEFAULTS: EditorPrefs = { paletteCollapsed: false, legendOpen: false, briefCollapsed: false, glossesOpen: false };
 
 export function editorPrefs(): EditorPrefs {
   try {
@@ -18,6 +19,7 @@ export function editorPrefs(): EditorPrefs {
       paletteCollapsed: typeof stored.paletteCollapsed === "boolean" ? stored.paletteCollapsed : DEFAULTS.paletteCollapsed,
       legendOpen: typeof stored.legendOpen === "boolean" ? stored.legendOpen : DEFAULTS.legendOpen,
       briefCollapsed: typeof stored.briefCollapsed === "boolean" ? stored.briefCollapsed : DEFAULTS.briefCollapsed,
+      glossesOpen: typeof stored.glossesOpen === "boolean" ? stored.glossesOpen : DEFAULTS.glossesOpen,
     };
   } catch {
     return DEFAULTS;

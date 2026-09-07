@@ -1,4 +1,5 @@
 import { useT } from "../../../i18n";
+import { PatternDiagram } from "../patterns/PatternDiagram";
 import { fixDelta, type FixDelta, type FixReceipt } from "./fixReceipt";
 
 interface FixReceiptCardProps {
@@ -26,6 +27,12 @@ export function FixReceiptCard({ receipt, onUndo, onDismiss, onOpenCompare, narr
           ×
         </button>
       </div>
+
+      {receipt.pattern && (
+        <div className="mt-2 flex justify-center">
+          <PatternDiagram pattern={receipt.pattern} width={240} className="h-auto max-w-full" />
+        </div>
+      )}
 
       <FixDeltaLine delta={delta} measuring={receipt.before !== null} />
 

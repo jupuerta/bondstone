@@ -1,23 +1,48 @@
-import type { DragEvent } from "react";
+import type { DragEvent, FocusEvent, MouseEvent } from "react";
 import { useT } from "../../../i18n";
 import type { NodeType } from "../../../types/architecture";
+import { HELP_CARD_ID } from "../help/ComponentCard";
 import { DND_NODE_TYPE_FORMAT, NODE_GROUPS } from "./nodeMeta";
 import { TypeIcon } from "./TypeIcons";
+
+export interface PaletteHelp {
+  type: NodeType | null;
+  onEnter: (type: NodeType, anchorTop: number) => void;
+  onFocus: (type: NodeType, anchorTop: number) => void;
+  onLeave: () => void;
+  onClose: () => void;
+}
 
 interface PaletteProps {
   collapsed: boolean;
   onToggle: () => void;
-}
-
-function startDrag(event: DragEvent<HTMLElement>, type: NodeType) {
-  event.dataTransfer.setData(DND_NODE_TYPE_FORMAT, type);
-  event.dataTransfer.effectAllowed = "move";
+  help?: PaletteHelp;
 }
 
 const TOTAL = NODE_GROUPS.reduce((total, group) => total + group.types.length, 0);
 
-export function Palette({ collapsed, onToggle }: PaletteProps) {
+export function Palette({ collapsed, onToggle, help }: PaletteProps) {
   const t = useT();
+
+  const startDrag = (event: DragEvent<HTMLElement>, type: NodeType) => {
+    event.dataTransfer.setData(DND_NODE_TYPE_FORMAT, type);
+    event.dataTransfer.effectAllowed = "move";
+    help?.onClose();
+  };
+
+  const handlers = (type: NodeType) =>
+    help
+      ? {
+          tabIndex: 0,
+          "aria-describedby": help.type === type ? HELP_CARD_ID : undefined,
+          onMouseEnter: (event: MouseEvent<HTMLElement>) => help.onEnter(type, event.currentTarget.getBoundingClientRect().top),
+          onMouseLeave: help.onLeave,
+          onFocus: (event: FocusEvent<HTMLElement>) => {
+            if (event.currentTarget.matches(":focus-visible")) help.onFocus(type, event.currentTarget.getBoundingClientRect().top);
+          },
+          onBlur: help.onLeave,
+        }
+      : { tabIndex: 0 };
 
   if (collapsed) {
     return (
@@ -35,11 +60,11 @@ export function Palette({ collapsed, onToggle }: PaletteProps) {
                 <span
                   key={type}
                   draggable
-                  tabIndex={0}
                   aria-label={t(`ui.node.${type}`)}
                   title={t(`ui.node.${type}`)}
                   onDragStart={(event) => startDrag(event, type)}
-                  className="flex size-8 cursor-grab items-center justify-center rounded-node border border-transparent hover:border-panel-line hover:bg-panel-2 active:cursor-grabbing"
+                  {...handlers(type)}
+                  className={`flex size-8 cursor-grab items-center justify-center rounded-node border active:cursor-grabbing ${help?.type === type ? "border-accent-panel bg-panel-2" : "border-transparent hover:border-panel-line hover:bg-panel-2"}`}
                 >
                   <TypeIcon type={type} size={15} />
                 </span>
@@ -70,11 +95,10 @@ export function Palette({ collapsed, onToggle }: PaletteProps) {
               <div
                 key={type}
                 draggable
-                tabIndex={0}
                 onDragStart={(event) => startDrag(event, type)}
-                className="group mx-2 flex cursor-grab items-center gap-2.5 rounded-node border border-transparent px-2 py-1.5 hover:border-panel-line hover:bg-panel-2 active:cursor-grabbing"
+                className={`group mx-2 flex cursor-grab items-center gap-2.5 rounded-node border px-2 py-1.5 active:cursor-grabbing ${help?.type === type ? "border-accent-panel bg-panel-2" : "border-transparent hover:border-panel-line hover:bg-panel-2"}`}
               >
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-node bg-panel-3">
+                <span {...handlers(type)} aria-label={t(`ui.node.${type}`)} className="flex size-6 shrink-0 items-center justify-center rounded-node bg-panel-3 outline-offset-2">
                   <TypeIcon type={type} size={14} />
                 </span>
                 <span className="min-w-0 truncate text-[13px] text-panel-ink">{t(`ui.node.${type}`)}</span>
@@ -87,7 +111,7 @@ export function Palette({ collapsed, onToggle }: PaletteProps) {
         ))}
       </div>
       <p className="m-3 rounded-node border border-dashed border-panel-line px-2.5 py-2 text-meta leading-relaxed text-panel-ink-3">
-        {t("ui.palette.hintDrag")} <kbd className="rounded border border-panel-line bg-panel-3 px-1 font-mono text-[10px] text-panel-ink-2">{t("ui.key.delete")}</kbd> {t("ui.palette.hintDelete")}
+        {t("ui.palette.hintDrag")} {help && t("ui.palette.hintHelp")} <kbd className="rounded border border-panel-line bg-panel-3 px-1 font-mono text-[10px] text-panel-ink-2">{t("ui.key.delete")}</kbd> {t("ui.palette.hintDelete")}
       </p>
     </div>
   );

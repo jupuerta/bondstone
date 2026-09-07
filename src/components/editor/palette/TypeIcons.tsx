@@ -9,7 +9,7 @@ interface TypeIconProps {
   style?: CSSProperties;
 }
 
-const PATHS: Record<NodeType, string[]> = {
+export const TYPE_ICON_PATHS: Record<NodeType, string[]> = {
   Client: ["M3 4h18v12H3z", "M8 20h8M12 16v4"],
   ExternalService: ["M3 5h12v14H3z", "M16 8h5v5M21 8l-6 6"],
   IdentityProvider: ["M8 10m-4 0a4 4 0 1 0 8 0a4 4 0 1 0-8 0", "M11 12l9 9M17 18l2 2M15 16l2 2"],
@@ -44,9 +44,28 @@ export function TypeIcon({ type, size = 13, className, style }: TypeIconProps) {
       className={className}
       style={{ color: tintOf(type), ...style }}
     >
-      {PATHS[type].map((d) => (
+      {TYPE_ICON_PATHS[type].map((d) => (
         <path key={d} d={d} />
       ))}
     </svg>
+  );
+}
+
+interface TypeGlyphProps {
+  type: NodeType;
+  x: number;
+  y: number;
+  size: number;
+  color: string;
+}
+
+export function TypeGlyph({ type, x, y, size, color }: TypeGlyphProps) {
+  const k = size / 24;
+  return (
+    <g transform={`translate(${x} ${y}) scale(${k})`} fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      {TYPE_ICON_PATHS[type].map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </g>
   );
 }

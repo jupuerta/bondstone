@@ -15,8 +15,9 @@ export interface ViewStripProps {
   drawn: boolean;
   lens?: StripLens;
   badges?: { on: boolean; onToggle: () => void };
-  legend: { open: boolean; onToggle: () => void };
+  legend: { open: boolean; onToggle: () => void; label?: string };
   dial?: TrafficDialProps & { onOpen: () => void };
+  wave?: { playing: boolean; onReplay: () => void; onSkip: () => void };
   aside?: ReactNode;
 }
 
@@ -28,7 +29,7 @@ export function chipClass(on: boolean, narrow: boolean): string {
   return `${CHIP} ${on ? ON : OFF} ${narrow ? "min-h-11 px-3.5" : "h-[30px]"}`;
 }
 
-export function ViewStrip({ narrow, drawn, lens, badges, legend, dial, aside }: ViewStripProps) {
+export function ViewStrip({ narrow, drawn, lens, badges, legend, dial, wave, aside }: ViewStripProps) {
   const t = useT();
   const [open, setOpen] = useState<"lens" | "dial" | null>(null);
   const box = useRef<HTMLDivElement>(null);
@@ -142,8 +143,10 @@ export function ViewStrip({ narrow, drawn, lens, badges, legend, dial, aside }: 
       )}
 
       <button type="button" disabled={!drawn} onClick={legend.onToggle} aria-pressed={legend.open} title={t("ui.legend.open")} className={chipClass(legend.open, narrow)}>
-        {t("ui.legend.title")}
+        {legend.label ?? t("ui.legend.title")}
       </button>
+
+      {wave && narrow && <WaveChip wave={wave} narrow />}
 
       {dial && (
         <button ref={dialButton} type="button" disabled={!drawn} onClick={toggleDial} aria-expanded={open === "dial"} aria-haspopup="dialog" className={chipClass(open === "dial" || dial.scale > 1, narrow)}>
@@ -152,7 +155,12 @@ export function ViewStrip({ narrow, drawn, lens, badges, legend, dial, aside }: 
         </button>
       )}
 
-      {!narrow && aside}
+      {!narrow && (
+        <span className="ml-auto flex shrink-0 items-center gap-2">
+          {wave && <WaveChip wave={wave} narrow={false} />}
+          {aside}
+        </span>
+      )}
       </div>
 
       {open === "lens" && lens && (
@@ -185,6 +193,28 @@ export function ViewStrip({ narrow, drawn, lens, badges, legend, dial, aside }: 
         </div>
       )}
     </div>
+  );
+}
+
+function WaveChip({ wave, narrow }: { wave: NonNullable<ViewStripProps["wave"]>; narrow: boolean }) {
+  const t = useT();
+  return (
+    <button type="button" onClick={wave.playing ? wave.onSkip : wave.onReplay} className={chipClass(false, narrow)}>
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden className="shrink-0">
+        {wave.playing ? (
+          <>
+            <path d="M6 5.5l8 6.5-8 6.5z" />
+            <path d="M18 5.5v13" />
+          </>
+        ) : (
+          <>
+            <path d="M4 12a8 8 0 1 1 2.6 5.9" />
+            <path d="M4 8v4.4h4.4" />
+          </>
+        )}
+      </svg>
+      {t(wave.playing ? "editor.wave.skip" : "editor.wave.replay")}
+    </button>
   );
 }
 

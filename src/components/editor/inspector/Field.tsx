@@ -1,7 +1,7 @@
 import { useId, type ReactNode } from "react";
 
 interface FieldProps {
-  label: string;
+  label: ReactNode;
   children: ReactNode;
   disabled?: boolean;
 }
@@ -20,7 +20,7 @@ export function Field({ label, children, disabled = false }: FieldProps) {
 }
 
 interface TextFieldProps {
-  label: string;
+  label: ReactNode;
   value: string | number;
   kind?: "text" | "number";
   min?: number;
@@ -56,7 +56,7 @@ export function TextField({ label, value, kind = "text", min, max, step, maxLeng
 }
 
 interface CheckFieldProps {
-  label: string;
+  label: ReactNode;
   hint?: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
@@ -81,17 +81,18 @@ interface ChoiceOption<T> {
 }
 
 interface ChoiceFieldProps<T> {
-  label: string;
+  label: ReactNode;
   options: ChoiceOption<T>[];
   value: T;
   onChange: (value: T) => void;
 }
 
 export function ChoiceField<T extends string | boolean | undefined>({ label, options, value, onChange }: ChoiceFieldProps<T>) {
+  const id = useId();
   return (
     <div className="flex flex-col gap-1">
-      <span className="eyebrow text-panel-ink-3">{label}</span>
-      <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-1.5">
+      <span id={id} className="eyebrow text-panel-ink-3">{label}</span>
+      <div role="radiogroup" aria-labelledby={id} className="flex flex-wrap gap-1.5">
         {options.map((option) => {
           const on = option.value === value;
           return (
@@ -115,7 +116,7 @@ export function ChoiceField<T extends string | boolean | undefined>({ label, opt
 }
 
 interface SelectFieldProps<T extends string> {
-  label: string;
+  label: ReactNode;
   hint?: string;
   options: ChoiceOption<T>[];
   value: T;

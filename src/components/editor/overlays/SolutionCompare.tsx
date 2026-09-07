@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, analyzeArchitecture, getArchitectureByShareToken } from "../../../api/architectureClient";
 import { openChallengeSolution, previewChallengeSolution } from "../../../api/challengeClient";
 import { useT } from "../../../i18n";
+import { useEscape } from "../../../hooks/useEscape";
 import type { AnalysisResult } from "../../../types/architecture";
 import { layoutOf, type DiagramLayout } from "../../engine/layout";
 import { Button } from "../../ui/Button";
@@ -33,12 +34,9 @@ export function SolutionCompare({ slug, referenceName, shareToken, onClose }: So
 
   useEffect(() => {
     box.current?.querySelector<HTMLElement>("button")?.focus();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, []);
+
+  useEscape(onClose);
 
   useEffect(() => {
     const controller = new AbortController();

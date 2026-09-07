@@ -36,6 +36,8 @@ export const DEFAULT_CONNECTION_DATA: ConnectionData = {
 
 export type Selection = { kind: "node"; id: string } | { kind: "edge"; id: string };
 
+export type EditorMode = "design" | "simulate";
+
 export interface CanvasMarks {
   highlighted: ReadonlySet<string>;
   dimmed: ReadonlySet<string>;

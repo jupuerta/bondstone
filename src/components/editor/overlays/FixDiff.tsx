@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useT } from "../../../i18n";
+import { useEscape } from "../../../hooks/useEscape";
 import type { ConnectionDto, NodeDto } from "../../../types/architecture";
 import { layoutOf } from "../../engine/layout";
 import { Button } from "../../ui/Button";
@@ -31,12 +32,9 @@ export function FixDiff({ shots, receipt, onUndo, onClose }: FixDiffProps) {
 
   useEffect(() => {
     box.current?.querySelector<HTMLElement>("button")?.focus();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, []);
+
+  useEscape(onClose);
 
   const frame = useMemo(() => layoutOf({ nodes: [...shots.before.nodes, ...shots.after.nodes] }), [shots]);
   const lit = useMemo(() => drawn(graphDelta(shots.before, shots.after)), [shots]);

@@ -1,7 +1,11 @@
+import { Fragment } from "react";
 import { useT } from "../../../i18n";
 import { ZONES, isYoursToPlace, nodeZone, type Zone } from "../../../domain/zone";
 import type { NodeDto } from "../../../types/architecture";
 import { Button } from "../../ui/Button";
+import { FieldGloss, FieldGlossToggle, type GlossControls } from "../help/FieldGloss";
+import { fieldHelpOf } from "../help/fieldHelp";
+import { Term } from "../help/Term";
 import { TypeIcon } from "../palette/TypeIcons";
 import { CONFIG_SCHEMAS, type ConfigField } from "./configSchemas";
 import { CheckField, ChoiceField, Field, TextField } from "./Field";
@@ -19,22 +23,45 @@ interface NodeInspectorProps {
   node: NodeDto;
   isEntryPoint: boolean;
   heading?: boolean;
+  narrow?: boolean;
   edits?: NodeEdits;
+  glosses?: GlossControls;
+  onOpenSheet?: () => void;
 }
 
-export function NodeInspector({ node, isEntryPoint, heading = true, edits }: NodeInspectorProps) {
+export function NodeInspector({ node, isEntryPoint, heading = true, narrow = false, edits, glosses, onOpenSheet }: NodeInspectorProps) {
   const t = useT();
   const configuration = node.configuration ?? {};
   const fields = CONFIG_SCHEMAS[node.type].filter((field) => isEntryPoint || !field.entryPointOnly);
   const zone = nodeZone(node.type, configuration);
+  const labelOf = (field: ConfigField) => (field.term ? <Term id={field.term}>{t(field.label)}</Term> : t(field.label));
+  const glossOf = (key: string) => {
+    const help = glosses?.open ? fieldHelpOf(key) : null;
+    return help === null ? null : <FieldGloss id={help.id} />;
+  };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3" data-help-panel>
       {heading && <span className="eyebrow text-panel-ink-3">{t("editor.inspector.component")}</span>}
       <div className="flex items-center gap-2">
         <TypeIcon type={node.type} size={14} />
         <span className="text-[13px] font-semibold text-panel-ink">{t(`ui.node.${node.type}`)}</span>
-        {isEntryPoint && <span className="font-mono text-label uppercase tracking-[0.06em] text-panel-ink-3">{t("ui.inspector.entryPoint")}</span>}
+        {isEntryPoint && (
+          <span className="font-mono text-label uppercase tracking-[0.06em] text-panel-ink-3">
+            <Term id="entryPoint">{t("ui.inspector.entryPoint")}</Term>
+          </span>
+        )}
+        {onOpenSheet && (
+          <button
+            type="button"
+            onClick={onOpenSheet}
+            aria-label={t("ui.help.what")}
+            title={t("ui.help.what")}
+            className={`ml-auto inline-flex shrink-0 items-center justify-center rounded-pill border border-panel-line font-mono text-[12px] font-semibold text-panel-ink-2 hover:border-panel-line-2 hover:text-panel-ink ${narrow ? "size-11" : "size-7"}`}
+          >
+            ?
+          </button>
+        )}
       </div>
       {edits ? (
         <TextField label={t("ui.inspector.name")} value={node.name} maxLength={NAME_MAX_LENGTH} onChange={edits.onRename} />
@@ -62,16 +89,20 @@ export function NodeInspector({ node, isEntryPoint, heading = true, edits }: Nod
             </div>
           </div>
         ))}
-      {fields.map((field) =>
-        edits ? (
-          <EditableField key={field.key} field={field} value={configuration[field.key]} onChange={(value) => edits.onField(field.key, value)} />
-        ) : (
-          <Field key={field.key} label={t(field.label)} disabled>
-            {valueOf(field, configuration[field.key], t)}
-          </Field>
-        ),
-      )}
+      {fields.map((field) => (
+        <Fragment key={field.key}>
+          {edits ? (
+            <EditableField field={field} label={labelOf(field)} value={configuration[field.key]} onChange={(value) => edits.onField(field.key, value)} />
+          ) : (
+            <Field label={labelOf(field)} disabled>
+              {valueOf(field, configuration[field.key], t)}
+            </Field>
+          )}
+          {glossOf(field.key)}
+        </Fragment>
+      ))}
       {fields.length === 0 && <p className="text-meta text-panel-ink-3">{t("ui.inspector.noFields")}</p>}
+      {glosses && fields.length > 0 && <FieldGlossToggle glosses={glosses} narrow={narrow} />}
       {edits && (
         <Button variant="panel" size="sm" onClick={edits.onDelete} className="mt-2 flex-col gap-0 border-hot-panel/60 py-1.5 text-hot-panel hover:border-hot-panel hover:bg-hot-panel/10">
           {t("ui.inspector.deleteNode")}
@@ -82,13 +113,20 @@ export function NodeInspector({ node, isEntryPoint, heading = true, edits }: Nod
   );
 }
 
-function EditableField({ field, value, onChange }: { field: ConfigField; value: unknown; onChange: (value: string | number | boolean | undefined) => void }) {
+interface EditableFieldProps {
+  field: ConfigField;
+  label: React.ReactNode;
+  value: unknown;
+  onChange: (value: string | number | boolean | undefined) => void;
+}
+
+function EditableField({ field, label, value, onChange }: EditableFieldProps) {
   const t = useT();
 
   if (field.kind === "tristate") {
     return (
       <ChoiceField<boolean | undefined>
-        label={t(field.label)}
+        label={label}
         value={typeof value === "boolean" ? value : undefined}
         options={[
           { value: undefined, label: t("ui.config.tristate.undeclared") },
@@ -101,12 +139,12 @@ function EditableField({ field, value, onChange }: { field: ConfigField; value: 
   }
 
   if (field.kind === "boolean") {
-    return <CheckField label={t(field.label)} checked={value === true} onChange={onChange} />;
+    return <CheckField label={label} checked={value === true} onChange={onChange} />;
   }
 
   return (
     <TextField
-      label={t(field.label)}
+      label={label}
       kind={field.kind}
       min={field.kind === "number" ? (field.min ?? 0) : undefined}
       max={field.max}

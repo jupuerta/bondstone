@@ -19,17 +19,19 @@ interface EditorBarProps {
   chips: BarChip[];
   narrow: boolean;
   status?: ReactNode;
+  mode?: ReactNode;
   primary?: ReactNode;
   notice?: string | null;
   onShare: () => void;
   shared: boolean;
+  onExport?: () => void;
   onOpenMenu: () => void;
   menuOpen: boolean;
 }
 
 const NAME_MAX_LENGTH = 200;
 
-export function EditorBar({ name, onRename, shareToken, chips, narrow, status, primary, notice, onShare, shared, onOpenMenu, menuOpen }: EditorBarProps) {
+export function EditorBar({ name, onRename, shareToken, chips, narrow, status, mode, primary, notice, onShare, shared, onExport, onOpenMenu, menuOpen }: EditorBarProps) {
   const t = useT();
 
   if (narrow) {
@@ -52,6 +54,7 @@ export function EditorBar({ name, onRename, shareToken, chips, narrow, status, p
             <MenuIcon size={22} />
           </button>
         </div>
+        {mode && <div className="flex h-[52px] items-center border-t border-panel-line px-3">{mode}</div>}
         {chips.length > 0 && (
           <div className="flex gap-1.5 overflow-x-auto px-3 pb-2">
             {chips.map((chip) => (
@@ -79,13 +82,19 @@ export function EditorBar({ name, onRename, shareToken, chips, narrow, status, p
           </Chip>
         ))}
       </div>
-      <div className="flex shrink-0 items-center gap-3.5">
+      {mode && <div className="flex shrink-0 items-center">{mode}</div>}
+      <div className={`flex shrink-0 items-center gap-3.5 ${mode ? "flex-1 justify-end" : ""}`}>
         {notice && <span className="text-meta text-hot-panel">{notice}</span>}
         {status}
         {primary}
         <button type="button" onClick={onShare} className="inline-flex min-h-10 items-center rounded-pill px-2 text-[13px] text-panel-ink-2 hover:text-panel-ink">
           {shared ? t("ui.copied") : t("ui.share")}
         </button>
+        {onExport && (
+          <button type="button" onClick={onExport} className="inline-flex min-h-10 items-center rounded-pill px-2 text-[13px] text-panel-ink-2 hover:text-panel-ink">
+            {t("ui.editor.export")}
+          </button>
+        )}
         <ReferenceMenu shareToken={shareToken} />
         <LanguageToggle dark />
       </div>

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useT } from "../../../i18n";
 import type { FindingElement, RuleFinding } from "../../../types/architecture";
+import { PatternDiagram } from "../patterns/PatternDiagram";
 import { DOCS_WINDOW } from "../shell/docsWindow";
+import { patternForFinding } from "./findingPattern";
 import { SeverityChip } from "./SeverityChip";
 
 export type IdentifiedFinding = RuleFinding & { findingId: string };
@@ -29,6 +31,7 @@ export function FindingRow({ finding, shareToken, narrow, first, onPreview, onPi
   const [expanded, setExpanded] = useState(false);
   const row = useRef<HTMLLIElement>(null);
   const pinned = pinnedId === finding.findingId;
+  const pattern = patternForFinding(finding);
 
   useEffect(() => {
     if (pinned) row.current?.scrollIntoView({ block: "nearest" });
@@ -96,6 +99,11 @@ export function FindingRow({ finding, shareToken, narrow, first, onPreview, onPi
             <p className="rounded-card border border-panel-line bg-panel-3 px-2.5 py-2 text-[12px] leading-[1.45] text-panel-ink-2">
               <span className="font-semibold text-panel-ink">{t("web.engine.whatToDo")}</span> {t(finding.suggestion)}
             </p>
+          )}
+          {pattern && (
+            <div className="flex justify-center">
+              <PatternDiagram pattern={pattern} width={240} className="h-auto max-w-full" />
+            </div>
           )}
         </div>
       )}

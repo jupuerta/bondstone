@@ -9,9 +9,12 @@ import { useLiveAnalysis } from "../../hooks/useLiveAnalysis";
 import { useLoadCurve } from "../../hooks/useLoadCurve";
 import { useNarrowViewport } from "../../hooks/useMediaQuery";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useT } from "../../i18n";
+import { useLanguage } from "../../i18n";
+import { applyFormat } from "../../i18n/format";
 import type { AnalysisResult, Area, ArchitectureDto, ArchitectureSnapshot, ComponentLoad, FindingElement, NodeType, PositionDto, ResilienceConfiguration, RuleFinding, UpdateArchitectureResult } from "../../types/architecture";
 import { Button } from "../ui/Button";
+import { Segmented } from "../ui/Segmented";
+import { SpinnerIcon } from "../ui/Icons";
 import { applyFix } from "./canvas/applyFix";
 import { Canvas, type CanvasEdits } from "./canvas/Canvas";
 import { addNode, connect, connectedEdges, entryPointOf, importGraph, isTypingTarget, moveNodes, patchEdge, patchNode, removeEdges, removeNodes, setNodeField } from "./canvas/graphEdits";
@@ -19,19 +22,26 @@ import { EMPTY_HISTORY, record, redo, undo, type Graph, type GraphHistory } from
 import { lensTabs, lensView } from "./canvas/lens";
 import { flowToArchitecture, flowToUpdateRequest } from "./canvas/mapping";
 import { pointAt } from "./canvas/trafficDial";
-import type { CanvasMarks, Selection } from "./canvas/types";
+import { NO_MARKS, type CanvasMarks, type EditorMode, type Selection } from "./canvas/types";
 import { ViewStrip } from "./canvas/ViewStrip";
 import { ZoomPill } from "./canvas/ZoomPill";
 import { BriefBand } from "./challenge/BriefBand";
 import { ChallengeJournal } from "./challenge/ChallengeJournal";
 import { journalOf, type Journal } from "./challenge/journal";
+import { ComponentCard } from "./help/ComponentCard";
+import { ComponentSheet } from "./help/ComponentSheet";
+import type { GlossControls } from "./help/FieldGloss";
+import { useComponentHelp } from "./help/useComponentHelp";
 import { EdgeInspector } from "./inspector/EdgeInspector";
 import { NodeInspector } from "./inspector/NodeInspector";
 import { ConflictDialog } from "./overlays/ConflictDialog";
+import { ExportDialog } from "./overlays/ExportDialog";
 import { FixDiff, type FixShots } from "./overlays/FixDiff";
 import { SolutionCompare } from "./overlays/SolutionCompare";
 import { Palette } from "./palette/Palette";
 import { AnalysisPanel, type FindingGraph, type FixControls } from "./panel/AnalysisPanel";
+import { ImpactPanel } from "./panel/ImpactPanel";
+import { patternForFinding } from "./panel/findingPattern";
 import { scoreSnapshot, whatWasDone, type FixReceipt } from "./panel/fixReceipt";
 import { callLookup } from "./panel/protagonist";
 import { connectedComponents } from "./panel/scoreExplain";
@@ -41,6 +51,12 @@ import { EditorBar, type BarChip } from "./shell/EditorBar";
 import { NarrowMenu } from "./shell/NarrowMenu";
 import { SaveState } from "./shell/SaveState";
 import { useShareLink } from "./shell/useShareLink";
+import { DroppedFaults } from "./simulate/DroppedFaults";
+import { FaultPicker, type FaultPickerProps } from "./simulate/FaultPicker";
+import { FragilityMap } from "./simulate/FragilityMap";
+import { Scenario } from "./simulate/Scenario";
+import { SimulateColumn } from "./simulate/SimulateColumn";
+import { useSimulate } from "./simulate/useSimulate";
 import { Starters } from "./starters/Starters";
 import { starterToDto, type StarterArchitecture } from "./starters/starterArchitectures";
 
@@ -56,10 +72,13 @@ interface Pinned {
   elements: FindingElement[];
 }
 
-const EMPTY_FAULTS: ReadonlySet<string> = new Set();
+const MODES: { value: EditorMode; label: string }[] = [
+  { value: "design", label: "Design" },
+  { value: "simulate", label: "Simulate" },
+];
 
 export function Editor({ architecture, editToken, search, onReload }: EditorProps) {
-  const t = useT();
+  const { locale, t } = useLanguage();
   const narrow = useNarrowViewport();
   const editable = !narrow;
 
@@ -76,6 +95,11 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
   const [dialOpen, setDialOpen] = useState(false);
   const [dialIndex, setDialIndex] = useState(0);
   const [conflict, setConflict] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [glossesOpen, setGlossesOpen] = useState(() => editorPrefs().glossesOpen);
+  const help = useComponentHelp();
+  const canvasBox = useRef<HTMLDivElement>(null);
   const [savedRevision, setSavedRevision] = useState(0);
   const challengeSlug = useMemo(() => new URLSearchParams(search).get("challenge"), [search]);
   const challenge = useChallenge({ slug: challengeSlug, shareToken: architecture.shareToken, own: true });
@@ -98,6 +122,10 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
   versionRef.current = version;
 
   const dto = useMemo(() => flowToArchitecture(architecture, name, version, graph.nodes, graph.edges), [architecture, name, version, graph]);
+
+  const simulate = useSimulate({ shareToken: architecture.shareToken, savedRevision, architecture: dto, challenge: challenge.definition });
+  const { simulating } = simulate;
+  const canEdit = editable && !simulating;
 
   useEffect(() => {
     rememberWork({ editToken, shareToken: architecture.shareToken, name: architecture.name, challengeSlug });
@@ -187,11 +215,12 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
   const [pinned, setPinned] = useState<Pinned | null>(null);
   const highlighted = useMemo(() => new Set((preview ?? pinned?.elements ?? []).map((element) => element.id)), [preview, pinned]);
 
-  const loadCurve = useLoadCurve({ shareToken: architecture.shareToken, enabled: dialOpen, savedRevision });
+  const loadCurve = useLoadCurve({ shareToken: architecture.shareToken, enabled: dialOpen && !simulating, savedRevision });
   const trafficPoint = dialOpen && dialIndex > 0 ? pointAt(loadCurve.curve, dialIndex) : null;
   const lens = useMemo(() => lensView(analysis.result, lensArea), [analysis.result, lensArea]);
   const tabs = useMemo(() => lensTabs(analysis.result), [analysis.result]);
   const marks = useMemo<CanvasMarks>(() => {
+    if (simulating) return NO_MARKS;
     const lensed = lens.analyzed && lens.area !== null;
     const dimmed = new Set<string>();
     if (lensed) {
@@ -201,7 +230,7 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
     const loads = new Map<string, ComponentLoad>();
     for (const load of trafficPoint?.components ?? analysis.result?.load ?? []) loads.set(load.nodeId, load);
     return { highlighted, dimmed, badges, loads, loadScale: trafficPoint?.scale ?? 1 };
-  }, [lens, dto, highlighted, showBadges, analysis.result, trafficPoint]);
+  }, [simulating, lens, dto, highlighted, showBadges, analysis.result, trafficPoint]);
   const toggleLegend = useCallback(() => {
     setLegendOpen((current) => {
       rememberEditorPrefs({ legendOpen: !current });
@@ -251,7 +280,7 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
         if (!isTypingTarget(event.target)) setSelection(null);
         return;
       }
-      if (!editable || !(event.ctrlKey || event.metaKey) || event.altKey) return;
+      if (!canEdit || !(event.ctrlKey || event.metaKey) || event.altKey) return;
       const key = event.key.toLowerCase();
       if (key !== "z" && key !== "y") return;
       if (isTypingTarget(event.target)) return;
@@ -260,7 +289,7 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [editable, step]);
+  }, [canEdit, step]);
 
   const [receipt, setReceipt] = useState<FixReceipt | null>(null);
   const [shots, setShots] = useState<FixShots | null>(null);
@@ -295,7 +324,7 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
       };
       setShots({ before: shot(before), after: shot(next) });
       setCompareOpen(true);
-      setReceipt({ area: finding.area, code: finding.code, done: whatWasDone(finding.fix), before: scoreSnapshot(analysis.result), after: null });
+      setReceipt({ area: finding.area, code: finding.code, done: whatWasDone(finding.fix), pattern: patternForFinding(finding), before: scoreSnapshot(analysis.result), after: null });
     },
     [commit, savedRevision, analysis.result],
   );
@@ -318,6 +347,33 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
     clearFix();
     if (previous) commit(() => previous);
   }, [clearFix, commit]);
+
+  const closeHelp = help.close;
+  useEffect(() => {
+    if (!simulating) return;
+    clearFix();
+    closeDial();
+    closeHelp();
+    setPinned(null);
+    setPreview(null);
+  }, [simulating, clearFix, closeDial, closeHelp]);
+
+  const selectedId = selection?.id ?? null;
+  useEffect(() => {
+    setSheetOpen(false);
+  }, [selectedId]);
+
+  const glosses = useMemo<GlossControls>(
+    () => ({
+      open: glossesOpen,
+      onToggle: () =>
+        setGlossesOpen((current) => {
+          rememberEditorPrefs({ glossesOpen: !current });
+          return !current;
+        }),
+    }),
+    [glossesOpen],
+  );
 
   const openCompare = useCallback(() => setCompareOpen(true), []);
   const closeCompare = useCallback(() => setCompareOpen(false), []);
@@ -356,16 +412,16 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
   );
 
   const selected = selection ? elementOf(dto, selection) : null;
-  const faultIds = EMPTY_FAULTS;
   const chips: BarChip[] = challenge.definition ? [{ key: "challenge", label: t("ui.challenge.title") }] : [];
   const saveState = <SaveState status={autosave.status} version={version} error={autosave.error} onRetry={autosave.retryNow} narrow={narrow} />;
+  const modeSwitch = <Segmented<EditorMode> options={MODES} value={simulate.mode} onChange={simulate.setMode} label={t("editor.bar.mode")} dark tap={narrow} />;
 
   const findingGraph = useMemo<FindingGraph>(
     () => ({ names: new Map(dto.nodes.map((node) => [node.id, node.name])), calls: callLookup(dto.connections) }),
     [dto],
   );
   const components = useMemo(() => connectedComponents(dto.nodes, dto.connections), [dto]);
-  const fixes: FixControls | undefined = editable
+  const fixes: FixControls | undefined = canEdit
     ? { onApplyFix: handleApplyFix, receipt, onUndoFix: handleUndoFix, onDismissFix: clearFix, onOpenFixCompare: shots ? openCompare : null }
     : undefined;
 
@@ -376,8 +432,11 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
           node={selected.node}
           isEntryPoint={entryPointOf(graph, selected.node.id)}
           heading={narrow}
+          narrow={narrow}
+          glosses={glosses}
+          onOpenSheet={() => setSheetOpen(true)}
           edits={
-            editable
+            canEdit
               ? {
                   connectedEdges: connectedEdges(graph, selected.node.id),
                   onRename: (next) => commit((current) => patchNode(current, selected.node.id, { name: next })),
@@ -392,8 +451,10 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
           connection={selected.connection}
           {...endsOf(dto, selected.connection)}
           heading={narrow}
+          narrow={narrow}
+          glosses={glosses}
           edits={
-            editable
+            canEdit
               ? {
                   onSynchronous: (synchronous) => commit((current) => patchEdge(current, selected.connection.id, { synchronous })),
                   onResilience: (patch: ResilienceConfiguration) =>
@@ -411,6 +472,23 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
       )}
     </div>
   );
+
+  const sheet = selected?.kind === "node" && sheetOpen ? <ComponentSheet type={selected.node.type} onBack={() => setSheetOpen(false)} narrow={narrow} /> : null;
+
+  const picker: Omit<FaultPickerProps, "narrow"> | null = selected
+    ? {
+        target: selected.kind === "node" ? "Node" : "Connection",
+        id: selected.kind === "node" ? selected.node.id : selected.connection.id,
+        name: titleOf(selected, dto, t),
+        type: selected.kind === "node" ? selected.node.type : undefined,
+        state: simulate.stateOf(selection),
+        faults: simulate.faults,
+        onChange: simulate.setFaults,
+        loading: simulate.simulation.status === "loading",
+      }
+    : null;
+
+  const scenario = { faults: simulate.faults, nameOf: simulate.nameOf, onChange: simulate.setFaults, status: simulate.simulation.status, error: simulate.simulation.error, onRetry: simulate.simulation.retry };
 
   const motor = (
     <div className="flex flex-col gap-[11px]">
@@ -433,6 +511,21 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
     </div>
   );
 
+  const impact = (
+    <ImpactPanel
+      status={simulate.simulation.status}
+      result={simulate.simulation.result}
+      error={simulate.simulation.error}
+      onRetry={simulate.simulation.retry}
+      previous={simulate.previous}
+      nameOf={simulate.nameOf}
+      budgetMs={simulate.budgetMs}
+      wave={simulate.wave}
+      narrow={narrow}
+      fragility={<FragilityMap shareToken={architecture.shareToken} savedRevision={savedRevision} faults={simulate.elementFaults} nameOf={simulate.nameOf} onPreview={simulate.previewRow} onSelect={simulate.loadRow} narrow={narrow} />}
+    />
+  );
+
   const band = challenge.definition && (
     <BriefBand
       key={challenge.definition.slug}
@@ -452,19 +545,29 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
   const shell = (
     <EditorBar
       name={name}
-      onRename={editable ? setName : undefined}
+      onRename={canEdit ? setName : undefined}
       shareToken={architecture.shareToken}
       chips={chips}
       narrow={narrow}
       status={saveState}
+      mode={modeSwitch}
       onShare={copy}
       shared={copied}
+      onExport={() => setExporting(true)}
       onOpenMenu={() => setMenuOpen(true)}
       menuOpen={menuOpen}
     />
   );
 
-  const strip = (
+  const strip = simulating ? (
+    <ViewStrip
+      narrow={narrow}
+      drawn={dto.nodes.length > 0}
+      legend={{ open: legendOpen, onToggle: toggleLegend, label: narrow ? undefined : t("editor.legend.whenBreaking") }}
+      wave={simulate.wave.animatable ? { playing: simulate.wave.playing, onReplay: simulate.wave.replay, onSkip: simulate.wave.skip } : undefined}
+      aside={<ZoomPill />}
+    />
+  ) : (
     <ViewStrip
       narrow={narrow}
       drawn={dto.nodes.length > 0}
@@ -490,18 +593,20 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
   const canvas = (
     <Canvas
       architecture={dto}
-      states={null}
-      faultIds={faultIds}
-      callLoad={analysis.result?.callLoad ?? null}
+      states={simulating ? simulate.states : null}
+      faultIds={simulate.faultIds}
+      callLoad={simulating ? null : (analysis.result?.callLoad ?? null)}
       selection={selection}
       onSelect={select}
       marks={marks}
       strip={strip}
-      legend={{ mode: "design", open: legendOpen, onClose: closeLegend }}
+      legend={{ mode: simulating ? "simulate" : "design", open: legendOpen, onClose: closeLegend }}
       narrow={narrow}
-      edits={editable ? edits : undefined}
+      edits={canEdit ? edits : undefined}
+      emptyMessage={simulating ? t("editor.canvas.nothingToBreak") : undefined}
+      notice={simulate.dropped > 0 ? <DroppedFaults count={simulate.dropped} onDismiss={simulate.dismissDropped} /> : undefined}
       empty={
-        editable ? (
+        simulating ? undefined : canEdit ? (
           <Starters onPick={pickStarter} />
         ) : (
           <div className="pointer-events-auto flex flex-wrap justify-center gap-2">
@@ -524,31 +629,49 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
         <SolutionCompare slug={challenge.definition.slug} referenceName={t("challenge.referenceSolutionName", { title: challenge.definition.title })} shareToken={architecture.shareToken} onClose={() => setSolutionOpen(false)} />
       )}
       {conflict && <ConflictDialog onReload={onReload} />}
+      {exporting && (
+        <ExportDialog
+          architecture={dto}
+          baseline={architecture}
+          analysis={analysis.result}
+          simulation={simulating ? simulate.simulation.result : null}
+          faults={simulating ? simulate.elementFaults : undefined}
+          narrow={narrow}
+          onClose={() => setExporting(false)}
+        />
+      )}
     </>
   );
+
+  const metrics = simulate.simulation.result?.metrics ?? null;
+  const panelTitle = simulating ? t("ui.impact.title") : t("ui.analysis.title");
+  const panelBusy = simulating ? simulate.simulation.status === "loading" : analysis.status === "loading";
 
   if (narrow) {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         {shell}
         {band}
-        <p className="shrink-0 border-b border-panel-line bg-panel-3 px-3 py-2 text-meta text-panel-ink-2">{t("web.engine.narrow")}</p>
+        {!simulating && <p className="shrink-0 border-b border-panel-line bg-panel-3 px-3 py-2 text-meta text-panel-ink-2">{t("web.engine.narrow")}</p>}
         {canvas}
+        {simulating && <Scenario {...scenario} narrow />}
         <BottomDrawer
-          title={selected ? titleOf(selected, dto, t) : `${t("ui.analysis.title")} · ${analysis.result?.score ?? "—"}`}
+          title={selected ? titleOf(selected, dto, t) : simulating ? `${panelTitle} · ${metrics ? applyFormat(metrics.blastRadius, "percent", locale) : "—"}` : `${panelTitle} · ${analysis.result?.score ?? "—"}`}
           open={drawerOpen}
           onToggle={() => setDrawerOpen((open) => !open)}
           aside={
             selected ? (
               <Button variant="panel" size="sm" onClick={() => setSelection(null)} className="min-h-11">
-                {t("editor.selection.back")}
+                {t(simulating ? "editor.selection.backImpact" : "editor.selection.back")}
               </Button>
+            ) : simulating && metrics ? (
+              <span className="inline-flex h-[26px] shrink-0 items-center rounded-pill border border-panel-line px-2.5 font-mono text-[11px] uppercase tracking-[0.06em] text-panel-ink-2">{t("editor.impact.downChip", { count: metrics.componentsDown })}</span>
             ) : undefined
           }
         >
-          {inspector ?? motor}
+          {selected ? (simulating && picker ? <FaultPicker {...picker} narrow /> : (sheet ?? inspector)) : simulating ? impact : motor}
         </BottomDrawer>
-        {menuOpen && <NarrowMenu shareToken={architecture.shareToken} onClose={closeMenu} onShare={copy} shared={copied} />}
+        {menuOpen && <NarrowMenu shareToken={architecture.shareToken} onClose={closeMenu} onShare={copy} shared={copied} onExport={() => setExporting(true)} />}
         {overlays}
       </div>
     );
@@ -559,30 +682,38 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
       {shell}
       {band}
       <div className="flex min-h-0 flex-1">
-        <aside className={`flex shrink-0 border-r border-panel-line bg-panel ${inspector || paletteCollapsed ? "w-auto" : "w-[240px]"}`}>
-          {inspector ? (
-            <>
-              <Palette collapsed onToggle={togglePalette} />
-              <div className="flex w-[216px] flex-col">
-                <div className="flex h-11 shrink-0 items-center justify-between border-b border-panel-line px-3">
-                  <span className="eyebrow text-panel-ink-3">{selected?.kind === "node" ? t("editor.inspector.component") : t("ui.inspector.call")}</span>
-                  <button type="button" onClick={() => setSelection(null)} className="rounded-pill px-2 py-1 text-meta text-panel-ink-2 hover:text-panel-ink">
-                    {t("ui.close")}
-                  </button>
+        {simulating ? (
+          <SimulateColumn scenario={scenario} picker={picker} />
+        ) : (
+          <aside className={`flex shrink-0 border-r border-panel-line bg-panel ${inspector || paletteCollapsed ? "w-auto" : "w-[240px]"}`}>
+            {inspector ? (
+              <>
+                <Palette collapsed onToggle={togglePalette} />
+                <div className="flex w-[216px] flex-col">
+                  <div className="flex h-11 shrink-0 items-center justify-between border-b border-panel-line px-3">
+                    <span className="eyebrow text-panel-ink-3">{sheet ? t("editor.help.sheet") : selected?.kind === "node" ? t("editor.inspector.component") : t("ui.inspector.call")}</span>
+                    <button type="button" onClick={() => setSelection(null)} className="rounded-pill px-2 py-1 text-meta text-panel-ink-2 hover:text-panel-ink">
+                      {t("ui.close")}
+                    </button>
+                  </div>
+                  <div className="min-h-0 flex-1 overflow-y-auto p-3">{sheet ?? inspector}</div>
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto p-3">{inspector}</div>
-              </div>
-            </>
-          ) : (
-            <Palette collapsed={paletteCollapsed} onToggle={togglePalette} />
-          )}
-        </aside>
-        {canvas}
+              </>
+            ) : (
+              <Palette collapsed={paletteCollapsed} onToggle={togglePalette} help={{ type: help.type, onEnter: help.enter, onFocus: help.focus, onLeave: help.leave, onClose: help.close }} />
+            )}
+          </aside>
+        )}
+        <div ref={canvasBox} className="relative flex min-h-0 min-w-0 flex-1">
+          {canvas}
+          {help.type !== null && canEdit && <ComponentCard type={help.type} canvas={canvasBox.current} anchorTop={help.anchorTop} onMouseEnter={help.keep} onMouseLeave={help.leaveCard} />}
+        </div>
         <aside className="flex w-[336px] shrink-0 flex-col border-l border-panel-line bg-panel">
-          <div className="flex h-11 shrink-0 items-center border-b border-panel-line px-3">
-            <h2 className="font-display text-panel font-semibold text-panel-ink">{t("ui.analysis.title")}</h2>
+          <div className="flex h-11 shrink-0 items-center justify-between border-b border-panel-line px-3">
+            <h2 className="font-display text-panel font-semibold text-panel-ink">{panelTitle}</h2>
+            {panelBusy && <SpinnerIcon size={12} className="text-panel-ink-3" />}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto p-3">{motor}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">{simulating ? impact : motor}</div>
         </aside>
       </div>
       {overlays}

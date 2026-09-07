@@ -28,9 +28,10 @@ export interface DiagramLayout {
 }
 
 /** Coloca cada nodo donde lo dejó su autor y encuadra el conjunto. */
-export function layoutOf(architecture: { nodes: readonly NodeDto[] }): DiagramLayout {
+export function layoutOf(architecture: { nodes: readonly NodeDto[] }, options: { nodeHeight?: number } = {}): DiagramLayout {
   const boxes = new Map<string, Box>();
-  for (const node of architecture.nodes) boxes.set(node.id, { x: node.position.x, y: node.position.y, w: NODE_W, h: NODE_H });
+  const nodeHeight = options.nodeHeight ?? NODE_H;
+  for (const node of architecture.nodes) boxes.set(node.id, { x: node.position.x, y: node.position.y, w: NODE_W, h: nodeHeight });
   const all = [...boxes.values()];
   const minX = Math.min(...all.map((b) => b.x)) - PAD;
   const minY = Math.min(...all.map((b) => b.y)) - PAD;
@@ -73,4 +74,14 @@ function clip(box: Box, towards: { x: number; y: number }): { x: number; y: numb
 
 export function nodeById(architecture: ArchitectureDto, id: string): NodeDto | undefined {
   return architecture.nodes.find((node) => node.id === id);
+}
+
+export function frameAtLeast(layout: DiagramLayout, minWidth: number, minHeight: number): DiagramLayout {
+  const width = Math.max(layout.width, minWidth);
+  const height = Math.max(layout.height, minHeight);
+  if (width === layout.width && height === layout.height) return layout;
+  const [minX, minY] = layout.viewBox.split(" ").map(Number);
+  const x = minX - (width - layout.width) / 2;
+  const y = minY - (height - layout.height) / 2;
+  return { ...layout, viewBox: `${x} ${y} ${width} ${height}`, width, height, fontScale: Math.max(1, width / 760) };
 }

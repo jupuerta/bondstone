@@ -2,7 +2,7 @@ import type { Edge, Node } from "@xyflow/react";
 import type { ArchitectureDto, ConnectionLoad, ElementState, ElementType } from "../../../types/architecture";
 import { callFlows } from "./callFlow";
 import { dtoConnectionsToFlow, dtoNodesToFlow } from "./mapping";
-import { NODE_H, NODE_W } from "./marks";
+import { NODE_H, NODE_H_SIMULATE, NODE_W } from "./marks";
 import { NO_MARKS, type ArchNodeData, type CanvasMarks, type ConnectionData, type NodeStatus, type Selection } from "./types";
 
 const DIM = "af-dim";
@@ -30,6 +30,45 @@ export function nodeStatusOf(
   };
 }
 
+export interface StatusWord {
+  key: string;
+  upper: boolean;
+}
+
+export interface StatusTone {
+  color: string | null;
+  filled: boolean;
+  state: StatusWord | null;
+  detail: string[];
+}
+
+export function statusTone(status: NodeStatus | null): StatusTone {
+  if (!status) return { color: null, filled: false, state: null, detail: [] };
+
+  const mechanism = status.mechanism === null ? [] : [`ui.mechanism.${status.mechanism}`];
+
+  if (status.health === "Down") {
+    const cause = status.injected ? ["web.engine.injected"] : status.dragged ? ["web.engine.dragged"] : [];
+    return { color: "var(--af-hot-panel)", filled: true, state: { key: "web.engine.state.Down", upper: true }, detail: [...cause, ...mechanism] };
+  }
+
+  if (status.health === "Degraded") {
+    return { color: "var(--af-warm-panel)", filled: false, state: { key: "web.engine.state.Degraded", upper: false }, detail: mechanism };
+  }
+
+  if (status.health === null) {
+    return { color: null, filled: false, state: { key: "web.engine.state.none", upper: false }, detail: [] };
+  }
+
+  return status.mechanism === null
+    ? { color: null, filled: false, state: null, detail: [] }
+    : { color: "var(--af-warm-panel)", filled: false, state: { key: `ui.mechanism.${status.mechanism}`, upper: false }, detail: [] };
+}
+
+export function nodeHeight(simulated: boolean): number {
+  return simulated ? NODE_H_SIMULATE : NODE_H;
+}
+
 export function displayNodes(
   architecture: ArchitectureDto,
   nodeStates: ReadonlyMap<string, ElementState>,
@@ -41,7 +80,7 @@ export function displayNodes(
   return dtoNodesToFlow(architecture.nodes).map((node) => ({
     ...node,
     width: NODE_W,
-    height: NODE_H,
+    height: nodeHeight(simulated),
     selected: selection?.kind === "node" && selection.id === node.id,
     className: marks.dimmed.has(node.id) ? DIM : undefined,
     data: {

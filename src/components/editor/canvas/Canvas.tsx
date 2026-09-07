@@ -57,6 +57,8 @@ interface CanvasProps {
   narrow: boolean;
   edits?: CanvasEdits;
   empty?: ReactNode;
+  emptyMessage?: string;
+  notice?: ReactNode;
 }
 
 export function Canvas(props: CanvasProps) {
@@ -67,7 +69,7 @@ export function Canvas(props: CanvasProps) {
   );
 }
 
-function CanvasInner({ architecture, states, faultIds, callLoad, selection, onSelect, marks = NO_MARKS, strip, legend, narrow, edits, empty }: CanvasProps) {
+function CanvasInner({ architecture, states, faultIds, callLoad, selection, onSelect, marks = NO_MARKS, strip, legend, narrow, edits, empty, emptyMessage, notice }: CanvasProps) {
   const t = useT();
   const simulated = states !== null;
   const editable = edits !== undefined;
@@ -244,10 +246,12 @@ function CanvasInner({ architecture, states, faultIds, callLoad, selection, onSe
 
         {!drawn && (
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-5 overflow-y-auto p-6">
-            <p className="rounded-card border border-panel-line bg-panel-2 px-4 py-2 text-small text-panel-ink-2">{t(editable ? "editor.canvas.empty" : "editor.canvas.emptyReadOnly")}</p>
+            <p className="rounded-card border border-panel-line bg-panel-2 px-4 py-2 text-small text-panel-ink-2">{emptyMessage ?? t(editable ? "editor.canvas.empty" : "editor.canvas.emptyReadOnly")}</p>
             {empty}
           </div>
         )}
+
+        {notice && <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex justify-center">{notice}</div>}
 
         {legend && <LegendDrawer mode={legend.mode} open={legend.open} onClose={legend.onClose} narrow={narrow} />}
       </div>

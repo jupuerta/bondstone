@@ -1,21 +1,25 @@
 # arch-forge-frontend-next
 
-El segundo frontend de ArchForge: rediseño desde cero de la interfaz, contra **la misma API sin
-tocar**. El frontend actual (`../arch-forge-frontend/`) sigue vivo, es otro repo y no se toca; los
-dos corren a la vez contra el mismo backend.
+El frontend de ArchForge: la web y el editor, contra **la misma API sin tocar**. Nació como un
+rediseño desde cero que convivía con el frontend anterior (`../arch-forge-frontend/`); ese se apagó
+el **7 de septiembre de 2026**, al terminar la rebanada 6, y este quedó como el único.
 
-## Estado: la cara pública, en la dirección B1
+## Estado: la web y el editor, en la dirección B1
 
 Lo que hay es la **web pública** tal como la fijaron los cuatro entregables de diseño
 (`docs/Design/`): portada, retos, un reto, el enlace compartido, las tres páginas de referencia,
 «cómo está hecho», las legales y el 404. Escritorio y móvil, español e inglés.
 
-El editor se está construyendo por rebanadas (`docs/Design/Editor/00_plan_y_prompts.md` §5). La
-rebanada 1 está: `/a/{token}` es el editor en modo lectura, con el lienzo de `@xyflow/react`. La
-rebanada 2 también: `/e/{token}` es el editor en edición (paleta, conectar, inspectores, autoguardado,
-deshacer, conflicto, arquitecturas de partida y el «Pruébalo» de los mecanismos), y ya no se proxya
-al editor antiguo. Lo que sigue detrás de la imagen antigua, bajo el mismo origen, es `/manual*` y los
-assets que aquí no existen; se van con la rebanada 6.
+Y está el **editor entero**, construido en las seis rebanadas de
+`docs/Design/Editor/00_plan_y_prompts.md` §5: `/a/{token}` en lectura y `/e/{token}` en edición, con
+el lienzo de `@xyflow/react`, la paleta y los dos inspectores, el autoguardado con deshacer y
+conflicto, el panel de análisis con sus arreglos de un clic, los retos con su banda y su diario,
+Simulate con la propagación y la fragilidad, y exportar —Markdown y postal con las tipografías
+incrustadas—, los dibujos de patrón, la ficha de componente, el glosario y las glosas de campo.
+
+Desde el **7 de septiembre de 2026** no queda nada del editor antiguo: ni proxy (`/e/*`, `/manual*`
+y sus assets se retiraron de `nginx.conf` y de `vite.config.ts`), ni servicio — el
+`docker-compose.yml` de la raíz tiene un solo frontend, que es este, en `FRONTEND_PORT` (8080).
 
 | Ruta | Qué es | De dónde salen los datos |
 | --- | --- | --- |
@@ -25,7 +29,7 @@ assets que aquí no existen; se van con la rebanada 6.
 | `/a/:token` | El editor en modo lectura: la franja pública encima y, debajo, la barra propia, el lienzo interactivo (pan, zoom, seleccionar), las bandas de zona, el fallo de la URL pintado sobre los nodos, la ficha de lo que tocas y la voz del motor. En pantalla estrecha, cajón inferior y menú | Los tres de arriba + `POST …/fork` (solo al pulsar «Abrir una copia»); `GET /challenges/{slug}` si la URL trae `?challenge=` |
 | `/rules`, `/rules/:token` | Las 25 reglas; con token, qué hizo cada una sobre esa arquitectura | Catálogo local + `POST …/analyze` |
 | `/model` | El modelo: capacidades, red, umbrales, encolamiento | `GET /model` |
-| `/mechanisms` | Los once mecanismos, sin el «Pruébalo» (que necesita el editor) | Catálogo local |
+| `/mechanisms` | Los once mecanismos, con «Pruébalo» | Catálogo local + `POST /architectures` al pulsar |
 | `/about`, `/privacidad`, `/terminos`, `/aviso-de-recoleccion`, `*` | Estáticas. Las legales llevan el texto marcado como pendiente | — |
 
 ## Stack
@@ -52,7 +56,10 @@ src/
 ├── components/engine/   EnginePanel y sus piezas: useEngine, Diagram (SVG), NodeList, FindingCard
 ├── components/editor/   el editor (docs/Design/Editor/06_ui.md §6): canvas/ (xyflow, nodo, arista, banda de zona,
 │                        zoneBands, callFlow, mapping), shell/ (barra, menú estrecho, cajón, referencia),
-│                        inspector/ (fichas de lectura), palette/ (los 16 iconos), overlays/
+│                        inspector/ (los dos inspectores), palette/ (los 16 iconos), panel/ (análisis),
+│                        simulate/, challenge/, patterns/ (los once dibujos), help/ (ficha, glosario, glosas),
+│                        overlays/ (conflicto, arreglo, referencia, exportar)
+├── export/              la capa de export portada con sus goldens: Markdown, mermaid, postal, fuentes
 └── pages/               una por ruta
 ```
 
@@ -73,11 +80,13 @@ cp .env.example .env
 npm install
 docker compose up -d postgres api     # desde la raíz, una vez
 node scripts/create-demo.mjs          # crea «la tienda» y devuelve los tokens para el .env
-npm run dev                           # → http://localhost:5174 (/manual* va al editor antiguo en :8080)
+npm run dev                           # → http://localhost:5174
 ```
 
 `npm run build` deja el sitio en `dist/`; `npm test` corre los tests; `npm run typecheck`, los
-tipos. La CI (`.github/workflows/ci.yml`) ejecuta los tres sobre `master` y en cada pull request. El `Dockerfile` y `nginx.conf` son los de siempre: el servicio `frontend-next` del
+tipos; `npm run regenerate:goldens` reescribe los seis documentos de referencia de `src/export/__fixtures__`
+cuando cambia una frase `finding.*` (y `check:i18n` comprueba que las grabaciones de esa carpeta ejercitan
+las 260 frases del analizador). La CI (`.github/workflows/ci.yml`) ejecuta los tres sobre `master` y en cada pull request. El `Dockerfile` y `nginx.conf` son los de siempre: el servicio `frontend-next` del
 `docker-compose.yml` de la raíz lo sirve en `:8082` bajo el perfil `next`.
 
 ### La demostración de la portada
@@ -90,10 +99,9 @@ conserva). Los tokens son de esa base de datos: en otro entorno hay que volver a
 
 ## Lo que queda
 
-- Las rebanadas 3 a 6 del editor: análisis en el panel, retos, Simulate con sus controles, exportar
-  y ayuda. La 1 (lectura) y la 2 (edición) están.
-- Los dibujos de patrón de las fichas de mecanismo.
+- Los dibujos de patrón en las fichas de mecanismo de la web (la librería ya vive en `components/editor/patterns/`).
 - «Qué llevas aprendido» en el catálogo (necesita el historial de puntuaciones que escribe el editor).
 - Los textos legales.
-- Partir el bundle: hoy el catálogo entero viaja en el primer JS (~775 KB sin comprimir); xyflow va
-  en su propio chunk (~197 KB, 64 KB gzip).
+- Partir el bundle: hoy el primer JS pesa ~1,03 MB sin comprimir (293 KB gzip), con el catálogo
+  entero dentro; xyflow (~197 KB, 64 KB gzip) y opentype.js (~243 KB, 68 KB gzip, solo para la
+  postal) ya van en su propio chunk.
