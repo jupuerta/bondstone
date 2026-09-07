@@ -12,7 +12,7 @@ namespace arch_forge_backend.Application.Tests.Analysis;
 public class RecordAnalyzerSentences
 {
     private const string Recording =
-        "../../../../../../arch-forge-frontend/src/export/__fixtures__/analyzer-sentences.json";
+        "../../../../../../arch-forge-frontend-next/src/export/__fixtures__/analyzer-sentences.json";
 
     private readonly List<(string Scenario, LocalizedText Text)> _collected = [];
 

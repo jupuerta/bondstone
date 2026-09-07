@@ -8,7 +8,7 @@ namespace arch_forge_backend.Application.Tests.Analysis;
 
 public class RecordExportFixtures
 {
-    private const string Dir = "../../../../../../arch-forge-frontend/src/export/__fixtures__";
+    private const string Dir = "../../../../../../arch-forge-frontend-next/src/export/__fixtures__";
 
     private static readonly JsonSerializerOptions Options = Web();
 
