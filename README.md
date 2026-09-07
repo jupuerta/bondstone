@@ -86,8 +86,8 @@ npm run dev                           # → http://localhost:5174
 `npm run build` deja el sitio en `dist/`; `npm test` corre los tests; `npm run typecheck`, los
 tipos; `npm run regenerate:goldens` reescribe los seis documentos de referencia de `src/export/__fixtures__`
 cuando cambia una frase `finding.*` (y `check:i18n` comprueba que las grabaciones de esa carpeta ejercitan
-las 260 frases del analizador). La CI (`.github/workflows/ci.yml`) ejecuta los tres sobre `master` y en cada pull request. El `Dockerfile` y `nginx.conf` son los de siempre: el servicio `frontend-next` del
-`docker-compose.yml` de la raíz lo sirve en `:8082` bajo el perfil `next`.
+las 260 frases del analizador). La CI (`.github/workflows/ci.yml`) ejecuta los tres sobre `master` y en cada pull request. El `Dockerfile` y `nginx.conf` son los de siempre: el servicio `frontend` del
+`docker-compose.yml` de la raíz lo sirve en `FRONTEND_PORT` (`:8080`), sin perfil, desde el 7 de septiembre de 2026.
 
 ### La demostración de la portada
 

@@ -11,6 +11,7 @@
     "check:i18n": "node scripts/check-catalogs.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
+    "acceptance:slice-2-3": "node scripts/acceptance/slice-2-3.mjs",
     "regenerate:goldens": "vite-node scripts/regenerate-export-goldens.ts"
   },
   "dependencies": {
