@@ -3,7 +3,10 @@ import type { ConnectionDto, NodeConfiguration, NodeDto, NodeType, PositionDto }
 import { isEntryPoint, staleTrafficFields } from "./entryPoint";
 import type { Graph } from "./graphHistory";
 import { dtoConnectionsToFlow, dtoNodesToFlow } from "./mapping";
+import { NODE_W } from "./marks";
 import { DEFAULT_CONNECTION_DATA, type ArchNodeData, type ConnectionData } from "./types";
+
+const COLUMN_GAP = 84;
 
 export function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -97,4 +100,19 @@ export function entryPointOf(graph: Graph, nodeId: string): boolean {
 
 export function connectedEdges(graph: Graph, nodeId: string): number {
   return graph.edges.filter((edge) => edge.source === nodeId || edge.target === nodeId).length;
+}
+
+export function freeSpot(nodes: readonly Node<ArchNodeData>[]): PositionDto {
+  if (nodes.length === 0) return { x: 0, y: 0 };
+  const right = Math.max(...nodes.map((node) => node.position.x));
+  const top = Math.min(...nodes.map((node) => node.position.y));
+  return { x: Math.round(right + NODE_W + COLUMN_GAP), y: Math.round(top) };
+}
+
+export function connectTargets(graph: Graph, nodeId: string): { id: string; name: string }[] {
+  const taken = new Set(graph.edges.filter((edge) => edge.source === nodeId).map((edge) => edge.target));
+  return graph.nodes
+    .filter((node) => node.id !== nodeId && !taken.has(node.id))
+    .map((node) => ({ id: node.id, name: node.data.name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }

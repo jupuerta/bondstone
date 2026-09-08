@@ -94,20 +94,25 @@ export function displayNodes(
   }));
 }
 
+export type EdgeLabel = (source: string, target: string) => string;
+
 export function displayEdges(
   architecture: ArchitectureDto,
   nodeStates: ReadonlyMap<string, ElementState>,
   connectionStates: ReadonlyMap<string, ElementState>,
   callLoad: readonly ConnectionLoad[] | null | undefined,
   selection: Selection | null,
+  label: EdgeLabel,
   marks: CanvasMarks = NO_MARKS,
 ): Edge<ConnectionData>[] {
   const flows = callFlows(callLoad);
+  const names = new Map(architecture.nodes.map((node) => [node.id, node.name]));
   return dtoConnectionsToFlow(architecture.connections).map((edge) => {
     const own = connectionStates.get(edge.id)?.state ?? null;
     const targetDown = nodeStates.get(edge.target)?.state === "Down";
     return {
       ...edge,
+      ariaLabel: label(names.get(edge.source) ?? "?", names.get(edge.target) ?? "?"),
       selected: selection?.kind === "edge" && selection.id === edge.id,
       className: marks.dimmed.has(edge.id) ? DIM : undefined,
       data: { ...edge.data!, flow: flows.get(edge.id) ?? null, state: own ?? (targetDown ? "Down" : null), highlighted: marks.highlighted.has(edge.id) },

@@ -18,7 +18,7 @@ import { Segmented } from "../ui/Segmented";
 import { SpinnerIcon } from "../ui/Icons";
 import { applyFix } from "./canvas/applyFix";
 import { Canvas, type CanvasEdits } from "./canvas/Canvas";
-import { addNode, connect, connectedEdges, entryPointOf, importGraph, isTypingTarget, moveNodes, patchEdge, patchNode, removeEdges, removeNodes, setNodeField } from "./canvas/graphEdits";
+import { addNode, connect, connectTargets, connectedEdges, entryPointOf, freeSpot, importGraph, isTypingTarget, moveNodes, patchEdge, patchNode, removeEdges, removeNodes, setNodeField } from "./canvas/graphEdits";
 import { EMPTY_HISTORY, record, redo, undo, type Graph, type GraphHistory } from "./canvas/graphHistory";
 import { lensTabs, lensView } from "./canvas/lens";
 import { flowToArchitecture, flowToUpdateRequest } from "./canvas/mapping";
@@ -96,6 +96,8 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
   const [dialOpen, setDialOpen] = useState(false);
   const [dialIndex, setDialIndex] = useState(0);
   const [conflict, setConflict] = useState(false);
+  const [added, setAdded] = useState<string | null>(null);
+  const [note, setNote] = useState("");
   const [exporting, setExporting] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [glossesOpen, setGlossesOpen] = useState(() => editorPrefs().glossesOpen);
@@ -415,6 +417,18 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
     [commit],
   );
 
+  const addByKeyboard = useCallback(
+    (type: NodeType) => {
+      const id = crypto.randomUUID();
+      commit((current) => addNode(current, type, freeSpot(current.nodes), id));
+      const placed = graphRef.current.nodes.find((node) => node.id === id);
+      if (!placed) return;
+      setAdded(id);
+      setNote(t("editor.a11y.added", { name: placed.data.name }));
+    },
+    [commit, t],
+  );
+
   const pickStarter = useCallback(
     (starter: StarterArchitecture) => {
       const { nodes, connections } = starterToDto(starter);
@@ -453,6 +467,12 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
                   connectedEdges: connectedEdges(graph, selected.node.id),
                   onRename: (next) => commit((current) => patchNode(current, selected.node.id, { name: next })),
                   onField: (key, value) => commit((current) => setNodeField(current, selected.node.id, key, value)),
+                  onConnect: (targetId) => {
+                    commit((current) => connect(current, selected.node.id, targetId));
+                    const reached = graphRef.current.nodes.find((node) => node.id === targetId);
+                    setNote(t("editor.a11y.connected", { source: selected.node.name, target: reached?.data.name ?? "" }));
+                  },
+                  targets: connectTargets(graph, selected.node.id),
                   onDelete: () => edits.onDelete(new Set([selected.node.id]), new Set()),
                 }
               : undefined
@@ -617,6 +637,7 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
       legend={{ mode: simulating ? "simulate" : "design", open: legendOpen, onClose: closeLegend }}
       narrow={narrow}
       edits={canEdit ? edits : undefined}
+      reveal={added}
       emptyMessage={simulating ? t("editor.canvas.nothingToBreak") : undefined}
       notice={simulate.dropped > 0 ? <DroppedFaults count={simulate.dropped} onDismiss={simulate.dismissDropped} /> : undefined}
       empty={
@@ -702,7 +723,7 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
           <aside className={`flex shrink-0 border-r border-panel-line bg-panel ${inspector || paletteCollapsed ? "w-auto" : "w-[240px]"}`}>
             {inspector ? (
               <>
-                <Palette collapsed onToggle={togglePalette} />
+                <Palette collapsed onToggle={togglePalette} onAdd={canEdit ? addByKeyboard : undefined} />
                 <div className="flex w-[216px] flex-col">
                   <div className="flex h-11 shrink-0 items-center justify-between border-b border-panel-line px-3">
                     <span className="eyebrow text-panel-ink-3">{sheet ? t("editor.help.sheet") : selected?.kind === "node" ? t("editor.inspector.component") : t("ui.inspector.call")}</span>
@@ -714,7 +735,12 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
                 </div>
               </>
             ) : (
-              <Palette collapsed={paletteCollapsed} onToggle={togglePalette} help={{ type: help.type, onEnter: help.enter, onFocus: help.focus, onLeave: help.leave, onClose: help.close }} />
+              <Palette
+                collapsed={paletteCollapsed}
+                onToggle={togglePalette}
+                help={{ type: help.type, onEnter: help.enter, onFocus: help.focus, onLeave: help.leave, onClose: help.close }}
+                onAdd={canEdit ? addByKeyboard : undefined}
+              />
             )}
           </aside>
         )}
@@ -731,6 +757,9 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
           <div className="min-h-0 flex-1 overflow-y-auto p-3">{simulating ? impact : motor}</div>
         </aside>
       </div>
+      <p role="status" aria-live="polite" className="sr-only">
+        {note}
+      </p>
       {overlays}
     </div>
   );

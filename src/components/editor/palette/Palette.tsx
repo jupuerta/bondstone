@@ -1,4 +1,4 @@
-import type { DragEvent, FocusEvent, MouseEvent } from "react";
+import type { DragEvent, FocusEvent, KeyboardEvent, MouseEvent } from "react";
 import { useT } from "../../../i18n";
 import type { NodeType } from "../../../types/architecture";
 import { HELP_CARD_ID } from "../help/ComponentCard";
@@ -17,11 +17,12 @@ interface PaletteProps {
   collapsed: boolean;
   onToggle: () => void;
   help?: PaletteHelp;
+  onAdd?: (type: NodeType) => void;
 }
 
 const TOTAL = NODE_GROUPS.reduce((total, group) => total + group.types.length, 0);
 
-export function Palette({ collapsed, onToggle, help }: PaletteProps) {
+export function Palette({ collapsed, onToggle, help, onAdd }: PaletteProps) {
   const t = useT();
 
   const startDrag = (event: DragEvent<HTMLElement>, type: NodeType) => {
@@ -30,10 +31,20 @@ export function Palette({ collapsed, onToggle, help }: PaletteProps) {
     help?.onClose();
   };
 
-  const handlers = (type: NodeType) =>
-    help
+  const handlers = (type: NodeType) => ({
+    tabIndex: 0,
+    ...(onAdd
       ? {
-          tabIndex: 0,
+          role: "button" as const,
+          onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            onAdd(type);
+          },
+        }
+      : {}),
+    ...(help
+      ? {
           "aria-describedby": help.type === type ? HELP_CARD_ID : undefined,
           onMouseEnter: (event: MouseEvent<HTMLElement>) => help.onEnter(type, event.currentTarget.getBoundingClientRect().top),
           onMouseLeave: help.onLeave,
@@ -42,7 +53,8 @@ export function Palette({ collapsed, onToggle, help }: PaletteProps) {
           },
           onBlur: help.onLeave,
         }
-      : { tabIndex: 0 };
+      : {}),
+  });
 
   if (collapsed) {
     return (
@@ -111,7 +123,8 @@ export function Palette({ collapsed, onToggle, help }: PaletteProps) {
         ))}
       </div>
       <p className="m-3 rounded-node border border-dashed border-panel-line px-2.5 py-2 text-meta leading-relaxed text-panel-ink-3">
-        {t("ui.palette.hintDrag")} {help && t("ui.palette.hintHelp")} <kbd className="rounded border border-panel-line bg-panel-3 px-1 font-mono text-[10px] text-panel-ink-2">{t("ui.key.delete")}</kbd> {t("ui.palette.hintDelete")}
+        {t("ui.palette.hintDrag")} {onAdd && t("ui.palette.hintKeyboard")} {help && t("ui.palette.hintHelp")}{" "}
+        <kbd className="rounded border border-panel-line bg-panel-3 px-1 font-mono text-[10px] text-panel-ink-2">{t("ui.key.delete")}</kbd> {t("ui.palette.hintDelete")}
       </p>
     </div>
   );

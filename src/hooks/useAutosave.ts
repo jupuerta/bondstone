@@ -33,7 +33,7 @@ export function useAutosave({ editToken, enabled, getSnapshot, onSaved, onConfli
   const dirtyRef = useRef(false);
   const conflictedRef = useRef(false);
 
-  const flush = useCallback(() => {
+  const flush = useCallback((options?: { keepalive?: boolean }) => {
     if (conflictedRef.current) return;
 
     if (inFlightRef.current) {
@@ -46,7 +46,7 @@ export function useAutosave({ editToken, enabled, getSnapshot, onSaved, onConfli
     setStatus("saving");
     setError(null);
 
-    updateArchitecture(editToken, getSnapshot())
+    updateArchitecture(editToken, getSnapshot(), options)
       .then((result) => {
         setStatus("saved");
         onSaved(result);
@@ -79,7 +79,7 @@ export function useAutosave({ editToken, enabled, getSnapshot, onSaved, onConfli
     dirtyRef.current = true;
     setStatus((current) => (current === "saving" ? current : "pending"));
     window.clearTimeout(timerRef.current);
-    timerRef.current = window.setTimeout(flush, AUTOSAVE_DEBOUNCE_MS);
+    timerRef.current = window.setTimeout(() => flush(), AUTOSAVE_DEBOUNCE_MS);
   }, [enabled, flush]);
 
   const retryNow = useCallback(() => {
@@ -89,11 +89,10 @@ export function useAutosave({ editToken, enabled, getSnapshot, onSaved, onConfli
 
   useEffect(() => {
     const flushIfDirty = () => {
-      if (!dirtyRef.current || conflictedRef.current || inFlightRef.current) return;
+      if (!dirtyRef.current || conflictedRef.current) return;
 
       window.clearTimeout(timerRef.current);
-      void updateArchitecture(editToken, getSnapshot(), { keepalive: true });
-      dirtyRef.current = false;
+      flush({ keepalive: true });
     };
 
     const onVisibilityChange = () => {
@@ -107,7 +106,7 @@ export function useAutosave({ editToken, enabled, getSnapshot, onSaved, onConfli
       window.removeEventListener("beforeunload", flushIfDirty);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [editToken, getSnapshot]);
+  }, [flush]);
 
   useEffect(() => () => window.clearTimeout(timerRef.current), []);
 

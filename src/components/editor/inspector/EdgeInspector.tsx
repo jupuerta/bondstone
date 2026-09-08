@@ -5,6 +5,7 @@ import { Button } from "../../ui/Button";
 import { Chip } from "../../ui/Chip";
 import { FieldGloss, FieldGlossToggle, type GlossControls } from "../help/FieldGloss";
 import { Term } from "../help/Term";
+import { RETRIES_BOUNDS, TIMEOUT_SECONDS_BOUNDS, boundedNumber } from "./bounds";
 import { CheckField, Field, SelectField, TextField } from "./Field";
 
 export interface EdgeEdits {
@@ -32,7 +33,6 @@ export function EdgeInspector({ connection, source, target, heading = true, narr
   const declared = (value: unknown) => (value === undefined || value === null ? t("ui.config.tristate.undeclared") : String(value));
   const flag = (value: boolean | undefined) => (value === undefined ? t("ui.config.tristate.undeclared") : value ? t("ui.config.tristate.yes") : t("ui.config.tristate.no"));
   const number = (value: number | null | undefined) => (typeof value === "number" ? value : "");
-  const parse = (raw: string) => (raw === "" ? null : Number(raw));
   const open = glosses?.open ?? false;
   const gloss = (id: "access" | "timeoutSeconds" | "retries" | "circuitBreaker" | "fallback") => (open ? <FieldGloss id={id} /> : null);
 
@@ -63,9 +63,22 @@ export function EdgeInspector({ connection, source, target, heading = true, narr
           {gloss("access")}
           <span className="eyebrow border-t border-panel-line pt-3 text-panel-ink-3">{t("ui.inspector.resilience")}</span>
           <div className={open ? "flex flex-col gap-3" : "grid grid-cols-2 gap-2.5"}>
-            <TextField label={timeoutLabel} kind="number" min={1} max={600} value={number(configuration.timeoutSeconds)} onChange={(raw) => edits.onResilience({ timeoutSeconds: parse(raw) })} />
+            <TextField
+              label={timeoutLabel}
+              kind="number"
+              min={TIMEOUT_SECONDS_BOUNDS.min}
+              max={TIMEOUT_SECONDS_BOUNDS.max}
+              value={number(configuration.timeoutSeconds)}
+              onChange={(raw) => edits.onResilience({ timeoutSeconds: boundedNumber(raw, TIMEOUT_SECONDS_BOUNDS) })}
+            />
             {gloss("timeoutSeconds")}
-            <TextField label={retriesLabel} kind="number" min={0} value={number(configuration.retries)} onChange={(raw) => edits.onResilience({ retries: parse(raw) })} />
+            <TextField
+              label={retriesLabel}
+              kind="number"
+              min={RETRIES_BOUNDS.min}
+              value={number(configuration.retries)}
+              onChange={(raw) => edits.onResilience({ retries: boundedNumber(raw, RETRIES_BOUNDS) })}
+            />
             {gloss("retries")}
           </div>
           <CheckField label={breakerLabel} hint={open ? undefined : t("ui.inspector.circuitBreaker.detail")} checked={configuration.circuitBreaker === true} onChange={(on) => edits.onResilience({ circuitBreaker: on })} />

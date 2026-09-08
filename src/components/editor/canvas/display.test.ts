@@ -15,6 +15,8 @@ const architecture: ArchitectureDto = {
   connections: [{ id: "call", sourceNodeId: "api", targetNodeId: "db", protocol: "Sql", synchronous: true }],
 };
 
+const label = (source: string, target: string) => `Llamada de ${source} a ${target}`;
+
 function state(type: ElementState["type"], id: string, health: ElementState["state"], extra: Partial<ElementState> = {}): ElementState {
   return { type, id, state: health, reason: { key: "x" }, mechanism: null, propagationStep: 0, ...extra };
 }
@@ -45,14 +47,20 @@ describe("displayNodes and displayEdges", () => {
 
   it("draws the call into a fallen component as fallen, even when the simulator only spoke about the node", () => {
     const nodeStates = statesOf([state("Node", "db", "Down")], "Node");
-    const [edge] = displayEdges(architecture, nodeStates, new Map(), null, null);
+    const [edge] = displayEdges(architecture, nodeStates, new Map(), null, null, label);
 
     expect(edge.data?.state).toBe("Down");
   });
 
+  it("names the call by its two components, so a screen reader does not read two ids", () => {
+    const [edge] = displayEdges(architecture, new Map(), new Map(), null, null, label);
+
+    expect(edge.ariaLabel).toBe("Llamada de Api a Db");
+  });
+
   it("carries the backend's rps onto the call, and leaves it empty when nobody declared traffic", () => {
-    const [loaded] = displayEdges(architecture, new Map(), new Map(), [{ connectionId: "call", rps: 120 }, { connectionId: "other", rps: 400 }], null);
-    const [silent] = displayEdges(architecture, new Map(), new Map(), null, null);
+    const [loaded] = displayEdges(architecture, new Map(), new Map(), [{ connectionId: "call", rps: 120 }, { connectionId: "other", rps: 400 }], null, label);
+    const [silent] = displayEdges(architecture, new Map(), new Map(), null, null, label);
 
     expect(loaded.data?.flow?.rps).toBe(120);
     expect(silent.data?.flow).toBeNull();

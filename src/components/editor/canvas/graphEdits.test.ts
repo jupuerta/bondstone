@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Edge, Node } from "@xyflow/react";
 import type { NodeType } from "../../../types/architecture";
-import { addNode, connect, connectedEdges, entryPointOf, forgetDeclaredTraffic, importGraph, moveNodes, nextNodeName, patchEdge, removeEdges, removeNodes, setNodeField } from "./graphEdits";
+import { addNode, connect, connectTargets, connectedEdges, entryPointOf, forgetDeclaredTraffic, freeSpot, importGraph, moveNodes, nextNodeName, patchEdge, removeEdges, removeNodes, setNodeField } from "./graphEdits";
 import type { Graph } from "./graphHistory";
 import type { ArchNodeData, ConnectionData } from "./types";
 
@@ -117,5 +117,39 @@ describe("what comes from a starter or a sandbox", () => {
     expect(imported.edges[0]).toMatchObject({ source: "lb", target: "api", data: { synchronous: true, configuration: { timeoutSeconds: 3 } } });
     expect(entryPointOf(imported, "lb")).toBe(true);
     expect(entryPointOf(imported, "api")).toBe(false);
+  });
+});
+
+describe("where a component added with the keyboard lands", () => {
+  const at = (id: string, x: number, y: number): Node<ArchNodeData> => ({ ...box(id, "Api"), position: { x, y } });
+
+  it("starts the drawing at the origin", () => {
+    expect(freeSpot([])).toEqual({ x: 0, y: 0 });
+  });
+
+  it("goes to the right of everything, on the topmost row", () => {
+    expect(freeSpot([at("a", 0, 0), at("b", 240, 120), at("c", 120, -60)])).toEqual({ x: 480, y: -60 });
+  });
+
+  it("never lands on a component that is already there", () => {
+    const nodes = [at("a", 0, 0), at("b", 240, 0)];
+    const spot = freeSpot(nodes);
+    expect(nodes.every((node) => spot.x >= node.position.x + 156)).toBe(true);
+  });
+});
+
+describe("who a selected component can be connected to", () => {
+  const three = graph([box("api", "Api"), box("db", "Database"), box("cache", "Cache")], [call("api", "db")]);
+
+  it("leaves out itself and whoever it already calls, and sorts by name", () => {
+    expect(connectTargets(three, "api")).toEqual([{ id: "cache", name: "cache" }]);
+  });
+
+  it("offers whoever calls it, because the call would go the other way", () => {
+    expect(connectTargets(three, "db").map((target) => target.id)).toEqual(["api", "cache"]);
+  });
+
+  it("has nobody to offer when the component is alone", () => {
+    expect(connectTargets(graph([box("api", "Api")]), "api")).toEqual([]);
   });
 });

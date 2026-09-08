@@ -17,7 +17,7 @@ import { useT } from "../../../i18n";
 import type { ArchitectureDto, ConnectionLoad, ElementState, NodeType, PositionDto } from "../../../types/architecture";
 import { tintOf } from "../../engine/tints";
 import { DND_NODE_TYPE_FORMAT } from "../palette/nodeMeta";
-import { displayEdges, displayNodes, statesOf } from "./display";
+import { displayEdges, displayNodes, statesOf, type EdgeLabel } from "./display";
 import { EditorEdge } from "./Edge";
 import { LegendDrawer } from "./LegendDrawer";
 import type { LegendMode } from "./legend";
@@ -56,6 +56,7 @@ interface CanvasProps {
   legend?: CanvasLegend;
   narrow: boolean;
   edits?: CanvasEdits;
+  reveal?: string | null;
   empty?: ReactNode;
   emptyMessage?: string;
   notice?: ReactNode;
@@ -69,14 +70,15 @@ export function Canvas(props: CanvasProps) {
   );
 }
 
-function CanvasInner({ architecture, states, faultIds, callLoad, selection, onSelect, marks = NO_MARKS, strip, legend, narrow, edits, empty, emptyMessage, notice }: CanvasProps) {
+function CanvasInner({ architecture, states, faultIds, callLoad, selection, onSelect, marks = NO_MARKS, strip, legend, narrow, edits, reveal, empty, emptyMessage, notice }: CanvasProps) {
   const t = useT();
   const simulated = states !== null;
   const editable = edits !== undefined;
   const nodeStates = useMemo(() => statesOf(states, "Node"), [states]);
   const connectionStates = useMemo(() => statesOf(states, "Connection"), [states]);
+  const edgeLabel = useCallback<EdgeLabel>((source, target) => t("editor.a11y.edgeLabel", { source, target }), [t]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<ArchNodeData>>(displayNodes(architecture, nodeStates, faultIds, simulated, selection, marks));
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<ConnectionData>>(displayEdges(architecture, nodeStates, connectionStates, callLoad, selection, marks));
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<ConnectionData>>(displayEdges(architecture, nodeStates, connectionStates, callLoad, selection, edgeLabel, marks));
   const bands = useMemo(
     () => zoneBands(nodes.map((node) => ({ id: node.id, type: node.type as NodeType, position: node.position, width: node.measured?.width, height: node.measured?.height, configuration: node.data.configuration }))),
     [nodes],
@@ -92,9 +94,9 @@ function CanvasInner({ architecture, states, faultIds, callLoad, selection, onSe
   useEffect(() => {
     setEdges((current) => {
       const kept = new Set(current.filter((edge) => edge.selected).map((edge) => edge.id));
-      return displayEdges(architecture, nodeStates, connectionStates, callLoad, null, marks).map((edge) => ({ ...edge, selected: kept.has(edge.id) }));
+      return displayEdges(architecture, nodeStates, connectionStates, callLoad, null, edgeLabel, marks).map((edge) => ({ ...edge, selected: kept.has(edge.id) }));
     });
-  }, [architecture, nodeStates, connectionStates, callLoad, marks, setEdges]);
+  }, [architecture, nodeStates, connectionStates, callLoad, edgeLabel, marks, setEdges]);
 
   useEffect(() => {
     if (selection !== null) return;
@@ -154,6 +156,12 @@ function CanvasInner({ architecture, states, faultIds, callLoad, selection, onSe
     }
     wasDrawn.current = drawn;
   }, [drawn, fitView, padding]);
+
+  useEffect(() => {
+    if (!reveal) return;
+    const frameId = requestAnimationFrame(() => void fitView({ nodes: [{ id: reveal }], maxZoom: getZoom(), padding: 0.6, duration: still() ? 0 : 200 }));
+    return () => cancelAnimationFrame(frameId);
+  }, [reveal, fitView, getZoom]);
 
   const onDragOver = useCallback(
     (event: DragEvent) => {

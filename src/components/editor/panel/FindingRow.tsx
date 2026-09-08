@@ -78,7 +78,18 @@ export function FindingRow({ finding, shareToken, narrow, first, onPreview, onPi
         )}
       </div>
 
-      <p className="mt-[5px] text-[13px] leading-[1.4] text-panel-ink">{t(finding.message)}</p>
+      <button
+        type="button"
+        aria-pressed={pinned}
+        title={t("ui.analysis.markOnCanvas")}
+        onClick={(event) => {
+          event.stopPropagation();
+          onPin(finding.findingId, finding.elements);
+        }}
+        className="mt-[5px] block w-full cursor-pointer text-left text-[13px] leading-[1.4] text-panel-ink"
+      >
+        {t(finding.message)}
+      </button>
 
       <button
         type="button"

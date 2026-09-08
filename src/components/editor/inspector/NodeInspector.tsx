@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { useT } from "../../../i18n";
 import { ZONES, isYoursToPlace, nodeZone, type Zone } from "../../../domain/zone";
 import type { NodeDto } from "../../../types/architecture";
@@ -7,15 +7,18 @@ import { FieldGloss, FieldGlossToggle, type GlossControls } from "../help/FieldG
 import { fieldHelpOf } from "../help/fieldHelp";
 import { Term } from "../help/Term";
 import { TypeIcon } from "../palette/TypeIcons";
+import { boundedNumber } from "./bounds";
 import { CONFIG_SCHEMAS, type ConfigField } from "./configSchemas";
-import { CheckField, ChoiceField, Field, TextField } from "./Field";
+import { CheckField, ChoiceField, Field, SelectField, TextField } from "./Field";
 
 const NAME_MAX_LENGTH = 100;
 
 export interface NodeEdits {
   onRename: (name: string) => void;
   onField: (key: string, value: string | number | boolean | undefined) => void;
+  onConnect: (targetId: string) => void;
   onDelete: () => void;
+  targets: { id: string; name: string }[];
   connectedEdges: number;
 }
 
@@ -31,6 +34,8 @@ interface NodeInspectorProps {
 
 export function NodeInspector({ node, isEntryPoint, heading = true, narrow = false, edits, glosses, onOpenSheet }: NodeInspectorProps) {
   const t = useT();
+  const [picked, setPicked] = useState({ nodeId: node.id, targetId: "" });
+  const target = picked.nodeId === node.id ? picked.targetId : "";
   const configuration = node.configuration ?? {};
   const fields = CONFIG_SCHEMAS[node.type].filter((field) => isEntryPoint || !field.entryPointOnly);
   const zone = nodeZone(node.type, configuration);
@@ -104,6 +109,35 @@ export function NodeInspector({ node, isEntryPoint, heading = true, narrow = fal
       {fields.length === 0 && <p className="text-meta text-panel-ink-3">{t("ui.inspector.noFields")}</p>}
       {glosses && fields.length > 0 && <FieldGlossToggle glosses={glosses} narrow={narrow} />}
       {edits && (
+        <div className="flex flex-col gap-2 border-t border-panel-line pt-3">
+          {edits.targets.length === 0 ? (
+            <p className="text-meta text-panel-ink-3">{t("ui.inspector.connectTo.none")}</p>
+          ) : (
+            <>
+              <SelectField
+                label={t("ui.inspector.connectTo")}
+                hint={t("ui.inspector.connectTo.hint")}
+                value={target}
+                options={[{ value: "", label: t("ui.inspector.connectTo.pick") }, ...edits.targets.map((candidate) => ({ value: candidate.id, label: candidate.name }))]}
+                onChange={(value) => setPicked({ nodeId: node.id, targetId: value })}
+              />
+              <Button
+                variant="panel"
+                size="sm"
+                disabled={target === ""}
+                onClick={() => {
+                  edits.onConnect(target);
+                  setPicked({ nodeId: node.id, targetId: "" });
+                }}
+                className="disabled:border-panel-line disabled:bg-transparent disabled:text-panel-ink-3"
+              >
+                {t("ui.inspector.connect")}
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+      {edits && (
         <Button variant="panel" size="sm" onClick={edits.onDelete} className="mt-2 flex-col gap-0 border-hot-panel/60 py-1.5 text-hot-panel hover:border-hot-panel hover:bg-hot-panel/10">
           {t("ui.inspector.deleteNode")}
           {edits.connectedEdges > 0 && <span className="text-meta font-normal text-panel-ink-3">{t("ui.inspector.deleteNode.edges", { count: edits.connectedEdges })}</span>}
@@ -153,8 +187,8 @@ function EditableField({ field, label, value, onChange }: EditableFieldProps) {
       onChange={(raw) => {
         if (raw === "") return onChange(undefined);
         if (field.kind !== "number") return onChange(raw);
-        const bounded = Math.min(Math.max(Number(raw), field.min ?? 0), field.max ?? Infinity);
-        if (!Number.isNaN(bounded)) onChange(bounded);
+        const bounded = boundedNumber(raw, field);
+        if (bounded !== null) onChange(bounded);
       }}
     />
   );

@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from "react";
+import { useState } from "react";
 import type { EvaluationStatus } from "../../../hooks/useChallenge";
 import { useT } from "../../../i18n";
 import type { ChallengeDetail, ChallengeRequirementInfo, ChallengeRequirementResult, ChallengeResult, FindingElement, LocalizedText } from "../../../types/architecture";
@@ -202,33 +202,39 @@ function Requirement({ id, info, outcome, actions, narrow, optional = false }: R
   const elements = outcome?.elements ?? [];
   const interactive = outcome !== null && !outcome.met && elements.length > 0;
   const pinned = interactive && actions.pinnedId === id;
-  const pin = () => actions.onPin(id, elements);
-  const onKeyDown = (event: KeyboardEvent<HTMLLIElement>) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    event.preventDefault();
-    pin();
-  };
+  const inner = "flex w-full flex-col gap-1 px-1 py-0.5 text-left";
 
-  return (
-    <li
-      tabIndex={interactive ? 0 : undefined}
-      onMouseEnter={interactive ? () => actions.onPreview(elements) : undefined}
-      onMouseLeave={interactive ? () => actions.onPreview(null) : undefined}
-      onFocus={interactive ? () => actions.onPreview(elements) : undefined}
-      onBlur={interactive ? () => actions.onPreview(null) : undefined}
-      onClick={interactive ? pin : undefined}
-      onKeyDown={interactive ? onKeyDown : undefined}
-      className={`-mx-1 flex flex-col gap-1 rounded-node px-1 py-0.5 ${interactive ? "cursor-pointer" : ""} ${interactive && narrow ? "min-h-11 justify-center" : ""}`}
-      style={pinned ? { background: PINNED_TINT, boxShadow: `inset 0 0 0 1px ${PINNED_LINE}` } : undefined}
-    >
-      <div className="flex items-start gap-2">
+  const body = (
+    <>
+      <span className="flex items-start gap-2">
         <Mark outcome={outcome} optional={optional} />
         <span className={`min-w-0 flex-1 text-[12px] leading-[1.45] ${outcome?.met ? "text-panel-ink-2" : optional && outcome === null ? "text-panel-ink-3" : "text-panel-ink"}`}>{t(info.label)}</span>
         {outcome && (
           <span className={`shrink-0 font-mono text-[11px] leading-[1.45] tracking-[0.06em] uppercase ${outcome.met ? "text-ok-panel" : "text-panel-ink-3"}`}>{t(outcome.met ? "editor.challenge.met" : "editor.challenge.unmet")}</span>
         )}
-      </div>
-      {outcome && !outcome.met && outcome.detail && <p className="ml-[22px] text-[11px] leading-[1.45] text-panel-ink-2">{t(outcome.detail)}</p>}
+      </span>
+      {outcome && !outcome.met && outcome.detail && <span className="ml-[22px] block text-[11px] leading-[1.45] text-panel-ink-2">{t(outcome.detail)}</span>}
+    </>
+  );
+
+  return (
+    <li className="-mx-1 rounded-node" style={pinned ? { background: PINNED_TINT, boxShadow: `inset 0 0 0 1px ${PINNED_LINE}` } : undefined}>
+      {interactive ? (
+        <button
+          type="button"
+          aria-pressed={pinned}
+          onMouseEnter={() => actions.onPreview(elements)}
+          onMouseLeave={() => actions.onPreview(null)}
+          onFocus={() => actions.onPreview(elements)}
+          onBlur={() => actions.onPreview(null)}
+          onClick={() => actions.onPin(id, elements)}
+          className={`${inner} cursor-pointer ${narrow ? "min-h-11 justify-center" : ""}`}
+        >
+          {body}
+        </button>
+      ) : (
+        <div className={inner}>{body}</div>
+      )}
     </li>
   );
 }
