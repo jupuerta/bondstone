@@ -29,7 +29,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddCors(options =>
 {
     // `Retry-After` is exposed because the limiter bothers to set it: without this the browser
-    // hides it from the app, and the only cross-origin caller — `npm run dev` on 5173 — can say
+    // hides it from the app, and the only cross-origin caller — `npm run dev` on 5174 — can say
     // "too many requests" but not for how long. Same-origin (the deployed nginx) never needed it.
     options.AddPolicy(FrontendCorsPolicy, policy =>
         policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod()
@@ -47,7 +47,7 @@ builder.Services.AddProblemDetails();
 // shares that proxy's bucket — the safe direction to be wrong in.
 //
 // docker-compose.yml declares the frontend nginx here (`ForwardedHeaders__KnownProxies__0`,
-// pinned to 172.28.100.10); `KnownNetworks` takes CIDR blocks for anything less pinnable.
+// pinned to 172.28.100.11); `KnownNetworks` takes CIDR blocks for anything less pinnable.
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
