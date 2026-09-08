@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getArchitectureHistory } from "../../api/architectureClient";
 import { editorPrefs, rememberEditorPrefs, type EditorTheme } from "../../domain/editorPrefs";
 import { PanelHandle } from "./shell/PanelHandle";
-import { rememberWork, scoreWork, touchWork } from "../../domain/savedWork";
+import { challengeOf, rememberWork, scoreWork, touchWork } from "../../domain/savedWork";
 import { startingPointOf } from "../../domain/startingPoint";
 import { useAutosave } from "../../hooks/useAutosave";
 import { useChallenge } from "../../hooks/useChallenge";
@@ -104,7 +104,7 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
   const help = useComponentHelp();
   const canvasBox = useRef<HTMLDivElement>(null);
   const [savedRevision, setSavedRevision] = useState(0);
-  const challengeSlug = useMemo(() => new URLSearchParams(search).get("challenge"), [search]);
+  const challengeSlug = useMemo(() => challengeOf(search), [search]);
   const challenge = useChallenge({ slug: challengeSlug, shareToken: architecture.shareToken, own: true });
   const [briefCollapsed, setBriefCollapsed] = useState(() => narrow || editorPrefs().briefCollapsed);
   const [startingPoint] = useState(() => startingPointOf(challengeSlug));

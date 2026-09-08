@@ -14,7 +14,7 @@ import { Skeleton } from "../components/ui/Skeleton";
 import { bestGains, type AreaGain } from "../domain/areasImproved";
 import { bandLabelKey, bandLeadKey, groupByBand } from "../domain/challengeBands";
 import { passedChallenges, startedChallenges } from "../domain/progress";
-import { rememberWork, savedWork } from "../domain/savedWork";
+import { editorPath, rememberWork, savedWork } from "../domain/savedWork";
 import { useT } from "../i18n";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { AREA_ORDER, type Area, type ChallengeSummary } from "../types/architecture";
@@ -235,7 +235,7 @@ export function ChallengesPage() {
                     <span className="text-[15px] font-semibold">{entry.challengeSlug ? t(`challenge.${entry.challengeSlug}.title`) : entry.name}</span>
                     {entry.score !== null && <span className="font-mono text-meta text-ink-3">{entry.score} / 100</span>}
                   </span>
-                  <Link to={`/e/${encodeURIComponent(entry.editToken)}`} className="inline-flex items-center gap-1.5 text-small font-semibold text-accent no-underline hover:text-ink">
+                  <Link to={editorPath(entry)} className="inline-flex items-center gap-1.5 text-small font-semibold text-accent no-underline hover:text-ink">
                     {t("ui.home.workContinue")}
                     <ArrowIcon size={16} />
                   </Link>

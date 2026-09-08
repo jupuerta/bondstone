@@ -7,7 +7,7 @@ import { Button } from "../components/ui/Button";
 import { Callout, CalloutRow } from "../components/ui/Callout";
 import { ArrowIcon, LinkIcon, PersonIcon } from "../components/ui/Icons";
 import { Segmented } from "../components/ui/Segmented";
-import { savedWork, type SavedWork } from "../domain/savedWork";
+import { editorPath, savedWork, type SavedWork } from "../domain/savedWork";
 import { useT } from "../i18n";
 import { usePageTitle } from "../hooks/usePageTitle";
 
@@ -178,7 +178,7 @@ function Continue({ work }: { work: SavedWork[] }) {
         <strong className="text-[15px]">{t("web.home.continue.title")}</strong>
         <div className="flex flex-1 flex-wrap gap-2">
           {work.map((entry) => (
-            <Link key={entry.editToken} to={`/e/${encodeURIComponent(entry.editToken)}`} className="inline-flex min-h-9 items-center rounded-pill border border-line px-3 text-code text-ink no-underline hover:border-ink">
+            <Link key={entry.editToken} to={editorPath(entry)} className="inline-flex min-h-9 items-center rounded-pill border border-line px-3 text-code text-ink no-underline hover:border-ink">
               {entry.challengeSlug ? t("ui.home.workChallenge", { title: t(`challenge.${entry.challengeSlug}.title`) }) : entry.name}
             </Link>
           ))}

@@ -1,5 +1,7 @@
 const KEY = "archforge.architectures";
 
+const CHALLENGE_PARAM = "challenge";
+
 const LIMIT = 30;
 
 export interface SavedWork {
@@ -64,6 +66,15 @@ export function forgetWork(editToken: string): void {
 
 export function attemptsOf(slug: string): SavedWork[] {
   return read().filter((entry) => entry.challengeSlug === slug);
+}
+
+export function editorPath(entry: Pick<SavedWork, "editToken" | "challengeSlug">): string {
+  const path = `/e/${encodeURIComponent(entry.editToken)}`;
+  return entry.challengeSlug ? `${path}?${CHALLENGE_PARAM}=${encodeURIComponent(entry.challengeSlug)}` : path;
+}
+
+export function challengeOf(search: string): string | null {
+  return new URLSearchParams(search).get(CHALLENGE_PARAM) || null;
 }
 
 function read(): SavedWork[] {

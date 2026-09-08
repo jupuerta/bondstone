@@ -10,7 +10,7 @@ import { CheckCircleIcon } from "../components/ui/Icons";
 import { InlineError } from "../components/ui/InlineError";
 import { Skeleton } from "../components/ui/Skeleton";
 import { bandLabelKey, positionInBand } from "../domain/challengeBands";
-import { attemptsOf, rememberWork, type SavedWork } from "../domain/savedWork";
+import { attemptsOf, editorPath, rememberWork, type SavedWork } from "../domain/savedWork";
 import { rememberStartingPoint } from "../domain/startingPoint";
 import { useT } from "../i18n";
 import { usePageTitle } from "../hooks/usePageTitle";
@@ -55,7 +55,7 @@ export function ChallengePage() {
       .then((architecture) => {
         rememberWork({ editToken: architecture.editToken, shareToken: architecture.shareToken, name: architecture.name, challengeSlug: slug });
         rememberStartingPoint(slug, architecture);
-        navigate(`/e/${encodeURIComponent(architecture.editToken)}?challenge=${encodeURIComponent(slug)}`);
+        navigate(editorPath({ editToken: architecture.editToken, challengeSlug: slug }));
       })
       .catch((err: unknown) => {
         setStarting(false);
@@ -130,7 +130,7 @@ export function ChallengePage() {
               {latest && (
                 <Callout label={t("web.challenge.resume.title")} compact>
                   <p className="text-small text-ink-2">{t("ui.challenge.resumeLead")}</p>
-                  <Button variant="ghost" size="md" to={`/e/${encodeURIComponent(latest.editToken)}`}>
+                  <Button variant="ghost" size="md" to={editorPath(latest)}>
                     {t("ui.challenge.resume")}
                   </Button>
                   <button type="button" className="link self-start text-small" onClick={start}>

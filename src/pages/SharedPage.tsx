@@ -5,7 +5,7 @@ import { ReadOnlyEditor } from "../components/editor/ReadOnlyEditor";
 import { Button } from "../components/ui/Button";
 import { CloseIcon, LogoMark } from "../components/ui/Icons";
 import { InlineError } from "../components/ui/InlineError";
-import { rememberWork } from "../domain/savedWork";
+import { challengeOf, rememberWork } from "../domain/savedWork";
 import { useT } from "../i18n";
 
 const DISMISSED_KEY = "archforge.web.stripDismissed";
@@ -41,7 +41,7 @@ export function SharedPage() {
     setCopyError(null);
     forkArchitecture(token)
       .then((fork) => {
-        rememberWork({ editToken: fork.editToken, shareToken: fork.shareToken, name: fork.name, challengeSlug: null });
+        rememberWork({ editToken: fork.editToken, shareToken: fork.shareToken, name: fork.name, challengeSlug: challengeOf(search) });
         navigate(`/e/${encodeURIComponent(fork.editToken)}${search}`);
       })
       .catch((err: unknown) => {

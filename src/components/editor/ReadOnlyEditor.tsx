@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { editorPrefs, rememberEditorPrefs, type EditorTheme } from "../../domain/editorPrefs";
+import { challengeOf } from "../../domain/savedWork";
 import { PanelHandle } from "./shell/PanelHandle";
 import { useChallenge } from "../../hooks/useChallenge";
 import { useLoadCurve } from "../../hooks/useLoadCurve";
@@ -68,7 +69,7 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
   const [selection, setSelection] = useState<Selection | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const challengeSlug = useMemo(() => new URLSearchParams(search).get("challenge"), [search]);
+  const challengeSlug = useMemo(() => challengeOf(search), [search]);
   const challenge = useChallenge({ slug: challengeSlug, shareToken, own: false });
   const [briefCollapsed, setBriefCollapsed] = useState(() => narrow || editorPrefs().briefCollapsed);
   const [solutionOpen, setSolutionOpen] = useState(false);
