@@ -9,9 +9,17 @@ RUN npm ci
 
 COPY . .
 
-# Vite incrusta las variables en tiempo de build, no las lee en runtime.
+# Vite incrusta las variables en tiempo de build, no las lee en runtime. El `.env` del repo no
+# entra en el contexto (.dockerignore), así que todo lo que la web necesita llega por aquí; sin
+# los tokens de la demostración la portada simplemente no la enseña.
 ARG VITE_API_URL=/api
 ENV VITE_API_URL=$VITE_API_URL
+ARG VITE_DEMO_BEFORE_TOKEN=
+ENV VITE_DEMO_BEFORE_TOKEN=$VITE_DEMO_BEFORE_TOKEN
+ARG VITE_DEMO_AFTER_TOKEN=
+ENV VITE_DEMO_AFTER_TOKEN=$VITE_DEMO_AFTER_TOKEN
+ARG VITE_DEMO_FAULT_NODE=Postgres
+ENV VITE_DEMO_FAULT_NODE=$VITE_DEMO_FAULT_NODE
 RUN npm run build
 
 FROM nginx:1.27-alpine AS runtime

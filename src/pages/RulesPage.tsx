@@ -47,7 +47,9 @@ export function RulesPage() {
   const allRules = readRules(analysis);
   const rules = filter === null ? allRules : allRules.filter((rule) => rule.state === filter);
   const overArchitecture = token !== undefined;
-  const cols = overArchitecture ? "md:grid-cols-[220px_1fr_150px_110px_190px]" : "md:grid-cols-[220px_1fr_160px_120px]";
+  const cols = overArchitecture
+    ? "lg:grid-cols-[220px_minmax(0,1fr)_150px_110px_190px]"
+    : "lg:grid-cols-[220px_minmax(0,1fr)_160px_120px]";
 
   return (
     <PageShell>
@@ -67,7 +69,7 @@ export function RulesPage() {
           </p>
         )}
 
-        <div className={`eyebrow hidden gap-5 py-2.5 md:grid ${cols}`}>
+        <div className={`eyebrow hidden gap-5 py-2.5 lg:grid ${cols}`}>
           <span>{t("web.reference.rules.col.rule")}</span>
           <span>{t("web.reference.rules.col.detects")}</span>
           <span>{t("web.reference.rules.col.area")}</span>
@@ -76,14 +78,14 @@ export function RulesPage() {
         </div>
         <ul className="hairline-rows flex flex-col border-b border-line">
           {rules.map((rule) => (
-            <li key={rule.code} id={rule.code} className={`flex scroll-mt-6 flex-col gap-1.5 py-4 md:grid md:items-start md:gap-5 ${cols}`}>
+            <li key={rule.code} id={rule.code} className={`flex scroll-mt-6 flex-col gap-1.5 py-4 lg:grid lg:items-start lg:gap-5 ${cols}`}>
               <span className="font-mono text-code font-semibold">{rule.code}</span>
               <span className="text-small text-ink-2">{t(`ui.rules.${rule.code}.detects`)}</span>
-              <span className="font-mono text-meta text-ink-3 md:font-sans md:text-small md:text-ink">
+              <span className="font-mono text-meta text-ink-3 lg:font-sans lg:text-small lg:text-ink">
                 {t(`ui.area.${rule.area}`)}
-                {rule.fix && <span className="md:hidden"> · {t("ui.rules.hasFix")}</span>}
+                {rule.fix && <span className="lg:hidden"> · {t("ui.rules.hasFix")}</span>}
               </span>
-              <span className="hidden text-code md:block">
+              <span className="hidden text-code lg:block">
                 {rule.fix ? (
                   <span className="inline-flex items-center gap-1.5 text-accent">
                     <span aria-hidden className="size-2 rounded-full bg-accent" />

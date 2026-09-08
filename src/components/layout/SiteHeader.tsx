@@ -27,7 +27,7 @@ export function SiteHeader() {
             <LogoMark size={22} />
             ArchForge
           </Link>
-          <nav aria-label={t("web.nav.menu")} className="hidden items-center gap-[26px] md:flex">
+          <nav aria-label={t("web.nav.menu")} className="hidden items-center gap-[26px] lg:flex">
             {ITEMS.map((item) => (
               <NavLink
                 key={item.key}
@@ -47,7 +47,7 @@ export function SiteHeader() {
         </div>
 
         <div className="flex items-center gap-2 md:gap-[18px]">
-          <span className="hidden md:inline-flex">
+          <span className="hidden lg:inline-flex">
             <LanguageToggle />
           </span>
           <Button to={FIRST_CHALLENGE} size="sm" className="px-3 text-[13px] md:px-4 md:text-[14px]">
@@ -59,7 +59,7 @@ export function SiteHeader() {
             aria-label={t("web.a11y.openMenu")}
             aria-expanded={open}
             aria-controls="site-menu"
-            className="inline-flex size-11 items-center justify-center rounded-pill text-ink md:hidden"
+            className="inline-flex size-11 items-center justify-center rounded-pill text-ink lg:hidden"
           >
             <MenuIcon size={24} />
           </button>
@@ -90,7 +90,7 @@ function MobileMenu({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   return (
-    <div id="site-menu" role="dialog" aria-modal="true" aria-label={t("web.nav.menu")} className="fixed inset-0 z-50 flex flex-col bg-bg md:hidden">
+    <div id="site-menu" role="dialog" aria-modal="true" aria-label={t("web.nav.menu")} className="fixed inset-0 z-50 flex flex-col bg-bg lg:hidden">
       <div className="flex h-[60px] items-center justify-between border-b border-line px-4">
         <span className="flex items-center gap-2 font-display text-[16px] font-bold">
           <LogoMark size={20} />

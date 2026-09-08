@@ -11,9 +11,9 @@ import { editorPath, savedWork, type SavedWork } from "../domain/savedWork";
 import { useT } from "../i18n";
 import { usePageTitle } from "../hooks/usePageTitle";
 
-const DEMO_BEFORE = import.meta.env.VITE_DEMO_BEFORE_TOKEN ?? null;
-const DEMO_AFTER = import.meta.env.VITE_DEMO_AFTER_TOKEN ?? null;
-const DEMO_FAULT_NODE = import.meta.env.VITE_DEMO_FAULT_NODE ?? "Postgres";
+const DEMO_BEFORE = import.meta.env.VITE_DEMO_BEFORE_TOKEN || null;
+const DEMO_AFTER = import.meta.env.VITE_DEMO_AFTER_TOKEN || null;
+const DEMO_FAULT_NODE = import.meta.env.VITE_DEMO_FAULT_NODE || "Postgres";
 
 const FIGURES: Array<[string, string]> = [
   ["16", "web.home.figures.types"],

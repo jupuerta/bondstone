@@ -3,7 +3,7 @@ import { Button } from "../ui/Button";
 import { Callout } from "../ui/Callout";
 import { FIRST_CHALLENGE } from "./SiteHeader";
 
-const DEMO = import.meta.env.VITE_DEMO_BEFORE_TOKEN ?? null;
+const DEMO = import.meta.env.VITE_DEMO_BEFORE_TOKEN || null;
 
 /** El bloque final de las páginas de referencia: la vuelta al producto. */
 export function ReferenceBack() {
