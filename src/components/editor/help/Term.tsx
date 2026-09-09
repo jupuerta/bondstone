@@ -19,7 +19,7 @@ export function Term({ id, children }: TermProps) {
   const t = useT();
   const word = useRef<HTMLSpanElement>(null);
   const timer = useRef<number | undefined>(undefined);
-  const [opened, setOpened] = useState<{ anchor: DOMRect; panel: DOMRect | undefined } | null>(null);
+  const [opened, setOpened] = useState<{ anchor: DOMRect; panel: DOMRect | undefined; theme: string | undefined } | null>(null);
 
   const clear = useCallback(() => window.clearTimeout(timer.current), []);
   useEffect(() => clear, [clear]);
@@ -40,7 +40,7 @@ export function Term({ id, children }: TermProps) {
       clear();
       timer.current = window.setTimeout(() => {
         const here = word.current;
-        setOpened(next === "open" && here !== null ? { anchor: here.getBoundingClientRect(), panel: panelOf(here) } : null);
+        setOpened(next === "open" && here !== null ? { anchor: here.getBoundingClientRect(), panel: panelOf(here), theme: themeOf(here) } : null);
       }, ms);
     },
     [clear],
@@ -62,7 +62,7 @@ export function Term({ id, children }: TermProps) {
       >
         {children ?? t(termLabel(id))}
       </span>
-      {opened !== null && createPortal(<TermCard id={id} cardId={cardId} anchor={opened.anchor} panel={opened.panel} onMouseEnter={clear} onMouseLeave={() => after(CLOSE_MS, "close")} />, document.body)}
+      {opened !== null && createPortal(<TermCard id={id} cardId={cardId} anchor={opened.anchor} panel={opened.panel} theme={opened.theme} onMouseEnter={clear} onMouseLeave={() => after(CLOSE_MS, "close")} />, document.body)}
     </>
   );
 }
@@ -72,11 +72,12 @@ interface TermCardProps {
   cardId: string;
   anchor: DOMRect;
   panel: DOMRect | undefined;
+  theme: string | undefined;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
 }
 
-function TermCard({ id, cardId, anchor, panel, onMouseEnter, onMouseLeave }: TermCardProps) {
+function TermCard({ id, cardId, anchor, panel, theme, onMouseEnter, onMouseLeave }: TermCardProps) {
   const t = useT();
   const { pattern, mechanism } = GLOSSARY[id];
   const card = useRef<HTMLDivElement>(null);
@@ -95,6 +96,7 @@ function TermCard({ id, cardId, anchor, panel, onMouseEnter, onMouseLeave }: Ter
       id={cardId}
       anchored="fixed"
       style={style}
+      theme={theme}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       header={
@@ -117,4 +119,8 @@ function TermCard({ id, cardId, anchor, panel, onMouseEnter, onMouseLeave }: Ter
 
 function panelOf(word: HTMLElement): DOMRect | undefined {
   return word.closest("[data-help-panel]")?.getBoundingClientRect();
+}
+
+function themeOf(word: HTMLElement): string | undefined {
+  return word.closest("[data-theme]")?.getAttribute("data-theme") ?? undefined;
 }
