@@ -75,7 +75,7 @@ flowchart LR
 
 No hay ni una sola conexión a la observabilidad en todo el diagrama, así que cuando algo falle no se sabrá qué falló, desde cuándo ni cuál fue la causa. Este hallazgo cubre el sistema entero y se cobra una sola vez: en cuanto conectes el primer componente, este crítico se convierte en un aviso por cada componente que siga sin conectar, y la puntuación del área mejora con cada conexión.
 
-*Sugerencia:* Añade un componente de observabilidad y conéctale los componentes uno a uno, empezando por la puerta de entrada y el sistema de registro: son los dos que primero querrás mirar cuando algo vaya mal.
+*Sugerencia:* Añada un componente de observabilidad y conéctele los componentes uno a uno, empezando por la puerta de entrada y el sistema de registro: son los dos primeros que habrá que consultar cuando algo falle.
 
 Elementos: `LB`, `Api1`, `Api2`, `Cache`, `Queue`, `Orders`, `Db`
 
@@ -85,7 +85,7 @@ Elementos: `LB`, `Api1`, `Api2`, `Cache`, `Queue`, `Orders`, `Db`
 
 Ninguna petición deja de servirse si 'Db' cae: todo lo que lo llama lo hace en asíncrono o con una respuesta alternativa. Lo que se pierde no son peticiones, sino lo que hay detrás — el estado que guarda, o el trabajo que no llega a hacerse — y eso no se mide aquí.
 
-*Sugerencia:* Añade réplicas con failover automático y verifica que promocionar una nueva primaria no requiere intervención manual. Una réplica de lectura reparte carga; no releva a la primaria cuando cae.
+*Sugerencia:* Añada réplicas con failover automático y verifique que promocionar una nueva primaria no requiere intervención manual. Una réplica de lectura reparte carga; no releva a la primaria cuando cae.
 
 Elementos: `Db`
 
@@ -95,7 +95,7 @@ Elementos: `Db`
 
 Un mensaje que no se puede procesar se reintenta, vuelve a fallar y desaparece sin dejar rastro. Nadie sabe qué se ha perdido.
 
-*Sugerencia:* Activa la dead letter queue para que lo que falle quede en algún sitio donde se pueda revisar.
+*Sugerencia:* Active la dead letter queue para que lo que falle quede en algún sitio donde se pueda revisar.
 
 Elementos: `Queue`
 
@@ -103,7 +103,7 @@ Elementos: `Queue`
 
 **Toda llamada que no espera tiene una cola donde su trabajo puede esperar.**
 
-Cada llamada asíncrona entre componentes tuyos pasa por una cola o un topic: si quien procesa no está, el mensaje queda escrito y se recupera después.
+Cada llamada asíncrona entre componentes propios pasa por una cola o un topic: si quien procesa no está, el mensaje queda escrito y se recupera después.
 
 ### 🟢 CACHE_AS_STORE — Resilience
 
@@ -115,7 +115,7 @@ Todo lo que guarda una caché existe también en un sistema de registro, así qu
 
 **Cada flecha une dos cosas que pueden hablarse.**
 
-Se ha comprobado, flecha a flecha, que los dos extremos describen una llamada que puede ocurrir realmente: ningún almacén llama a nadie, ningún componente tuyo llama a los usuarios, el CDN habla con un origen y el planificador dispara trabajo.
+Se ha comprobado, flecha a flecha, que los dos extremos describen una llamada que puede ocurrir realmente: ningún almacén llama a nadie, ningún componente propio llama a los usuarios, el CDN habla con un origen y el planificador dispara trabajo.
 
 ### 🟢 MISSING_RESILIENCE — Resilience
 

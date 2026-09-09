@@ -53,7 +53,7 @@ flowchart LR
 
 Cuando 'Api' falle no habrá dónde mirar: ningún registro de cuánto tardaba, cuántas peticiones perdió ni si fue quien inició el incidente. La observabilidad no es un componente que se añade: es una conexión por componente, y este no tiene ninguna.
 
-*Sugerencia:* Añade un componente de observabilidad y conéctale 'Api' — junto con todo lo demás que quieras poder consultar cuando algo vaya mal.
+*Sugerencia:* Añada un componente de observabilidad y conéctele 'Api', junto con todo lo demás que convenga poder consultar cuando algo falle.
 
 Elementos: `Api`
 
@@ -63,7 +63,7 @@ Elementos: `Api`
 
 Cuando 'Db' falle no habrá dónde mirar: ningún registro de cuánto tardaba, cuántas peticiones perdió ni si fue quien inició el incidente. La observabilidad no es un componente que se añade: es una conexión por componente, y este no tiene ninguna.
 
-*Sugerencia:* Añade un componente de observabilidad y conéctale 'Db' — junto con todo lo demás que quieras poder consultar cuando algo vaya mal.
+*Sugerencia:* Añada un componente de observabilidad y conéctele 'Db', junto con todo lo demás que convenga poder consultar cuando algo falle.
 
 Elementos: `Db`
 
@@ -77,7 +77,7 @@ Se ha comprobado, componente a componente, qué dejaría de funcionar si cayera:
 
 **Cada flecha une dos cosas que pueden hablarse.**
 
-Se ha comprobado, flecha a flecha, que los dos extremos describen una llamada que puede ocurrir realmente: ningún almacén llama a nadie, ningún componente tuyo llama a los usuarios, el CDN habla con un origen y el planificador dispara trabajo.
+Se ha comprobado, flecha a flecha, que los dos extremos describen una llamada que puede ocurrir realmente: ningún almacén llama a nadie, ningún componente propio llama a los usuarios, el CDN habla con un origen y el planificador dispara trabajo.
 
 ### 🟢 MISSING_RESILIENCE — Resilience
 
@@ -153,7 +153,7 @@ Para llegar a los datos hay que pasar antes por una API o un gateway, que es don
 | Puntos de entrada afectados | 1 de 1 |
 | Latencia nominal | 27 ms |
 | Latencia con el escenario | 5005 ms |
-| Peticiones afectadas | como mucho 100 % |
+| Peticiones afectadas | como máximo 100 % |
 | Cuello de botella | `Db` |
 | Amplificación de peticiones | ×1 |
 | Amplificación de carga | ×1 |

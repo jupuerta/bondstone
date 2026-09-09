@@ -67,7 +67,7 @@ flowchart LR
 
 Si 'Db' cae, se dejan de servir el 100 % de las peticiones que entran por la puerta. No hay ningún componente equivalente que pueda asumir su trabajo.
 
-*Sugerencia:* Añade réplicas con failover automático y verifica que promocionar una nueva primaria no requiere intervención manual. Una réplica de lectura reparte carga; no releva a la primaria cuando cae.
+*Sugerencia:* Añada réplicas con failover automático y verifique que promocionar una nueva primaria no requiere intervención manual. Una réplica de lectura reparte carga; no releva a la primaria cuando cae.
 
 Elementos: `Db`
 
@@ -77,7 +77,7 @@ Elementos: `Db`
 
 Si 'Gateway' cae, se dejan de servir el 100 % de las peticiones que entran por la puerta. No hay ningún componente equivalente que pueda asumir su trabajo.
 
-*Sugerencia:* Declárale una segunda instancia, o dibuja dos y ponlas detrás de un balanceador con comprobación de salud, en zonas distintas. Es el punto de entrada: mientras solo exista uno, todo lo que hay detrás hereda su disponibilidad.
+*Sugerencia:* Declare una segunda instancia, o dibuje dos y sitúelas detrás de un balanceador con comprobación de salud, en zonas distintas. Es el punto de entrada: mientras solo exista uno, todo lo que hay detrás hereda su disponibilidad.
 
 Elementos: `Gateway`
 
@@ -87,7 +87,7 @@ Elementos: `Gateway`
 
 Como 'Db' es un punto único de fallo, su caída se propaga directamente hacia quien lo llama.
 
-*Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
+*Sugerencia:* Añada un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
 
 Elementos: `Orders → Db`
 
@@ -97,7 +97,7 @@ Elementos: `Orders → Db`
 
 Como 'Db' es un punto único de fallo, su caída se propaga directamente hacia quien lo llama.
 
-*Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
+*Sugerencia:* Añada un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
 
 Elementos: `Payments → Db`
 
@@ -107,7 +107,7 @@ Elementos: `Payments → Db`
 
 Como 'Db' es un punto único de fallo, su caída se propaga directamente hacia quien lo llama.
 
-*Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
+*Sugerencia:* Añada un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
 
 Elementos: `Users → Db`
 
@@ -117,7 +117,7 @@ Elementos: `Users → Db`
 
 No hay ni una sola conexión a la observabilidad en todo el diagrama, así que cuando algo falle no se sabrá qué falló, desde cuándo ni cuál fue la causa. Este hallazgo cubre el sistema entero y se cobra una sola vez: en cuanto conectes el primer componente, este crítico se convierte en un aviso por cada componente que siga sin conectar, y la puntuación del área mejora con cada conexión.
 
-*Sugerencia:* Añade un componente de observabilidad y conéctale los componentes uno a uno, empezando por la puerta de entrada y el sistema de registro: son los dos que primero querrás mirar cuando algo vaya mal.
+*Sugerencia:* Añada un componente de observabilidad y conéctele los componentes uno a uno, empezando por la puerta de entrada y el sistema de registro: son los dos primeros que habrá que consultar cuando algo falle.
 
 Elementos: `Gateway`, `Users`, `Orders`, `Payments`, `Db`
 
@@ -127,7 +127,7 @@ Elementos: `Gateway`, `Users`, `Orders`, `Payments`, `Db`
 
 Si 'Payments' cae, se dejan de servir el 100 % de las peticiones que entran por la puerta. No hay ningún componente equivalente que pueda asumir su trabajo.
 
-*Sugerencia:* Añade una segunda instancia equivalente detrás de un balanceador. Como no guarda estado, sus consumidores no pueden distinguir cuál de las dos les ha respondido.
+*Sugerencia:* Añada una segunda instancia equivalente detrás de un balanceador. Como no guarda estado, sus consumidores no pueden distinguir cuál de las dos ha respondido.
 
 Elementos: `Payments`
 
@@ -137,7 +137,7 @@ Elementos: `Payments`
 
 Cuando un servicio empieza a fallar, los reintentos de cada salto se multiplican entre sí y añaden carga justo sobre el componente que ya está en dificultades.
 
-*Sugerencia:* Reintenta solo en el salto más cercano al fallo, añade esperas crecientes entre intentos y limita los reintentos en los tramos intermedios.
+*Sugerencia:* Reintente solo en el salto más cercano al fallo, añada esperas crecientes entre intentos y limite los reintentos en los tramos intermedios.
 
 Elementos: `Orders`, `Orders → Payments`, `Payments`
 
@@ -147,7 +147,7 @@ Elementos: `Orders`, `Orders → Payments`, `Payments`
 
 Los servicios que comparten 'Db' no son independientes: el esquema es la interfaz entre ellos, y cambiarlo para uno obliga a tocar a los demás. Cada uno se despliega por separado, pero ninguno puede evolucionar por separado. Es integración por base de datos, el tipo de acoplamiento más difícil de deshacer después.
 
-*Sugerencia:* Dale a cada servicio sus propios datos, y que los demás se los pidan por su API o se enteren por una cola. Si dos servicios necesitan las mismas tablas, probablemente son el mismo servicio.
+*Sugerencia:* Asigne a cada servicio sus propios datos, y que los demás se los soliciten por su API o se enteren por una cola. Si dos servicios necesitan las mismas tablas, probablemente son el mismo servicio.
 
 Elementos: `Db`, `Users → Db`, `Orders → Db`, `Payments → Db`
 
@@ -157,7 +157,7 @@ Elementos: `Db`, `Users → Db`, `Orders → Db`, `Payments → Db`
 
 Toda la carga de lectura recae sobre la misma instancia, que se convierte en el límite de escalado del sistema entero.
 
-*Sugerencia:* Interpón una caché en las lecturas más frecuentes o configura réplicas de lectura en la base de datos.
+*Sugerencia:* Interponga una caché en las lecturas más frecuentes o configure réplicas de lectura en la base de datos.
 
 Elementos: `Db`, `Orders → Db`, `Payments → Db`, `Users → Db`
 
@@ -165,7 +165,7 @@ Elementos: `Db`, `Orders → Db`, `Payments → Db`, `Users → Db`
 
 **Cada flecha une dos cosas que pueden hablarse.**
 
-Se ha comprobado, flecha a flecha, que los dos extremos describen una llamada que puede ocurrir realmente: ningún almacén llama a nadie, ningún componente tuyo llama a los usuarios, el CDN habla con un origen y el planificador dispara trabajo.
+Se ha comprobado, flecha a flecha, que los dos extremos describen una llamada que puede ocurrir realmente: ningún almacén llama a nadie, ningún componente propio llama a los usuarios, el CDN habla con un origen y el planificador dispara trabajo.
 
 ### 🟢 SYNC_CHAIN — Resilience
 

@@ -91,7 +91,7 @@ flowchart LR
 
 Si 'Db' cae, se dejan de servir el 100 % de las peticiones que entran por la puerta. No hay ningún componente equivalente que pueda asumir su trabajo.
 
-*Sugerencia:* Añade réplicas con failover automático y verifica que promocionar una nueva primaria no requiere intervención manual. Una réplica de lectura reparte carga; no releva a la primaria cuando cae.
+*Sugerencia:* Añada réplicas con failover automático y verifique que promocionar una nueva primaria no requiere intervención manual. Una réplica de lectura reparte carga; no releva a la primaria cuando cae.
 
 Elementos: `Db`
 
@@ -101,7 +101,7 @@ Elementos: `Db`
 
 Si 'Orders' cae, se dejan de servir el 100 % de las peticiones que entran por la puerta. No hay ningún componente equivalente que pueda asumir su trabajo.
 
-*Sugerencia:* Añade una segunda instancia equivalente detrás de un balanceador. Como no guarda estado, sus consumidores no pueden distinguir cuál de las dos les ha respondido.
+*Sugerencia:* Añada una segunda instancia equivalente detrás de un balanceador. Como no guarda estado, sus consumidores no pueden distinguir cuál de las dos ha respondido.
 
 Elementos: `Orders`
 
@@ -111,7 +111,7 @@ Elementos: `Orders`
 
 Si 'Gateway' cae, se dejan de servir el 100 % de las peticiones que entran por la puerta. No hay ningún componente equivalente que pueda asumir su trabajo.
 
-*Sugerencia:* Declárale una segunda instancia, o dibuja dos y ponlas detrás de un balanceador con comprobación de salud, en zonas distintas. Es el punto de entrada: mientras solo exista uno, todo lo que hay detrás hereda su disponibilidad.
+*Sugerencia:* Declare una segunda instancia, o dibuje dos y sitúelas detrás de un balanceador con comprobación de salud, en zonas distintas. Es el punto de entrada: mientras solo exista uno, todo lo que hay detrás hereda su disponibilidad.
 
 Elementos: `Gateway`
 
@@ -121,7 +121,7 @@ Elementos: `Gateway`
 
 Como 'Db' es un punto único de fallo, su caída se propaga directamente hacia quien lo llama.
 
-*Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
+*Sugerencia:* Añada un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
 
 Elementos: `Billing → Db`
 
@@ -131,7 +131,7 @@ Elementos: `Billing → Db`
 
 Como 'Orders' es un punto único de fallo, su caída se propaga directamente hacia quien lo llama.
 
-*Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
+*Sugerencia:* Añada un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
 
 Elementos: `Inventory → Orders`
 
@@ -141,7 +141,7 @@ Elementos: `Inventory → Orders`
 
 Como 'Db' es un punto único de fallo, su caída se propaga directamente hacia quien lo llama.
 
-*Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
+*Sugerencia:* Añada un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
 
 Elementos: `Notifications → Db`
 
@@ -151,7 +151,7 @@ Elementos: `Notifications → Db`
 
 Como 'Db' es un punto único de fallo, su caída se propaga directamente hacia quien lo llama.
 
-*Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
+*Sugerencia:* Añada un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
 
 Elementos: `Orders → Db`
 
@@ -161,7 +161,7 @@ Elementos: `Orders → Db`
 
 Como 'Db' es un punto único de fallo, su caída se propaga directamente hacia quien lo llama.
 
-*Sugerencia:* Añade un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
+*Sugerencia:* Añada un circuit breaker o una respuesta alternativa para cuando el destino no conteste.
 
 Elementos: `Users → Db`
 
@@ -171,7 +171,7 @@ Elementos: `Users → Db`
 
 Cuando un servicio empieza a fallar, los reintentos de cada salto se multiplican entre sí y añaden carga justo sobre el componente que ya está en dificultades.
 
-*Sugerencia:* Reintenta solo en el salto más cercano al fallo, añade esperas crecientes entre intentos y limita los reintentos en los tramos intermedios.
+*Sugerencia:* Reintente solo en el salto más cercano al fallo, añada esperas crecientes entre intentos y limite los reintentos en los tramos intermedios.
 
 Elementos: `Gateway`, `Gateway → Orders`, `Orders`, `Orders → Shipping`, `Shipping`
 
@@ -181,7 +181,7 @@ Elementos: `Gateway`, `Gateway → Orders`, `Orders`, `Orders → Shipping`, `Sh
 
 Ninguno de los componentes implicados puede desplegarse, arrancar ni recuperarse de forma independiente. Si el ciclo es síncrono, una caída en cualquiera de ellos bloquea a los demás.
 
-*Sugerencia:* Rompe el ciclo con un salto asíncrono: que uno de los pasos publique un evento en lugar de esperar respuesta. Mientras todas las llamadas bloqueen, una caída en cualquiera de los componentes bloquea a los demás.
+*Sugerencia:* Rompa el ciclo con un salto asíncrono: que uno de los pasos publique un evento en lugar de esperar respuesta. Mientras todas las llamadas bloqueen, una caída en cualquiera de los componentes bloquea a los demás.
 
 Elementos: `Orders`, `Orders → Payments`, `Payments`, `Payments → Inventory`, `Inventory`, `Inventory → Orders`, `Orders`
 
@@ -191,7 +191,7 @@ Elementos: `Orders`, `Orders → Payments`, `Payments`, `Payments → Inventory`
 
 Un componente que necesita tantas piezas para funcionar es difícil de desplegar, probar y razonar de forma aislada, y su disponibilidad es el producto de la de todos ellos.
 
-*Sugerencia:* Revisa si algunas de esas responsabilidades pertenecen al propio componente, o si parte de las llamadas puede convertirse en eventos asíncronos. Su disponibilidad es el producto de la disponibilidad de todo lo que necesita para responder.
+*Sugerencia:* Revise si algunas de esas responsabilidades pertenecen al propio componente, o si parte de las llamadas puede convertirse en eventos asíncronos. Su disponibilidad es el producto de la disponibilidad de todo lo que necesita para responder.
 
 Elementos: `Orders`, `Orders → Billing`, `Orders → Db`, `Orders → Notifications`, `Orders → Payments`, `Orders → Search`, `Orders → Shipping`, `Orders → Users`
 
@@ -201,7 +201,7 @@ Elementos: `Orders`, `Orders → Billing`, `Orders → Db`, `Orders → Notifica
 
 No hay ni una sola conexión a la observabilidad en todo el diagrama, así que cuando algo falle no se sabrá qué falló, desde cuándo ni cuál fue la causa. Este hallazgo cubre el sistema entero y se cobra una sola vez: en cuanto conectes el primer componente, este crítico se convierte en un aviso por cada componente que siga sin conectar, y la puntuación del área mejora con cada conexión.
 
-*Sugerencia:* Añade un componente de observabilidad y conéctale los componentes uno a uno, empezando por la puerta de entrada y el sistema de registro: son los dos que primero querrás mirar cuando algo vaya mal.
+*Sugerencia:* Añada un componente de observabilidad y conéctele los componentes uno a uno, empezando por la puerta de entrada y el sistema de registro: son los dos primeros que habrá que consultar cuando algo falle.
 
 Elementos: `Gateway`, `Orders`, `Payments`, `Inventory`, `Shipping`, `Notifications`, `Users`, `Billing`, `Search`, `Db`
 
@@ -211,7 +211,7 @@ Elementos: `Gateway`, `Orders`, `Payments`, `Inventory`, `Shipping`, `Notificati
 
 Si 'Notifications' cae, se dejan de servir el 100 % de las peticiones que entran por la puerta. No hay ningún componente equivalente que pueda asumir su trabajo.
 
-*Sugerencia:* Añade una segunda instancia equivalente detrás de un balanceador. Como no guarda estado, sus consumidores no pueden distinguir cuál de las dos les ha respondido.
+*Sugerencia:* Añada una segunda instancia equivalente detrás de un balanceador. Como no guarda estado, sus consumidores no pueden distinguir cuál de las dos ha respondido.
 
 Elementos: `Notifications`
 
@@ -221,7 +221,7 @@ Elementos: `Notifications`
 
 Sin timeout, una respuesta lenta retiene recursos indefinidamente.
 
-*Sugerencia:* Configura un timeout acorde a la operación.
+*Sugerencia:* Configure un timeout acorde a la operación.
 
 Elementos: `Orders → Payments`
 
@@ -231,7 +231,7 @@ Elementos: `Orders → Payments`
 
 La petición no termina hasta que responde el último eslabón: las latencias se suman y basta con que un eslabón falle para que fallen todos. Se cuentan los componentes que ejecutan lógica —APIs, servicios, workers y terceros—; un CDN, un gateway, un balanceador, una caché o un almacén por el camino son una capa que la llamada atraviesa, no un eslabón más.
 
-*Sugerencia:* Aquí una cola no corta nada: la petición está esperando el dato del final, y una lectura no se puede diferir. Acorta el camino en vez de partirlo: que el componente que responde lea directamente —de una caché o de una réplica alimentada de forma asíncrona—, o fusiona los servicios intermedios si solo pasan la pregunta. Si esta cadena es una escritura, decláralo en la última arista y la solución vuelve a ser una cola.
+*Sugerencia:* Aquí una cola no corta nada: la petición está esperando el dato del final, y una lectura no se puede diferir. Acorte el camino en vez de partirlo: que el componente que responde lea directamente —de una caché o de una réplica alimentada de forma asíncrona—, o fusione los servicios intermedios si solo trasladan la pregunta. Si esta cadena es una escritura, declárelo en la última arista y la solución vuelve a ser una cola.
 
 Elementos: `Orders`, `Orders → Shipping`, `Shipping`, `Shipping → Notifications`, `Notifications`, `Notifications → Db`, `Db`
 
@@ -241,7 +241,7 @@ Elementos: `Orders`, `Orders → Shipping`, `Shipping`, `Shipping → Notificati
 
 Los servicios que comparten 'Db' no son independientes: el esquema es la interfaz entre ellos, y cambiarlo para uno obliga a tocar a los demás. Cada uno se despliega por separado, pero ninguno puede evolucionar por separado. Es integración por base de datos, el tipo de acoplamiento más difícil de deshacer después.
 
-*Sugerencia:* Dale a cada servicio sus propios datos, y que los demás se los pidan por su API o se enteren por una cola. Si dos servicios necesitan las mismas tablas, probablemente son el mismo servicio.
+*Sugerencia:* Asigne a cada servicio sus propios datos, y que los demás se los soliciten por su API o se enteren por una cola. Si dos servicios necesitan las mismas tablas, probablemente son el mismo servicio.
 
 Elementos: `Db`, `Orders → Db`, `Notifications → Db`, `Users → Db`, `Billing → Db`
 
@@ -251,7 +251,7 @@ Elementos: `Db`, `Orders → Db`, `Notifications → Db`, `Users → Db`, `Billi
 
 Toda la carga de lectura recae sobre la misma instancia, que se convierte en el límite de escalado del sistema entero.
 
-*Sugerencia:* Interpón una caché en las lecturas más frecuentes o configura réplicas de lectura en la base de datos.
+*Sugerencia:* Interponga una caché en las lecturas más frecuentes o configure réplicas de lectura en la base de datos.
 
 Elementos: `Db`, `Billing → Db`, `Notifications → Db`, `Orders → Db`, `Users → Db`
 
@@ -259,7 +259,7 @@ Elementos: `Db`, `Billing → Db`, `Notifications → Db`, `Orders → Db`, `Use
 
 **Cada flecha une dos cosas que pueden hablarse.**
 
-Se ha comprobado, flecha a flecha, que los dos extremos describen una llamada que puede ocurrir realmente: ningún almacén llama a nadie, ningún componente tuyo llama a los usuarios, el CDN habla con un origen y el planificador dispara trabajo.
+Se ha comprobado, flecha a flecha, que los dos extremos describen una llamada que puede ocurrir realmente: ningún almacén llama a nadie, ningún componente propio llama a los usuarios, el CDN habla con un origen y el planificador dispara trabajo.
 
 ### 🟢 TIMEOUT_TOO_LONG — Resilience
 
