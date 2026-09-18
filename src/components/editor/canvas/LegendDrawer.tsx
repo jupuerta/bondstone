@@ -104,7 +104,7 @@ function Mark({ mark }: { mark: LegendMark }): ReactElement {
       return (
         <span className="flex flex-wrap gap-1">
           {mark.types.map((type) => (
-            <span key={type} title={t(`ui.node.${type}`)} className="inline-flex size-5 items-center justify-center rounded-[5px] border border-panel-line" style={{ background: `color-mix(in oklab, var(--af-t-${type}) 9%, var(--af-panel-2))` }}>
+            <span key={type} title={t(`ui.node.${type}`)} className="inline-flex size-5 items-center justify-center rounded-[5px] border border-panel-line" style={{ background: `var(--af-p-${type})` }}>
               <TypeIcon type={type} size={11} />
             </span>
           ))}
@@ -176,7 +176,7 @@ function Box({ state = "healthy", children }: { state?: BoxState; children?: Rea
   const type: NodeType = "Api";
 
   return (
-    <span className={`relative block h-[26px] w-[46px] shrink-0 overflow-hidden rounded-[5px] border ${BOX_RING[state]}`} style={{ background: `color-mix(in oklab, var(--af-t-${type}) 9%, var(--af-panel-2))` }}>
+    <span className={`relative block h-[26px] w-[46px] shrink-0 overflow-hidden rounded-[5px] border ${BOX_RING[state]}`} style={{ background: `var(--af-p-${type})` }}>
       <span className="block h-[2px]" style={{ background: `var(--af-t-${type})` }} />
       {state === "down" && <span className="absolute top-2 left-2 size-2 rounded-full bg-hot-panel" />}
       {state === "degraded" && <span className="absolute top-2 left-2 size-2 rounded-full border-2 border-warm-panel" />}

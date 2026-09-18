@@ -17,7 +17,7 @@ export function EditorNode({ type, data }: EditorNodeProps) {
   const status = data.status ?? null;
   const tone = statusTone(status);
   const simulated = status !== null;
-  const plate = `color-mix(in oklab, var(--af-t-${nodeType}) var(--af-node-tint), var(--af-panel-2))`;
+  const plate = `var(--af-p-${nodeType})`;
   const ring = status?.mechanism ? "af-node-contained" : data.highlighted ? "af-node-highlighted" : "";
   const load = data.load ?? null;
   const metered = load !== null && loadMeter(nodeType, load) !== null;

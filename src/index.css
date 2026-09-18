@@ -139,7 +139,8 @@
   --af-panel-on-warm: #1a1206;
   --af-panel-grid: rgba(255, 255, 255, 0.055);
   --af-panel-mask: rgba(10, 12, 14, 0.6);
-  --af-node-tint: 9%;
+  --af-minimap: color-mix(in oklab, var(--af-panel-wash) 3%, transparent);
+  --af-minimap-line: var(--af-panel-line);
   --af-node-line: var(--af-panel-line);
   --af-zone-ink: var(--af-panel-ink-3);
 
@@ -162,21 +163,42 @@
   --af-t-Scheduler: oklch(0.78 0.1 98);
   --af-t-IdentityProvider: oklch(0.78 0.1 310);
 
+  /* La placa de la ficha, un token por tipo. Sobre el panel oscuro el tinte es más claro que la
+     superficie y el 9 % la sube; en claro hace lo contrario, así que el claro trae su propia escala
+     en vez de una mezcla. docs/Design/Editor/UI/claro-v2/. */
+  --af-p-Gateway: color-mix(in oklab, var(--af-t-Gateway) 9%, var(--af-panel-2));
+  --af-p-LoadBalancer: color-mix(in oklab, var(--af-t-LoadBalancer) 9%, var(--af-panel-2));
+  --af-p-Api: color-mix(in oklab, var(--af-t-Api) 9%, var(--af-panel-2));
+  --af-p-Service: color-mix(in oklab, var(--af-t-Service) 9%, var(--af-panel-2));
+  --af-p-Worker: color-mix(in oklab, var(--af-t-Worker) 9%, var(--af-panel-2));
+  --af-p-Database: color-mix(in oklab, var(--af-t-Database) 9%, var(--af-panel-2));
+  --af-p-Cache: color-mix(in oklab, var(--af-t-Cache) 9%, var(--af-panel-2));
+  --af-p-ObjectStorage: color-mix(in oklab, var(--af-t-ObjectStorage) 9%, var(--af-panel-2));
+  --af-p-Queue: color-mix(in oklab, var(--af-t-Queue) 9%, var(--af-panel-2));
+  --af-p-Topic: color-mix(in oklab, var(--af-t-Topic) 9%, var(--af-panel-2));
+  --af-p-Observability: color-mix(in oklab, var(--af-t-Observability) 9%, var(--af-panel-2));
+  --af-p-ExternalService: color-mix(in oklab, var(--af-t-ExternalService) 9%, var(--af-panel-2));
+  --af-p-Client: color-mix(in oklab, var(--af-t-Client) 9%, var(--af-panel-2));
+  --af-p-Cdn: color-mix(in oklab, var(--af-t-Cdn) 9%, var(--af-panel-2));
+  --af-p-Scheduler: color-mix(in oklab, var(--af-t-Scheduler) 9%, var(--af-panel-2));
+  --af-p-IdentityProvider: color-mix(in oklab, var(--af-t-IdentityProvider) 9%, var(--af-panel-2));
+
   color-scheme: light;
 }
 
-/* El editor en claro: una preferencia, oscuro por defecto. Los valores son los de la web,
-   salvo el suelo del lienzo y los dieciséis tintes. docs/Design/Editor/07_modo_claro.md. */
+/* El editor en claro: una preferencia, oscuro por defecto. Tiene paleta propia y fría —no la cálida
+   de la web—, porque las superficies cálidas con las tintas frías de la web se leían como barro y la
+   placa teñida al 4 % sobre blanco no llegaba a tener color. docs/Design/Editor/UI/claro-v2/. */
 [data-theme="light"] {
-  --af-canvas: #ebeae4;
-  --af-panel: var(--af-bg);
-  --af-panel-2: var(--af-surface);
-  --af-panel-3: var(--af-surface-2);
-  --af-panel-line: var(--af-line);
-  --af-panel-line-2: var(--af-line-2);
-  --af-panel-ink: var(--af-ink);
-  --af-panel-ink-2: var(--af-ink-2);
-  --af-panel-ink-3: var(--af-ink-3);
+  --af-canvas: #dde2e9;
+  --af-panel: #f7f8fa;
+  --af-panel-2: #ffffff;
+  --af-panel-3: #eef0f4;
+  --af-panel-line: #dde1e8;
+  --af-panel-line-2: #c4cad4;
+  --af-panel-ink: #0f1115;
+  --af-panel-ink-2: #4e5663;
+  --af-panel-ink-3: #6a7280;
   --af-accent-panel: var(--af-accent);
   --af-hot-panel: var(--af-hot);
   --af-warm-panel: var(--af-warm);
@@ -186,28 +208,45 @@
   --af-panel-on-ink: #ffffff;
   --af-panel-on-hot: #ffffff;
   --af-panel-on-warm: #ffffff;
-  --af-panel-grid: rgba(0, 0, 0, 0.07);
-  --af-panel-mask: rgba(235, 234, 228, 0.6);
-  --af-node-tint: 4%;
-  --af-node-line: var(--af-line-2);
-  --af-zone-ink: var(--af-ink-2);
-  --af-t-Gateway: oklch(0.55 0.11 40);
-  --af-t-LoadBalancer: oklch(0.55 0.11 155);
-  --af-t-Api: oklch(0.55 0.11 230);
-  --af-t-Service: oklch(0.55 0.11 288);
-  --af-t-Worker: oklch(0.55 0.11 55);
-  --af-t-Database: oklch(0.55 0.11 78);
-  --af-t-Cache: oklch(0.55 0.11 118);
-  --af-t-ObjectStorage: oklch(0.55 0.11 198);
-  --af-t-Queue: oklch(0.55 0.11 262);
-  --af-t-Topic: oklch(0.55 0.11 262);
-  --af-t-Observability: oklch(0.55 0.11 330);
-  --af-t-ExternalService: oklch(0.55 0.11 8);
-  --af-t-Client: oklch(0.55 0.11 212);
-  --af-t-Cdn: oklch(0.55 0.11 176);
-  --af-t-Scheduler: oklch(0.55 0.11 98);
-  --af-t-IdentityProvider: oklch(0.55 0.11 310);
-  color: var(--af-ink);
+  --af-panel-grid: rgba(15, 17, 21, 0.09);
+  --af-panel-mask: rgba(221, 226, 233, 0.6);
+  --af-minimap: color-mix(in oklab, var(--af-panel-2) 78%, transparent);
+  --af-minimap-line: var(--af-panel-line-2);
+  --af-node-line: var(--af-panel-line-2);
+  --af-zone-ink: var(--af-panel-ink-2);
+  --af-t-Gateway: oklch(0.52 0.16 40);
+  --af-t-LoadBalancer: oklch(0.52 0.16 155);
+  --af-t-Api: oklch(0.52 0.16 230);
+  --af-t-Service: oklch(0.52 0.16 288);
+  --af-t-Worker: oklch(0.52 0.16 55);
+  --af-t-Database: oklch(0.52 0.16 78);
+  --af-t-Cache: oklch(0.52 0.16 118);
+  --af-t-ObjectStorage: oklch(0.52 0.16 198);
+  --af-t-Queue: oklch(0.52 0.16 262);
+  --af-t-Topic: oklch(0.52 0.16 262);
+  --af-t-Observability: oklch(0.52 0.16 330);
+  --af-t-ExternalService: oklch(0.52 0.16 8);
+  --af-t-Client: oklch(0.52 0.16 212);
+  --af-t-Cdn: oklch(0.52 0.16 176);
+  --af-t-Scheduler: oklch(0.52 0.16 98);
+  --af-t-IdentityProvider: oklch(0.52 0.16 310);
+  --af-p-Gateway: oklch(0.968 0.034 40);
+  --af-p-LoadBalancer: oklch(0.968 0.034 155);
+  --af-p-Api: oklch(0.968 0.034 230);
+  --af-p-Service: oklch(0.968 0.034 288);
+  --af-p-Worker: oklch(0.968 0.034 55);
+  --af-p-Database: oklch(0.968 0.034 78);
+  --af-p-Cache: oklch(0.968 0.034 118);
+  --af-p-ObjectStorage: oklch(0.968 0.034 198);
+  --af-p-Queue: oklch(0.968 0.034 262);
+  --af-p-Topic: oklch(0.968 0.034 262);
+  --af-p-Observability: oklch(0.968 0.034 330);
+  --af-p-ExternalService: oklch(0.968 0.034 8);
+  --af-p-Client: oklch(0.968 0.034 212);
+  --af-p-Cdn: oklch(0.968 0.034 176);
+  --af-p-Scheduler: oklch(0.968 0.034 98);
+  --af-p-IdentityProvider: oklch(0.968 0.034 310);
+  color: var(--af-panel-ink);
 }
 
 /* La web en oscuro: una preferencia, clara por defecto. Los valores son los del panel del editor,
@@ -384,7 +423,7 @@ p {
   --xy-controls-button-color-hover: var(--af-panel-ink);
   --xy-controls-button-border-color: var(--af-panel-line);
   --xy-controls-box-shadow: none;
-  --xy-minimap-background-color: color-mix(in oklab, var(--af-panel-wash) 3%, transparent);
+  --xy-minimap-background-color: var(--af-minimap);
   --xy-minimap-mask-background-color: var(--af-panel-mask);
   --xy-minimap-node-background-color: var(--af-panel-line-2);
   --xy-attribution-background-color: transparent;
@@ -413,7 +452,7 @@ p {
 }
 
 .react-flow__minimap {
-  border: 1px solid var(--af-panel-line);
+  border: 1px solid var(--af-minimap-line);
   border-radius: 8px;
 }
 
