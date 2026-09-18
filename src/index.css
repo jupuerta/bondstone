@@ -318,6 +318,12 @@ p {
     border-top: 1px solid var(--af-line);
   }
 
+  /* La medida de lectura de la prosa larga: 74 caracteres a 16 px. La referencia usa 880 px
+     para entradillas de una línea; un texto legal de párrafos enteros necesita la medida corta. */
+  .max-w-prose-legal {
+    max-width: 620px;
+  }
+
   /* Contenedor de página: 1440 de diseño, con los márgenes de 56 px del lienzo. */
   .page {
     width: 100%;

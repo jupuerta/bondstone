@@ -158,12 +158,8 @@ export function HomePage() {
       </section>
 
       <section className="border-t border-line bg-surface">
-        <div className="page flex flex-col gap-4 py-9 md:flex-row md:items-center md:justify-between md:gap-12 md:py-14">
+        <div className="page py-9 md:py-14">
           <p className="max-w-[860px] text-[17px] leading-normal md:text-lead">{t("web.home.notWhat")}</p>
-          <Link to="/about" className="inline-flex items-center gap-2 font-semibold text-ink no-underline hover:text-accent md:whitespace-nowrap">
-            {t("web.home.aboutLink")}
-            <ArrowIcon size={16} />
-          </Link>
         </div>
       </section>
     </PageShell>

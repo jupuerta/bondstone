@@ -18,9 +18,6 @@ export function SiteFooter() {
           <LinkedInIcon size={13} />
           {t("ui.footer.linkedin")}
         </a>
-        <Link to="/about" className={item}>
-          {t("web.footer.about")}
-        </Link>
         <Link to="/privacidad" className={item}>
           {t("ui.footer.privacy")}
         </Link>

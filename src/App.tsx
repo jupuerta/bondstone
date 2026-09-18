@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
-import { AboutPage } from "./pages/AboutPage";
 import { ChallengePage } from "./pages/ChallengePage";
 import { ChallengesPage } from "./pages/ChallengesPage";
 import { EditorPage } from "./pages/EditorPage";
@@ -26,7 +25,6 @@ export function App() {
         <Route path="/rules/:token" element={<RulesPage />} />
         <Route path="/model" element={<ModelPage />} />
         <Route path="/mechanisms" element={<MechanismsPage />} />
-        <Route path="/about" element={<AboutPage />} />
         <Route path="/privacidad" element={<LegalPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

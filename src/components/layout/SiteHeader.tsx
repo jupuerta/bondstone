@@ -13,7 +13,6 @@ const ITEMS = [
   { key: "web.nav.rules", to: "/rules" },
   { key: "web.nav.model", to: "/model" },
   { key: "web.nav.mechanisms", to: "/mechanisms" },
-  { key: "web.nav.about", to: "/about" },
 ];
 
 export function SiteHeader() {
