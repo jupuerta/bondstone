@@ -4,10 +4,8 @@ import { SpinnerIcon } from "../../ui/Icons";
 
 interface SaveStateProps {
   status: SaveStatus;
-  version: number;
   error: string | null;
   onRetry: () => void;
-  narrow: boolean;
 }
 
 const LABEL: Record<SaveStatus, string> = {
@@ -19,7 +17,7 @@ const LABEL: Record<SaveStatus, string> = {
   conflict: "ui.save.conflict",
 };
 
-export function SaveState({ status, version, error, onRetry, narrow }: SaveStateProps) {
+export function SaveState({ status, error, onRetry }: SaveStateProps) {
   const t = useT();
   const bad = status === "error" || status === "conflict";
   const tone = bad ? "text-hot-panel" : status === "pending" ? "text-warm-panel" : status === "saved" ? "text-ok-panel" : "text-panel-ink-2";
@@ -29,7 +27,6 @@ export function SaveState({ status, version, error, onRetry, narrow }: SaveState
       <Glyph status={status} />
       <span className="whitespace-nowrap" title={error ?? undefined}>
         {t(LABEL[status])}
-        {!narrow && !bad && <span className="text-panel-ink-3"> · v{version}</span>}
       </span>
       {status === "error" && (
         <button type="button" onClick={onRetry} className="inline-flex min-h-8 items-center rounded-pill border border-hot-panel/60 px-2.5 text-meta text-hot-panel hover:bg-hot-panel/10">

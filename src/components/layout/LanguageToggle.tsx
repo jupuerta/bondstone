@@ -15,7 +15,7 @@ export function LanguageToggle({ dark = false }: { dark?: boolean }) {
             aria-checked={on}
             lang={candidate}
             onClick={() => setLocale(candidate)}
-            className={`min-h-7 rounded-pill px-2.5 uppercase transition-colors ${on ? "bg-ink font-semibold text-white" : "text-ink-2 hover:bg-[color-mix(in_oklab,var(--af-ink)_6%,transparent)]"}`}
+            className={`min-h-7 rounded-pill px-2.5 uppercase transition-colors ${on ? "bg-ink font-semibold text-on-ink" : "text-ink-2 hover:bg-[color-mix(in_oklab,var(--af-ink)_6%,transparent)]"}`}
           >
             {candidate}
           </button>

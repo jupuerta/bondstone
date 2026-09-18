@@ -33,7 +33,7 @@ export function Segmented<T extends string>({ options, value, onChange, label, d
               on
                 ? dark
                   ? "bg-panel-ink font-semibold text-panel-on-ink"
-                  : "bg-ink font-semibold text-white"
+                  : "bg-ink font-semibold text-on-ink"
                 : dark
                   ? "text-panel-ink-2 hover:bg-wash/8"
                   : "text-ink-2 hover:bg-[color-mix(in_oklab,var(--af-ink)_6%,transparent)]"

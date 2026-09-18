@@ -59,6 +59,8 @@ async function noOverflow(page, where) {
 }
 const bg = (loc) => loc.first().evaluate((el) => getComputedStyle(el).backgroundColor);
 const prefs = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("archforge.editor.ui") || "{}"));
+const appearanceOf = (page) => page.evaluate(() => document.documentElement.getAttribute("data-appearance"));
+const modeButton = (page, name) => page.getByRole("button", { name, exact: true });
 
 async function main() {
   const created = await fetch(`${API}/architectures`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "QA claro, asa y web" }) }).then((r) => r.json());
@@ -86,20 +88,22 @@ async function main() {
     const panel = page.locator("aside").filter({ has: page.getByRole("heading", { name: "Análisis" }) });
     const handle = page.getByRole("separator", { name: "Ajustar el ancho del panel" });
 
-    await check("claro/1440 · el editor arranca oscuro y la barra ofrece «Modo claro» tras ES/EN", async () => {
+    await check("aspecto/1440 · el editor arranca oscuro, sin preferencia puesta, y la barra ofrece «Modo claro» tras ES/EN", async () => {
       must((await root.getAttribute("data-theme")) === "dark", "no arranca en oscuro");
-      must(await visible(page.getByRole("button", { name: "Modo claro" })), "sin botón de modo claro");
+      must((await appearanceOf(page)) === null, `la web arranca con una preferencia puesta: ${await appearanceOf(page)}`);
+      must(await visible(modeButton(page, "Modo claro")), "sin el botón de modo claro");
       must((await bg(page.locator(".react-flow"))) === "rgb(10, 12, 14)", `el lienzo oscuro no es #0a0c0e: ${await bg(page.locator(".react-flow"))}`);
     });
 
-    await check("claro/1440 · pulsar «Modo claro» cambia los tokens: lienzo #ebeae4, panel #fafaf7, y el botón pasa a «Modo oscuro»", async () => {
-      await page.getByRole("button", { name: "Modo claro" }).click();
+    await check("aspecto/1440 · «Modo claro» cambia los tokens: lienzo #ebeae4, panel #fafaf7, y el botón pasa a «Modo oscuro»", async () => {
+      await modeButton(page, "Modo claro").click();
       await waitFor(async () => (await root.getAttribute("data-theme")) === "light", { what: "data-theme=light" });
+      must((await appearanceOf(page)) === "light", "la raíz no lleva data-appearance=light");
       must((await bg(page.locator(".react-flow"))) === "rgb(235, 234, 228)", `el suelo del lienzo no es #ebeae4: ${await bg(page.locator(".react-flow"))}`);
       must((await bg(panel)) === "rgb(250, 250, 247)", `el panel no es #fafaf7: ${await bg(panel)}`);
-      must(await visible(page.getByRole("button", { name: "Modo oscuro" })), "el botón no cambió a «Modo oscuro»");
       const ink = await page.getByRole("heading", { name: "Análisis" }).evaluate((el) => getComputedStyle(el).color);
       must(ink === "rgb(16, 16, 18)", `el título del panel no es --af-ink en claro: ${ink}`);
+      must(await visible(modeButton(page, "Modo oscuro")), "el botón no pasó a «Modo oscuro»");
     });
 
     await check("claro/1440 · el nodo lee los tokens nuevos: filete --af-line-2 y placa al 4 %", async () => {
@@ -109,8 +113,8 @@ async function main() {
       must(plate !== "rgb(255, 255, 255)" && plate !== "rgb(20, 23, 29)", `la placa no lleva tinte sobre blanco: ${plate}`);
     });
 
-    await check("claro/1440 · la preferencia se guarda como theme:\"light\" y sobrevive a la recarga", async () => {
-      must((await prefs(page)).theme === "light", "theme no se guardó");
+    await check("aspecto/1440 · la preferencia se guarda como appearance:\"light\" y sobrevive a la recarga", async () => {
+      must((await prefs(page)).appearance === "light", "appearance no se guardó");
       await page.reload();
       await page.waitForSelector(".react-flow__node", { timeout: 20000 });
       must((await root.getAttribute("data-theme")) === "light", "tras recargar no sigue en claro");
@@ -123,15 +127,17 @@ async function main() {
         return { visible: el.matches(":focus-visible"), style: cs.outlineStyle, color: cs.outlineColor, name: (el.getAttribute("aria-label") || el.textContent || "").slice(0, 30) };
       });
       await page.keyboard.press("Tab");
+      await new Promise((r) => setTimeout(r, 400));
       let f = await focused();
       must(f.visible && f.style === "solid", `sin cerco de foco por teclado en claro (${JSON.stringify(f)})`);
       must(f.color === "rgb(31, 63, 209)", `el cerco en claro no es cobalto: ${f.color} sobre «${f.name}»`);
-      await page.getByRole("button", { name: "Modo oscuro" }).click();
+      await modeButton(page, "Modo oscuro").click();
       await waitFor(async () => (await root.getAttribute("data-theme")) === "dark", { what: "volver a oscuro" });
-      must((await prefs(page)).theme === "dark", "theme no volvió a dark");
+      must((await prefs(page)).appearance === "dark", "appearance no pasó a dark");
       await page.reload();
       await page.waitForSelector(".react-flow__node", { timeout: 20000 });
       await page.keyboard.press("Tab");
+      await new Promise((r) => setTimeout(r, 400));
       f = await focused();
       must(f.visible && f.style === "solid", `sin cerco de foco por teclado en oscuro (${JSON.stringify(f)})`);
       must(f.color === "rgb(255, 255, 255)", `el cerco en oscuro no es blanco: ${f.color} sobre «${f.name}»`);
@@ -187,26 +193,60 @@ async function main() {
       await waitFor(async () => (await handle.getAttribute("aria-valuenow")) === "336", { what: "volver a 336" });
     });
 
-    await check("claro+asa/1440 · en /a/:token están el mismo botón de tema y la misma asa", async () => {
+    await check("aspecto+asa/1440 · en /a/:token están el mismo botón de aspecto y la misma asa", async () => {
       await page.goto(`${BASE}/a/${SHARE}`);
       await page.waitForSelector(".react-flow__node", { timeout: 20000 });
-      must(await visible(page.getByRole("button", { name: "Modo claro" })), "sin botón de tema en lectura");
+      must(await visible(modeButton(page, "Modo claro")), "sin botón de aspecto en lectura");
       must((await countOf(page.getByRole("separator", { name: "Ajustar el ancho del panel" }))) === 1, "sin asa en lectura");
-      await page.getByRole("button", { name: "Modo claro" }).click();
+      await modeButton(page, "Modo claro").click();
       await waitFor(async () => (await page.locator("[data-theme]").first().getAttribute("data-theme")) === "light", { what: "claro en lectura" });
       must((await bg(page.locator(".react-flow"))) === "rgb(235, 234, 228)", "el lienzo de lectura no se puso claro");
       await noOverflow(page, "/a/ en claro");
-      await page.getByRole("button", { name: "Modo oscuro" }).click();
+      await modeButton(page, "Modo oscuro").click();
+    });
+
+    // ── la web en oscuro ──────────────────────────────────────────────────
+    await check("aspecto/1440 · en la web «Oscuro» baja el suelo a #0f1115 y sube el motor a #14171d", async () => {
+      await page.goto(`${BASE}/`);
+      await page.evaluate(() => localStorage.removeItem("archforge.editor.ui"));
+      await page.reload();
+      await page.waitForSelector(".af-engine", { timeout: 20000 });
+      must((await appearanceOf(page)) === null, "la web no arranca sin preferencia");
+      must((await bg(page.locator("body"))) === "rgb(250, 250, 247)", `la web no arranca en #fafaf7: ${await bg(page.locator("body"))}`);
+      must((await bg(page.locator(".af-engine"))) === "rgb(15, 17, 21)", `el motor en claro no es #0f1115: ${await bg(page.locator(".af-engine"))}`);
+      await modeButton(page, "Modo oscuro").click();
+      await waitFor(async () => (await appearanceOf(page)) === "dark", { what: "data-appearance=dark" });
+      must((await bg(page.locator("body"))) === "rgb(15, 17, 21)", `el suelo oscuro no es #0f1115: ${await bg(page.locator("body"))}`);
+      must((await bg(page.locator(".af-engine"))) === "rgb(20, 23, 29)", `el motor no subió a #14171d: ${await bg(page.locator(".af-engine"))}`);
+      const ink = await page.getByRole("heading", { level: 1 }).first().evaluate((el) => getComputedStyle(el).color);
+      must(ink === "rgb(238, 240, 244)", `el titular no es --af-panel-ink: ${ink}`);
+      await noOverflow(page, "la portada en oscuro");
+    });
+
+    await check("aspecto/1440 · la web oscura sobrevive a la recarga y el editor va con ella", async () => {
+      await page.reload();
+      await page.waitForSelector(".af-engine", { timeout: 20000 });
+      must((await appearanceOf(page)) === "dark", "tras recargar la web no sigue oscura");
+      must((await prefs(page)).appearance === "dark", "appearance no se guardó como dark");
+      await page.goto(`${BASE}/a/${SHARE}`);
+      await page.waitForSelector(".react-flow__node", { timeout: 20000 });
+      must((await page.locator("[data-theme]").first().getAttribute("data-theme")) === "dark", "el editor no acompaña al oscuro");
+      must((await bg(page.locator(".react-flow"))) === "rgb(10, 12, 14)", "el lienzo dejó de ser #0a0c0e");
+      await page.evaluate(() => localStorage.removeItem("archforge.editor.ui"));
+      await page.goto(`${BASE}/`);
+      await page.waitForSelector(".af-engine", { timeout: 20000 });
+      must((await appearanceOf(page)) === null, "sin preferencia guardada la web no vuelve al claro");
+      must((await bg(page.locator("body"))) === "rgb(250, 250, 247)", "sin preferencia el suelo no vuelve a #fafaf7");
     });
 
     // ── web · el umbral de los avisos y el aviso de «Empezar de cero» ─────
     await check("web/1440 · ningún aviso de pantalla estrecha en /challenges, /c/:slug ni la portada", async () => {
       await page.goto(`${BASE}/challenges`);
-      await page.waitForSelector("text=Empezar de cero", { timeout: 20000 });
-      must(!(await visible(page.getByText(/no hay con qué dibujar/))), "el aviso de «Empezar de cero» sale a 1440");
+      await page.waitForSelector("text=Comenzar desde cero", { timeout: 20000 });
+      must(!(await visible(page.getByText(/no hay herramientas de dibujo/))), "el aviso de «Empezar de cero» sale a 1440");
       await page.goto(`${BASE}/c/single-point-of-failure`);
-      await page.waitForSelector("text=Empezar el reto", { timeout: 20000 });
-      must(!(await visible(page.getByText(/En una pantalla estrecha puedes mirar/))), "el aviso del reto sale a 1440");
+      await page.waitForSelector("text=Comenzar el reto", { timeout: 20000 });
+      must(!(await visible(page.getByText(/En una pantalla estrecha es posible consultar/))), "el aviso del reto sale a 1440");
     });
 
     await ctx.close();
@@ -217,21 +257,21 @@ async function main() {
     watch(p3, bag);
     await check("web/1000 · entre 768 y 1023 los avisos ya salen: en el reto, en «Empezar de cero» y bajo la demo", async () => {
       await p3.goto(`${BASE}/c/single-point-of-failure`);
-      await p3.waitForSelector("text=Empezar el reto", { timeout: 20000 });
-      must(await visible(p3.getByText(/En una pantalla estrecha puedes mirar/)), "el aviso del reto no sale a 1000");
+      await p3.waitForSelector("text=Comenzar el reto", { timeout: 20000 });
+      must(await visible(p3.getByText(/En una pantalla estrecha es posible consultar/)), "el aviso del reto no sale a 1000");
       await p3.goto(`${BASE}/challenges`);
-      await p3.waitForSelector("text=Empezar de cero", { timeout: 20000 });
-      must(await visible(p3.getByText(/no hay con qué dibujar/)), "el aviso de «Empezar de cero» no sale a 1000");
+      await p3.waitForSelector("text=Comenzar desde cero", { timeout: 20000 });
+      must(await visible(p3.getByText(/no hay herramientas de dibujo/)), "el aviso de «Empezar de cero» no sale a 1000");
       await p3.goto(`${BASE}/`);
-      await p3.waitForSelector("text=Se abre en modo lectura", { timeout: 20000 });
-      must(await visible(p3.getByText(/Se abre en modo lectura/)), "el aviso bajo la demo no sale a 1000");
+      await p3.waitForSelector("text=Se abre en modo de solo lectura", { timeout: 20000 });
+      must(await visible(p3.getByText(/Se abre en modo de solo lectura/)), "el aviso bajo la demo no sale a 1000");
       await noOverflow(p3, "/challenges a 1000");
     });
     await check("web/1000 · y a 1000 el editor, en efecto, no deja editar", async () => {
       await p3.goto(`${BASE}/e/${EDIT}`);
       await p3.waitForSelector(".react-flow__node", { timeout: 20000 });
       must((await countOf(p3.getByText("Componentes", { exact: true }))) === 0, "a 1000 hay paleta");
-      must(await visible(p3.getByText(/Se abre en modo lectura/)), "a 1000 no lo dice");
+      must(await visible(p3.getByText(/Se abre en modo de solo lectura/)), "a 1000 no lo dice");
     });
     await ctx3.close();
 
@@ -240,14 +280,14 @@ async function main() {
     await ctx4.addInitScript((work) => localStorage.setItem("archforge.architectures", work), savedWork);
     const p4 = await ctx4.newPage();
     watch(p4, bag);
-    await check("web/1440 · «Qué llevas aprendido» aparece en /challenges con las subidas por área de tu trabajo", async () => {
+    await check("web/1440 · «Progreso por áreas» aparece en /challenges con las subidas por área de tu trabajo", async () => {
       await p4.goto(`${BASE}/challenges`);
-      await waitFor(async () => await visible(p4.getByRole("heading", { name: "Qué llevas aprendido" })), { timeout: 20000, what: "la sección" });
+      await waitFor(async () => await visible(p4.getByRole("heading", { name: "Progreso por áreas" })), { timeout: 20000, what: "la sección" });
       const chips = p4.locator("li").filter({ hasText: "→" });
       must((await countOf(chips)) >= 1, "sin ninguna subida");
       const txt = await chips.first().textContent();
       must(/\d+ → \d+/.test(txt ?? ""), `el chip no lleva dos lecturas: ${txt}`);
-      must(await visible(p4.getByText("Las áreas que has subido")), "sin la entradilla");
+      must(await visible(p4.getByText("Las áreas que han mejorado")), "sin la entradilla");
       await noOverflow(p4, "/challenges con aprendido");
     });
     await ctx4.close();
@@ -256,9 +296,9 @@ async function main() {
     watch(p5, bag);
     await check("web/1440 · sin trabajo guardado la sección no existe", async () => {
       await p5.goto(`${BASE}/challenges`);
-      await p5.waitForSelector("text=Empezar de cero", { timeout: 20000 });
+      await p5.waitForSelector("text=Comenzar desde cero", { timeout: 20000 });
       await new Promise((r) => setTimeout(r, 800));
-      must((await countOf(p5.getByRole("heading", { name: "Qué llevas aprendido" }))) === 0, "sale sin trabajo");
+      must((await countOf(p5.getByRole("heading", { name: "Progreso por áreas" }))) === 0, "sale sin trabajo");
     });
     await ctx5.close();
 
@@ -268,14 +308,14 @@ async function main() {
     watch(p2, bag);
     await p2.goto(`${BASE}/e/${EDIT}`);
     await p2.waitForSelector(".react-flow__node", { timeout: 20000 });
-    await check("claro/390 · el menú trae la fila «Aspecto» bajo «Idioma», y «Claro» cambia el tema", async () => {
+    await check("aspecto/390 · el menú trae la fila «Aspecto» bajo «Idioma» con dos opciones, y «Claro» cambia el tema", async () => {
       await p2.getByRole("button", { name: "Abrir el menú" }).click();
       const group = p2.getByRole("radiogroup", { name: "Aspecto" });
       await waitFor(async () => await visible(group), { what: "la fila Aspecto" });
       must((await countOf(group.getByRole("radio"))) === 2, "no hay dos opciones");
       await group.getByRole("radio", { name: "Claro" }).click();
       await waitFor(async () => (await p2.locator("[data-theme]").first().getAttribute("data-theme")) === "light", { what: "claro en estrecho" });
-      must((await prefs(p2)).theme === "light", "no se guardó en estrecho");
+      must((await prefs(p2)).appearance === "light", "no se guardó en estrecho");
       await p2.keyboard.press("Escape");
       await waitFor(async () => (await countOf(p2.getByRole("dialog"))) === 0, { what: "cerrar el menú" });
       must((await bg(p2.locator(".react-flow"))) === "rgb(235, 234, 228)", "el lienzo estrecho no se puso claro");
@@ -283,8 +323,8 @@ async function main() {
     });
     await check("web/390 · el aviso de «Empezar de cero» sale y el de la portada también", async () => {
       await p2.goto(`${BASE}/challenges`);
-      await p2.waitForSelector("text=Empezar de cero", { timeout: 20000 });
-      must(await visible(p2.getByText(/no hay con qué dibujar/)), "sin aviso a 390");
+      await p2.waitForSelector("text=Comenzar desde cero", { timeout: 20000 });
+      must(await visible(p2.getByText(/no hay herramientas de dibujo/)), "sin aviso a 390");
       await noOverflow(p2, "/challenges a 390");
     });
     await ctx2.close();

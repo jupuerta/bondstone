@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getArchitectureHistory } from "../../api/architectureClient";
-import { editorPrefs, rememberEditorPrefs, type EditorTheme } from "../../domain/editorPrefs";
-import { PanelHandle } from "./shell/PanelHandle";
+import { INSPECTOR_WIDTH_MAX, INSPECTOR_WIDTH_MIN, PALETTE_WIDTH_MAX, PALETTE_WIDTH_MIN, PANEL_WIDTH_MAX, PANEL_WIDTH_MIN, clampInspectorWidth, clampPaletteWidth, clampPanelWidth, editorPrefs, rememberEditorPrefs } from "../../domain/editorPrefs";
+import { editorTheme } from "../../domain/appearance";
+import { useAppearance } from "../../hooks/useAppearance";
+import { ColumnHandle } from "./shell/ColumnHandle";
 import { challengeOf, rememberWork, scoreWork, touchWork } from "../../domain/savedWork";
 import { startingPointOf } from "../../domain/startingPoint";
 import { useAutosave } from "../../hooks/useAutosave";
@@ -26,7 +28,7 @@ import { pointAt } from "./canvas/trafficDial";
 import { NO_MARKS, type CanvasMarks, type EditorMode, type Selection } from "./canvas/types";
 import { ViewStrip } from "./canvas/ViewStrip";
 import { ZoomPill } from "./canvas/ZoomPill";
-import { BriefBand } from "./challenge/BriefBand";
+import { BriefBand, BriefDrawer } from "./challenge/BriefBand";
 import { ChallengeJournal } from "./challenge/ChallengeJournal";
 import { journalOf, type Journal } from "./challenge/journal";
 import { ComponentCard } from "./help/ComponentCard";
@@ -101,8 +103,12 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
   const [exporting, setExporting] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [glossesOpen, setGlossesOpen] = useState(() => editorPrefs().glossesOpen);
-  const [theme, setTheme] = useState<EditorTheme>(() => editorPrefs().theme);
+  const [appearance] = useAppearance();
+  const theme = editorTheme(appearance);
   const [panelWidth, setPanelWidth] = useState(() => editorPrefs().panelWidth);
+  const [paletteWidth, setPaletteWidth] = useState(() => editorPrefs().paletteWidth);
+  const [inspectorWidth, setInspectorWidth] = useState(() => editorPrefs().inspectorWidth);
+  const [paletteBeside, setPaletteBeside] = useState(false);
   const help = useComponentHelp();
   const canvasBox = useRef<HTMLDivElement>(null);
   const [savedRevision, setSavedRevision] = useState(0);
@@ -266,6 +272,10 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
     }
     void evaluate();
   }, [saveStatus, retryNow, evaluate]);
+  const collapseBrief = useCallback(() => {
+    if (!narrow) rememberEditorPrefs({ briefCollapsed: true });
+    setBriefCollapsed(true);
+  }, [narrow]);
   const toggleBrief = useCallback(() => {
     setBriefCollapsed((current) => {
       if (!narrow) rememberEditorPrefs({ briefCollapsed: !current });
@@ -388,20 +398,23 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
     if (next) setDrawerOpen(true);
   }, []);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
-  const togglePalette = useCallback(() => {
+  const collapsePalette = useCallback(() => {
     setPaletteCollapsed((current) => {
       rememberEditorPrefs({ paletteCollapsed: !current });
       return !current;
     });
   }, []);
-  const chooseTheme = useCallback((next: EditorTheme) => {
-    rememberEditorPrefs({ theme: next });
-    setTheme(next);
-  }, []);
-  const toggleTheme = useCallback(() => chooseTheme(theme === "light" ? "dark" : "light"), [chooseTheme, theme]);
   const resizePanel = useCallback((width: number) => {
     rememberEditorPrefs({ panelWidth: width });
     setPanelWidth(width);
+  }, []);
+  const resizePalette = useCallback((width: number) => {
+    rememberEditorPrefs({ paletteWidth: width });
+    setPaletteWidth(width);
+  }, []);
+  const resizeInspector = useCallback((width: number) => {
+    rememberEditorPrefs({ inspectorWidth: width });
+    setInspectorWidth(width);
   }, []);
 
   const edits = useMemo<CanvasEdits>(
@@ -439,7 +452,7 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
 
   const selected = selection ? elementOf(dto, selection) : null;
   const chips: BarChip[] = challenge.definition ? [{ key: "challenge", label: t("ui.challenge.title") }] : [];
-  const saveState = <SaveState status={autosave.status} version={version} error={autosave.error} onRetry={autosave.retryNow} narrow={narrow} />;
+  const saveState = <SaveState status={autosave.status} error={autosave.error} onRetry={autosave.retryNow} />;
   const modeSwitch = <Segmented<EditorMode> options={MODES} value={simulate.mode} onChange={simulate.setMode} label={t("editor.bar.mode")} dark tap={narrow} />;
 
   const findingGraph = useMemo<FindingGraph>(
@@ -504,6 +517,10 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
       )}
     </div>
   );
+
+  const detailOpen = selected !== null;
+  const paletteHidden = detailOpen ? !paletteBeside : paletteCollapsed;
+  const togglePalette = detailOpen ? () => setPaletteBeside((beside) => !beside) : collapsePalette;
 
   const sheet = selected?.kind === "node" && sheetOpen ? <ComponentSheet type={selected.node.type} onBack={() => setSheetOpen(false)} narrow={narrow} /> : null;
 
@@ -574,6 +591,17 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
     />
   );
 
+  const brief = challenge.definition && !narrow && !briefCollapsed && (
+    <BriefDrawer
+      definition={challenge.definition}
+      result={challenge.result}
+      error={challenge.error}
+      own
+      actions={{ onPreview: setPreview, onPin: handlePin, pinnedId: pinned?.id ?? null }}
+      onClose={collapseBrief}
+    />
+  );
+
   const shell = (
     <EditorBar
       name={name}
@@ -588,8 +616,6 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
       onExport={() => setExporting(true)}
       onOpenMenu={() => setMenuOpen(true)}
       menuOpen={menuOpen}
-      theme={theme}
-      onToggleTheme={toggleTheme}
     />
   );
 
@@ -706,7 +732,7 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
         >
           {selected ? (simulating && picker ? <FaultPicker {...picker} narrow /> : (sheet ?? inspector)) : simulating ? impact : motor}
         </BottomDrawer>
-        {menuOpen && <NarrowMenu shareToken={architecture.shareToken} onClose={closeMenu} onShare={copy} shared={copied} onExport={() => setExporting(true)} theme={theme} onTheme={chooseTheme} />}
+        {menuOpen && <NarrowMenu shareToken={architecture.shareToken} onClose={closeMenu} onShare={copy} shared={copied} onExport={() => setExporting(true)} />}
         {overlays}
       </div>
     );
@@ -720,36 +746,46 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
         {simulating ? (
           <SimulateColumn scenario={scenario} picker={picker} />
         ) : (
-          <aside className={`flex shrink-0 border-r border-panel-line bg-panel ${inspector || paletteCollapsed ? "w-auto" : "w-[240px]"}`}>
-            {inspector ? (
-              <>
-                <Palette collapsed onToggle={togglePalette} onAdd={canEdit ? addByKeyboard : undefined} />
-                <div className="flex w-[216px] flex-col">
-                  <div className="flex h-11 shrink-0 items-center justify-between border-b border-panel-line px-3">
-                    <span className="eyebrow text-panel-ink-3">{sheet ? t("editor.help.sheet") : selected?.kind === "node" ? t("editor.inspector.component") : t("ui.inspector.call")}</span>
-                    <button type="button" onClick={() => setSelection(null)} className="rounded-pill px-2 py-1 text-meta text-panel-ink-2 hover:text-panel-ink">
-                      {t("ui.close")}
-                    </button>
-                  </div>
-                  <div className="min-h-0 flex-1 overflow-y-auto p-3">{sheet ?? inspector}</div>
-                </div>
-              </>
-            ) : (
+          <aside className="flex shrink-0 border-r border-panel-line bg-panel">
+            {paletteHidden ? (
               <Palette
-                collapsed={paletteCollapsed}
+                collapsed
                 onToggle={togglePalette}
                 help={{ type: help.type, onEnter: help.enter, onFocus: help.focus, onLeave: help.leave, onClose: help.close }}
                 onAdd={canEdit ? addByKeyboard : undefined}
               />
+            ) : (
+              <div className="relative flex shrink-0" style={{ width: paletteWidth }}>
+                <Palette
+                  collapsed={false}
+                  onToggle={togglePalette}
+                  help={{ type: help.type, onEnter: help.enter, onFocus: help.focus, onLeave: help.leave, onClose: help.close }}
+                  onAdd={canEdit ? addByKeyboard : undefined}
+                />
+                <ColumnHandle side="left" width={paletteWidth} min={PALETTE_WIDTH_MIN} max={PALETTE_WIDTH_MAX} clamp={clampPaletteWidth} label={t("ui.palette.resize")} onChange={resizePalette} />
+              </div>
+            )}
+            {inspector && (
+              <div className="relative flex shrink-0 flex-col border-l border-panel-line" style={{ width: inspectorWidth }}>
+                <ColumnHandle side="left" width={inspectorWidth} min={INSPECTOR_WIDTH_MIN} max={INSPECTOR_WIDTH_MAX} clamp={clampInspectorWidth} label={t("ui.inspector.resize")} onChange={resizeInspector} />
+                <div className="flex h-11 shrink-0 items-center justify-between border-b border-panel-line px-3">
+                  <span className="eyebrow text-panel-ink-3">{sheet ? t("editor.help.sheet") : selected?.kind === "node" ? t("editor.inspector.component") : t("ui.inspector.call")}</span>
+                  <button type="button" onClick={() => setSelection(null)} className="rounded-pill px-2 py-1 text-meta text-panel-ink-2 hover:text-panel-ink">
+                    {t("ui.close")}
+                  </button>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto p-3">{sheet ?? inspector}</div>
+              </div>
             )}
           </aside>
         )}
         <div ref={canvasBox} className="relative flex min-h-0 min-w-0 flex-1">
           {canvas}
+          {brief}
           {help.type !== null && canEdit && <ComponentCard type={help.type} canvas={canvasBox.current} anchorTop={help.anchorTop} onMouseEnter={help.keep} onMouseLeave={help.leaveCard} />}
         </div>
         <aside className="relative flex shrink-0 flex-col border-l border-panel-line bg-panel" style={{ width: panelWidth }}>
-          <PanelHandle width={panelWidth} onChange={resizePanel} />
+          <ColumnHandle side="right" width={panelWidth} min={PANEL_WIDTH_MIN} max={PANEL_WIDTH_MAX} clamp={clampPanelWidth} label={t("ui.panel.resize")} onChange={resizePanel} />
           <div className="flex h-11 shrink-0 items-center justify-between border-b border-panel-line px-3">
             <h2 className="font-display text-panel font-semibold text-panel-ink">{panelTitle}</h2>
             {panelBusy && <SpinnerIcon size={12} className="text-panel-ink-3" />}

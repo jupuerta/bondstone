@@ -41,7 +41,7 @@ export function Diagram({ architecture, states, faultIds, id }: DiagramProps) {
     >
       <defs>
         <marker id={`arrow-${id}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth={7 * k} markerHeight={7 * k} orient="auto-start-reverse">
-          <path d="M0 0L10 5L0 10z" fill="rgba(238,240,244,0.4)" />
+          <path d="M0 0L10 5L0 10z" fill="color-mix(in oklab, var(--af-panel-ink) 40%, transparent)" />
         </marker>
         <filter id={`glow-${id}`} x="-40%" y="-40%" width="180%" height="180%">
           <feGaussianBlur stdDeviation={6 * k} />
@@ -58,7 +58,7 @@ export function Diagram({ architecture, states, faultIds, id }: DiagramProps) {
             y1={segment.y1}
             x2={segment.x2}
             y2={segment.y2}
-            stroke="rgba(238,240,244,0.4)"
+            stroke="color-mix(in oklab, var(--af-panel-ink) 40%, transparent)"
             strokeWidth={1.5 * k}
             strokeDasharray={connection.synchronous ? undefined : `${6 * k} ${5 * k}`}
             markerEnd={`url(#arrow-${id})`}

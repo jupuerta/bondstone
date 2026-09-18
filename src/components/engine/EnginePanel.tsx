@@ -24,7 +24,7 @@ export function EnginePanel({ shareToken, scenario, headerRight, offerOpen = fal
   const { state, retry } = useEngine(shareToken, scenario);
 
   return (
-    <section className="panel overflow-hidden rounded-panel border border-panel-line bg-panel text-panel-ink shadow-[0_40px_80px_-48px_rgba(16,16,18,0.6)]" aria-busy={state.status === "loading"}>
+    <section className="panel af-engine overflow-hidden rounded-panel border border-panel-line bg-panel text-panel-ink shadow-[0_40px_80px_-48px_rgba(16,16,18,0.6)]" aria-busy={state.status === "loading"}>
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-panel-line px-4 py-3 font-mono text-meta text-panel-ink-2 md:px-5">
         <span>
           {state.status === "ready" ? headline(state.data, t) : shareToken === null ? t("web.engine.notConfigured") : `${t("ui.loading")}`}

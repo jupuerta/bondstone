@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { editorPrefs, rememberEditorPrefs, type EditorTheme } from "../../domain/editorPrefs";
+import { INSPECTOR_WIDTH_MAX, INSPECTOR_WIDTH_MIN, PANEL_WIDTH_MAX, PANEL_WIDTH_MIN, clampInspectorWidth, clampPanelWidth, editorPrefs, rememberEditorPrefs } from "../../domain/editorPrefs";
+import { editorTheme } from "../../domain/appearance";
+import { useAppearance } from "../../hooks/useAppearance";
 import { challengeOf } from "../../domain/savedWork";
-import { PanelHandle } from "./shell/PanelHandle";
+import { ColumnHandle } from "./shell/ColumnHandle";
 import { useChallenge } from "../../hooks/useChallenge";
 import { useLoadCurve } from "../../hooks/useLoadCurve";
 import { useNarrowViewport } from "../../hooks/useMediaQuery";
@@ -20,7 +22,7 @@ import { pointAt } from "./canvas/trafficDial";
 import { NO_MARKS, type CanvasMarks, type EditorMode, type Selection } from "./canvas/types";
 import { ViewStrip } from "./canvas/ViewStrip";
 import { ZoomPill } from "./canvas/ZoomPill";
-import { BriefBand } from "./challenge/BriefBand";
+import { BriefBand, BriefDrawer } from "./challenge/BriefBand";
 import { ChallengeJournal } from "./challenge/ChallengeJournal";
 import { journalOf, type Journal } from "./challenge/journal";
 import { ComponentSheet } from "./help/ComponentSheet";
@@ -84,16 +86,17 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
   const [exporting, setExporting] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [glossesOpen, setGlossesOpen] = useState(() => editorPrefs().glossesOpen);
-  const [theme, setTheme] = useState<EditorTheme>(() => editorPrefs().theme);
+  const [appearance] = useAppearance();
+  const theme = editorTheme(appearance);
   const [panelWidth, setPanelWidth] = useState(() => editorPrefs().panelWidth);
-  const chooseTheme = useCallback((next: EditorTheme) => {
-    rememberEditorPrefs({ theme: next });
-    setTheme(next);
-  }, []);
-  const toggleTheme = useCallback(() => chooseTheme(theme === "light" ? "dark" : "light"), [chooseTheme, theme]);
+  const [inspectorWidth, setInspectorWidth] = useState(() => editorPrefs().inspectorWidth);
   const resizePanel = useCallback((width: number) => {
     rememberEditorPrefs({ panelWidth: width });
     setPanelWidth(width);
+  }, []);
+  const resizeInspector = useCallback((width: number) => {
+    rememberEditorPrefs({ inspectorWidth: width });
+    setInspectorWidth(width);
   }, []);
   const glosses = useMemo<GlossControls>(
     () => ({
@@ -157,6 +160,10 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
     return journalOf({ definition: challenge.definition, startingPoint: null, current: ready, first: null, analysis: result });
   }, [challenge.definition, challenge.result, ready, result]);
 
+  const collapseBrief = useCallback(() => {
+    if (!narrow) rememberEditorPrefs({ briefCollapsed: true });
+    setBriefCollapsed(true);
+  }, [narrow]);
   const toggleBrief = useCallback(() => {
     setBriefCollapsed((current) => {
       if (!narrow) rememberEditorPrefs({ briefCollapsed: !current });
@@ -218,8 +225,6 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
       onExport={() => setExporting(true)}
       onOpenMenu={() => setMenuOpen(true)}
       menuOpen={menuOpen}
-      theme={theme}
-      onToggleTheme={toggleTheme}
     />
   );
   const strip = simulating ? (
@@ -314,6 +319,16 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
       actions={{ onPreview: setPreview, onPin: handlePin, pinnedId: pinned?.id ?? null }}
     />
   );
+  const brief = challenge.definition && !narrow && !briefCollapsed && (
+    <BriefDrawer
+      definition={challenge.definition}
+      result={challenge.result}
+      error={challenge.error}
+      own={false}
+      actions={{ onPreview: setPreview, onPin: handlePin, pinnedId: pinned?.id ?? null }}
+      onClose={collapseBrief}
+    />
+  );
   const overlays = (
     <>
       {solutionOpen && challenge.definition && (
@@ -373,7 +388,7 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
         >
           {selected ? (simulating && picker ? <FaultPicker {...picker} narrow /> : (sheet ?? inspector)) : simulating ? impact : motor}
         </BottomDrawer>
-        {menuOpen && <NarrowMenu shareToken={shareToken} onClose={closeMenu} primary={openCopy("md")} onShare={copy} shared={copied} onExport={() => setExporting(true)} theme={theme} onTheme={chooseTheme} />}
+        {menuOpen && <NarrowMenu shareToken={shareToken} onClose={closeMenu} primary={openCopy("md")} onShare={copy} shared={copied} onExport={() => setExporting(true)} />}
         {overlays}
       </div>
     );
@@ -388,7 +403,8 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
           <SimulateColumn scenario={scenario} picker={picker} />
         ) : (
           inspector && (
-            <aside className="flex w-[264px] shrink-0 flex-col border-r border-panel-line bg-panel">
+            <aside className="relative flex shrink-0 flex-col border-r border-panel-line bg-panel" style={{ width: inspectorWidth }}>
+              <ColumnHandle side="left" width={inspectorWidth} min={INSPECTOR_WIDTH_MIN} max={INSPECTOR_WIDTH_MAX} clamp={clampInspectorWidth} label={t("ui.inspector.resize")} onChange={resizeInspector} />
               <div className="flex h-11 items-center justify-between border-b border-panel-line px-3">
                 <span className="eyebrow text-panel-ink-3">{sheet ? t("editor.help.sheet") : selected?.kind === "node" ? t("editor.inspector.component") : t("ui.inspector.call")}</span>
                 <button type="button" onClick={() => setSelection(null)} className="rounded-pill px-2 py-1 text-meta text-panel-ink-2 hover:text-panel-ink">
@@ -399,9 +415,12 @@ export function ReadOnlyEditor({ shareToken, search, onOpenCopy, copying, copyEr
             </aside>
           )
         )}
-        {canvas}
+        <div className="relative flex min-h-0 min-w-0 flex-1">
+          {canvas}
+          {brief}
+        </div>
         <aside className="relative flex shrink-0 flex-col border-l border-panel-line bg-panel" style={{ width: panelWidth }}>
-          <PanelHandle width={panelWidth} onChange={resizePanel} />
+          <ColumnHandle side="right" width={panelWidth} min={PANEL_WIDTH_MIN} max={PANEL_WIDTH_MAX} clamp={clampPanelWidth} label={t("ui.panel.resize")} onChange={resizePanel} />
           <div className="flex h-11 items-center justify-between border-b border-panel-line px-3">
             <h2 className="font-display text-panel font-semibold text-panel-ink">{panelTitle}</h2>
             {simulating && simulate.simulation.status === "loading" && <SpinnerIcon size={12} className="text-panel-ink-3" />}

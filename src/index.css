@@ -43,6 +43,7 @@
   --color-panel-on-hot: var(--af-panel-on-hot);
   --color-panel-on-warm: var(--af-panel-on-warm);
   --color-zone-ink: var(--af-zone-ink);
+  --color-on-ink: var(--af-on-ink);
 
   --font-sans: var(--af-font-ui);
   --font-display: var(--af-font-display);
@@ -107,6 +108,12 @@
   --af-hot: #c9302c;
   --af-warm: oklch(0.55 0.15 75);
   --af-ok: #1a7f52;
+
+  /* Lo que el oscuro de la web redefine y el claro tenía escrito a mano:
+     docs/Design/UI/oscuro.md §2. */
+  --af-on-ink: #ffffff;
+  --af-focus: var(--af-accent);
+  --af-press: #000000;
 
   --af-panel: #0f1115;
   --af-panel-2: #14171d;
@@ -203,6 +210,37 @@
   color: var(--af-ink);
 }
 
+/* La web en oscuro: una preferencia, clara por defecto. Los valores son los del panel del editor,
+   token a token; el editor no cambia un píxel. docs/Design/UI/oscuro.md. */
+[data-appearance="dark"] {
+  --af-bg: #0f1115; /* --af-panel */
+  --af-surface: #14171d; /* --af-panel-2 */
+  --af-surface-2: #1b1f27; /* --af-panel-3 */
+  --af-line: rgba(255, 255, 255, 0.12); /* --af-panel-line */
+  --af-line-2: rgba(255, 255, 255, 0.24); /* --af-panel-line-2 */
+  --af-ink: #eef0f4; /* --af-panel-ink */
+  --af-ink-2: #a3aab8; /* --af-panel-ink-2 */
+  --af-ink-3: #7c8494; /* --af-panel-ink-3 */
+  --af-accent: oklch(0.72 0.17 267); /* --af-accent-panel */
+  --af-accent-ink: #0f1115;
+  --af-accent-tint: color-mix(in oklab, var(--af-accent) 16%, #0f1115);
+  --af-accent-line: color-mix(in oklab, var(--af-accent) 42%, #0f1115);
+  --af-hot: #ff5f5f; /* --af-hot-panel */
+  --af-warm: #f3b64f; /* --af-warm-panel */
+  --af-ok: #3ecf8e; /* --af-ok-panel */
+  --af-on-ink: #0f1115;
+  --af-focus: #ffffff;
+  --af-press: #ffffff;
+  color-scheme: dark;
+}
+
+/* El motor dentro de la web oscura sube un escalón y pasa a ser una tarjeta más, en vez de
+   confundirse con el suelo. Solo el panel de la portada: el editor y su menú se quedan donde están. */
+[data-appearance="dark"] .af-engine {
+  --af-panel: #14171d;
+  --af-panel-2: #1b1f27;
+}
+
 html,
 body,
 #root {
@@ -237,7 +275,7 @@ p {
 
 /* El cerco de foco: cobalto de 2 px, a 3 px del borde. Blanco dentro del panel oscuro. */
 :focus-visible {
-  outline: 2px solid var(--af-accent);
+  outline: 2px solid var(--af-focus);
   outline-offset: 3px;
   border-radius: 2px;
 }

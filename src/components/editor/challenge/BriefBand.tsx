@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { EvaluationStatus } from "../../../hooks/useChallenge";
+import { useEscape } from "../../../hooks/useEscape";
 import { useT } from "../../../i18n";
 import type { ChallengeDetail, ChallengeRequirementInfo, ChallengeRequirementResult, ChallengeResult, FindingElement, LocalizedText } from "../../../types/architecture";
 import { Button } from "../../ui/Button";
@@ -62,35 +63,92 @@ export function BriefBand({ definition, result, status, error, collapsed, onTogg
   }
 
   return (
-    <section aria-label={t("ui.challenge.brief")} className="shrink-0 border-b border-panel-line bg-panel-2 px-4 py-3.5">
-      <div className="flex items-center gap-4">
-        <div className="flex min-w-0 flex-1 items-center gap-2.5">
-          <h1 className="min-w-0 truncate font-display text-[19px] leading-[1.2] font-semibold text-panel-ink">{t(definition.title)}</h1>
-          <Chip variant="panel" className="shrink-0">
-            {t(`ui.difficulty.${definition.difficulty}`)}
-          </Chip>
-        </div>
-        {collapsed && verdict}
-        <button type="button" onClick={onToggle} aria-expanded={!collapsed} className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-pill px-2 text-[12px] text-panel-ink-2 hover:text-panel-ink">
+    <section data-brief-band aria-label={t("ui.challenge.brief")} className="flex h-11 shrink-0 items-center gap-3 border-b border-panel-line bg-panel-2 px-4">
+      <h1 className="min-w-0 truncate font-display text-[15px] leading-[1.2] font-semibold text-panel-ink">{t(definition.title)}</h1>
+      <Chip variant="panel" className="shrink-0">
+        {t(`ui.difficulty.${definition.difficulty}`)}
+      </Chip>
+      <div className="ml-auto flex shrink-0 items-center gap-3">
+        {verdict}
+        <button type="button" data-brief-toggle onClick={onToggle} aria-expanded={!collapsed} className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-pill px-2 text-[12px] text-panel-ink-2 hover:text-panel-ink">
           {toggleLabel}
           <Chevron up={!collapsed} />
         </button>
       </div>
-      {!collapsed && (
-        <div className="mt-2.5 grid grid-cols-[1.5fr_1.2fr_1fr] items-start gap-7">
+    </section>
+  );
+}
+
+interface BriefDrawerProps {
+  definition: ChallengeDetail;
+  result: ChallengeResult | null;
+  error: string | null;
+  own: boolean;
+  actions: RequirementActions;
+  onClose: () => void;
+}
+
+export function BriefDrawer({ definition, result, error, own, actions, onClose }: BriefDrawerProps) {
+  const t = useT();
+  const panel = useRef<HTMLDivElement>(null);
+  const dismiss = useRef(onClose);
+  dismiss.current = onClose;
+  useEscape(onClose);
+
+  useEffect(() => {
+    const box = panel.current;
+    box?.focus({ preventScroll: true });
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target === null) return;
+      if (box?.contains(target) || target.closest("[data-brief-band]")) return;
+      dismiss.current();
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      const focused = document.activeElement;
+      if (focused === document.body || (box !== null && focused !== null && box.contains(focused))) {
+        document.querySelector<HTMLElement>("[data-brief-toggle]")?.focus({ preventScroll: true });
+      }
+    };
+  }, []);
+
+  return (
+    <div className="absolute inset-x-0 top-10 bottom-0 z-20 flex items-start">
+      <div aria-hidden className="absolute inset-0 bg-canvas/80" />
+      <div
+        ref={panel}
+        role="dialog"
+        aria-label={t("ui.challenge.brief")}
+        tabIndex={-1}
+        className="relative m-3 flex max-h-[calc(100%-24px)] w-[672px] max-w-[calc(100%-24px)] flex-col gap-3 overflow-y-auto rounded-panel border border-panel-line-2 bg-panel-2 p-4 shadow-[0_24px_48px_-24px_rgba(0,0,0,.8)]"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <h2 className="min-w-0 font-display text-[17px] leading-[1.2] font-semibold text-balance text-panel-ink">{t(definition.title)}</h2>
+            <Chip variant="panel" className="shrink-0">
+              {t(`ui.difficulty.${definition.difficulty}`)}
+            </Chip>
+          </div>
+          <button type="button" onClick={onClose} className="inline-flex shrink-0 items-center gap-2 rounded-pill px-2 py-1 text-[12px] text-panel-ink-2 hover:text-panel-ink">
+            {t("ui.close")}
+            <kbd className="rounded border border-panel-line bg-panel-3 px-1 font-mono text-[10px] text-panel-ink-3">{t("ui.key.escape")}</kbd>
+          </button>
+        </div>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] items-start gap-6">
           <div className="flex flex-col gap-2.5">
             <Story story={definition.story} />
             <Lesson slug={definition.slug} />
-          </div>
-          <Checks definition={definition} result={result} actions={actions} narrow={false} />
-          <div className="flex flex-col gap-2.5">
             <Hints hints={definition.hints} narrow={false} />
-            {verdict}
+          </div>
+          <div className="flex flex-col gap-2.5">
+            <Checks definition={definition} result={result} actions={actions} narrow={false} />
             <Notes own={own} error={error} />
           </div>
         </div>
-      )}
-    </section>
+      </div>
+    </div>
   );
 }
 

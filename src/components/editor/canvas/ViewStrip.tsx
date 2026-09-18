@@ -119,7 +119,7 @@ export function ViewStrip({ narrow, drawn, lens, badges, legend, dial, wave, asi
 
   return (
     <div ref={box} className="relative z-30 shrink-0 border-b border-panel-line bg-panel-3">
-      <div className={`flex items-center gap-2 px-3 ${narrow ? "min-h-14 overflow-x-auto py-1.5" : "h-10"}`}>
+      <div className={`flex items-center gap-2 overflow-x-auto px-3 ${narrow ? "min-h-14 py-1.5" : "h-10"}`}>
       {lens && (
         <button
           ref={lensButton}

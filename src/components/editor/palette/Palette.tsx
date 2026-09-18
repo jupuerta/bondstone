@@ -58,7 +58,7 @@ export function Palette({ collapsed, onToggle, help, onAdd }: PaletteProps) {
 
   if (collapsed) {
     return (
-      <div className="flex w-12 shrink-0 flex-col items-center border-r border-panel-line bg-panel">
+      <div className="flex w-12 shrink-0 flex-col items-center bg-panel">
         <div className="flex h-11 w-full shrink-0 items-center justify-center border-b border-panel-line">
           <button type="button" onClick={onToggle} aria-label={t("ui.palette.expand")} title={t("ui.palette.expand")} className="inline-flex size-8 items-center justify-center rounded-pill text-panel-ink-2 hover:bg-wash/8 hover:text-panel-ink">
             <Chevron open={false} />

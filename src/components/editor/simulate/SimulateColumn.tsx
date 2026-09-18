@@ -1,4 +1,7 @@
+import { useCallback, useState } from "react";
+import { SCENARIO_WIDTH_MAX, SCENARIO_WIDTH_MIN, clampScenarioWidth, editorPrefs, rememberEditorPrefs } from "../../../domain/editorPrefs";
 import { useT } from "../../../i18n";
+import { ColumnHandle } from "../shell/ColumnHandle";
 import { FaultPicker, type FaultPickerProps } from "./FaultPicker";
 import { Scenario, type ScenarioProps } from "./Scenario";
 
@@ -9,8 +12,15 @@ interface SimulateColumnProps {
 
 export function SimulateColumn({ scenario, picker }: SimulateColumnProps) {
   const t = useT();
+  const [width, setWidth] = useState(() => editorPrefs().scenarioWidth);
+  const resize = useCallback((next: number) => {
+    rememberEditorPrefs({ scenarioWidth: next });
+    setWidth(next);
+  }, []);
+
   return (
-    <aside className="flex w-[264px] shrink-0 flex-col border-r border-panel-line bg-panel">
+    <aside className="relative flex shrink-0 flex-col border-r border-panel-line bg-panel" style={{ width }}>
+      <ColumnHandle side="left" width={width} min={SCENARIO_WIDTH_MIN} max={SCENARIO_WIDTH_MAX} clamp={clampScenarioWidth} label={t("ui.scenario.resize")} onChange={resize} />
       <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto p-3">
         <Scenario {...scenario} narrow={false} />
         {picker && (

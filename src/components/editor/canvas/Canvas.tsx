@@ -13,6 +13,7 @@ import {
   type Edge,
   type Node,
 } from "@xyflow/react";
+import { resizingColumns } from "../../../domain/columnResize";
 import { useT } from "../../../i18n";
 import type { ArchitectureDto, ConnectionLoad, ElementState, NodeType, PositionDto } from "../../../types/architecture";
 import { tintOf } from "../../engine/tints";
@@ -113,9 +114,10 @@ function CanvasInner({ architecture, states, faultIds, callLoad, selection, onSe
   );
   useOnSelectionChange({ onChange: onSelectionChange });
 
-  const { fitView, getZoom, screenToFlowPosition } = useReactFlow();
+  const { fitView, getViewport, getZoom, screenToFlowPosition, setViewport } = useReactFlow();
   const frame = useRef<HTMLElement>(null);
   const lastWidth = useRef<number | null>(null);
+  const lastLeft = useRef<number | null>(null);
   const chosen = useRef<Selection | null>(selection);
   chosen.current = selection;
   const padding = narrow ? 0.1 : 0.2;
@@ -127,9 +129,21 @@ function CanvasInner({ architecture, states, faultIds, callLoad, selection, onSe
 
     const observer = new ResizeObserver(([entry]) => {
       const width = entry.contentRect.width;
+      const left = element.getBoundingClientRect().left;
       const previous = lastWidth.current;
+      const previousLeft = lastLeft.current;
       lastWidth.current = width;
-      if (previous === null) return;
+      lastLeft.current = left;
+      if (previous === null || previousLeft === null) return;
+
+      if (resizingColumns()) {
+        const shift = left - previousLeft;
+        if (Math.abs(shift) > 0.5) {
+          const viewport = getViewport();
+          setViewport({ ...viewport, x: viewport.x - shift });
+        }
+        return;
+      }
 
       const duration = still() ? 0 : 150;
 
@@ -144,7 +158,7 @@ function CanvasInner({ architecture, states, faultIds, callLoad, selection, onSe
 
     observer.observe(element);
     return () => observer.disconnect();
-  }, [fitView, getZoom, padding]);
+  }, [fitView, getViewport, getZoom, padding, setViewport]);
 
   const drawn = architecture.nodes.length > 0;
   const wasDrawn = useRef(drawn);

@@ -3,6 +3,7 @@ import { Link, NavLink } from "react-router-dom";
 import { useT } from "../../i18n";
 import { Button } from "../ui/Button";
 import { ArrowIcon, CloseIcon, LogoMark, MenuIcon } from "../ui/Icons";
+import { AppearanceSegmented, AppearanceToggle } from "./AppearanceToggle";
 import { LanguageToggle } from "./LanguageToggle";
 
 export const FIRST_CHALLENGE = "/c/single-point-of-failure";
@@ -47,8 +48,9 @@ export function SiteHeader() {
         </div>
 
         <div className="flex items-center gap-2 md:gap-[18px]">
-          <span className="hidden lg:inline-flex">
+          <span className="hidden items-center gap-2 lg:inline-flex">
             <LanguageToggle />
+            <AppearanceToggle />
           </span>
           <Button to={FIRST_CHALLENGE} size="sm" className="px-3 text-[13px] md:px-4 md:text-[14px]">
             {t("web.nav.start")}
@@ -117,6 +119,10 @@ function MobileMenu({ onClose }: { onClose: () => void }) {
         <div className="flex items-center justify-between">
           <span className="eyebrow">{t("web.nav.language")}</span>
           <LanguageToggle />
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="eyebrow">{t("editor.theme.label")}</span>
+          <AppearanceSegmented />
         </div>
         <Button to={FIRST_CHALLENGE} size="md" className="w-full">
           {t("web.nav.start")}

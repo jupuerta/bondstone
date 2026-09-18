@@ -46,7 +46,7 @@ export function FilterChip({ selected, onClick, children }: FilterChipProps) {
       aria-pressed={selected}
       className={`inline-flex min-h-9 items-center gap-2 rounded-pill border px-3 text-small transition-colors ${
         selected
-          ? "border-ink bg-ink font-semibold text-white"
+          ? "border-ink bg-ink font-semibold text-on-ink"
           : "border-line text-ink-2 hover:bg-[color-mix(in_oklab,var(--af-ink)_5%,transparent)]"
       }`}
     >

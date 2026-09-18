@@ -28,7 +28,7 @@ const SIZE: Record<ButtonSize, string> = {
 
 const VARIANT: Record<ButtonVariant, string> = {
   primary:
-    "bg-accent text-accent-ink border-accent hover:bg-[color-mix(in_oklab,var(--af-accent)_82%,#000)] hover:border-[color-mix(in_oklab,var(--af-accent)_82%,#000)] active:bg-[color-mix(in_oklab,var(--af-accent)_68%,#000)]",
+    "bg-accent text-accent-ink border-accent hover:bg-[color-mix(in_oklab,var(--af-accent)_82%,var(--af-press))] hover:border-[color-mix(in_oklab,var(--af-accent)_82%,var(--af-press))] active:bg-[color-mix(in_oklab,var(--af-accent)_68%,var(--af-press))]",
   ghost:
     "bg-transparent text-ink border-ink hover:bg-[color-mix(in_oklab,var(--af-ink)_6%,transparent)] active:bg-[color-mix(in_oklab,var(--af-ink)_12%,transparent)]",
   panel:

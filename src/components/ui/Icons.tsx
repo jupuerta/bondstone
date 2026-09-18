@@ -49,7 +49,7 @@ export function CheckCircleIcon({ filled = false, ...props }: IconProps & { fill
   return (
     <svg {...base(props)} fill={filled ? "currentColor" : "none"}>
       <circle cx="12" cy="12" r="9" />
-      {filled && <path d="M8 12l3 3 5-6" stroke="#ffffff" />}
+      {filled && <path d="M8 12l3 3 5-6" stroke="var(--af-on-ink)" />}
     </svg>
   );
 }
