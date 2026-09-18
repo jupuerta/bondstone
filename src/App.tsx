@@ -27,9 +27,7 @@ export function App() {
         <Route path="/model" element={<ModelPage />} />
         <Route path="/mechanisms" element={<MechanismsPage />} />
         <Route path="/about" element={<AboutPage />} />
-        <Route path="/privacidad" element={<LegalPage kind="privacy" />} />
-        <Route path="/terminos" element={<LegalPage kind="terms" />} />
-        <Route path="/aviso-de-recoleccion" element={<LegalPage kind="collection" />} />
+        <Route path="/privacidad" element={<LegalPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </>

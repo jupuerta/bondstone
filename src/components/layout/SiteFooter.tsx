@@ -4,6 +4,7 @@ import { LinkedInIcon } from "../ui/Icons";
 import { LanguageToggle } from "./LanguageToggle";
 
 export const LINKEDIN_URL = "https://www.linkedin.com/in/juanpuertagildegomez/";
+export const CONTACT_EMAIL = "juanpuertagildegomez@gmail.com";
 
 export function SiteFooter() {
   const t = useT();
@@ -22,12 +23,6 @@ export function SiteFooter() {
         </Link>
         <Link to="/privacidad" className={item}>
           {t("ui.footer.privacy")}
-        </Link>
-        <Link to="/terminos" className={item}>
-          {t("ui.footer.terms")}
-        </Link>
-        <Link to="/aviso-de-recoleccion" className={item}>
-          {t("ui.footer.collection")}
         </Link>
         <span className="md:ml-auto">
           <LanguageToggle />

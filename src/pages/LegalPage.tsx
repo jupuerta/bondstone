@@ -1,24 +1,47 @@
-import { Link } from "react-router-dom";
+import { PageHead } from "../components/layout/PageHead";
 import { PageShell } from "../components/layout/PageShell";
+import { CONTACT_EMAIL, LINKEDIN_URL } from "../components/layout/SiteFooter";
+import { Button } from "../components/ui/Button";
 import { useT } from "../i18n";
 import { usePageTitle } from "../hooks/usePageTitle";
 
-export type LegalKind = "privacy" | "terms" | "collection";
+const SECTIONS: Array<{ key: string; paragraphs: number; contact?: boolean }> = [
+  { key: "who", paragraphs: 1, contact: true },
+  { key: "data", paragraphs: 3 },
+  { key: "none", paragraphs: 2 },
+  { key: "rights", paragraphs: 2 },
+  { key: "terms", paragraphs: 4 },
+];
 
-/** Privacidad, términos y aviso de recolección. El texto legal está pendiente y la página lo dice. */
-export function LegalPage({ kind }: { kind: LegalKind }) {
+/** Aviso legal y privacidad en una sola página: quién responde, qué se guarda, qué no hay y en qué condiciones se ofrece. */
+export function LegalPage() {
   const t = useT();
-  const title = t(`web.legal.${kind}`);
-  usePageTitle(title);
+  usePageTitle(t("web.legal.title"));
 
   return (
     <PageShell>
-      <section className="page flex max-w-[760px] flex-col gap-6 py-16 md:py-24">
-        <h1 className="text-[40px] leading-none tracking-[-0.03em] md:text-page">{title}</h1>
-        <p className="text-body text-ink-2">{t("web.legal.pending")}</p>
-        <Link to="/about" className="link self-start">
-          {t("web.nav.about")}
-        </Link>
+      <PageHead eyebrow={t("web.legal.eyebrow")} title={t("web.legal.title")} lead={t("web.legal.lead")} />
+      <section className="page flex max-w-[760px] flex-col gap-8 py-10 md:gap-10 md:py-14">
+        {SECTIONS.map((section) => (
+          <div key={section.key} className="flex flex-col gap-3 border-t border-ink pt-5">
+            <h2 className="text-[24px] tracking-[-0.02em] md:text-[28px]">{t(`web.legal.${section.key}.title`)}</h2>
+            {Array.from({ length: section.paragraphs }, (_, i) => (
+              <p key={i} className="text-body text-ink-2">
+                {t(`web.legal.${section.key}.p${i + 1}`)}
+              </p>
+            ))}
+            {section.contact && (
+              <div className="flex flex-wrap gap-2">
+                <Button variant="ghost" size="md" href={`mailto:${CONTACT_EMAIL}`} className="self-start">
+                  {t("web.legal.who.email")}
+                </Button>
+                <Button variant="ghost" size="md" href={LINKEDIN_URL} external className="self-start">
+                  {t("web.about.who.contact")}
+                </Button>
+              </div>
+            )}
+          </div>
+        ))}
       </section>
     </PageShell>
   );

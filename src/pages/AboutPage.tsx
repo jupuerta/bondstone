@@ -12,7 +12,7 @@ const BLOCKS: Array<{ key: string; link?: { label: string; to?: string; href?: s
   { key: "net" },
   { key: "stack" },
   { key: "limits", link: { label: "web.about.limits.link", to: "/model" } },
-  { key: "data", link: { label: "web.about.data.link", to: "/aviso-de-recoleccion" } },
+  { key: "data", link: { label: "web.about.data.link", to: "/privacidad" } },
 ];
 
 export function AboutPage() {
