@@ -2,3 +2,8 @@ bin/
 obj/
 *.user
 .vs/
+
+# Secretos locales: el docker-compose de este repo invita a un .env al lado
+.env
+.env.*
+!.env.example
