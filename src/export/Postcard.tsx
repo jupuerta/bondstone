@@ -50,7 +50,7 @@ export function postcardTexts(model: PostcardModel, t: Translator): PostcardText
   ].join(" · ");
 
   return {
-    brand: "ArchForge",
+    brand: "Bondstone",
     eyebrow: t("ui.export.postcard.eyebrow").toUpperCase(),
     link: model.link.replace(/^https?:\/\//, ""),
     title: model.name,

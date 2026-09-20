@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { passedChallenges, rememberPassed } from "./progress";
 
-const KEY = "archforge.challenges.passed";
+const KEY = "bondstone.challenges.passed";
 const store = new Map<string, string>();
 
 beforeEach(() => {

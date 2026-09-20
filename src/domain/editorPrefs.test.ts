@@ -15,7 +15,7 @@ describe("what the editor remembers about its own layout", () => {
     rememberEditorPrefs({ legendOpen: true });
     rememberEditorPrefs({ briefCollapsed: true, glossesOpen: false });
     expect(editorPrefs()).toEqual({ ...DEFAULTS, paletteCollapsed: true, legendOpen: true, briefCollapsed: true });
-    expect(Object.keys(window.localStorage)).toEqual(["archforge.editor.ui"]);
+    expect(Object.keys(window.localStorage)).toEqual(["bondstone.editor.ui"]);
   });
 
   it("remembers light and dark, and anything else is the default appearance", () => {
@@ -23,7 +23,7 @@ describe("what the editor remembers about its own layout", () => {
     expect(editorPrefs().appearance).toBe("light");
     rememberEditorPrefs({ appearance: "dark" });
     expect(editorPrefs().appearance).toBe("dark");
-    window.localStorage.setItem("archforge.editor.ui", JSON.stringify({ appearance: "system" }));
+    window.localStorage.setItem("bondstone.editor.ui", JSON.stringify({ appearance: "system" }));
     expect(editorPrefs().appearance).toBe("default");
   });
 
@@ -34,7 +34,7 @@ describe("what the editor remembers about its own layout", () => {
     expect(editorPrefs().panelWidth).toBe(560);
     rememberEditorPrefs({ panelWidth: 100 });
     expect(editorPrefs().panelWidth).toBe(336);
-    window.localStorage.setItem("archforge.editor.ui", JSON.stringify({ panelWidth: "wide" }));
+    window.localStorage.setItem("bondstone.editor.ui", JSON.stringify({ panelWidth: "wide" }));
     expect(editorPrefs().panelWidth).toBe(336);
   });
 
@@ -51,9 +51,9 @@ describe("what the editor remembers about its own layout", () => {
   });
 
   it("ignores junk", () => {
-    window.localStorage.setItem("archforge.editor.ui", "{nope");
+    window.localStorage.setItem("bondstone.editor.ui", "{nope");
     expect(editorPrefs()).toEqual(DEFAULTS);
-    window.localStorage.setItem("archforge.editor.ui", JSON.stringify({ paletteCollapsed: "yes", briefCollapsed: 1 }));
+    window.localStorage.setItem("bondstone.editor.ui", JSON.stringify({ paletteCollapsed: "yes", briefCollapsed: 1 }));
     expect(editorPrefs().paletteCollapsed).toBe(false);
     expect(editorPrefs().briefCollapsed).toBe(false);
   });

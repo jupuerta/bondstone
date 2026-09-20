@@ -9,7 +9,7 @@ export function startedChallenges(): Set<string> {
   );
 }
 
-const PASSED_KEY = "archforge.challenges.passed";
+const PASSED_KEY = "bondstone.challenges.passed";
 
 function readPassed(): string[] {
   try {

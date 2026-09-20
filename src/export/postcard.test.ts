@@ -35,7 +35,7 @@ const analysis: AnalysisResult = {
 };
 
 describe("what the postcard claims", () => {
-  const model = postcardModel({ architecture, analysis, origin: "https://archforge.dev" });
+  const model = postcardModel({ architecture, analysis, origin: "https://bondstone.dev" });
 
   it("carries the seven areas in the panel's order, scored or not", () => {
     expect(model.areas.map((area) => area.area)).toEqual(AREA_ORDER);
@@ -52,7 +52,7 @@ describe("what the postcard claims", () => {
   });
 
   it("links back to the architecture by its share token", () => {
-    expect(model.link).toBe("https://archforge.dev/a/tok");
+    expect(model.link).toBe("https://bondstone.dev/a/tok");
   });
 
   it("says the word when five areas and three components earn it", () => {
@@ -63,7 +63,7 @@ describe("what the postcard claims", () => {
     const sketch = postcardModel({
       architecture: { ...architecture, nodes: architecture.nodes.slice(0, 2), connections: [architecture.connections[0]] },
       analysis: { ...analysis, score: 100 },
-      origin: "https://archforge.dev",
+      origin: "https://bondstone.dev",
     });
 
     expect(sketch.band).toBe("unevaluated");
@@ -78,7 +78,7 @@ describe("what the postcard claims", () => {
           index < 1 ? { ...area, score: null, state: "NoRules" as const } : area,
         ),
       },
-      origin: "https://archforge.dev",
+      origin: "https://bondstone.dev",
     });
 
     expect(partial.scored).toBe(4);
@@ -89,7 +89,7 @@ describe("what the postcard claims", () => {
     const empty = postcardModel({
       architecture,
       analysis: { ...analysis, score: null },
-      origin: "https://archforge.dev",
+      origin: "https://bondstone.dev",
     });
 
     expect(empty.score).toBeNull();

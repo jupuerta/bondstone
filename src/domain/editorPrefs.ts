@@ -1,4 +1,4 @@
-const KEY = "archforge.editor.ui";
+const KEY = "bondstone.editor.ui";
 
 export type EditorTheme = "dark" | "light";
 

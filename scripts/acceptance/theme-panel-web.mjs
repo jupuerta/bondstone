@@ -2,7 +2,7 @@ import playwright from "/home/juanp/archForge/node_modules/playwright/index.js";
 
 const { chromium } = playwright;
 
-const BASE = process.env.ARCHFORGE_URL ?? "http://localhost:8080";
+const BASE = process.env.BONDSTONE_URL ?? "http://localhost:8080";
 const API = `${BASE}/api`;
 const G = (n) => `${n.toString(16).padStart(8, "0")}-0000-4000-8000-000000000000`;
 
@@ -58,7 +58,7 @@ async function noOverflow(page, where) {
   must(o.sw <= o.iw + 1, `desbordamiento horizontal en ${where}: ${o.sw} > ${o.iw}`);
 }
 const bg = (loc) => loc.first().evaluate((el) => getComputedStyle(el).backgroundColor);
-const prefs = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("archforge.editor.ui") || "{}"));
+const prefs = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("bondstone.editor.ui") || "{}"));
 const appearanceOf = (page) => page.evaluate(() => document.documentElement.getAttribute("data-appearance"));
 const modeButton = (page, name) => page.getByRole("button", { name, exact: true });
 
@@ -208,7 +208,7 @@ async function main() {
     // ── la web en oscuro ──────────────────────────────────────────────────
     await check("aspecto/1440 · en la web «Oscuro» baja el suelo a #0f1115 y sube el motor a #14171d", async () => {
       await page.goto(`${BASE}/`);
-      await page.evaluate(() => localStorage.removeItem("archforge.editor.ui"));
+      await page.evaluate(() => localStorage.removeItem("bondstone.editor.ui"));
       await page.reload();
       await page.waitForSelector(".af-engine", { timeout: 20000 });
       must((await appearanceOf(page)) === null, "la web no arranca sin preferencia");
@@ -232,7 +232,7 @@ async function main() {
       await page.waitForSelector(".react-flow__node", { timeout: 20000 });
       must((await page.locator("[data-theme]").first().getAttribute("data-theme")) === "dark", "el editor no acompaña al oscuro");
       must((await bg(page.locator(".react-flow"))) === "rgb(10, 12, 14)", "el lienzo dejó de ser #0a0c0e");
-      await page.evaluate(() => localStorage.removeItem("archforge.editor.ui"));
+      await page.evaluate(() => localStorage.removeItem("bondstone.editor.ui"));
       await page.goto(`${BASE}/`);
       await page.waitForSelector(".af-engine", { timeout: 20000 });
       must((await appearanceOf(page)) === null, "sin preferencia guardada la web no vuelve al claro");
@@ -277,7 +277,7 @@ async function main() {
 
     // ── «Qué llevas aprendido» ────────────────────────────────────────────
     const ctx4 = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "es-ES" });
-    await ctx4.addInitScript((work) => localStorage.setItem("archforge.architectures", work), savedWork);
+    await ctx4.addInitScript((work) => localStorage.setItem("bondstone.architectures", work), savedWork);
     const p4 = await ctx4.newPage();
     watch(p4, bag);
     await check("web/1440 · «Progreso por áreas» aparece en /challenges con las subidas por área de tu trabajo", async () => {

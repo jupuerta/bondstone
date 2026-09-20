@@ -43,4 +43,4 @@ export const NODE_GROUPS: Array<{ label: string; types: NodeType[] }> = [
 
 export const NODE_GROUP_OF = Object.fromEntries(NODE_GROUPS.flatMap((group) => group.types.map((type) => [type, group.label]))) as Record<NodeType, string>;
 
-export const DND_NODE_TYPE_FORMAT = "application/archforge-node-type";
+export const DND_NODE_TYPE_FORMAT = "application/bondstone-node-type";

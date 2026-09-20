@@ -74,7 +74,7 @@ export function EditorBar({ name, onRename, shareToken, chips, narrow, status, m
       <div className="flex min-w-0 flex-1 items-center gap-3.5">
         <Link to="/" aria-label={t("editor.bar.home")} className="flex shrink-0 items-center gap-2 font-display text-[15px] font-semibold text-panel-ink no-underline">
           <LogoMark size={20} />
-          ArchForge
+          Bondstone
         </Link>
         {onRename ? <NameField name={name} onRename={onRename} /> : <span className="min-w-0 truncate text-[14px] font-semibold text-panel-ink">{name}</span>}
         {chips.map((chip) => (

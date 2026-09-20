@@ -8,7 +8,7 @@ import { InlineError } from "../components/ui/InlineError";
 import { challengeOf, rememberWork } from "../domain/savedWork";
 import { useT } from "../i18n";
 
-const DISMISSED_KEY = "archforge.web.stripDismissed";
+const DISMISSED_KEY = "bondstone.web.stripDismissed";
 
 function readDismissed(): boolean {
   try {
@@ -60,7 +60,7 @@ export function SharedPage() {
           </Button>
         </div>
       ) : (
-        <aside className="shrink-0 border-b border-accent-line bg-accent-tint" aria-label="ArchForge">
+        <aside className="shrink-0 border-b border-accent-line bg-accent-tint" aria-label="Bondstone">
           <div className="flex flex-col gap-3 px-4 py-3.5 md:flex-row md:items-center md:gap-5 md:px-6">
             <div className="flex items-start gap-3 md:flex-1 md:items-center">
               <LogoMark size={22} className="mt-0.5 shrink-0 text-accent md:mt-0" />

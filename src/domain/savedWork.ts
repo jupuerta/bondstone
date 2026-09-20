@@ -1,4 +1,4 @@
-const KEY = "archforge.architectures";
+const KEY = "bondstone.architectures";
 
 const CHALLENGE_PARAM = "challenge";
 

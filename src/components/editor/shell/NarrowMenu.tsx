@@ -33,7 +33,7 @@ export function NarrowMenu({ shareToken, onClose, primary, onShare, shared, onEx
       <div className="flex h-12 items-center justify-between border-b border-panel-line px-3">
         <span className="flex items-center gap-2 font-display text-[15px] font-semibold">
           <LogoMark size={20} />
-          ArchForge
+          Bondstone
         </span>
         <button ref={closeRef} type="button" onClick={onClose} aria-label={t("web.a11y.closeMenu")} className="inline-flex size-11 items-center justify-center rounded-pill">
           <CloseIcon size={22} />

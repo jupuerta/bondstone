@@ -2,7 +2,7 @@ import playwright from "/home/juanp/archForge/node_modules/playwright/index.js";
 
 const { chromium } = playwright;
 
-const BASE = process.env.ARCHFORGE_URL ?? "http://localhost:8080";
+const BASE = process.env.BONDSTONE_URL ?? "http://localhost:8080";
 const API = `${BASE}/api`;
 const G = (n) => `${n.toString(16).padStart(8, "0")}-0000-4000-8000-000000000000`;
 
@@ -139,10 +139,10 @@ async function main() {
       must(/·\s*v\d+/.test(await status.first().textContent()), "sin «· vN»");
     });
 
-    await check("R2/1440 · la paleta se pliega, se recuerda en archforge.editor.ui y se despliega", async () => {
+    await check("R2/1440 · la paleta se pliega, se recuerda en bondstone.editor.ui y se despliega", async () => {
       await page.getByRole("button", { name: "Plegar la paleta" }).click();
       await waitFor(async () => await visible(page.getByRole("button", { name: "Desplegar la paleta" })), { what: "paleta plegada" });
-      const pref = await page.evaluate(() => JSON.parse(localStorage.getItem("archforge.editor.ui") || "{}").paletteCollapsed);
+      const pref = await page.evaluate(() => JSON.parse(localStorage.getItem("bondstone.editor.ui") || "{}").paletteCollapsed);
       must(pref === true, "paletteCollapsed no se guardó");
       await page.getByRole("button", { name: "Desplegar la paleta" }).click();
       await waitFor(async () => await visible(page.getByText("Componentes", { exact: true })), { what: "paleta desplegada" });
@@ -190,7 +190,7 @@ async function main() {
         const x = Math.round(rect.x + rect.width * 0.35);
         const y = Math.round(rect.y + rect.height * 0.8);
         const dt = new DataTransfer();
-        dt.setData("application/archforge-node-type", "Observability");
+        dt.setData("application/bondstone-node-type", "Observability");
         const opts = { bubbles: true, cancelable: true, dataTransfer: dt, clientX: x, clientY: y };
         pane.dispatchEvent(new DragEvent("dragover", opts));
         pane.dispatchEvent(new DragEvent("drop", opts));
@@ -304,7 +304,7 @@ async function main() {
       const reglas = panel.getByRole("link", { name: /Las 25 reglas/ });
       must((await countOf(reglas)) === 1, "sin enlace a las 25 reglas");
       must((await reglas.getAttribute("href")) === `/rules/${SHARE}`, "el enlace de reglas no lleva el token");
-      must((await reglas.getAttribute("target")) === "archforge-docs", "el enlace no abre la ventana de documentación");
+      must((await reglas.getAttribute("target")) === "bondstone-docs", "el enlace no abre la ventana de documentación");
     });
 
     await check("R3/1440 · pasar el cursor por un hallazgo lo resalta en el lienzo, y pulsarlo lo fija", async () => {

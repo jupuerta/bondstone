@@ -1,6 +1,6 @@
 # arch-forge-frontend-next
 
-El frontend de ArchForge: la web y el editor, contra **la misma API sin tocar**. Nació como un
+El frontend de Bondstone: la web y el editor, contra **la misma API sin tocar**. Nació como un
 rediseño desde cero que convivía con el frontend anterior (`../arch-forge-frontend/`); ese se apagó
 el **7 de septiembre de 2026**, al terminar la rebanada 6, y este quedó como el único.
 

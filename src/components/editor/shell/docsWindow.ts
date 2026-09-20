@@ -1,4 +1,4 @@
-export const DOCS_WINDOW = "archforge-docs";
+export const DOCS_WINDOW = "bondstone-docs";
 
 export function docsLinks(shareToken: string): { key: string; href: string }[] {
   return [

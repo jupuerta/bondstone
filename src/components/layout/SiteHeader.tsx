@@ -25,7 +25,7 @@ export function SiteHeader() {
         <div className="flex items-center gap-10">
           <Link to="/" className="flex items-center gap-2.5 font-display text-[17px] font-bold tracking-tight text-ink no-underline">
             <LogoMark size={22} />
-            ArchForge
+            Bondstone
           </Link>
           <nav aria-label={t("web.nav.menu")} className="hidden items-center gap-[26px] lg:flex">
             {ITEMS.map((item) => (
@@ -95,7 +95,7 @@ function MobileMenu({ onClose }: { onClose: () => void }) {
       <div className="flex h-[60px] items-center justify-between border-b border-line px-4">
         <span className="flex items-center gap-2 font-display text-[16px] font-bold">
           <LogoMark size={20} />
-          ArchForge
+          Bondstone
         </span>
         <button ref={closeRef} type="button" onClick={onClose} aria-label={t("web.a11y.closeMenu")} className="inline-flex size-11 items-center justify-center rounded-pill">
           <CloseIcon size={22} />

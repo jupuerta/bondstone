@@ -1,6 +1,6 @@
 import type { ArchitectureDto } from "../types/architecture";
 
-const KEY = "archforge.challengeStarts";
+const KEY = "bondstone.challengeStarts";
 
 const LIMIT = 15;
 

@@ -15,7 +15,7 @@ const CATALOGS: Record<Locale, Catalog> = { es: es as Catalog, en: en as Catalog
 /** Español por defecto (decisión 00 §7); el navegador solo decide si no hay elección guardada. */
 const DEFAULT_LOCALE: Locale = "es";
 
-const STORAGE_KEY = "archforge.locale";
+const STORAGE_KEY = "bondstone.locale";
 
 export interface Translator {
   (text: LocalizedText): string;

@@ -25,19 +25,19 @@ describe("the starting point of a challenge", () => {
     rememberStartingPoint("s", { nodes: [], connections: [] });
 
     expect(startingPointOf("s")).toEqual({ nodes: [], connections: [] });
-    expect(JSON.parse(window.localStorage.getItem("archforge.challengeStarts") ?? "[]")).toHaveLength(1);
+    expect(JSON.parse(window.localStorage.getItem("bondstone.challengeStarts") ?? "[]")).toHaveLength(1);
   });
 
   it("drops the oldest past fifteen, so the key cannot grow without end", () => {
     for (let index = 0; index < 20; index += 1) rememberStartingPoint(`slug-${index}`, graph);
 
-    expect(JSON.parse(window.localStorage.getItem("archforge.challengeStarts") ?? "[]")).toHaveLength(15);
+    expect(JSON.parse(window.localStorage.getItem("bondstone.challengeStarts") ?? "[]")).toHaveLength(15);
     expect(startingPointOf("slug-19")).not.toBeNull();
     expect(startingPointOf("slug-0")).toBeNull();
   });
 
   it("ignores whatever else somebody wrote under the key", () => {
-    window.localStorage.setItem("archforge.challengeStarts", JSON.stringify([{ slug: "x" }, "junk"]));
+    window.localStorage.setItem("bondstone.challengeStarts", JSON.stringify([{ slug: "x" }, "junk"]));
 
     expect(startingPointOf("x")).toBeNull();
   });

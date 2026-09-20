@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-const DEFAULT_TITLE = "ArchForge";
+const DEFAULT_TITLE = "Bondstone";
 
 export function usePageTitle(title: string | null) {
   useEffect(() => {

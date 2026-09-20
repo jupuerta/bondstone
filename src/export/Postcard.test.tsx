@@ -40,7 +40,7 @@ const analysis: AnalysisResult = {
   ],
 };
 
-const model = postcardModel({ architecture, analysis, origin: "https://archforge.dev" });
+const model = postcardModel({ architecture, analysis, origin: "https://bondstone.dev" });
 
 function markup(locale: Locale = "es", fonts: Parameters<typeof Postcard>[0]["fonts"] = null): string {
   return renderToStaticMarkup(<Postcard model={model} nodes={architecture.nodes} connections={architecture.connections} t={createTranslator(locale)} fonts={fonts} />);
@@ -85,7 +85,7 @@ describe("the postcard, as the file that leaves the browser", () => {
     expect(svg).toContain(">83<");
     expect(svg).toContain("FRÁGIL");
     expect(svg).toContain("2 críticos");
-    expect(svg).toContain("archforge.dev/a/tok");
+    expect(svg).toContain("bondstone.dev/a/tok");
   });
 
   it("draws every component and every call, in the same ink as the canvas", () => {
@@ -128,14 +128,14 @@ describe("the text each face has to be able to write", () => {
 
   it("gives the title to the display face and the score to the bold monospace", () => {
     expect(faces.display).toContain("Tienda online — checkout");
-    expect(faces.display).toContain("ArchForge");
+    expect(faces.display).toContain("Bondstone");
     expect(faces.monoBold).toBe("83");
   });
 
   it("gives the type labels and the summary to the monospace, and the names to the sans", () => {
     expect(faces.mono).toContain("BASE DE DATOS");
     expect(faces.mono).toContain("2 críticos");
-    expect(faces.mono).toContain("archforge.dev/a/tok");
+    expect(faces.mono).toContain("bondstone.dev/a/tok");
     expect(faces.sans).toContain("Cola de pedidos");
   });
 });
