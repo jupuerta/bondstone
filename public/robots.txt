@@ -1,0 +1,12 @@
+# Un enlace de edición (/e/<token>) y uno de lectura (/a/<token>) son credenciales: quien los tiene
+# puede abrir —y en el primer caso editar— el trabajo de otra persona. No son secretos que alguien
+# tenga que adivinar, son secretos que alguien puede pegar por descuido en un sitio público.
+#
+# Esto pide que no se rastreen. La respuesta de esas dos rutas lo repite con `X-Robots-Tag:
+# noindex` (nginx.conf), que es lo que se obedece cuando el rastreador ha llegado por un enlace y
+# no por aquí.
+User-agent: *
+Disallow: /a/
+Disallow: /e/
+
+Sitemap: https://bondstone.dev/sitemap.xml

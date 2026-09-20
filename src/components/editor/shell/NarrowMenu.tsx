@@ -14,9 +14,10 @@ interface NarrowMenuProps {
   onShare: () => void;
   shared: boolean;
   onExport?: () => void;
+  onDelete?: () => void;
 }
 
-export function NarrowMenu({ shareToken, onClose, primary, onShare, shared, onExport }: NarrowMenuProps) {
+export function NarrowMenu({ shareToken, onClose, primary, onShare, shared, onExport, onDelete }: NarrowMenuProps) {
   const t = useT();
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -67,6 +68,18 @@ export function NarrowMenu({ shareToken, onClose, primary, onShare, shared, onEx
         ))}
       </nav>
       <div className="mt-auto flex flex-col border-t border-panel-line">
+        {onDelete && (
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onDelete();
+            }}
+            className={`${row} border-b border-panel-line px-3 text-hot-panel`}
+          >
+            {t("editor.delete.action")}
+          </button>
+        )}
         <div className="flex items-center justify-between px-3 py-4">
           <span className="eyebrow text-panel-ink-3">{t("web.nav.language")}</span>
           <LanguageToggle dark />

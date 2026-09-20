@@ -5,6 +5,7 @@ import { AppearanceToggle } from "../../layout/AppearanceToggle";
 import { LanguageToggle } from "../../layout/LanguageToggle";
 import { Chip } from "../../ui/Chip";
 import { LogoMark, MenuIcon } from "../../ui/Icons";
+import { MoreMenu } from "./MoreMenu";
 import { ReferenceMenu } from "./ReferenceMenu";
 
 export interface BarChip {
@@ -26,13 +27,14 @@ interface EditorBarProps {
   onShare: () => void;
   shared: boolean;
   onExport?: () => void;
+  onDelete?: () => void;
   onOpenMenu: () => void;
   menuOpen: boolean;
 }
 
 const NAME_MAX_LENGTH = 200;
 
-export function EditorBar({ name, onRename, shareToken, chips, narrow, status, mode, primary, notice, onShare, shared, onExport, onOpenMenu, menuOpen }: EditorBarProps) {
+export function EditorBar({ name, onRename, shareToken, chips, narrow, status, mode, primary, notice, onShare, shared, onExport, onDelete, onOpenMenu, menuOpen }: EditorBarProps) {
   const t = useT();
 
   if (narrow) {
@@ -97,6 +99,7 @@ export function EditorBar({ name, onRename, shareToken, chips, narrow, status, m
           </button>
         )}
         <ReferenceMenu shareToken={shareToken} />
+        {onDelete && <MoreMenu onDelete={onDelete} />}
         <LanguageToggle dark />
         <AppearanceToggle surface="editor" dark />
       </div>

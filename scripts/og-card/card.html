@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<!--
+  La tarjeta social, 1200x630. No es una ilustración: son los tokens, la tipografía y el dibujo de
+  nodo del editor de verdad (src/index.css, canvas/Node.tsx, canvas/marks.ts), y los estados son los
+  que devolvió el motor para esta misma cadena con la base de datos tumbada — cuatro de cuatro
+  caídos, radio de impacto 100 %. Si alguien cambia los tokens y esto deja de parecerse, hay que
+  volver a rasterizarla: `node scripts/og-card/render.mjs`.
+-->
+<style>
+@font-face {
+  font-family: "Bricolage Grotesque Variable"; font-style: normal; font-weight: 200 800;
+  src: url("../../node_modules/@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2") format("woff2-variations");
+}
+@font-face {
+  font-family: "Instrument Sans"; font-style: normal; font-weight: 400;
+  src: url("../../node_modules/@fontsource/instrument-sans/files/instrument-sans-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Instrument Sans"; font-style: normal; font-weight: 600;
+  src: url("../../node_modules/@fontsource/instrument-sans/files/instrument-sans-latin-600-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400;
+  src: url("../../node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2") format("woff2");
+}
+
+:root {
+  /* Copiados de src/index.css. Los nombres son los mismos a propósito: si allí cambian, aquí se ve. */
+  --af-canvas: #0a0c0e;
+  --af-panel-2: #14171d;
+  --af-panel-ink: #eef0f4;
+  --af-panel-ink-2: #a3aab8;
+  --af-panel-ink-3: #7c8494;
+  --af-panel-line-2: rgba(255, 255, 255, 0.18);
+  --af-panel-grid: rgba(255, 255, 255, 0.055);
+  --af-hot-panel: #ff5f5f;
+
+  --af-t-Client: oklch(0.78 0.1 212);
+  --af-t-Gateway: oklch(0.78 0.1 40);
+  --af-t-Api: oklch(0.78 0.1 230);
+  --af-t-Database: oklch(0.78 0.1 78);
+
+  --af-p-Client: color-mix(in oklab, var(--af-t-Client) 9%, var(--af-panel-2));
+  --af-p-Gateway: color-mix(in oklab, var(--af-t-Gateway) 9%, var(--af-panel-2));
+  --af-p-Api: color-mix(in oklab, var(--af-t-Api) 9%, var(--af-panel-2));
+  --af-p-Database: color-mix(in oklab, var(--af-t-Database) 9%, var(--af-panel-2));
+
+  /* El nodo mide 156x78 en el editor. Aquí se amplía, porque esto se mira a un tercio de su
+     tamaño en una línea de tiempo y a 156 px el nombre del componente no se lee. */
+  --s: 1.28;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  width: 1200px; height: 630px; overflow: hidden;
+  background-color: var(--af-canvas);
+  /* El punteado del lienzo: <Background variant={Dots} gap={24} size={1} /> */
+  background-image: radial-gradient(var(--af-panel-grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  font-family: "Instrument Sans", sans-serif;
+  color: var(--af-panel-ink);
+  display: grid; grid-template-columns: 1fr auto; align-items: center;
+  padding: 64px 72px;
+  gap: 48px;
+}
+
+.eyebrow {
+  font-family: "IBM Plex Mono", monospace; font-size: 13px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--af-panel-ink-3);
+}
+
+.wordmark {
+  font-family: "Bricolage Grotesque Variable", sans-serif; font-weight: 600;
+  font-size: 88px; line-height: 0.96; letter-spacing: -0.04em; margin-top: 18px;
+}
+
+.claim {
+  font-size: 25px; line-height: 1.34; color: var(--af-panel-ink-2);
+  margin-top: 20px; max-width: 19em;
+}
+
+.reading {
+  margin-top: 30px; display: flex; align-items: center; gap: 10px;
+  font-family: "IBM Plex Mono", monospace; font-size: 15px; letter-spacing: 0.02em;
+  color: var(--af-hot-panel);
+}
+.reading .dot { width: 9px; height: 9px; border-radius: 999px; background: currentColor; }
+.reading .quiet { color: var(--af-panel-ink-3); }
+
+.domain {
+  position: absolute; left: 72px; bottom: 52px;
+  font-family: "IBM Plex Mono", monospace; font-size: 15px; letter-spacing: 0.04em;
+  color: var(--af-panel-ink-3);
+}
+
+/* — el grafo, con el dibujo de canvas/Node.tsx — */
+.graph { display: flex; flex-direction: column; align-items: center; }
+
+.node {
+  width: calc(156px * var(--s));
+  border: 1px solid var(--af-hot-panel);
+  border-radius: calc(6px * var(--s));
+  overflow: hidden;
+  background: color-mix(in oklab, var(--af-hot-panel) 12%, var(--plate));
+}
+.stripe { height: calc(3px * var(--s)); background: var(--tint); }
+.body { padding: calc(6px * var(--s)) calc(10px * var(--s)) calc(6px * var(--s)); }
+
+.kind {
+  display: flex; align-items: center; gap: calc(6px * var(--s));
+  font-family: "IBM Plex Mono", monospace; font-size: calc(10px * var(--s));
+  line-height: 1.2; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--af-panel-ink-3);
+}
+.kind svg { color: var(--tint); flex: none; }
+
+.name {
+  margin-top: 1px; font-size: calc(13px * var(--s)); line-height: 1.25;
+  font-weight: 600; color: var(--af-panel-ink);
+}
+
+.state {
+  margin-top: calc(3px * var(--s)); display: flex; align-items: center; gap: calc(5px * var(--s));
+  font-family: "IBM Plex Mono", monospace; font-size: calc(10px * var(--s));
+  line-height: 1.2; letter-spacing: 0.04em; color: var(--af-hot-panel);
+}
+.state .bullet { width: calc(8px * var(--s)); height: calc(8px * var(--s)); border-radius: 999px; background: currentColor; flex: none; }
+.state .word { text-transform: uppercase; }
+
+/* Fila propia, como en el editor: `tone.state` y `tone.detail` son dos líneas distintas. */
+.why {
+  margin-top: calc(3px * var(--s));
+  font-family: "IBM Plex Mono", monospace; font-size: calc(10px * var(--s));
+  line-height: 1.2; color: var(--af-panel-ink-3);
+}
+
+/* La arista caída: roja y a trazos (marks.ts DOWN_DASH "2 4"), con la punta de siempre. */
+.edge { display: block; }
+</style>
+</head>
+<body>
+  <div>
+    <div class="eyebrow">Laboratorio de arquitectura backend</div>
+    <div class="wordmark">Bondstone</div>
+    <p class="claim">Construir sistemas, provocar su fallo, entender por&nbsp;qué.</p>
+    <div class="reading">
+      <span class="dot"></span>
+      <span>radio de impacto 100&nbsp;%</span>
+      <span class="quiet">·</span>
+      <span class="quiet">4 de 4 componentes caídos</span>
+    </div>
+    <div class="domain">bondstone.dev</div>
+  </div>
+
+  <div class="graph" id="graph"></div>
+
+<script>
+const ICONS = {
+  Client: ["M3 4h18v12H3z", "M8 20h8M12 16v4"],
+  Gateway: ["M6 3v18M18 3v18", "M9 12h7M13 9l3 3-3 3"],
+  Api: ["M8 6H6a2 2 0 0 0-2 2v2a2 2 0 0 1-2 2 2 2 0 0 1 2 2v2a2 2 0 0 0 2 2h2", "M16 6h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2 2 2 0 0 0-2 2v2a2 2 0 0 1-2 2h-2"],
+  Database: ["M4 6a8 3 0 1 0 16 0a8 3 0 1 0-16 0", "M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6", "M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"],
+};
+
+// Los cuatro, con el estado que devolvió el motor de verdad para esta cadena.
+const CHAIN = [
+  { type: "Client",   kind: "Cliente",       name: "Navegador", why: "arrastrado" },
+  { type: "Gateway",  kind: "Gateway",       name: "Gateway",   why: "arrastrado" },
+  { type: "Api",      kind: "API",           name: "Pedidos",   why: "arrastrado" },
+  { type: "Database", kind: "Base de datos", name: "Postgres",  why: "fallo inyectado" },
+];
+
+const S = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--s"));
+const GAP = Math.round(30 * S);
+const ICON = Math.round(13 * S);
+const HEAD = 8 * S;
+
+const icon = (type) => `
+  <svg width="${ICON}" height="${ICON}" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    ${ICONS[type].map((d) => `<path d="${d}" />`).join("")}
+  </svg>`;
+
+const edge = () => `
+  <svg class="edge" width="${HEAD * 2}" height="${GAP}" viewBox="0 0 ${HEAD * 2} ${GAP}">
+    <defs>
+      <marker id="head" markerWidth="${HEAD}" markerHeight="${HEAD}" refX="${HEAD - 0.5}" refY="${HEAD / 2}"
+              orient="auto" markerUnits="userSpaceOnUse">
+        <path d="M0,0 L${HEAD},${HEAD / 2} L0,${HEAD} z" fill="var(--af-hot-panel)" />
+      </marker>
+    </defs>
+    <path d="M${HEAD} 0 L${HEAD} ${GAP}" stroke="var(--af-hot-panel)" stroke-width="${1.6 * S}"
+          stroke-dasharray="${2 * S} ${4 * S}" marker-end="url(#head)" />
+  </svg>`;
+
+document.getElementById("graph").innerHTML = CHAIN.map((n, i) => `
+  ${i > 0 ? edge() : ""}
+  <div class="node" style="--tint: var(--af-t-${n.type}); --plate: var(--af-p-${n.type})">
+    <div class="stripe"></div>
+    <div class="body">
+      <div class="kind">${icon(n.type)}<span>${n.kind}</span></div>
+      <div class="name">${n.name}</div>
+      <div class="state"><span class="bullet"></span><span class="word">caído</span></div>
+      <div class="why">${n.why}</div>
+    </div>
+  </div>`).join("");
+</script>
+</body>
+</html>

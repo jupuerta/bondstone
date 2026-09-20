@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Solo las páginas estables. Los retos (`/c/<slug>`) no están aquí a propósito: el catálogo lo sirve
+  la API y esta lista se quedaría atrás en cuanto se añada uno. Van todos enlazados desde
+  `/challenges`, que sí está, así que un rastreador llega igual.
+
+  Lo que nunca puede entrar: `/a/<token>` y `/e/<token>`. Son credenciales, no páginas.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://bondstone.dev/</loc><priority>1.0</priority></url>
+  <url><loc>https://bondstone.dev/challenges</loc><priority>0.9</priority></url>
+  <url><loc>https://bondstone.dev/rules</loc><priority>0.7</priority></url>
+  <url><loc>https://bondstone.dev/mechanisms</loc><priority>0.7</priority></url>
+  <url><loc>https://bondstone.dev/model</loc><priority>0.5</priority></url>
+  <url><loc>https://bondstone.dev/privacidad</loc><priority>0.3</priority></url>
+</urlset>

@@ -28,6 +28,12 @@ import { NODE_TYPES, NO_MARKS, type ArchNodeData, type CanvasMarks, type Connect
 import { ZoneBand } from "./ZoneBand";
 import { bandDown, zoneBands } from "./zoneBands";
 
+// La hoja de estilos de xyflow vive aquí y no en `main.tsx`: allí la importaba el fichero de
+// entrada, y como el CSS de un paquete pertenece al trozo de ese paquete, la portada acababa
+// descargando los 60 KB comprimidos del motor del lienzo para conseguir su CSS — el mismo trozo
+// que `React.lazy` acababa de sacar de la primera carga. Aquí viaja con quien la usa.
+import "@xyflow/react/dist/style.css";
+
 const NODE_COMPONENTS = Object.fromEntries(NODE_TYPES.map((type) => [type, EditorNode]));
 const EDGE_COMPONENTS = { default: EditorEdge };
 const DELETE_KEYS = ["Delete", "Backspace"];

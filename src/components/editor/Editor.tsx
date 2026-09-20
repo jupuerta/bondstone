@@ -4,7 +4,8 @@ import { INSPECTOR_WIDTH_MAX, INSPECTOR_WIDTH_MIN, PALETTE_WIDTH_MAX, PALETTE_WI
 import { editorTheme } from "../../domain/appearance";
 import { useAppearance } from "../../hooks/useAppearance";
 import { ColumnHandle } from "./shell/ColumnHandle";
-import { challengeOf, rememberWork, scoreWork, touchWork } from "../../domain/savedWork";
+import { useNavigate } from "react-router-dom";
+import { challengeOf, forgetWork, rememberWork, scoreWork, touchWork } from "../../domain/savedWork";
 import { startingPointOf } from "../../domain/startingPoint";
 import { useAutosave } from "../../hooks/useAutosave";
 import { useChallenge } from "../../hooks/useChallenge";
@@ -38,6 +39,7 @@ import { useComponentHelp } from "./help/useComponentHelp";
 import { EdgeInspector } from "./inspector/EdgeInspector";
 import { NodeInspector } from "./inspector/NodeInspector";
 import { ConflictDialog } from "./overlays/ConflictDialog";
+import { DeleteDialog } from "./overlays/DeleteDialog";
 import { ExportDialog } from "./overlays/ExportDialog";
 import { FixDiff, type FixShots } from "./overlays/FixDiff";
 import { SolutionCompare } from "./overlays/SolutionCompare";
@@ -82,6 +84,7 @@ const MODES: { value: EditorMode; label: string }[] = [
 
 export function Editor({ architecture, editToken, search, onReload }: EditorProps) {
   const { locale, t } = useLanguage();
+  const navigate = useNavigate();
   const narrow = useNarrowViewport();
   const editable = !narrow;
 
@@ -101,6 +104,7 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
   const [added, setAdded] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [glossesOpen, setGlossesOpen] = useState(() => editorPrefs().glossesOpen);
   const [appearance] = useAppearance();
@@ -614,6 +618,7 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
       onShare={copy}
       shared={copied}
       onExport={() => setExporting(true)}
+      onDelete={() => setDeleting(true)}
       onOpenMenu={() => setMenuOpen(true)}
       menuOpen={menuOpen}
     />
@@ -690,6 +695,20 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
         <SolutionCompare slug={challenge.definition.slug} referenceName={t("challenge.referenceSolutionName", { title: challenge.definition.title })} shareToken={architecture.shareToken} onClose={() => setSolutionOpen(false)} />
       )}
       {conflict && <ConflictDialog onReload={onReload} />}
+      {deleting && (
+        <DeleteDialog
+          editToken={editToken}
+          name={name}
+          onClose={() => setDeleting(false)}
+          onDeleted={() => {
+            // Fuera del llavero antes de navegar: si no, la portada enseña en «Trabajo en curso»
+            // un enlace que ya no abre nada, y el aviso de que el enlace es la única llave se
+            // convierte en una promesa incumplida en la primera pantalla.
+            forgetWork(editToken);
+            navigate("/", { replace: true });
+          }}
+        />
+      )}
       {exporting && (
         <ExportDialog
           architecture={dto}
@@ -732,7 +751,7 @@ export function Editor({ architecture, editToken, search, onReload }: EditorProp
         >
           {selected ? (simulating && picker ? <FaultPicker {...picker} narrow /> : (sheet ?? inspector)) : simulating ? impact : motor}
         </BottomDrawer>
-        {menuOpen && <NarrowMenu shareToken={architecture.shareToken} onClose={closeMenu} onShare={copy} shared={copied} onExport={() => setExporting(true)} />}
+        {menuOpen && <NarrowMenu shareToken={architecture.shareToken} onClose={closeMenu} onShare={copy} shared={copied} onExport={() => setExporting(true)} onDelete={() => setDeleting(true)} />}
         {overlays}
       </div>
     );

@@ -4,8 +4,36 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <meta name="description" content="Aprende arquitectura backend construyendo y rompiendo sistemas." />
+    <meta name="description" content="Construir sistemas, provocar su fallo y entender por qué. El motor indica qué falla, por qué y sobre qué componente. Sin cuenta: cada arquitectura es un enlace." />
     <meta name="color-scheme" content="light dark" />
+
+    <!--
+      La tarjeta que sale cuando alguien pega el enlace en LinkedIn o lo manda por WhatsApp. Sin
+      esto sale el titular del navegador y ningún dibujo, que en una línea de tiempo es lo mismo
+      que no salir.
+
+      Las direcciones son absolutas porque es lo único que un rastreador acepta: no las resuelve
+      contra la página, así que una ruta relativa se ignora y la tarjeta se queda sin imagen.
+
+      `og.png` lo dibuja `scripts/og-card/` con los tokens y el nodo del editor de verdad, y los
+      estados que enseña son los que devolvió el motor para esa misma cadena.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Bondstone" />
+    <meta property="og:locale" content="es_ES" />
+    <meta property="og:url" content="https://bondstone.dev/" />
+    <meta property="og:title" content="Bondstone — laboratorio de arquitectura backend" />
+    <meta property="og:description" content="Construir sistemas, provocar su fallo y entender por qué. El motor indica qué falla, por qué y sobre qué componente. Sin cuenta: cada arquitectura es un enlace." />
+    <meta property="og:image" content="https://bondstone.dev/og.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Cuatro componentes en cadena —navegador, gateway, API y base de datos—, los cuatro en rojo tras provocar la caída de la base de datos: radio de impacto del 100 %." />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Bondstone — laboratorio de arquitectura backend" />
+    <meta name="twitter:description" content="Construir sistemas, provocar su fallo y entender por qué. El motor indica qué falla, por qué y sobre qué componente." />
+    <meta name="twitter:image" content="https://bondstone.dev/og.png" />
     <script>
       try {
         var stored = localStorage.getItem("bondstone.editor.ui") || localStorage.getItem("archforge.editor.ui") || "{}";

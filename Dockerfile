@@ -24,5 +24,8 @@ RUN npm run build
 
 FROM nginx:1.27-alpine AS runtime
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Las cabeceras de seguridad viven aparte porque `add_header` no se hereda: cada `location` que
+# declare uno propio tiene que volver a incluirlas. Si este COPY falta, nginx no arranca y lo dice.
+COPY nginx.security-headers.conf /etc/nginx/security-headers.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80

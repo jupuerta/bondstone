@@ -141,6 +141,23 @@ export async function updateArchitecture(
   return response.json();
 }
 
+/**
+ * Borra la arquitectura entera, con su historial. No hay papelera ni deshacer: el token de edición
+ * es la única autoridad que existe en este producto, y quien lo tiene puede retirar lo suyo — que
+ * es exactamente lo que la página de privacidad promete.
+ *
+ * Un 404 se trata como éxito a propósito. Significa que ya no está, que es el estado que quien
+ * pulsa quería: fallar ahí solo convertiría un doble clic o un reintento en un mensaje de error
+ * sobre algo que sí ha funcionado.
+ */
+export async function deleteArchitecture(editToken: string): Promise<void> {
+  const response = await fetch(`${API_URL}/architectures/edit/${encodeURIComponent(editToken)}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok && response.status !== 404) await parseErrorResponse(response);
+}
+
 export async function analyzeArchitecture(
   shareToken: string,
   options?: { signal?: AbortSignal },

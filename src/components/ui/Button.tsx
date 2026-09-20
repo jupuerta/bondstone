@@ -2,7 +2,7 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { SpinnerIcon } from "./Icons";
 
-export type ButtonVariant = "primary" | "ghost" | "panel" | "panelPrimary";
+export type ButtonVariant = "primary" | "ghost" | "panel" | "panelPrimary" | "panelDanger";
 export type ButtonSize = "lg" | "md" | "sm";
 
 interface CommonProps {
@@ -35,6 +35,10 @@ const VARIANT: Record<ButtonVariant, string> = {
     "bg-transparent text-panel-ink border-panel-line hover:bg-wash/8 hover:border-wash/30 active:bg-wash/14",
   panelPrimary:
     "bg-accent-panel text-panel-on-ink border-accent-panel hover:bg-[color-mix(in_oklab,var(--af-accent-panel)_84%,#fff)] hover:border-[color-mix(in_oklab,var(--af-accent-panel)_84%,#fff)] active:bg-[color-mix(in_oklab,var(--af-accent-panel)_72%,#000)]",
+  // El rojo del panel es el mismo con el que el motor marca lo caído, y aquí significa lo mismo:
+  // esto rompe algo a propósito. Se reserva para acciones sin vuelta atrás.
+  panelDanger:
+    "bg-hot-panel text-canvas border-hot-panel hover:bg-[color-mix(in_oklab,var(--af-hot-panel)_84%,#fff)] hover:border-[color-mix(in_oklab,var(--af-hot-panel)_84%,#fff)] active:bg-[color-mix(in_oklab,var(--af-hot-panel)_72%,#000)]",
 };
 
 const DISABLED = "disabled:bg-line disabled:text-ink-3 disabled:border-line disabled:border-dashed disabled:cursor-not-allowed disabled:hover:bg-line";

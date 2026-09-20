@@ -170,18 +170,23 @@ function Continue({ work }: { work: SavedWork[] }) {
   const t = useT();
   return (
     <div className="page pt-4">
-      <div className="flex flex-col gap-3 rounded-card border border-line bg-surface px-4 py-3 md:flex-row md:items-center md:gap-[18px]">
-        <strong className="text-[15px]">{t("web.home.continue.title")}</strong>
-        <div className="flex flex-1 flex-wrap gap-2">
-          {work.map((entry) => (
-            <Link key={entry.editToken} to={editorPath(entry)} className="inline-flex min-h-9 items-center rounded-pill border border-line px-3 text-code text-ink no-underline hover:border-ink">
-              {entry.challengeSlug ? t("ui.home.workChallenge", { title: t(`challenge.${entry.challengeSlug}.title`) }) : entry.name}
-            </Link>
-          ))}
+      <div className="flex flex-col gap-3 rounded-card border border-line bg-surface px-4 py-3">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-[18px]">
+          <strong className="text-[15px]">{t("web.home.continue.title")}</strong>
+          <div className="flex flex-1 flex-wrap gap-2">
+            {work.map((entry) => (
+              <Link key={entry.editToken} to={editorPath(entry)} className="inline-flex min-h-9 items-center rounded-pill border border-line px-3 text-code text-ink no-underline hover:border-ink">
+                {entry.challengeSlug ? t("ui.home.workChallenge", { title: t(`challenge.${entry.challengeSlug}.title`) }) : entry.name}
+              </Link>
+            ))}
+          </div>
+          <Button variant="ghost" size="sm" to="/challenges">
+            {t("web.home.continue.cta")}
+          </Button>
         </div>
-        <Button variant="ghost" size="sm" to="/challenges">
-          {t("web.home.continue.cta")}
-        </Button>
+        {/* Este llavero guarda 30 y tira el resto en silencio (`savedWork.ts`). Mientras siga
+            siendo así, al menos que nadie lo confunda con un sitio donde se guarda el trabajo. */}
+        <p className="text-meta text-ink-2">{t("web.home.continue.note")}</p>
       </div>
     </div>
   );

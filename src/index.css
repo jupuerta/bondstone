@@ -100,7 +100,10 @@
   --af-line-2: #cfcfc6;
   --af-ink: #101012;
   --af-ink-2: #5b5b61;
-  --af-ink-3: #8a8a90;
+  /* 4,91:1 sobre el fondo y 4,57:1 sobre `--af-surface-2`, que es el peor de los tres. El anterior
+     (#8a8a90) daba 3,28:1 — B30 de la QA del 09-09 — y era justo el color del texto que explica en
+     la portada qué es esto. Bajar aquí no aplana la jerarquía: `--af-ink-2` sigue en 6,01:1. */
+  --af-ink-3: #6d6d74;
   --af-accent: #1f3fd1;
   --af-accent-ink: #ffffff;
   --af-accent-tint: color-mix(in oklab, var(--af-accent) 7%, #ffffff);
@@ -120,7 +123,9 @@
   --af-panel-line: rgba(255, 255, 255, 0.12);
   --af-panel-ink: #eef0f4;
   --af-panel-ink-2: #a3aab8;
-  --af-panel-ink-3: #7c8494;
+  /* 4,76:1 sobre `--af-panel-3`, que es el peor fondo del panel. El anterior (#7c8494) daba
+     4,39:1 y axe lo cazaba en la cenefa del panel del motor, en la portada en oscuro. */
+  --af-panel-ink-3: #828a9a;
   --af-hot-panel: #ff5f5f;
   --af-warm-panel: #f3b64f;
   --af-ok-panel: #3ecf8e;
@@ -198,7 +203,9 @@
   --af-panel-line-2: #c4cad4;
   --af-panel-ink: #0f1115;
   --af-panel-ink-2: #4e5663;
-  --af-panel-ink-3: #6a7280;
+  /* 4,57:1 sobre `--af-panel-3` (#eef0f4). El anterior (#6a7280) daba 4,25:1: el mismo fallo
+     que el oscuro, en el claro del editor, donde axe no llega porque no abre el editor. */
+  --af-panel-ink-3: #656d7b;
   --af-accent-panel: var(--af-accent);
   --af-hot-panel: var(--af-hot);
   --af-warm-panel: var(--af-warm);
@@ -259,7 +266,7 @@
   --af-line-2: rgba(255, 255, 255, 0.24); /* --af-panel-line-2 */
   --af-ink: #eef0f4; /* --af-panel-ink */
   --af-ink-2: #a3aab8; /* --af-panel-ink-2 */
-  --af-ink-3: #7c8494; /* --af-panel-ink-3 */
+  --af-ink-3: #828a9a; /* --af-panel-ink-3 */
   --af-accent: oklch(0.72 0.17 267); /* --af-accent-panel */
   --af-accent-ink: #0f1115;
   --af-accent-tint: color-mix(in oklab, var(--af-accent) 16%, #0f1115);
