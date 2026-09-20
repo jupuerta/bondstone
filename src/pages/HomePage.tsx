@@ -5,11 +5,15 @@ import { FIRST_CHALLENGE } from "../components/layout/SiteHeader";
 import { EnginePanel } from "../components/engine/EnginePanel";
 import { Button } from "../components/ui/Button";
 import { Callout, CalloutRow } from "../components/ui/Callout";
-import { ArrowIcon, LinkIcon, PersonIcon } from "../components/ui/Icons";
+import { ArrowIcon, CloseIcon, LinkIcon, PersonIcon } from "../components/ui/Icons";
 import { Segmented } from "../components/ui/Segmented";
-import { editorPath, savedWork, type SavedWork } from "../domain/savedWork";
-import { useT } from "../i18n";
+import { editorPath, type SavedWork } from "../domain/savedWork";
+import { useLanguage, useT } from "../i18n";
+import { shortDateTime } from "../i18n/dateTime";
 import { usePageTitle } from "../hooks/usePageTitle";
+import { useSavedWork, type SavedWorkList } from "../hooks/useSavedWork";
+
+const CONTINUE_SHOWN = 2;
 
 const DEMO_BEFORE = import.meta.env.VITE_DEMO_BEFORE_TOKEN || null;
 const DEMO_AFTER = import.meta.env.VITE_DEMO_AFTER_TOKEN || null;
@@ -26,11 +30,11 @@ const FIGURES: Array<[string, string]> = [
 export function HomePage() {
   const t = useT();
   usePageTitle(null);
-  const [work] = useState<SavedWork[]>(() => savedWork().slice(0, 2));
+  const saved = useSavedWork(CONTINUE_SHOWN);
 
   return (
     <PageShell>
-      {work.length > 0 && <Continue work={work} />}
+      {(saved.work.length > 0 || saved.forgotten !== null) && <Continue {...saved} />}
 
       {/* Héroe: título arriba a todo el ancho, y debajo dos columnas que empiezan a la misma altura. */}
       <section className="border-b border-line">
@@ -166,8 +170,13 @@ export function HomePage() {
   );
 }
 
-function Continue({ work }: { work: SavedWork[] }) {
+function Continue({ work, forgotten, forget, undoForget }: SavedWorkList) {
   const t = useT();
+  const { locale } = useLanguage();
+  const nameOf = (entry: SavedWork) => (entry.challengeSlug ? t(`challenge.${entry.challengeSlug}.title`) : entry.name);
+  const labelOf = (entry: SavedWork) =>
+    entry.challengeSlug ? t("ui.home.workChallenge", { title: nameOf(entry) }) : entry.name;
+
   return (
     <div className="page pt-4">
       <div className="flex flex-col gap-3 rounded-card border border-line bg-surface px-4 py-3">
@@ -175,9 +184,23 @@ function Continue({ work }: { work: SavedWork[] }) {
           <strong className="text-[15px]">{t("web.home.continue.title")}</strong>
           <div className="flex flex-1 flex-wrap gap-2">
             {work.map((entry) => (
-              <Link key={entry.editToken} to={editorPath(entry)} className="inline-flex min-h-9 items-center rounded-pill border border-line px-3 text-code text-ink no-underline hover:border-ink">
-                {entry.challengeSlug ? t("ui.home.workChallenge", { title: t(`challenge.${entry.challengeSlug}.title`) }) : entry.name}
-              </Link>
+              <span
+                key={entry.editToken}
+                className="inline-flex min-h-9 items-center rounded-pill border border-line pr-1 pl-3 text-code text-ink has-[a:hover]:border-ink"
+              >
+                <Link to={editorPath(entry)} className="inline-flex items-center gap-2 text-ink no-underline">
+                  {labelOf(entry)}
+                  <span className="text-ink-3">{shortDateTime(entry.updatedAt, locale)}</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => forget(entry)}
+                  aria-label={t("ui.home.workForgetOne", { name: nameOf(entry) })}
+                  className="ml-1.5 inline-flex size-7 items-center justify-center rounded-pill text-ink-3 hover:text-ink"
+                >
+                  <CloseIcon size={14} />
+                </button>
+              </span>
             ))}
           </div>
           <Button variant="ghost" size="sm" to="/challenges">
@@ -186,7 +209,16 @@ function Continue({ work }: { work: SavedWork[] }) {
         </div>
         {/* Este llavero guarda 30 y tira el resto en silencio (`savedWork.ts`). Mientras siga
             siendo así, al menos que nadie lo confunda con un sitio donde se guarda el trabajo. */}
-        <p className="text-meta text-ink-2">{t("web.home.continue.note")}</p>
+        {forgotten === null ? (
+          <p className="text-meta text-ink-2">{t("web.home.continue.note")}</p>
+        ) : (
+          <p role="status" className="text-meta text-ink-2">
+            {t("ui.home.workForgotten", { name: nameOf(forgotten) })}{" "}
+            <button type="button" onClick={undoForget} className="link text-meta">
+              {t("ui.home.workForgetUndo")}
+            </button>
+          </p>
+        )}
       </div>
     </div>
   );

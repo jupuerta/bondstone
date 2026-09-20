@@ -64,6 +64,13 @@ export function forgetWork(editToken: string): void {
   write(read().filter((entry) => entry.editToken !== editToken));
 }
 
+// Deshacer un «Retirar de la lista» tiene que devolver la entrada **entera**: `rememberWork()`
+// no vale, porque al no encontrar la anterior le pondría fecha de hoy y puntuación en blanco, y
+// la fila volvería a la lista convertida en otra cosa y en el sitio equivocado.
+export function restoreWork(entry: SavedWork): void {
+  write([entry, ...read().filter((candidate) => candidate.editToken !== entry.editToken)]);
+}
+
 export function attemptsOf(slug: string): SavedWork[] {
   return read().filter((entry) => entry.challengeSlug === slug);
 }

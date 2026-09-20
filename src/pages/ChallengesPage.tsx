@@ -14,17 +14,22 @@ import { Skeleton } from "../components/ui/Skeleton";
 import { bestGains, type AreaGain } from "../domain/areasImproved";
 import { bandLabelKey, bandLeadKey, groupByBand } from "../domain/challengeBands";
 import { passedChallenges, startedChallenges } from "../domain/progress";
-import { editorPath, rememberWork, savedWork } from "../domain/savedWork";
-import { useT } from "../i18n";
+import { editorPath, rememberWork, savedWork, type SavedWork } from "../domain/savedWork";
+import { useLanguage, useT } from "../i18n";
+import { shortDateTime } from "../i18n/dateTime";
 import { usePageTitle } from "../hooks/usePageTitle";
+import { useSavedWork } from "../hooks/useSavedWork";
 import { AREA_ORDER, type Area, type ChallengeSummary } from "../types/architecture";
 
 type Status = "all" | "pending" | "passed";
 
 const HISTORIES_READ = 8;
 
+const WORK_SHOWN = 3;
+
 export function ChallengesPage() {
   const t = useT();
+  const { locale } = useLanguage();
   usePageTitle(t("web.challenges.title"));
   const navigate = useNavigate();
   const [challenges, setChallenges] = useState<ChallengeSummary[] | null>(null);
@@ -34,7 +39,7 @@ export function ChallengesPage() {
   const [area, setArea] = useState<Area | null>(null);
   const [passed] = useState(() => passedChallenges());
   const [started] = useState(() => startedChallenges());
-  const [work] = useState(() => savedWork().slice(0, 3));
+  const { work, forgotten, forget, undoForget } = useSavedWork(WORK_SHOWN);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [gains, setGains] = useState<AreaGain[]>([]);
@@ -95,6 +100,8 @@ export function ChallengesPage() {
         setCreateError(err instanceof ApiError ? t(err.key, err.args) : t("ui.home.createFailed"));
       });
   };
+
+  const labelOf = (entry: SavedWork) => (entry.challengeSlug ? t(`challenge.${entry.challengeSlug}.title`) : entry.name);
 
   let index = 0;
 
@@ -230,18 +237,44 @@ export function ChallengesPage() {
           ) : (
             <ul className="hairline-rows mt-2 flex flex-col">
               {work.map((entry) => (
-                <li key={entry.editToken} className="flex items-center justify-between gap-3 py-3">
+                <li key={entry.editToken} className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2 py-3">
                   <span className="flex flex-col gap-0.5">
-                    <span className="text-[15px] font-semibold">{entry.challengeSlug ? t(`challenge.${entry.challengeSlug}.title`) : entry.name}</span>
-                    {entry.score !== null && <span className="font-mono text-meta text-ink-3">{entry.score} / 100</span>}
+                    <span className="text-[15px] font-semibold">{labelOf(entry)}</span>
+                    <span className="flex items-baseline gap-1.5 text-meta text-ink-3">
+                      {entry.score !== null && (
+                        <>
+                          <span className="num">{entry.score} / 100</span>
+                          <span aria-hidden>·</span>
+                        </>
+                      )}
+                      <span>{shortDateTime(entry.updatedAt, locale)}</span>
+                    </span>
                   </span>
-                  <Link to={editorPath(entry)} className="inline-flex items-center gap-1.5 text-small font-semibold text-accent no-underline hover:text-ink">
-                    {t("ui.home.workContinue")}
-                    <ArrowIcon size={16} />
-                  </Link>
+                  <span className="flex items-center gap-5">
+                    <button
+                      type="button"
+                      onClick={() => forget(entry)}
+                      aria-label={t("ui.home.workForgetOne", { name: labelOf(entry) })}
+                      className="min-h-9 text-small text-ink-2 hover:text-ink"
+                    >
+                      {t("ui.home.workForget")}
+                    </button>
+                    <Link to={editorPath(entry)} className="inline-flex items-center gap-1.5 text-small font-semibold text-accent no-underline hover:text-ink">
+                      {t("ui.home.workContinue")}
+                      <ArrowIcon size={16} />
+                    </Link>
+                  </span>
                 </li>
               ))}
             </ul>
+          )}
+          {forgotten !== null && (
+            <p role="status" className="text-small text-ink-2">
+              {t("ui.home.workForgotten", { name: labelOf(forgotten) })}{" "}
+              <button type="button" onClick={undoForget} className="link text-small">
+                {t("ui.home.workForgetUndo")}
+              </button>
+            </p>
           )}
           {gains.length > 0 && (
             <div className="mt-3 flex flex-col gap-2.5 border-t border-line pt-4">
