@@ -103,7 +103,11 @@ public class ArchitecturesController : ControllerBase
         return result is null ? NotFound() : Ok(result);
     }
 
+    // The four below load the whole graph and run the engine over it, and `/fragility` runs it once
+    // per node. They share a ceiling of their own (`RateLimitPolicies.Compute`) because the backstop
+    // counts requests and what matters here is what each one costs.
     [HttpPost("{shareToken}/analyze")]
+    [EnableRateLimiting(RateLimitPolicies.Compute)]
     public async Task<IActionResult> Analyze(string shareToken, CancellationToken cancellationToken)
     {
         var result = await _analyzeHandler.Handle(new AnalyzeArchitectureQuery { ShareToken = shareToken }, cancellationToken);
@@ -111,6 +115,7 @@ public class ArchitecturesController : ControllerBase
     }
 
     [HttpPost("{shareToken}/simulate")]
+    [EnableRateLimiting(RateLimitPolicies.Compute)]
     public async Task<IActionResult> Simulate(string shareToken, [FromBody] SimulateRequest? request, CancellationToken cancellationToken)
     {
         var query = new SimulateArchitectureQuery
@@ -124,6 +129,7 @@ public class ArchitecturesController : ControllerBase
     }
 
     [HttpPost("{shareToken}/fragility")]
+    [EnableRateLimiting(RateLimitPolicies.Compute)]
     public async Task<IActionResult> Fragility(string shareToken, CancellationToken cancellationToken)
     {
         var result = await _fragilityHandler.Handle(new MapArchitectureFragilityQuery { ShareToken = shareToken }, cancellationToken);
@@ -131,6 +137,7 @@ public class ArchitecturesController : ControllerBase
     }
 
     [HttpPost("{shareToken}/load-curve")]
+    [EnableRateLimiting(RateLimitPolicies.Compute)]
     public async Task<IActionResult> LoadCurve(string shareToken, CancellationToken cancellationToken)
     {
         var result = await _loadCurveHandler.Handle(new SweepArchitectureLoadQuery { ShareToken = shareToken }, cancellationToken);

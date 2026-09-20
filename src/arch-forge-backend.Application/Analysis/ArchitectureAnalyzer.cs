@@ -1,5 +1,6 @@
 using bondstone_backend.Application.Analysis.Rules;
 using bondstone_backend.Application.Analysis.Scoring;
+using bondstone_backend.Application.Common;
 using bondstone_backend.Application.Simulation;
 
 namespace bondstone_backend.Application.Analysis;
@@ -59,12 +60,12 @@ public class ArchitectureAnalyzer
                 node.Name,
                 CostModel.PerInstance(node.Type),
                 NodeSettings.Instances(node),
-                NodeRoles.IsYoursToPayFor(node.Type)
-                    ? CostModel.PerInstance(node.Type) * NodeSettings.Instances(node)
-                    : 0))
+                NodeRoles.IsYoursToPayFor(node.Type) ? CostModel.TotalFor(node) : 0))
             .ToList();
 
-        return new ArchitectureCost(components.Sum(component => component.Total), components);
+        return new ArchitectureCost(
+            Saturating.Sum(components.Select(component => component.Total)),
+            components);
     }
 
     private static IReadOnlyList<ComponentLoad> Load(ArchitectureGraph graph, LoadModel load)

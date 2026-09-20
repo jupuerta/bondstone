@@ -14,22 +14,34 @@ public class ArchitectureRepository : IArchitectureRepository
         _context = context;
     }
 
+    // The three reads below all pull two sibling collections off one row. In a single SQL statement
+    // that is a cartesian product: every node repeated once per connection. At the validator's
+    // ceilings — 150 nodes and 400 connections — one architecture is 60 000 rows on the wire, each
+    // carrying its own 4 KB configuration, to answer a request whose real payload is 550 rows.
+    //
+    // `AsSplitQuery` asks for one statement per collection instead. The usual caveat about split
+    // queries is that they see different snapshots of a moving table; here the row is loaded to be
+    // read whole or replaced whole, and `ReplaceGraphAsync` does its swap inside a transaction, so
+    // there is no window where half of a graph is the old one.
     public Task<Architecture?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         _context.Architectures
             .Include(a => a.Nodes)
             .Include(a => a.Connections)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
     public Task<Architecture?> GetByShareTokenAsync(string shareToken, CancellationToken cancellationToken = default) =>
         _context.Architectures
             .Include(a => a.Nodes)
             .Include(a => a.Connections)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(a => a.ShareToken == shareToken, cancellationToken);
 
     public Task<Architecture?> GetByEditTokenAsync(string editToken, CancellationToken cancellationToken = default) =>
         _context.Architectures
             .Include(a => a.Nodes)
             .Include(a => a.Connections)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(a => a.EditToken == editToken, cancellationToken);
 
     public async Task AddAsync(Architecture architecture, CancellationToken cancellationToken = default) =>

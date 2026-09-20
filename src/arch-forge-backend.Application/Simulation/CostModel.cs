@@ -1,5 +1,7 @@
 using bondstone_backend.Application.Analysis;
 using bondstone_backend.Application.Analysis.Rules;
+using bondstone_backend.Application.Common;
+using bondstone_backend.Domain.Entities;
 using bondstone_backend.Domain.Enums;
 
 namespace bondstone_backend.Application.Simulation;
@@ -56,7 +58,12 @@ public static class CostModel
     // Instances is the same counter CapacityModel reads, so database replicas are copies here exactly
     // as they are capacity there. Changing one side would charge one lever and leave the other free.
     public static int Of(ArchitectureGraph graph) =>
-        graph.Nodes
+        Saturating.Sum(graph.Nodes
             .Where(node => NodeRoles.IsYoursToPayFor(node.Type))
-            .Sum(node => PerInstance(node.Type) * NodeSettings.Instances(node));
+            .Select(TotalFor));
+
+    // One component's bill. `long` on the way, clamped on the way out: `Enumerable.Sum` over these
+    // is checked and would throw, and the multiplication before it is not and would wrap.
+    public static int TotalFor(Node node) =>
+        Saturating.ToInt((long)PerInstance(node.Type) * NodeSettings.Instances(node));
 }

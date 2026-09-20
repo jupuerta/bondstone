@@ -15,6 +15,10 @@ public sealed class RateLimitOptions
     /// <summary>The backstop, per client per minute. Sized so no honest editing session reaches it.</summary>
     public int GlobalPermitsPerMinute { get; set; } = 600;
 
+    /// <summary>The four calculating endpoints, per client per minute. Half the backstop, because
+    /// the work behind them is nothing like half as cheap as a read.</summary>
+    public int ComputePermitsPerMinute { get; set; } = 300;
+
     /// <summary>How many architectures one client may create per <see cref="MintWindowMinutes"/>.</summary>
     public int MintPermits { get; set; } = 20;
 

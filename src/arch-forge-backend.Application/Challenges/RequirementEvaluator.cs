@@ -233,7 +233,7 @@ public static class RequirementEvaluator
 
         var billed = context.Graph.Nodes
             .Where(n => NodeRoles.IsYoursToPayFor(n.Type))
-            .Select(n => (Node: n, Cost: CostModel.PerInstance(n.Type) * NodeSettings.Instances(n)))
+            .Select(n => (Node: n, Cost: CostModel.TotalFor(n)))
             .Where(x => x.Cost > 0)
             .OrderByDescending(x => x.Cost)
             .ThenBy(x => x.Node.Id)

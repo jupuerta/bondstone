@@ -48,7 +48,10 @@ public class ChallengesController : ControllerBase
         return result is null ? NotFound() : Created($"/api/architectures/edit/{result.EditToken}", result);
     }
 
+    // Same ceiling as the architecture's own calculating endpoints, and for the same reason: this
+    // runs the analyzer once and the simulation engine once per requirement that asks for one.
     [HttpPost("{slug}/evaluate")]
+    [EnableRateLimiting(RateLimitPolicies.Compute)]
     public async Task<IActionResult> Evaluate(string slug, [FromBody] EvaluateRequest request, CancellationToken cancellationToken)
     {
         var query = new EvaluateChallengeQuery { Slug = slug, ShareToken = request.ShareToken };

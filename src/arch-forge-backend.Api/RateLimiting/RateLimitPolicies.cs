@@ -4,8 +4,8 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace bondstone_backend.Api.RateLimiting;
 
-// Three limits, because there are three different things to protect against and one number cannot
-// do all three jobs.
+// Four limits, because there are four different things to protect against and one number cannot
+// do all four jobs.
 //
 // **The global one is a backstop, not a policy.** This editor is chatty by design: the autosave
 // debounces at 1 000 ms and the live analysis at 800, and a session in Simulate also asks for the
@@ -22,6 +22,18 @@ namespace bondstone_backend.Api.RateLimiting;
 // V20's browser pass left 21 stray rows in one afternoon just by visiting `/c/{slug}` at seven
 // widths. That is one person being careless; a script would not stop at 21.
 //
+// **The compute one is about cost per request, not count.** `/analyze`, `/simulate`, `/fragility`,
+// `/load-curve` and `challenges/{slug}/evaluate` all load the whole graph and run the engine over
+// it; `/fragility` runs it once per node, so one request there is up to 150 simulations. Under the
+// backstop alone each of them was worth 600 a minute, which is the cheapest way anybody has to make
+// this server work hard.
+//
+// The ceiling comes from the editor's own clocks rather than a round number: autosave debounces at
+// 1 000 ms, so at most 60 saves a minute, and each one re-runs the fragility map and the load curve
+// while Simulate is open; live analysis debounces at 800 ms, so 75 more. That is ~195 for somebody
+// editing flat out with Simulate open — the honest worst case. 300 clears it by half again and
+// still keeps these four from ever being the whole backstop.
+//
 // **The health one is a muzzle.** `/api/health` is public through the nginx and every call asks the
 // database whether it is still there. Its callers are machines with known rhythms — a 10s container
 // probe, an occasional `check:stack` — so it gets a ceiling sized for them instead of the exemption
@@ -29,6 +41,8 @@ namespace bondstone_backend.Api.RateLimiting;
 public static class RateLimitPolicies
 {
     public const string Mint = "mint";
+
+    public const string Compute = "compute";
 
     public const string Health = "health";
 
@@ -47,6 +61,16 @@ public static class RateLimitPolicies
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = limits.GlobalPermitsPerMinute,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                    }));
+
+            options.AddPolicy(Compute, context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    ClientOf(context),
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = limits.ComputePermitsPerMinute,
                         Window = TimeSpan.FromMinutes(1),
                         QueueLimit = 0,
                     }));

@@ -29,6 +29,7 @@ public class PostgresApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 // through it would still fail here.
                 ["RateLimiting:MintPermits"] = "100000",
                 ["RateLimiting:GlobalPermitsPerMinute"] = "100000",
+                ["RateLimiting:ComputePermitsPerMinute"] = "100000",
             });
         });
     }

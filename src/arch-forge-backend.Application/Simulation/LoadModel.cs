@@ -26,13 +26,15 @@ public sealed class LoadModel
 
         foreach (var node in graph.Nodes)
         {
-            _capacity[node.Id] = CapacityModel.PerInstance(node.Type) * NodeSettings.Instances(node);
+            // `(decimal)` on the left, or the two ints multiply as an int first and wrap before
+            // anybody converts anything.
+            _capacity[node.Id] = (decimal)CapacityModel.PerInstance(node.Type) * NodeSettings.Instances(node);
 
             // A store's read replicas do not write: the declared writes have only the primary and
             // its full replicas to land on (QA 30-08, §4.7 and 7.4). What nobody declares counts as
             // a read, which is what it always counted as.
             if (NodeRoles.IsSystemOfRecord(node.Type))
-                _writeCapacity[node.Id] = CapacityModel.PerInstance(node.Type) * NodeSettings.WriteInstances(node);
+                _writeCapacity[node.Id] = (decimal)CapacityModel.PerInstance(node.Type) * NodeSettings.WriteInstances(node);
         }
     }
 

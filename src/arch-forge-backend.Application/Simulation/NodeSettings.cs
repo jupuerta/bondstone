@@ -1,5 +1,6 @@
 using System.Text.Json;
 using bondstone_backend.Application.Analysis.Rules;
+using bondstone_backend.Application.Common;
 using bondstone_backend.Application.Configuration;
 using bondstone_backend.Application.Configuration.Schemas;
 using bondstone_backend.Domain.Entities;
@@ -45,8 +46,10 @@ public static class NodeSettings
         NodeType.Queue => Positive(Read<QueueConfiguration>(node)?.Instances),
         NodeType.Topic => Positive(Read<TopicConfiguration>(node)?.Instances),
 
+        // In `long` and then clamped: these are two numbers a person typed, and at the top of the
+        // int range the plain sum wraps to a negative copy count.
         NodeType.Database => Read<DatabaseConfiguration>(node) is { } db
-            ? 1 + Math.Max(0, db.Replicas ?? 0) + Math.Max(0, db.ReadReplicas ?? 0)
+            ? Saturating.ToInt(1L + Math.Max(0, db.Replicas ?? 0) + Math.Max(0, db.ReadReplicas ?? 0))
             : 1,
 
         _ => 1

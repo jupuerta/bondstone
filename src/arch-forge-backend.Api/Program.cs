@@ -52,6 +52,20 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
 
+    // How many entries to walk back from the right of `X-Forwarded-For`, which is how many proxies
+    // stand in front. The framework default is 1, and 1 is right for one hop; with two it takes the
+    // *second* proxy's address and calls it the client. That is not a cosmetic error here: the mint
+    // limiter partitions by the remote address, so every visitor on earth would share one bucket of
+    // 20 creations per 10 minutes and the second person drawing at the same time would see a 429.
+    //
+    // It is a number and not a count of `KnownProxies` because the two answer different questions —
+    // who may speak for the client, and how far down the chain to listen — and a deployment can
+    // legitimately declare a proxy that is not on every request's path.
+    //
+    // Deployments set `ForwardedHeaders__ForwardLimit` to their real depth: 1 for the local stack
+    // (browser → nginx → api), 2 in production (browser → Caddy → nginx → api).
+    options.ForwardLimit = builder.Configuration.GetValue("ForwardedHeaders:ForwardLimit", 1);
+
     foreach (var proxy in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [])
         options.KnownProxies.Add(System.Net.IPAddress.Parse(proxy));
 

@@ -116,6 +116,44 @@ public class CostModelTests
         Assert.Equal(16, CostModel.Of(cache));
     }
 
+    // The numbers below are the ones nobody would type on purpose and somebody will. `instances`
+    // has no contract ceiling — QA V22, observation 7, decided and left standing — so the only
+    // place left to be careful is the arithmetic. Before this, the per-node multiplication wrapped
+    // to a negative and the checked `Enumerable.Sum` over those threw: `/analyze` answered 500 for
+    // that architecture, and kept answering 500, because the row was already saved.
+    [Fact]
+    public void A_bill_nobody_could_pay_is_still_a_number_and_not_an_exception()
+    {
+        var graph = new GraphBuilder()
+            .Node("Api", NodeType.Api, $$"""{"instances":{{int.MaxValue}}}""")
+            .Build();
+
+        Assert.Equal(int.MaxValue, CostModel.Of(graph));
+    }
+
+    [Fact]
+    public void A_store_with_more_copies_than_int_can_count_does_not_wrap_to_a_negative()
+    {
+        var graph = new GraphBuilder()
+            .Node("Db", NodeType.Database, $$"""{"replicas":{{int.MaxValue}},"readReplicas":{{int.MaxValue}}}""")
+            .Build();
+
+        Assert.Equal(int.MaxValue, NodeSettings.Instances(graph.Nodes.Single()));
+        Assert.Equal(int.MaxValue, CostModel.Of(graph));
+    }
+
+    // What the V22 decision measured, kept exactly: 999 999 copies of an API bill 3 999 996, which
+    // is what saturating arithmetic has to leave alone to be worth having.
+    [Fact]
+    public void The_absurd_but_representable_bill_is_untouched()
+    {
+        var graph = new GraphBuilder()
+            .Node("Api", NodeType.Api, """{"instances":999999}""")
+            .Build();
+
+        Assert.Equal(3_999_996, CostModel.Of(graph));
+    }
+
     private static int? ConstantOf(string name) =>
         typeof(CostModel)
             .GetField(name, BindingFlags.Public | BindingFlags.Static)

@@ -1,3 +1,4 @@
+using bondstone_backend.Application.Common;
 using bondstone_backend.Domain.Entities;
 
 using bondstone_backend.Application.Localization;
@@ -67,8 +68,12 @@ public class RetryAmplificationRule : IArchitectureRule
         return new RuleFinding(Code, Area, severity, message, Explanation, Suggestion, Interleave(edges));
     }
 
+    // Saturating, because this is the one number in the product that a person types and nobody
+    // bounds: four hops at a thousand retries each already pass `int.MaxValue`, and the plain
+    // product would wrap round to something small and reassuring — the opposite of what this rule
+    // is for.
     private static int Factor(ArchitectureGraph graph, IEnumerable<Connection> chain) =>
-        chain.Aggregate(1, (product, edge) => product * ((graph.ResilienceOf(edge).Retries ?? 0) + 1));
+        Saturating.Product(chain.Select(edge => (graph.ResilienceOf(edge).Retries ?? 0) + 1));
 
     private static string Walk(ArchitectureGraph graph, IReadOnlyList<Connection> chain) =>
         string.Join(" → ", chain.Select(edge => graph.NodesById[edge.SourceNodeId].Name)
