@@ -1,9 +1,9 @@
-using arch_forge_backend.Application.Localization;
-using arch_forge_backend.Application.Analysis;
-using arch_forge_backend.Application.Analysis.Scoring;
+using bondstone_backend.Application.Localization;
+using bondstone_backend.Application.Analysis;
+using bondstone_backend.Application.Analysis.Scoring;
 using Xunit;
 
-namespace arch_forge_backend.Application.Tests.Analysis.Scoring;
+namespace bondstone_backend.Application.Tests.Analysis.Scoring;
 
 public class ScoreCalculatorTests
 {

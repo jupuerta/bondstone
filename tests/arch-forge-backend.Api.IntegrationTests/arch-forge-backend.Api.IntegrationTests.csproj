@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <RootNamespace>arch_forge_backend.Api.IntegrationTests</RootNamespace>
+    <RootNamespace>bondstone_backend.Api.IntegrationTests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

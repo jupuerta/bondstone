@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
-namespace arch_forge_backend.Api.IntegrationTests;
+namespace bondstone_backend.Api.IntegrationTests;
 
 // The two switches S6 and S12 left behind. Neither is on in this deployment, which is exactly why
 // they are pinned: a switch nobody exercises has quietly stopped working by the time it is needed.
@@ -20,7 +20,7 @@ public abstract class SwitchFactory : WebApplicationFactory<Program>
         // Well-formed and deliberately dead: it proves the connection string guard is satisfied
         // (AddInfrastructure still refuses an empty one) without anything answering.
         builder.UseSetting(
-            "ConnectionStrings:ArchForge",
+            "ConnectionStrings:Bondstone",
             "Host=127.0.0.1;Port=1;Database=unused;Username=unused;Password=unused;Timeout=1");
 
         builder.UseSetting("Database:MigrateOnStartup", "false");
@@ -58,7 +58,7 @@ public class HttpsRequiredTests(HttpsRequiredFactory factory) : IClassFixture<Ht
     [Fact]
     public async Task The_answer_carries_hsts_so_the_browser_stops_asking_in_clear()
     {
-        var response = await factory.Client().GetAsync("https://archforge.example/api/challenges");
+        var response = await factory.Client().GetAsync("https://bondstone.example/api/challenges");
 
         Assert.True(response.Headers.Contains("Strict-Transport-Security"));
     }

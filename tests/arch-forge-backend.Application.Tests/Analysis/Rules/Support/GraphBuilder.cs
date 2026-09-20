@@ -1,8 +1,8 @@
-using arch_forge_backend.Application.Analysis;
-using arch_forge_backend.Domain.Entities;
-using arch_forge_backend.Domain.Enums;
+using bondstone_backend.Application.Analysis;
+using bondstone_backend.Domain.Entities;
+using bondstone_backend.Domain.Enums;
 
-namespace arch_forge_backend.Application.Tests.Analysis.Rules.Support;
+namespace bondstone_backend.Application.Tests.Analysis.Rules.Support;
 
 public class GraphBuilder
 {

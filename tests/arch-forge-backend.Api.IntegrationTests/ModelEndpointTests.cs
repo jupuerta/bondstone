@@ -2,7 +2,7 @@ using System.Net;
 using System.Text.Json.Nodes;
 using Xunit;
 
-namespace arch_forge_backend.Api.IntegrationTests;
+namespace bondstone_backend.Api.IntegrationTests;
 
 public class ModelEndpointTests : IClassFixture<PostgresApiFactory>
 {

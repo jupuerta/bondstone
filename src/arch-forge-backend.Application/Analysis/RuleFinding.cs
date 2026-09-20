@@ -1,6 +1,6 @@
-using arch_forge_backend.Application.Localization;
+using bondstone_backend.Application.Localization;
 
-namespace arch_forge_backend.Application.Analysis;
+namespace bondstone_backend.Application.Analysis;
 
 public sealed record RuleFinding(
     string Code,

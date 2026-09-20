@@ -1,7 +1,7 @@
-using arch_forge_backend.Application.Analysis;
-using arch_forge_backend.Domain.Enums;
+using bondstone_backend.Application.Analysis;
+using bondstone_backend.Domain.Enums;
 
-namespace arch_forge_backend.Application.Challenges;
+namespace bondstone_backend.Application.Challenges;
 
 public sealed class ChallengeRequirement
 {

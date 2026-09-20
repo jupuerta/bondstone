@@ -1,16 +1,16 @@
-using arch_forge_backend.Application.Analysis;
-using arch_forge_backend.Application.Analysis.Rules;
-using arch_forge_backend.Application.Architectures.Commands;
-using arch_forge_backend.Application.Architectures.Queries;
-using arch_forge_backend.Application.Challenges;
-using arch_forge_backend.Application.Configuration;
-using arch_forge_backend.Application.Configuration.Schemas;
-using arch_forge_backend.Application.Simulation;
-using arch_forge_backend.Domain.Enums;
+using bondstone_backend.Application.Analysis;
+using bondstone_backend.Application.Analysis.Rules;
+using bondstone_backend.Application.Architectures.Commands;
+using bondstone_backend.Application.Architectures.Queries;
+using bondstone_backend.Application.Challenges;
+using bondstone_backend.Application.Configuration;
+using bondstone_backend.Application.Configuration.Schemas;
+using bondstone_backend.Application.Simulation;
+using bondstone_backend.Domain.Enums;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace arch_forge_backend.Application;
+namespace bondstone_backend.Application;
 
 public static class DependencyInjection
 {

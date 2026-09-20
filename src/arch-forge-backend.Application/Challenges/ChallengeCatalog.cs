@@ -1,14 +1,14 @@
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using arch_forge_backend.Application.Configuration;
-using arch_forge_backend.Application.Simulation;
+using bondstone_backend.Application.Configuration;
+using bondstone_backend.Application.Simulation;
 
-namespace arch_forge_backend.Application.Challenges;
+namespace bondstone_backend.Application.Challenges;
 
 public sealed class ChallengeCatalog
 {
-    private const string Prefix = "arch_forge_backend.Application.Challenges.Definitions.";
+    private const string Prefix = "bondstone_backend.Application.Challenges.Definitions.";
 
     private static readonly JsonSerializerOptions Options = new()
     {

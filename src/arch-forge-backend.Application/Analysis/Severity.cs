@@ -1,4 +1,4 @@
-namespace arch_forge_backend.Application.Analysis;
+namespace bondstone_backend.Application.Analysis;
 
 // Ordered by how loud they are, because the order is load-bearing: `PenaltyForCode` sorts findings
 // by it and the panel sorts sections by it. `Info` goes between `Good` and `Warning` so `Critical`

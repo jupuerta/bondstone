@@ -1,6 +1,6 @@
-using arch_forge_backend.Application.Localization;
+using bondstone_backend.Application.Localization;
 
-namespace arch_forge_backend.Application.Challenges;
+namespace bondstone_backend.Application.Challenges;
 
 public sealed record ChallengeSummaryDto(
     string Slug,

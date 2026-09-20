@@ -1,7 +1,7 @@
 using System.Text.Json;
-using arch_forge_backend.Domain.Enums;
+using bondstone_backend.Domain.Enums;
 
-namespace arch_forge_backend.Application.Configuration;
+namespace bondstone_backend.Application.Configuration;
 
 public interface INodeConfigurationProvider
 {

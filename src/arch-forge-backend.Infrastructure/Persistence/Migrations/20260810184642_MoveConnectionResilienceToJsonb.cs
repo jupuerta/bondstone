@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace arch_forge_backend.Infrastructure.Persistence.Migrations
+namespace bondstone_backend.Infrastructure.Persistence.Migrations
 {
     public partial class MoveConnectionResilienceToJsonb : Migration
     {

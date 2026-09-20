@@ -1,6 +1,6 @@
-using arch_forge_backend.Domain.Enums;
+using bondstone_backend.Domain.Enums;
 
-namespace arch_forge_backend.Application.Simulation;
+namespace bondstone_backend.Application.Simulation;
 
 public static class LatencyModel
 {

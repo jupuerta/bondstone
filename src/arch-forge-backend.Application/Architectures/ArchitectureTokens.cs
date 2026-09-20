@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 
-namespace arch_forge_backend.Application.Architectures;
+namespace bondstone_backend.Application.Architectures;
 
 // The one place tokens are minted, because the alternative was three copies of
 // `Guid.NewGuid().ToString("N")` drifting apart — and because that habit had two problems the

@@ -1,7 +1,7 @@
-using arch_forge_backend.Application.Architectures.DTOs;
-using arch_forge_backend.Application.Common.Interfaces;
+using bondstone_backend.Application.Architectures.DTOs;
+using bondstone_backend.Application.Common.Interfaces;
 
-namespace arch_forge_backend.Application.Architectures.Queries;
+namespace bondstone_backend.Application.Architectures.Queries;
 
 public class GetArchitectureByShareTokenQuery
 {

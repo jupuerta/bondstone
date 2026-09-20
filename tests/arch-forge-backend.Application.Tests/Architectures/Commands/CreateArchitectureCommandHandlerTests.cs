@@ -1,10 +1,10 @@
-using arch_forge_backend.Application.Architectures.Commands;
-using arch_forge_backend.Application.Tests.TestDoubles;
+using bondstone_backend.Application.Architectures.Commands;
+using bondstone_backend.Application.Tests.TestDoubles;
 using FluentValidation;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace arch_forge_backend.Application.Tests.Architectures.Commands;
+namespace bondstone_backend.Application.Tests.Architectures.Commands;
 
 public class CreateArchitectureCommandHandlerTests
 {

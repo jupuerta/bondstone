@@ -1,4 +1,4 @@
-namespace arch_forge_backend.Application.Localization;
+namespace bondstone_backend.Application.Localization;
 
 public sealed record LocalizedText(string Key, IReadOnlyDictionary<string, object>? Args = null)
 {

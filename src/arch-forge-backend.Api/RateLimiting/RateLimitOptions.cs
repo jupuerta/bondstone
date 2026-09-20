@@ -1,4 +1,4 @@
-namespace arch_forge_backend.Api.RateLimiting;
+namespace bondstone_backend.Api.RateLimiting;
 
 // Bound to the `RateLimiting` section, with the production numbers as defaults so an empty
 // configuration is the right configuration. Two reasons it is not a pair of constants:

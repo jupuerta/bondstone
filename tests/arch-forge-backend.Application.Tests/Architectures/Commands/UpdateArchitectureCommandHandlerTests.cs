@@ -1,20 +1,20 @@
 using System.Text.Json;
-using arch_forge_backend.Application.Architectures;
-using arch_forge_backend.Application.Architectures.Commands;
-using arch_forge_backend.Application.Architectures.DTOs;
-using arch_forge_backend.Application.Common.Exceptions;
-using arch_forge_backend.Application.Analysis;
-using arch_forge_backend.Application.Analysis.Rules;
-using arch_forge_backend.Application.Configuration;
-using arch_forge_backend.Application.Configuration.Schemas;
-using arch_forge_backend.Application.Tests.TestDoubles;
-using arch_forge_backend.Domain.Entities;
-using arch_forge_backend.Domain.Enums;
+using bondstone_backend.Application.Architectures;
+using bondstone_backend.Application.Architectures.Commands;
+using bondstone_backend.Application.Architectures.DTOs;
+using bondstone_backend.Application.Common.Exceptions;
+using bondstone_backend.Application.Analysis;
+using bondstone_backend.Application.Analysis.Rules;
+using bondstone_backend.Application.Configuration;
+using bondstone_backend.Application.Configuration.Schemas;
+using bondstone_backend.Application.Tests.TestDoubles;
+using bondstone_backend.Domain.Entities;
+using bondstone_backend.Domain.Enums;
 using FluentValidation;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace arch_forge_backend.Application.Tests.Architectures.Commands;
+namespace bondstone_backend.Application.Tests.Architectures.Commands;
 
 public class UpdateArchitectureCommandHandlerTests
 {

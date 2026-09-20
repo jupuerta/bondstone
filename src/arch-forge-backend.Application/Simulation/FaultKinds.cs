@@ -1,6 +1,6 @@
-namespace arch_forge_backend.Application.Simulation;
+namespace bondstone_backend.Application.Simulation;
 
-using arch_forge_backend.Application.Analysis;
+using bondstone_backend.Application.Analysis;
 
 public static class FaultKinds
 {

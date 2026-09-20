@@ -1,8 +1,8 @@
-using arch_forge_backend.Application.Analysis.Rules;
-using arch_forge_backend.Application.Analysis.Scoring;
-using arch_forge_backend.Application.Simulation;
+using bondstone_backend.Application.Analysis.Rules;
+using bondstone_backend.Application.Analysis.Scoring;
+using bondstone_backend.Application.Simulation;
 
-namespace arch_forge_backend.Application.Analysis;
+namespace bondstone_backend.Application.Analysis;
 
 public class ArchitectureAnalyzer
 {

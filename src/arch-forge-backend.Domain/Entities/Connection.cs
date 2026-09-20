@@ -1,4 +1,4 @@
-namespace arch_forge_backend.Domain.Entities;
+namespace bondstone_backend.Domain.Entities;
 
 public class Connection
 {

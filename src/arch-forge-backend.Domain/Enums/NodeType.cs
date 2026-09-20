@@ -1,4 +1,4 @@
-namespace arch_forge_backend.Domain.Enums;
+namespace bondstone_backend.Domain.Enums;
 
 public enum NodeType
 {

@@ -1,6 +1,6 @@
-using arch_forge_backend.Application.Analysis;
+using bondstone_backend.Application.Analysis;
 
-namespace arch_forge_backend.Application.Simulation;
+namespace bondstone_backend.Application.Simulation;
 
 public sealed class PropagationState
 {

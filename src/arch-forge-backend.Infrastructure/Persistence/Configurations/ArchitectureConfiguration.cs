@@ -1,8 +1,8 @@
-using arch_forge_backend.Domain.Entities;
+using bondstone_backend.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace arch_forge_backend.Infrastructure.Persistence.Configurations;
+namespace bondstone_backend.Infrastructure.Persistence.Configurations;
 
 public class ArchitectureConfiguration : IEntityTypeConfiguration<Architecture>
 {

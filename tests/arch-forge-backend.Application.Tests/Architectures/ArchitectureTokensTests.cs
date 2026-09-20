@@ -1,8 +1,8 @@
 using System.Text.RegularExpressions;
-using arch_forge_backend.Application.Architectures;
+using bondstone_backend.Application.Architectures;
 using Xunit;
 
-namespace arch_forge_backend.Application.Tests.Architectures;
+namespace bondstone_backend.Application.Tests.Architectures;
 
 public class ArchitectureTokensTests
 {

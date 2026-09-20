@@ -1,8 +1,8 @@
-using arch_forge_backend.Application.Simulation;
-using arch_forge_backend.Domain.Enums;
+using bondstone_backend.Application.Simulation;
+using bondstone_backend.Domain.Enums;
 using Xunit;
 
-namespace arch_forge_backend.Application.Tests.Simulation;
+namespace bondstone_backend.Application.Tests.Simulation;
 
 public class ModelReferenceTests
 {

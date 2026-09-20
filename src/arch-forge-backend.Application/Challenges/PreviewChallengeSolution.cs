@@ -1,8 +1,8 @@
-using arch_forge_backend.Application.Analysis;
-using arch_forge_backend.Application.Architectures;
-using arch_forge_backend.Application.Architectures.DTOs;
+using bondstone_backend.Application.Analysis;
+using bondstone_backend.Application.Architectures;
+using bondstone_backend.Application.Architectures.DTOs;
 
-namespace arch_forge_backend.Application.Challenges;
+namespace bondstone_backend.Application.Challenges;
 
 public class PreviewChallengeSolutionQuery
 {

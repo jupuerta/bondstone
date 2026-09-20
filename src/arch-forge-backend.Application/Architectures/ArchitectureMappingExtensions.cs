@@ -1,10 +1,10 @@
 using System.Text.Json;
-using arch_forge_backend.Application.Architectures.DTOs;
-using arch_forge_backend.Domain.Entities;
-using arch_forge_backend.Domain.Enums;
-using arch_forge_backend.Application.Analysis;
+using bondstone_backend.Application.Architectures.DTOs;
+using bondstone_backend.Domain.Entities;
+using bondstone_backend.Domain.Enums;
+using bondstone_backend.Application.Analysis;
 
-namespace arch_forge_backend.Application.Architectures;
+namespace bondstone_backend.Application.Architectures;
 
 public static class ArchitectureMappingExtensions
 {

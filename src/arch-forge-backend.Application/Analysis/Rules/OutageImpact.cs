@@ -1,6 +1,6 @@
-using arch_forge_backend.Application.Simulation;
+using bondstone_backend.Application.Simulation;
 
-namespace arch_forge_backend.Application.Analysis.Rules;
+namespace bondstone_backend.Application.Analysis.Rules;
 
 public static class OutageImpact
 {

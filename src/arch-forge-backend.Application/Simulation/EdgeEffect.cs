@@ -1,6 +1,6 @@
-using arch_forge_backend.Application.Configuration.Schemas;
+using bondstone_backend.Application.Configuration.Schemas;
 
-namespace arch_forge_backend.Application.Simulation;
+namespace bondstone_backend.Application.Simulation;
 
 public enum EffectReason
 {

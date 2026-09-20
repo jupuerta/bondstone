@@ -1,4 +1,4 @@
-namespace arch_forge_backend.Application.Analysis;
+namespace bondstone_backend.Application.Analysis;
 
 // `Info` is its own number and not folded into `Passed`: a rule that passed found nothing to say,
 // and one that reports `Info` found something and decided it was not worth points. Telling the reader

@@ -1,4 +1,4 @@
-namespace arch_forge_backend.Application.Architectures.DTOs;
+namespace bondstone_backend.Application.Architectures.DTOs;
 
 public class ArchitectureDto
 {

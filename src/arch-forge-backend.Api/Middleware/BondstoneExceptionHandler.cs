@@ -1,10 +1,10 @@
-using arch_forge_backend.Application.Common.Exceptions;
+using bondstone_backend.Application.Common.Exceptions;
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
 
-namespace arch_forge_backend.Api.Middleware;
+namespace bondstone_backend.Api.Middleware;
 
-public class ArchForgeExceptionHandler : IExceptionHandler
+public class BondstoneExceptionHandler : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
     {

@@ -1,7 +1,7 @@
-using arch_forge_backend.Application.Common.Interfaces;
-using arch_forge_backend.Domain.Entities;
+using bondstone_backend.Application.Common.Interfaces;
+using bondstone_backend.Domain.Entities;
 
-namespace arch_forge_backend.Application.Tests.TestDoubles;
+namespace bondstone_backend.Application.Tests.TestDoubles;
 
 public class FakeArchitectureRepository : IArchitectureRepository
 {

@@ -1,9 +1,9 @@
 using System.Text.Json;
-using arch_forge_backend.Application.Configuration.Schemas;
-using arch_forge_backend.Domain.Entities;
-using arch_forge_backend.Domain.Enums;
+using bondstone_backend.Application.Configuration.Schemas;
+using bondstone_backend.Domain.Entities;
+using bondstone_backend.Domain.Enums;
 
-namespace arch_forge_backend.Application.Analysis;
+namespace bondstone_backend.Application.Analysis;
 
 public class ArchitectureGraph
 {

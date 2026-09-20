@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Xunit;
 
-namespace arch_forge_backend.Api.IntegrationTests;
+namespace bondstone_backend.Api.IntegrationTests;
 
 // Its own factory, with a ceiling low enough to reach in a test. The shared one lifts the limits so
 // the other 57 can mint freely, so this is the only place the refusal itself can be pinned.

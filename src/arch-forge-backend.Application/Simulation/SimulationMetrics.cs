@@ -1,4 +1,4 @@
-namespace arch_forge_backend.Application.Simulation;
+namespace bondstone_backend.Application.Simulation;
 
 public sealed record SimulationMetrics(
     int ComponentsDown,

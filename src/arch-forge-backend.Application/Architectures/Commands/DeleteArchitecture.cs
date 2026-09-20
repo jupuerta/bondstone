@@ -1,7 +1,7 @@
-using arch_forge_backend.Application.Common.Interfaces;
+using bondstone_backend.Application.Common.Interfaces;
 using Microsoft.Extensions.Logging;
 
-namespace arch_forge_backend.Application.Architectures.Commands;
+namespace bondstone_backend.Application.Architectures.Commands;
 
 public class DeleteArchitectureCommand
 {

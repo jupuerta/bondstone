@@ -1,10 +1,10 @@
 using System.Text.Json;
-using arch_forge_backend.Application.Challenges;
-using arch_forge_backend.Application.Simulation;
-using arch_forge_backend.Application.Tests.TestDoubles;
+using bondstone_backend.Application.Challenges;
+using bondstone_backend.Application.Simulation;
+using bondstone_backend.Application.Tests.TestDoubles;
 using Xunit;
 
-namespace arch_forge_backend.Application.Tests.Challenges;
+namespace bondstone_backend.Application.Tests.Challenges;
 
 public class LoadBudgetTests
 {

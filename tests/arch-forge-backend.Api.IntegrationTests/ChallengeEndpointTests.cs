@@ -1,12 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
-using arch_forge_backend.Infrastructure.Persistence;
+using bondstone_backend.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
-namespace arch_forge_backend.Api.IntegrationTests;
+namespace bondstone_backend.Api.IntegrationTests;
 
 public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
 {
@@ -22,7 +22,7 @@ public class ChallengeEndpointTests : IClassFixture<PostgresApiFactory>
     private async Task<int> CountArchitecturesAsync()
     {
         using var scope = _factory.Services.CreateScope();
-        return await scope.ServiceProvider.GetRequiredService<ArchForgeDbContext>().Architectures.CountAsync();
+        return await scope.ServiceProvider.GetRequiredService<BondstoneDbContext>().Architectures.CountAsync();
     }
 
     [Fact]

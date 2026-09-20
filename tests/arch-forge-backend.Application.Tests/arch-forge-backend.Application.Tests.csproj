@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <RootNamespace>arch_forge_backend.Application.Tests</RootNamespace>
+    <RootNamespace>bondstone_backend.Application.Tests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

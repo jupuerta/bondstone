@@ -1,4 +1,4 @@
-namespace arch_forge_backend.Application.Challenges;
+namespace bondstone_backend.Application.Challenges;
 
 internal static class BlueprintLayout
 {

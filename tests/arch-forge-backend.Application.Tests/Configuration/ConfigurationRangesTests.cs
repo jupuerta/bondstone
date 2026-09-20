@@ -1,10 +1,10 @@
 using System.Text.Json;
-using arch_forge_backend.Application.Configuration;
-using arch_forge_backend.Application.Configuration.Schemas;
-using arch_forge_backend.Domain.Enums;
+using bondstone_backend.Application.Configuration;
+using bondstone_backend.Application.Configuration.Schemas;
+using bondstone_backend.Domain.Enums;
 using Xunit;
 
-namespace arch_forge_backend.Application.Tests.Configuration;
+namespace bondstone_backend.Application.Tests.Configuration;
 
 public class ConfigurationRangesTests
 {

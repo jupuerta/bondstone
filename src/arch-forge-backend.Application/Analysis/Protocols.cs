@@ -1,6 +1,6 @@
-using arch_forge_backend.Domain.Enums;
+using bondstone_backend.Domain.Enums;
 
-namespace arch_forge_backend.Application.Analysis;
+namespace bondstone_backend.Application.Analysis;
 
 // The protocol of a call is a fact about its two ends, not a choice. Measured over the fifty drawings
 // of the catalogue (259 calls) before the selector went away: every one of them followed this table.

@@ -1,4 +1,4 @@
-namespace arch_forge_backend.Application.Common.Exceptions;
+namespace bondstone_backend.Application.Common.Exceptions;
 
 public class ArchitectureConcurrencyConflictException : Exception
 {

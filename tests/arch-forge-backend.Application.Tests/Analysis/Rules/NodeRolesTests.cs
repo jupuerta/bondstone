@@ -1,12 +1,12 @@
-using arch_forge_backend.Application.Analysis.Rules;
-using arch_forge_backend.Domain.Enums;
+using bondstone_backend.Application.Analysis.Rules;
+using bondstone_backend.Domain.Enums;
 using Xunit;
 
-namespace arch_forge_backend.Application.Tests.Analysis.Rules;
+namespace bondstone_backend.Application.Tests.Analysis.Rules;
 
 public class NodeRolesTests
 {
-    // The sixteen rows of Anexo B of ArchForge_zonas_V20.md: size, pay, place are three
+    // The sixteen rows of Anexo B of Bondstone_zonas_V20.md: size, pay, place are three
     // different sets, and the Cdn row (billed, never placed) is what keeps them from collapsing.
     public static TheoryData<NodeType, bool, bool, bool> AnnexB => new()
     {

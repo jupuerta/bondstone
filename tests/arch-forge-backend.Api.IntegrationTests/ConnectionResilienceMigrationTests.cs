@@ -1,4 +1,4 @@
-using arch_forge_backend.Infrastructure.Persistence;
+using bondstone_backend.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -6,7 +6,7 @@ using Npgsql;
 using Testcontainers.PostgreSql;
 using Xunit;
 
-namespace arch_forge_backend.Api.IntegrationTests;
+namespace bondstone_backend.Api.IntegrationTests;
 
 public class ConnectionResilienceMigrationTests : IAsyncLifetime
 {
@@ -14,9 +14,9 @@ public class ConnectionResilienceMigrationTests : IAsyncLifetime
 
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
         .WithImage("postgres:16-alpine")
-        .WithDatabase("archforge")
-        .WithUsername("archforge")
-        .WithPassword("archforge")
+        .WithDatabase("bondstone")
+        .WithUsername("bondstone")
+        .WithPassword("bondstone")
         .Build();
 
     public Task InitializeAsync() => _postgres.StartAsync();
@@ -69,8 +69,8 @@ public class ConnectionResilienceMigrationTests : IAsyncLifetime
         Assert.Contains("\"fallback\": false", bare);
     }
 
-    private ArchForgeDbContext NewContext() =>
-        new(new DbContextOptionsBuilder<ArchForgeDbContext>()
+    private BondstoneDbContext NewContext() =>
+        new(new DbContextOptionsBuilder<BondstoneDbContext>()
             .UseNpgsql(_postgres.GetConnectionString())
             .Options);
 

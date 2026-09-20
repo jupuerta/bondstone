@@ -1,10 +1,10 @@
-using arch_forge_backend.Application.Tests.TestDoubles;
-using arch_forge_backend.Application.Localization;
-using arch_forge_backend.Application.Configuration.Schemas;
-using arch_forge_backend.Application.Simulation;
+using bondstone_backend.Application.Tests.TestDoubles;
+using bondstone_backend.Application.Localization;
+using bondstone_backend.Application.Configuration.Schemas;
+using bondstone_backend.Application.Simulation;
 using Xunit;
 
-namespace arch_forge_backend.Application.Tests.Simulation;
+namespace bondstone_backend.Application.Tests.Simulation;
 
 public class EdgeEffectTests
 {

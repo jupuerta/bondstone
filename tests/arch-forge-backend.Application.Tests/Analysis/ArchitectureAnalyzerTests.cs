@@ -1,13 +1,13 @@
-using arch_forge_backend.Application.Tests.TestDoubles;
+using bondstone_backend.Application.Tests.TestDoubles;
 using System.Text;
-using arch_forge_backend.Application.Analysis;
-using arch_forge_backend.Application.Localization;
-using arch_forge_backend.Application.Analysis.Rules;
-using arch_forge_backend.Domain.Entities;
-using arch_forge_backend.Domain.Enums;
+using bondstone_backend.Application.Analysis;
+using bondstone_backend.Application.Localization;
+using bondstone_backend.Application.Analysis.Rules;
+using bondstone_backend.Domain.Entities;
+using bondstone_backend.Domain.Enums;
 using Xunit;
 
-namespace arch_forge_backend.Application.Tests.Analysis;
+namespace bondstone_backend.Application.Tests.Analysis;
 
 public class ArchitectureAnalyzerTests
 {

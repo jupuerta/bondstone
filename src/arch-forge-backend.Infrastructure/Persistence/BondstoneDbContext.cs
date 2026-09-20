@@ -1,11 +1,11 @@
-using arch_forge_backend.Domain.Entities;
+using bondstone_backend.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace arch_forge_backend.Infrastructure.Persistence;
+namespace bondstone_backend.Infrastructure.Persistence;
 
-public class ArchForgeDbContext : DbContext
+public class BondstoneDbContext : DbContext
 {
-    public ArchForgeDbContext(DbContextOptions<ArchForgeDbContext> options) : base(options)
+    public BondstoneDbContext(DbContextOptions<BondstoneDbContext> options) : base(options)
     {
     }
 
@@ -17,6 +17,6 @@ public class ArchForgeDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ArchForgeDbContext).Assembly);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(BondstoneDbContext).Assembly);
     }
 }

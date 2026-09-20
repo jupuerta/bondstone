@@ -1,4 +1,4 @@
-namespace arch_forge_backend.Application.Analysis.Scoring;
+namespace bondstone_backend.Application.Analysis.Scoring;
 
 public sealed record RuleOutcome(
     Area Area,

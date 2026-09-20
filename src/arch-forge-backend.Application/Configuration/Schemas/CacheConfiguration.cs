@@ -1,4 +1,4 @@
-namespace arch_forge_backend.Application.Configuration.Schemas;
+namespace bondstone_backend.Application.Configuration.Schemas;
 
 public class CacheConfiguration
 {

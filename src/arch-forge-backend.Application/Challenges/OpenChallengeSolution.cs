@@ -1,10 +1,10 @@
-using arch_forge_backend.Application.Architectures;
-using arch_forge_backend.Application.Architectures.DTOs;
-using arch_forge_backend.Application.Common.Interfaces;
+using bondstone_backend.Application.Architectures;
+using bondstone_backend.Application.Architectures.DTOs;
+using bondstone_backend.Application.Common.Interfaces;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 
-namespace arch_forge_backend.Application.Challenges;
+namespace bondstone_backend.Application.Challenges;
 
 public class OpenChallengeSolutionCommand
 {

@@ -1,6 +1,6 @@
-using arch_forge_backend.Domain.Entities;
+using bondstone_backend.Domain.Entities;
 
-namespace arch_forge_backend.Application.Common.Interfaces;
+namespace bondstone_backend.Application.Common.Interfaces;
 
 public interface IArchitectureRepository
 {

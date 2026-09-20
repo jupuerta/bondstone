@@ -1,15 +1,15 @@
-using arch_forge_backend.Application.Common.Exceptions;
-using arch_forge_backend.Application.Common.Interfaces;
-using arch_forge_backend.Domain.Entities;
+using bondstone_backend.Application.Common.Exceptions;
+using bondstone_backend.Application.Common.Interfaces;
+using bondstone_backend.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace arch_forge_backend.Infrastructure.Persistence.Repositories;
+namespace bondstone_backend.Infrastructure.Persistence.Repositories;
 
 public class ArchitectureRepository : IArchitectureRepository
 {
-    private readonly ArchForgeDbContext _context;
+    private readonly BondstoneDbContext _context;
 
-    public ArchitectureRepository(ArchForgeDbContext context)
+    public ArchitectureRepository(BondstoneDbContext context)
     {
         _context = context;
     }

@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 
-namespace arch_forge_backend.Api.RateLimiting;
+namespace bondstone_backend.Api.RateLimiting;
 
 // Three limits, because there are three different things to protect against and one number cannot
 // do all three jobs.
@@ -32,7 +32,7 @@ public static class RateLimitPolicies
 
     public const string Health = "health";
 
-    public static void AddArchForgeRateLimiting(this IServiceCollection services, IConfiguration configuration)
+    public static void AddBondstoneRateLimiting(this IServiceCollection services, IConfiguration configuration)
     {
         var limits = configuration.GetSection(RateLimitOptions.SectionName).Get<RateLimitOptions>()
             ?? new RateLimitOptions();

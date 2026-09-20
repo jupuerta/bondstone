@@ -5,13 +5,13 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using arch_forge_backend.Infrastructure.Persistence;
+using bondstone_backend.Infrastructure.Persistence;
 
 #nullable disable
 
-namespace arch_forge_backend.Infrastructure.Persistence.Migrations
+namespace bondstone_backend.Infrastructure.Persistence.Migrations
 {
-    [DbContext(typeof(ArchForgeDbContext))]
+    [DbContext(typeof(BondstoneDbContext))]
     [Migration("20260830100045_DropConnectionProtocol")]
     partial class DropConnectionProtocol
     {
@@ -25,7 +25,7 @@ namespace arch_forge_backend.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("arch_forge_backend.Domain.Entities.Architecture", b =>
+            modelBuilder.Entity("bondstone_backend.Domain.Entities.Architecture", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -69,7 +69,7 @@ namespace arch_forge_backend.Infrastructure.Persistence.Migrations
                     b.ToTable("Architectures");
                 });
 
-            modelBuilder.Entity("arch_forge_backend.Domain.Entities.ArchitectureSnapshot", b =>
+            modelBuilder.Entity("bondstone_backend.Domain.Entities.ArchitectureSnapshot", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -112,7 +112,7 @@ namespace arch_forge_backend.Infrastructure.Persistence.Migrations
                     b.ToTable("ArchitectureSnapshots");
                 });
 
-            modelBuilder.Entity("arch_forge_backend.Domain.Entities.Connection", b =>
+            modelBuilder.Entity("bondstone_backend.Domain.Entities.Connection", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -147,7 +147,7 @@ namespace arch_forge_backend.Infrastructure.Persistence.Migrations
                     b.ToTable("Connections");
                 });
 
-            modelBuilder.Entity("arch_forge_backend.Domain.Entities.Node", b =>
+            modelBuilder.Entity("bondstone_backend.Domain.Entities.Node", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -185,46 +185,46 @@ namespace arch_forge_backend.Infrastructure.Persistence.Migrations
                     b.ToTable("Nodes");
                 });
 
-            modelBuilder.Entity("arch_forge_backend.Domain.Entities.ArchitectureSnapshot", b =>
+            modelBuilder.Entity("bondstone_backend.Domain.Entities.ArchitectureSnapshot", b =>
                 {
-                    b.HasOne("arch_forge_backend.Domain.Entities.Architecture", null)
+                    b.HasOne("bondstone_backend.Domain.Entities.Architecture", null)
                         .WithMany()
                         .HasForeignKey("ArchitectureId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("arch_forge_backend.Domain.Entities.Connection", b =>
+            modelBuilder.Entity("bondstone_backend.Domain.Entities.Connection", b =>
                 {
-                    b.HasOne("arch_forge_backend.Domain.Entities.Architecture", null)
+                    b.HasOne("bondstone_backend.Domain.Entities.Architecture", null)
                         .WithMany("Connections")
                         .HasForeignKey("ArchitectureId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("arch_forge_backend.Domain.Entities.Node", null)
+                    b.HasOne("bondstone_backend.Domain.Entities.Node", null)
                         .WithMany()
                         .HasForeignKey("SourceNodeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("arch_forge_backend.Domain.Entities.Node", null)
+                    b.HasOne("bondstone_backend.Domain.Entities.Node", null)
                         .WithMany()
                         .HasForeignKey("TargetNodeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("arch_forge_backend.Domain.Entities.Node", b =>
+            modelBuilder.Entity("bondstone_backend.Domain.Entities.Node", b =>
                 {
-                    b.HasOne("arch_forge_backend.Domain.Entities.Architecture", null)
+                    b.HasOne("bondstone_backend.Domain.Entities.Architecture", null)
                         .WithMany("Nodes")
                         .HasForeignKey("ArchitectureId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("arch_forge_backend.Domain.Entities.Architecture", b =>
+            modelBuilder.Entity("bondstone_backend.Domain.Entities.Architecture", b =>
                 {
                     b.Navigation("Connections");
 

@@ -1,7 +1,7 @@
-using arch_forge_backend.Application.Localization;
-using arch_forge_backend.Domain.Entities;
+using bondstone_backend.Application.Localization;
+using bondstone_backend.Domain.Entities;
 
-namespace arch_forge_backend.Application.Analysis.Rules;
+namespace bondstone_backend.Application.Analysis.Rules;
 
 public class MissingResilienceRule : IArchitectureRule
 {

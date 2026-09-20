@@ -1,4 +1,4 @@
-namespace arch_forge_backend.Application.Analysis;
+namespace bondstone_backend.Application.Analysis;
 
 public sealed record AreaScore(Area Area, int? Score, AreaState State, IReadOnlyList<PenaltyLine>? Penalties = null)
 {

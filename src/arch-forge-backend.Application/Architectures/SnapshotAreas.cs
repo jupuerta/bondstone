@@ -1,7 +1,7 @@
 using System.Text.Json;
-using arch_forge_backend.Application.Analysis;
+using bondstone_backend.Application.Analysis;
 
-namespace arch_forge_backend.Application.Architectures;
+namespace bondstone_backend.Application.Architectures;
 
 public static class SnapshotAreas
 {

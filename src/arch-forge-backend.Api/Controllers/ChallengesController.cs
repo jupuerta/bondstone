@@ -1,9 +1,9 @@
-using arch_forge_backend.Application.Challenges;
-using arch_forge_backend.Api.RateLimiting;
+using bondstone_backend.Application.Challenges;
+using bondstone_backend.Api.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
-namespace arch_forge_backend.Api.Controllers;
+namespace bondstone_backend.Api.Controllers;
 
 [ApiController]
 [Route("api/challenges")]

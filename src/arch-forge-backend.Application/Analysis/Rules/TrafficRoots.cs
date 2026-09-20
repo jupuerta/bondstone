@@ -1,6 +1,6 @@
-using arch_forge_backend.Domain.Entities;
+using bondstone_backend.Domain.Entities;
 
-namespace arch_forge_backend.Application.Analysis.Rules;
+namespace bondstone_backend.Application.Analysis.Rules;
 
 public static class TrafficRoots
 {

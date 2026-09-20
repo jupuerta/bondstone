@@ -1,8 +1,8 @@
-using arch_forge_backend.Application.Analysis;
-using arch_forge_backend.Application.Analysis.Rules;
-using arch_forge_backend.Domain.Enums;
+using bondstone_backend.Application.Analysis;
+using bondstone_backend.Application.Analysis.Rules;
+using bondstone_backend.Domain.Enums;
 
-namespace arch_forge_backend.Application.Simulation;
+namespace bondstone_backend.Application.Simulation;
 
 public static class CostModel
 {

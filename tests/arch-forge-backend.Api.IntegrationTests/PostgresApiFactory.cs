@@ -4,15 +4,15 @@ using Microsoft.Extensions.Configuration;
 using Testcontainers.PostgreSql;
 using Xunit;
 
-namespace arch_forge_backend.Api.IntegrationTests;
+namespace bondstone_backend.Api.IntegrationTests;
 
 public class PostgresApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
         .WithImage("postgres:16-alpine")
-        .WithDatabase("archforge")
-        .WithUsername("archforge")
-        .WithPassword("archforge")
+        .WithDatabase("bondstone")
+        .WithUsername("bondstone")
+        .WithPassword("bondstone")
         .Build();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -21,7 +21,7 @@ public class PostgresApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         {
             configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ConnectionStrings:ArchForge"] = _postgres.GetConnectionString(),
+                ["ConnectionStrings:Bondstone"] = _postgres.GetConnectionString(),
 
                 // The suite has no client IP, so every test shares one bucket, and it already mints
                 // 18 architectures against a production ceiling of 20. Lifted rather than switched

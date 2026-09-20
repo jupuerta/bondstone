@@ -1,11 +1,11 @@
 using System.Text.Json.Serialization;
-using arch_forge_backend.Api.Health;
-using arch_forge_backend.Api.Middleware;
-using arch_forge_backend.Api.RateLimiting;
-using arch_forge_backend.Application;
-using arch_forge_backend.Application.Challenges;
-using arch_forge_backend.Infrastructure;
-using arch_forge_backend.Infrastructure.Persistence;
+using bondstone_backend.Api.Health;
+using bondstone_backend.Api.Middleware;
+using bondstone_backend.Api.RateLimiting;
+using bondstone_backend.Application;
+using bondstone_backend.Application.Challenges;
+using bondstone_backend.Infrastructure;
+using bondstone_backend.Infrastructure.Persistence;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 
@@ -36,7 +36,7 @@ builder.Services.AddCors(options =>
             .WithExposedHeaders("Retry-After"));
 });
 
-builder.Services.AddExceptionHandler<ArchForgeExceptionHandler>();
+builder.Services.AddExceptionHandler<BondstoneExceptionHandler>();
 builder.Services.AddProblemDetails();
 
 // Only a declared proxy may speak for the client. An `X-Forwarded-For` arriving from any other
@@ -72,7 +72,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 builder.Services.AddHttpsRedirection(options =>
     options.HttpsPort = builder.Configuration.GetValue("Security:HttpsPort", 443));
 
-builder.Services.AddArchForgeRateLimiting(builder.Configuration);
+builder.Services.AddBondstoneRateLimiting(builder.Configuration);
 
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database");
@@ -92,7 +92,7 @@ var app = builder.Build();
 // all (see AddInfrastructure), and losing that check was not part of the bargain.
 using (var scope = app.Services.CreateScope())
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<ArchForgeDbContext>();
+    var dbContext = scope.ServiceProvider.GetRequiredService<BondstoneDbContext>();
 
     if (builder.Configuration.GetValue("Database:MigrateOnStartup", true))
         dbContext.Database.Migrate();

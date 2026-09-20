@@ -1,13 +1,13 @@
-using arch_forge_backend.Application.Tests.TestDoubles;
-using arch_forge_backend.Application.Localization;
-using arch_forge_backend.Application.Analysis;
-using arch_forge_backend.Application.Analysis.Rules;
-using arch_forge_backend.Domain.Enums;
-using arch_forge_backend.Application.Tests.Analysis.Fixtures;
-using arch_forge_backend.Application.Tests.Analysis.Rules.Support;
+using bondstone_backend.Application.Tests.TestDoubles;
+using bondstone_backend.Application.Localization;
+using bondstone_backend.Application.Analysis;
+using bondstone_backend.Application.Analysis.Rules;
+using bondstone_backend.Domain.Enums;
+using bondstone_backend.Application.Tests.Analysis.Fixtures;
+using bondstone_backend.Application.Tests.Analysis.Rules.Support;
 using Xunit;
 
-namespace arch_forge_backend.Application.Tests.Analysis.Rules;
+namespace bondstone_backend.Application.Tests.Analysis.Rules;
 
 public class SyncDependencyChainRuleTests
 {

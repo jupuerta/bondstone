@@ -1,13 +1,13 @@
-using arch_forge_backend.Application.Tests.TestDoubles;
-using arch_forge_backend.Application.Analysis;
-using arch_forge_backend.Application.Analysis.Rules;
-using arch_forge_backend.Application.Simulation;
-using arch_forge_backend.Application.Tests.Analysis.Rules.Support;
-using arch_forge_backend.Application.Tests.Analysis.Fixtures;
-using arch_forge_backend.Domain.Enums;
+using bondstone_backend.Application.Tests.TestDoubles;
+using bondstone_backend.Application.Analysis;
+using bondstone_backend.Application.Analysis.Rules;
+using bondstone_backend.Application.Simulation;
+using bondstone_backend.Application.Tests.Analysis.Rules.Support;
+using bondstone_backend.Application.Tests.Analysis.Fixtures;
+using bondstone_backend.Domain.Enums;
 using Xunit;
 
-namespace arch_forge_backend.Application.Tests.Analysis;
+namespace bondstone_backend.Application.Tests.Analysis;
 
 // QA 30-08 §7.4: the model reads `access` where nobody read it for this, and a router has nothing
 // to answer with. Every case here was a mechanism the model believed unconditionally (§3.5, §1.3).

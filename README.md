@@ -1,6 +1,6 @@
 # arch-forge-backend
 
-ASP.NET Core 8 API for ArchForge, implementing `docs/ArchForge_Technical_Design_V1.md` §3, §5 and §6.
+ASP.NET Core 8 API for Bondstone, implementing `docs/Bondstone_Technical_Design_V1.md` §3, §5 and §6.
 Monolith split into layers (Clean Architecture, dependencies pointing inwards), no CQRS framework.
 
 ```

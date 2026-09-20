@@ -1,6 +1,6 @@
-using arch_forge_backend.Domain.Enums;
+using bondstone_backend.Domain.Enums;
 
-namespace arch_forge_backend.Domain.Entities;
+namespace bondstone_backend.Domain.Entities;
 
 public class Node
 {

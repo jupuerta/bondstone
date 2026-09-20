@@ -2,8 +2,8 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-archforge}
-      POSTGRES_USER: ${POSTGRES_USER:-archforge}
+      POSTGRES_DB: ${POSTGRES_DB:-bondstone}
+      POSTGRES_USER: ${POSTGRES_USER:-bondstone}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the environment or a .env beside this file}
     ports:
       # Loopback: published so backend-only work can reach the database from the host, which is
@@ -11,9 +11,9 @@ services:
       # off, and that is how a database ends up listening to a coffee shop.
       - "127.0.0.1:5432:5432"
     volumes:
-      - archforge-postgres-data:/var/lib/postgresql/data
+      - bondstone-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-archforge} -d ${POSTGRES_DB:-archforge}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bondstone} -d ${POSTGRES_DB:-bondstone}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -25,7 +25,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__ArchForge: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-archforge};Username=${POSTGRES_USER:-archforge};Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the environment or a .env beside this file}"
+      ConnectionStrings__Bondstone: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-bondstone};Username=${POSTGRES_USER:-bondstone};Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the environment or a .env beside this file}"
       Cors__AllowedOrigins__0: "http://localhost:5173"
     ports:
       # Loopback only: this compose runs the API with no nginx in front, so nothing
@@ -37,4 +37,4 @@ services:
         condition: service_healthy
 
 volumes:
-  archforge-postgres-data:
+  bondstone-postgres-data:

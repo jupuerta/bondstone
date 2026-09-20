@@ -1,10 +1,10 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using arch_forge_backend.Application.Architectures;
-using arch_forge_backend.Domain.Entities;
-using arch_forge_backend.Domain.Enums;
+using bondstone_backend.Application.Architectures;
+using bondstone_backend.Domain.Entities;
+using bondstone_backend.Domain.Enums;
 
-namespace arch_forge_backend.Application.Challenges;
+namespace bondstone_backend.Application.Challenges;
 
 public sealed class ArchitectureBlueprint
 {

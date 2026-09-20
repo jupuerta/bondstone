@@ -1,12 +1,12 @@
 using System.Text.Json;
-using arch_forge_backend.Application.Analysis;
-using arch_forge_backend.Application.Architectures;
-using arch_forge_backend.Application.Architectures.Queries;
-using arch_forge_backend.Application.Tests.TestDoubles;
-using arch_forge_backend.Domain.Entities;
+using bondstone_backend.Application.Analysis;
+using bondstone_backend.Application.Architectures;
+using bondstone_backend.Application.Architectures.Queries;
+using bondstone_backend.Application.Tests.TestDoubles;
+using bondstone_backend.Domain.Entities;
 using Xunit;
 
-namespace arch_forge_backend.Application.Tests.Architectures.Queries;
+namespace bondstone_backend.Application.Tests.Architectures.Queries;
 
 public class GetArchitectureHistoryQueryHandlerTests
 {

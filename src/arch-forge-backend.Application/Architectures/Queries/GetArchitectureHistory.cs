@@ -1,9 +1,9 @@
 using System.Text.Json;
-using arch_forge_backend.Application.Analysis;
-using arch_forge_backend.Application.Common.Interfaces;
-using arch_forge_backend.Domain.Entities;
+using bondstone_backend.Application.Analysis;
+using bondstone_backend.Application.Common.Interfaces;
+using bondstone_backend.Domain.Entities;
 
-namespace arch_forge_backend.Application.Architectures.Queries;
+namespace bondstone_backend.Application.Architectures.Queries;
 
 public class GetArchitectureHistoryQuery
 {

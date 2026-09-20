@@ -1,7 +1,7 @@
 using System.Globalization;
-using arch_forge_backend.Application.Localization;
+using bondstone_backend.Application.Localization;
 
-namespace arch_forge_backend.Application.Tests.TestDoubles;
+namespace bondstone_backend.Application.Tests.TestDoubles;
 
 public static class TestText
 {

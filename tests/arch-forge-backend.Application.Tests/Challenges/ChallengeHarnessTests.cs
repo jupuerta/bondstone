@@ -1,8 +1,8 @@
-using arch_forge_backend.Application.Analysis.Rules;
+using bondstone_backend.Application.Analysis.Rules;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
-namespace arch_forge_backend.Application.Tests.Challenges;
+namespace bondstone_backend.Application.Tests.Challenges;
 
 public class ChallengeHarnessTests
 {

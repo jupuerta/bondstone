@@ -1,11 +1,11 @@
-using arch_forge_backend.Application.Common.Interfaces;
-using arch_forge_backend.Infrastructure.Persistence;
-using arch_forge_backend.Infrastructure.Persistence.Repositories;
+using bondstone_backend.Application.Common.Interfaces;
+using bondstone_backend.Infrastructure.Persistence;
+using bondstone_backend.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace arch_forge_backend.Infrastructure;
+namespace bondstone_backend.Infrastructure;
 
 public static class DependencyInjection
 {
@@ -19,14 +19,14 @@ public static class DependencyInjection
         // method runs (WebApplicationFactory adds the test container's string after Program has
         // registered services), and an eager read would see a half-built configuration. Startup
         // still fails, one statement later — Program resolves the context to migrate.
-        services.AddDbContext<ArchForgeDbContext>(options =>
+        services.AddDbContext<BondstoneDbContext>(options =>
         {
-            var connectionString = configuration.GetConnectionString("ArchForge");
+            var connectionString = configuration.GetConnectionString("Bondstone");
 
             if (string.IsNullOrWhiteSpace(connectionString))
             {
                 throw new InvalidOperationException(
-                    "No ArchForge connection string. Set ConnectionStrings__ArchForge in the environment " +
+                    "No Bondstone connection string. Set ConnectionStrings__Bondstone in the environment " +
                     "(docker compose reads POSTGRES_* from .env; see .env.example).");
             }
 

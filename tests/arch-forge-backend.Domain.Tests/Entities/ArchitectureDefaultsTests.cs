@@ -1,7 +1,7 @@
-using arch_forge_backend.Domain.Entities;
+using bondstone_backend.Domain.Entities;
 using Xunit;
 
-namespace arch_forge_backend.Domain.Tests.Entities;
+namespace bondstone_backend.Domain.Tests.Entities;
 
 public class ArchitectureDefaultsTests
 {
