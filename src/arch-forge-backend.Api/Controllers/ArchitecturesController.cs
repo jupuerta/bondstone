@@ -2,6 +2,7 @@ using bondstone_backend.Application.Architectures.Commands;
 using bondstone_backend.Application.Architectures.Queries;
 using bondstone_backend.Application.Simulation;
 using bondstone_backend.Api.RateLimiting;
+using bondstone_backend.Api.Storage;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -51,6 +52,7 @@ public class ArchitecturesController : ControllerBase
 
     [HttpPost]
     [EnableRateLimiting(RateLimitPolicies.Mint)]
+    [RequiresStorageRoom]
     public async Task<IActionResult> Create([FromBody] CreateArchitectureCommand command, CancellationToken cancellationToken)
     {
         var result = await _createHandler.Handle(command, cancellationToken);
@@ -88,6 +90,7 @@ public class ArchitecturesController : ControllerBase
 
     [HttpPost("{shareToken}/fork")]
     [EnableRateLimiting(RateLimitPolicies.Mint)]
+    [RequiresStorageRoom]
     public async Task<IActionResult> Fork(string shareToken, CancellationToken cancellationToken)
     {
         var result = await _forkHandler.Handle(new ForkArchitectureCommand { ShareToken = shareToken }, cancellationToken);

@@ -1,5 +1,6 @@
 using bondstone_backend.Application.Challenges;
 using bondstone_backend.Api.RateLimiting;
+using bondstone_backend.Api.Storage;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -42,6 +43,7 @@ public class ChallengesController : ControllerBase
 
     [HttpPost("{slug}/start")]
     [EnableRateLimiting(RateLimitPolicies.Mint)]
+    [RequiresStorageRoom]
     public async Task<IActionResult> Start(string slug, [FromBody] NameRequest? request, CancellationToken cancellationToken)
     {
         var result = await _startHandler.Handle(new StartChallengeCommand { Slug = slug, Name = request?.Name }, cancellationToken);
@@ -68,6 +70,7 @@ public class ChallengesController : ControllerBase
 
     [HttpPost("{slug}/solution")]
     [EnableRateLimiting(RateLimitPolicies.Mint)]
+    [RequiresStorageRoom]
     public async Task<IActionResult> Solution(string slug, [FromBody] NameRequest? request, CancellationToken cancellationToken)
     {
         var result = await _solutionHandler.Handle(new OpenChallengeSolutionCommand { Slug = slug, Name = request?.Name }, cancellationToken);

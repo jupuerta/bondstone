@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using bondstone_backend.Api.Health;
 using bondstone_backend.Api.Middleware;
 using bondstone_backend.Api.RateLimiting;
+using bondstone_backend.Api.Storage;
 using bondstone_backend.Application;
 using bondstone_backend.Application.Challenges;
 using bondstone_backend.Infrastructure;
@@ -87,6 +88,13 @@ builder.Services.AddHttpsRedirection(options =>
     options.HttpsPort = builder.Configuration.GetValue("Security:HttpsPort", 443));
 
 builder.Services.AddBondstoneRateLimiting(builder.Configuration);
+
+// The other half of the rate limiter: that one is per caller, this one is for everybody at once.
+// Singleton because the point is a measurement shared across requests — one per request would ask
+// postgres its size on every creation, which is the pile-on the cache exists to avoid.
+builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection(StorageOptions.SectionName));
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<StorageCeiling>();
 
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database");

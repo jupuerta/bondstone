@@ -34,6 +34,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IArchitectureRepository, ArchitectureRepository>();
+        services.AddScoped<IDatabaseSize, DatabaseSize>();
 
         return services;
     }

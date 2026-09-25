@@ -131,6 +131,9 @@ public static class RateLimitPolicies
     // named in `ForwardedHeaders:KnownProxies` gets to be believed, so a direct caller cannot mint
     // itself a fresh partition per request. Without a remote address there is nothing to partition
     // by, and everything anonymous shares one bucket — which is the safe direction to be wrong in.
+    //
+    // How that address becomes a bucket — and why IPv6 is grouped by /64 — is in ClientPartition,
+    // which is a separate type so the rule can be tested without standing up a request.
     private static string ClientOf(HttpContext context) =>
-        context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        ClientPartition.Of(context.Connection.RemoteIpAddress);
 }
