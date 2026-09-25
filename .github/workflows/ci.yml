@@ -63,6 +63,11 @@ jobs:
           tags: |
             type=ref,event=tag
             type=sha,format=long
+          # No `latest`. metadata-action adds it unasked as soon as the tag looks like a
+          # version, and it is the one tag that leaves "what is running?" unanswerable: it
+          # points somewhere new every week and nobody remembers where. The deploy pins an
+          # exact version in the server's .env, on purpose.
+          flavor: latest=false
 
       - uses: docker/build-push-action@v6
         with:
