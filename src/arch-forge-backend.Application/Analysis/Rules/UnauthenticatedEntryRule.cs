@@ -28,10 +28,12 @@ public class UnauthenticatedEntryRule : IArchitectureRule
 
         // A door nobody calls is not asked: two boxes and an arrow are a sketch, not an open door
         // (V13 D2.1, QA 30-08 §10.2). What calls a door is traffic that reaches it — declared on it
-        // or upstream — or a drawn client, number or not; the same honesty NoRateLimitRule has had
-        // since V4. Declared-no and undeclared stand down together, so silence never pays.
+        // or upstream — or a drawn client, number or not, as long as the client is calling something:
+        // a client wired to nothing accuses a door it never knocked on, and it is the same box the
+        // frontier refuses to start at (QA 22-09). The same honesty NoRateLimitRule has had since V4.
+        // Declared-no and undeclared stand down together, so silence never pays.
         var load = LoadModel.Of(graph);
-        var drawnClient = graph.Nodes.Any(n => NodeRoles.IsTrafficOrigin(n.Type));
+        var drawnClient = EntryPoints.TrafficOrigins(graph).Any(n => NodeRoles.IsTrafficOrigin(n.Type));
 
         var findings = new List<RuleFinding>();
         var answered = 0;

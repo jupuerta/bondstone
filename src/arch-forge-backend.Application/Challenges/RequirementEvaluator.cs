@@ -34,13 +34,22 @@ public static class RequirementEvaluator
         };
 
 
+    // Asking for a component is asking for one that does something: a box with no call going in or
+    // out is a drawing, and counting it turned «have a balancer» green with a balancer that balances
+    // nothing (QA 22-09). Same reading as DeclaresTraffic and the entry points — a loose box says
+    // nothing — and the drawing is told which boxes it is, so the verdict is not a riddle.
     private static ChallengeRequirementResult ContainsNode(ChallengeRequirement requirement, EvaluationContext context)
     {
         var min = requirement.Min ?? 1;
-        var found = context.Graph.Nodes.Where(n => n.Type == requirement.NodeType).ToList();
+        var typed = context.Graph.Nodes.Where(n => n.Type == requirement.NodeType).ToList();
+        var loose = Loose(context, typed);
+        var found = typed.Except(loose).ToList();
 
         if (found.Count >= min)
             return ChallengeRequirementResult.Pass(requirement);
+
+        if (loose.Count > 0 && typed.Count >= min)
+            return LooseFail(requirement, "containsNode", loose);
 
         return ChallengeRequirementResult.Fail(requirement, min == 1
             ? LocalizedText.Of("challenge.requirement.containsNode.none", ("nodeType", requirement.NodeType!))
@@ -323,12 +332,18 @@ public static class RequirementEvaluator
     private static ChallengeRequirementResult SpansZones(ChallengeRequirement requirement, EvaluationContext context)
     {
         var min = requirement.Min ?? 2;
-        var nodes = context.Graph.Nodes.Where(n => n.Type == requirement.NodeType).OrderBy(n => n.Id).ToList();
+        var typed = context.Graph.Nodes.Where(n => n.Type == requirement.NodeType).OrderBy(n => n.Id).ToList();
+        var loose = Loose(context, typed);
+        var nodes = typed.Except(loose).ToList();
         var unplaced = nodes.Where(n => NodeSettings.Zone(n) is null).ToList();
-        var zones = nodes.Select(NodeSettings.Zone).OfType<string>().Distinct(StringComparer.Ordinal).Count();
+        var zones = Zones(nodes);
 
         if (zones >= min)
             return ChallengeRequirementResult.Pass(requirement);
+
+        // A copy that nothing calls is not a second copy of anything, whatever zone it declares.
+        if (loose.Count > 0 && Zones(typed) >= min)
+            return LooseFail(requirement, "spansZones", loose);
 
         if (unplaced.Count > 0)
             return ChallengeRequirementResult.Fail(
@@ -490,6 +505,21 @@ public static class RequirementEvaluator
 
     private static LocalizedText Format(string metric, decimal value) =>
         LocalizedText.Of($"metric.{metric}.value", ("value", value));
+
+    private static int Zones(IEnumerable<Node> nodes) =>
+        nodes.Select(NodeSettings.Zone).OfType<string>().Distinct(StringComparer.Ordinal).Count();
+
+    private static List<Node> Loose(EvaluationContext context, IEnumerable<Node> nodes) =>
+        nodes.Where(n => context.Graph.OrphanNodes.Contains(n.Id)).OrderBy(n => n.Id).ToList();
+
+    private static ChallengeRequirementResult LooseFail(ChallengeRequirement requirement, string kind, List<Node> loose) =>
+        ChallengeRequirementResult.Fail(
+            requirement,
+            LocalizedText.Of($"challenge.requirement.{kind}.loose",
+                ("nodeType", requirement.NodeType!),
+                ("count", loose.Count),
+                ("nodes", Names(loose))),
+            loose.Select(n => FindingElement.Node(n.Id)).ToList());
 
     private static string Names(IEnumerable<Node> nodes) =>
         string.Join(", ", nodes.Select(n => $"'{n.Name}'"));

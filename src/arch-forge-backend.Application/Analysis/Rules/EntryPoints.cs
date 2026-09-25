@@ -16,9 +16,20 @@ public static class EntryPoints
             .OrderBy(n => n.Id)
             .ToList();
 
+    // A client is the origin by definition, and where one is drawn the roots step aside for it. It
+    // has to be calling something for that to mean anything: a client nobody wired up originates no
+    // request, and taking it for the origin left the real roots out of the frontier — the doors went
+    // unasked and UNAUTHENTICATED_ENTRY, NO_RATE_LIMIT and EXPOSED_DATABASE fell silent, so
+    // «who-is-calling» was passed by dragging a client onto the board and connecting nothing (QA
+    // 22-09). The same reading DeclaresTraffic has: a loose box declares nothing. Telemetry does not
+    // count as calling someone, for the same reason it never counts as a request anywhere else.
     public static IReadOnlyList<Node> TrafficOrigins(ArchitectureGraph graph)
     {
-        var clients = graph.Nodes.Where(n => NodeRoles.IsTrafficOrigin(n.Type)).ToList();
+        var clients = graph.Nodes
+            .Where(n => NodeRoles.IsTrafficOrigin(n.Type))
+            .Where(n => graph.OutgoingBySource[n.Id].Any(edge => !NodeRoles.IsTelemetryEdge(graph, edge)))
+            .ToList();
+
         if (clients.Count > 0)
             return clients;
 

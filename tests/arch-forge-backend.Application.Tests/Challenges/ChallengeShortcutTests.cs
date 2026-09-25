@@ -113,11 +113,13 @@ public class ChallengeShortcutTests
             () => WithBalancer(Starter("single-point-of-failure"), synchronous: true, """{"timeoutSeconds":5,"fallback":true}"""),
             ["requirement.3", "requirement.4"]),
 
-        // D — deleting the call instead of protecting it
+        // D — deleting the call instead of protecting it. Since 22-09 the box left behind stops
+        // counting as a component too: rubbing out the only call to Products leaves a database
+        // nothing reads, and `containsNode` asks for one that is part of the architecture.
         ["nobody-noticed · both reads of Products deleted"] = new(
             "nobody-noticed",
             () => WithoutEdges(Starter("nobody-noticed"), ("Catalog", "Products"), ("Reviews", "Products")),
-            ["requirement.6", "requirement.7"]),
+            ["requirement.2", "requirement.6", "requirement.7"]),
 
         // Until 7.2 these two failed by accident (QA §1.4, §3.6): the orphaned box was a root, so the
         // metrics counted it as an entry point and the scenario came out affected. A loose box is no
@@ -131,7 +133,7 @@ public class ChallengeShortcutTests
         ["third-party-outage · Checkout → Payments deleted"] = new(
             "third-party-outage",
             () => WithoutEdges(Starter("third-party-outage"), ("Checkout", "Payments")),
-            ["requirement.6"]),
+            ["requirement.2", "requirement.6"]),
 
         // E — leaving the zone blank
         ["both-in-the-same-zone · no zone on Edge, Front, Api 2 and Telemetry, nothing moves"] = new(
