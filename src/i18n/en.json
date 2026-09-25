@@ -207,6 +207,10 @@
     "one": "{count:number} of the {total:number} calls to a {nodeType} does not have {mechanism}: {calls}.",
     "other": "{count:number} of the {total:number} calls to a {nodeType} do not have {mechanism}: {calls}."
   },
+  "challenge.requirement.containsNode.loose": {
+    "one": "{nodes} is a loose {nodeType}: no call goes in or out of it, so it is not part of the architecture and does not count towards this requirement.",
+    "other": "{count:number} {nodeType} components are loose, with no call going in or out: {nodes}. A loose component is not part of the architecture and does not count towards this requirement."
+  },
   "challenge.requirement.containsNode.none": "The architecture has no component of type {nodeType}.",
   "challenge.requirement.containsNode.tooFew": "There are {count:number} components of type {nodeType} and {min:number} are needed.",
   "challenge.requirement.declaresLoad.none": "No entry point declares any traffic, and this challenge requires {min:number} rps.",
@@ -239,6 +243,10 @@
     "other": "{count:number} warnings of level {severity} or worse remain. {finding}"
   },
   "challenge.requirement.pathExists.none": "There is no path from a {fromType} to a {toType}.",
+  "challenge.requirement.spansZones.loose": {
+    "one": "{nodes} is a loose {nodeType}: it declares a zone, but with no call going in or out there is nothing spread across zones.",
+    "other": "{count:number} {nodeType} components are loose: {nodes}. They declare a zone, but with no call going in or out there is nothing spread across zones."
+  },
   "challenge.requirement.spansZones.tooFew": {
     "one": "The {nodeType} components declare only one zone: they are all in the same location, and this challenge requires spreading them across {min:number}.",
     "other": "The {nodeType} components are spread across {count:number} zones and this challenge requires {min:number}."
@@ -1357,7 +1365,7 @@
   "ui.impact.allStanding": "Everything is still standing.",
   "ui.impact.amplification": "Amplification",
   "ui.impact.backlog": "Backlog",
-  "ui.impact.blastRadius": "blast radius",
+  "ui.impact.blastRadius": "Blast radius",
   "ui.impact.bottleneck": "Bottleneck",
   "ui.impact.busiest": "reaching the busiest component, per incoming request",
   "ui.impact.cascade.arithmetic": "cost(node) = processing(type) + max over synchronous edges of cost(edge)\n\ncost(edge) =\n    target healthy      hop(protocol) + cost(target) + injected latency\n    over the timeout    timeout × (retries + 1)      ← and the target counts as down\n    target down\n      circuit breaker   ~0\n      with timeout      timeout × (retries + 1)\n      without timeout   30 s  (UnboundedWait)\n    asynchronous        0",
@@ -1427,7 +1435,7 @@
   "ui.impact.outOf": "{value:number} / {total:number}",
   "ui.impact.pilingUp": "accumulating in the queues",
   "ui.impact.propagation": "Propagation",
-  "ui.impact.requestsLost": "requests lost, at most",
+  "ui.impact.requestsLost": "Requests lost, at most",
   "ui.impact.rps": "+{value:amount} rps",
   "ui.impact.showArithmetic": "How it is computed",
   "ui.impact.step": "step {step:number}",
@@ -1731,21 +1739,21 @@
   "ui.rules.backToArchitecture": "Back to the architecture",
   "ui.rules.over": "Over the open architecture",
   "ui.rules.overNamed": "Over “{name}”",
-  "ui.rules.hasFix": "has a fix",
+  "ui.rules.hasFix": "Has a fix",
   "ui.rules.unknown": "A rule the analyser already runs but this screen cannot explain yet.",
   "ui.rules.whyNotAll": "Where there is no fix button, it is not an omission: the correction has several legitimate answers, and choosing one automatically would remove exactly what the tool exists to teach. A single point of failure can be resolved by replicating, by balancing, or by no longer depending on it.",
-  "ui.rules.state.Fired": "fired",
+  "ui.rules.state.Fired": "Fired",
   "ui.rules.state.Fired.repeated": "fired ×{count:number}",
   "ui.rules.state.Fired.count": {
     "one": "{count:number} fired",
     "other": "{count:number} fired"
   },
-  "ui.rules.state.Passed": "passed",
+  "ui.rules.state.Passed": "Passed",
   "ui.rules.state.Passed.count": {
     "one": "{count:number} passed",
     "other": "{count:number} passed"
   },
-  "ui.rules.state.NotApplicable": "never applied",
+  "ui.rules.state.NotApplicable": "Never applied",
   "ui.rules.state.NotApplicable.count": "{count:number} did not apply",
   "ui.rules.SPOF.detects": "A component with no equivalent that the rest of the system hangs off. It does not count whoever calls it asynchronously, nor whoever already has a fallback answer. A balancer that spreads the load — over two components drawn, or over one that declares instances — is the way out, not a new single point of failure; a door, a balancer, a cache or a broker that declare two or more copies stop being one, and a store does it with its replicas —a bucket, with its replication—; and the CDN is not graded on it: its redundancy is the provider's.",
   "ui.rules.TRAFFIC_REJECTED.detects": "A door whose request limit turns away a substantial share of the traffic reaching it: a warning from one request in five, critical from half. Limiting is not scaling: the limit protects what is behind it, but nobody is serving those users. Either capacity is missing and the limit is low, or the declared load is inflated.",
@@ -1875,7 +1883,7 @@
   "web.home.access.progress": "Progress is stored in this browser and nowhere else.",
   "web.home.access.languages": "In Spanish and in English.",
   "web.home.notWhat": "Bondstone is not a diagramming tool, nor a production simulator, nor a course. It is an environment in which architecture decisions are taken and their consequences observed. No account, no leaderboard, and no AI involved.",
-  "web.engine.readOnly": "read-only",
+  "web.engine.readOnly": "Read-only",
   "web.engine.fault": "fault: {name} down",
   "web.engine.propagation": "propagation computed",
   "web.engine.lost": "{value:percent} of requests affected",

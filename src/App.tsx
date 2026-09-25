@@ -61,11 +61,65 @@ function RouteLoading({ tone }: { tone: "page" | "canvas" }) {
   );
 }
 
-/** Cada página nueva empieza arriba, salvo que la dirección lleve un ancla. */
+/*
+ * Cada página nueva empieza arriba, salvo que la dirección lleve un ancla.
+ *
+ * El navegador resuelve el ancla una sola vez, al terminar de leer el documento, y en ese momento
+ * aquí no hay más que un div vacío: lo que el ancla busca lo pinta React después. Por eso hay que
+ * volver a buscarlo, y por eso se reintenta: una ruta que llega en su propio trozo —o una lista que
+ * espera al servidor— todavía no ha montado el destino en el primer fotograma.
+ *
+ * Y por eso se vuelve a apuntar cuando acaban de llegar las tipografías: en una carga en frío el
+ * texto de arriba cambia de alto después del salto y el destino se va de la pantalla. Se deja de
+ * insistir en cuanto el visitante mueve la página, que ya ha dicho a dónde quiere mirar.
+ */
+const ANCHOR_FRAMES = 60;
+
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
+
   useEffect(() => {
-    if (hash === "") window.scrollTo(0, 0);
+    if (hash === "") {
+      window.scrollTo(0, 0);
+      return;
+    }
+
+    const id = decodeURIComponent(hash.slice(1));
+    let frame = 0;
+    let left = ANCHOR_FRAMES;
+    let given = false;
+
+    const give = () => {
+      given = true;
+      cancelAnimationFrame(frame);
+    };
+
+    const land = (target: HTMLElement) => {
+      if (!given) target.scrollIntoView({ block: "start" });
+    };
+
+    const seek = () => {
+      const target = document.getElementById(id);
+      if (target) {
+        land(target);
+        void document.fonts?.ready.then(() => land(target));
+        return;
+      }
+      if (--left > 0) frame = requestAnimationFrame(seek);
+    };
+
+    seek();
+    window.addEventListener("wheel", give, { passive: true });
+    window.addEventListener("touchstart", give, { passive: true });
+    window.addEventListener("keydown", give);
+
+    return () => {
+      give();
+      window.removeEventListener("wheel", give);
+      window.removeEventListener("touchstart", give);
+      window.removeEventListener("keydown", give);
+    };
   }, [pathname, hash]);
+
   return null;
 }

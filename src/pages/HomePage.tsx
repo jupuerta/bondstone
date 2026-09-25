@@ -6,12 +6,14 @@ import { EnginePanel } from "../components/engine/EnginePanel";
 import { Button } from "../components/ui/Button";
 import { Callout, CalloutRow } from "../components/ui/Callout";
 import { ArrowIcon, CloseIcon, LinkIcon, PersonIcon } from "../components/ui/Icons";
+import { InlineError } from "../components/ui/InlineError";
 import { Segmented } from "../components/ui/Segmented";
 import { editorPath, type SavedWork } from "../domain/savedWork";
 import { useLanguage, useT } from "../i18n";
 import { shortDateTime } from "../i18n/dateTime";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useSavedWork, type SavedWorkList } from "../hooks/useSavedWork";
+import { useStartFromScratch } from "../hooks/useStartFromScratch";
 
 const CONTINUE_SHOWN = 2;
 
@@ -31,6 +33,7 @@ export function HomePage() {
   const t = useT();
   usePageTitle(null);
   const saved = useSavedWork(CONTINUE_SHOWN);
+  const scratch = useStartFromScratch();
 
   return (
     <PageShell>
@@ -49,7 +52,7 @@ export function HomePage() {
               <div className="flex flex-col gap-2">
                 <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
                   <Button to={FIRST_CHALLENGE}>{t("web.home.cta.primary")}</Button>
-                  <Button variant="ghost" to="/challenges">
+                  <Button variant="ghost" onClick={scratch.start} loading={scratch.creating} loadingLabel={t("ui.home.creating")}>
                     {t("web.home.cta.scratch")}
                   </Button>
                   <Link to="/challenges" className="link text-[15px] md:ml-2">
@@ -57,6 +60,7 @@ export function HomePage() {
                   </Link>
                 </div>
                 <span className="text-code text-ink-3 md:pl-1">{t("web.home.cta.primary.sub")}</span>
+                {scratch.error && <InlineError>{scratch.error}</InlineError>}
               </div>
             </div>
             <Callout label={t("web.home.notice.label")}>

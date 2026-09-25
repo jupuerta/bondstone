@@ -39,11 +39,6 @@ export function RulesPage() {
     };
   }, [token, t]);
 
-  useEffect(() => {
-    const id = decodeURIComponent(window.location.hash.slice(1));
-    if (id) document.getElementById(id)?.scrollIntoView({ block: "center" });
-  }, []);
-
   const allRules = readRules(analysis);
   const rules = filter === null ? allRules : allRules.filter((rule) => rule.state === filter);
   const overArchitecture = token !== undefined;

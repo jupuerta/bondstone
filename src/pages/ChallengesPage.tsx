@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { ApiError, createArchitecture, getArchitectureHistory } from "../api/architectureClient";
+import { Link } from "react-router-dom";
+import { ApiError, getArchitectureHistory } from "../api/architectureClient";
 import { listChallenges } from "../api/challengeClient";
 import { PageHead } from "../components/layout/PageHead";
 import { PageShell } from "../components/layout/PageShell";
@@ -14,11 +14,12 @@ import { Skeleton } from "../components/ui/Skeleton";
 import { bestGains, type AreaGain } from "../domain/areasImproved";
 import { bandLabelKey, bandLeadKey, groupByBand } from "../domain/challengeBands";
 import { passedChallenges, startedChallenges } from "../domain/progress";
-import { editorPath, rememberWork, savedWork, type SavedWork } from "../domain/savedWork";
+import { editorPath, savedWork, type SavedWork } from "../domain/savedWork";
 import { useLanguage, useT } from "../i18n";
 import { shortDateTime } from "../i18n/dateTime";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useSavedWork } from "../hooks/useSavedWork";
+import { useStartFromScratch } from "../hooks/useStartFromScratch";
 import { AREA_ORDER, type Area, type ChallengeSummary } from "../types/architecture";
 
 type Status = "all" | "pending" | "passed";
@@ -31,7 +32,6 @@ export function ChallengesPage() {
   const t = useT();
   const { locale } = useLanguage();
   usePageTitle(t("web.challenges.title"));
-  const navigate = useNavigate();
   const [challenges, setChallenges] = useState<ChallengeSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -40,8 +40,7 @@ export function ChallengesPage() {
   const [passed] = useState(() => passedChallenges());
   const [started] = useState(() => startedChallenges());
   const { work, forgotten, forget, undoForget } = useSavedWork(WORK_SHOWN);
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
+  const scratch = useStartFromScratch();
   const [gains, setGains] = useState<AreaGain[]>([]);
 
   useEffect(() => {
@@ -86,20 +85,6 @@ export function ChallengesPage() {
   const bands = useMemo(() => groupByBand(visible), [visible]);
   const total = challenges?.length ?? 0;
   const passedCount = challenges?.filter((challenge) => passed.has(challenge.slug)).length ?? 0;
-
-  const startFromScratch = () => {
-    setCreating(true);
-    setCreateError(null);
-    createArchitecture(t("ui.home.untitled"))
-      .then((architecture) => {
-        rememberWork({ editToken: architecture.editToken, shareToken: architecture.shareToken, name: architecture.name, challengeSlug: null });
-        navigate(`/e/${encodeURIComponent(architecture.editToken)}`);
-      })
-      .catch((err: unknown) => {
-        setCreating(false);
-        setCreateError(err instanceof ApiError ? t(err.key, err.args) : t("ui.home.createFailed"));
-      });
-  };
 
   const labelOf = (entry: SavedWork) => (entry.challengeSlug ? t(`challenge.${entry.challengeSlug}.title`) : entry.name);
 
@@ -299,10 +284,10 @@ export function ChallengesPage() {
       <section className="page pt-10 pb-12 md:pt-14 md:pb-20">
         <div className="flex flex-col gap-3 border-t border-line pt-6 md:flex-row md:items-center md:gap-5 md:pt-8">
           <span className="text-[17px]">{t("web.challenges.scratch.lead")}</span>
-          <Button variant="ghost" size="md" onClick={startFromScratch} loading={creating} loadingLabel={t("ui.home.creating")}>
+          <Button variant="ghost" size="md" onClick={scratch.start} loading={scratch.creating} loadingLabel={t("ui.home.creating")}>
             {t("web.challenges.scratch.cta")}
           </Button>
-          {createError && <InlineError>{createError}</InlineError>}
+          {scratch.error && <InlineError>{scratch.error}</InlineError>}
         </div>
         <Callout label={t("web.challenge.narrow.label")} compact className="mt-4 lg:hidden">
           <p className="text-small">{t("web.challenges.scratch.narrow")}</p>

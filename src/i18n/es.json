@@ -207,6 +207,10 @@
     "one": "{count:number} de las {total:number} llamadas a un {nodeType} no tiene {mechanism}: {calls}.",
     "other": "{count:number} de las {total:number} llamadas a un {nodeType} no tienen {mechanism}: {calls}."
   },
+  "challenge.requirement.containsNode.loose": {
+    "one": "{nodes} es un componente {nodeType} suelto: no tiene ninguna llamada que entre ni salga, así que no forma parte de la arquitectura y no cuenta para este requisito.",
+    "other": "{count:number} componentes {nodeType} están sueltos, sin ninguna llamada que entre ni salga: {nodes}. Un componente suelto no forma parte de la arquitectura y no cuenta para este requisito."
+  },
   "challenge.requirement.containsNode.none": "La arquitectura no tiene ningún componente de tipo {nodeType}.",
   "challenge.requirement.containsNode.tooFew": "Hay {count:number} componentes de tipo {nodeType} y hacen falta {min:number}.",
   "challenge.requirement.declaresLoad.none": "Ningún punto de entrada declara tráfico, y este reto exige {min:number} rps.",
@@ -239,6 +243,10 @@
     "other": "Quedan {count:number} avisos de nivel {severity} o superior. {finding}"
   },
   "challenge.requirement.pathExists.none": "No hay ningún camino desde un {fromType} hasta un {toType}.",
+  "challenge.requirement.spansZones.loose": {
+    "one": "{nodes} es un componente {nodeType} suelto: declara zona, pero sin ninguna llamada que entre ni salga no hay nada repartido entre zonas.",
+    "other": "{count:number} componentes {nodeType} están sueltos: {nodes}. Declaran zona, pero sin ninguna llamada que entre ni salga no hay nada repartido entre zonas."
+  },
   "challenge.requirement.spansZones.tooFew": {
     "one": "Los componentes {nodeType} declaran una sola zona: están todos en la misma ubicación, y este reto exige repartirlos en {min:number}.",
     "other": "Los componentes {nodeType} están repartidos en {count:number} zonas y este reto exige {min:number}."
@@ -1357,7 +1365,7 @@
   "ui.impact.allStanding": "Todo sigue en pie.",
   "ui.impact.amplification": "Amplificación",
   "ui.impact.backlog": "Encolado",
-  "ui.impact.blastRadius": "radio de impacto",
+  "ui.impact.blastRadius": "Radio de impacto",
   "ui.impact.bottleneck": "Cuello de botella",
   "ui.impact.busiest": "que llegan al componente más cargado, por cada petición de entrada",
   "ui.impact.cascade.arithmetic": "coste(nodo) = proceso(tipo) + máximo, sobre las llamadas síncronas, de coste(llamada)\n\ncoste(llamada) =\n    destino sano        salto(protocolo) + coste(destino) + latencia inyectada\n    pasa del timeout    timeout × (reintentos + 1)      ← y el destino cuenta como caído\n    destino caído\n      circuit breaker   ~0\n      con timeout       timeout × (reintentos + 1)\n      sin timeout       30 s  (UnboundedWait)\n    asíncrona           0",
@@ -1427,7 +1435,7 @@
   "ui.impact.outOf": "{value:number} / {total:number}",
   "ui.impact.pilingUp": "acumulándose en las colas",
   "ui.impact.propagation": "Propagación",
-  "ui.impact.requestsLost": "peticiones perdidas, como mucho",
+  "ui.impact.requestsLost": "Peticiones perdidas, como mucho",
   "ui.impact.rps": "+{value:amount} rps",
   "ui.impact.showArithmetic": "Cómo se calcula",
   "ui.impact.step": "paso {step:number}",
@@ -1731,21 +1739,21 @@
   "ui.rules.backToArchitecture": "Volver a la arquitectura",
   "ui.rules.over": "Sobre la arquitectura abierta",
   "ui.rules.overNamed": "Sobre «{name}»",
-  "ui.rules.hasFix": "con corrección",
+  "ui.rules.hasFix": "Con corrección",
   "ui.rules.unknown": "Una regla que el analizador ya ejecuta pero que esta pantalla todavía no puede explicar.",
   "ui.rules.whyNotAll": "Donde no hay botón de corrección no se trata de una omisión: la corrección admite varias respuestas legítimas, y elegir una automáticamente eliminaría justo lo que la herramienta existe para enseñar. Un punto único de fallo puede resolverse replicando, balanceando o dejando de depender de él.",
-  "ui.rules.state.Fired": "se activó",
+  "ui.rules.state.Fired": "Se activó",
   "ui.rules.state.Fired.repeated": "se activó ×{count:number}",
   "ui.rules.state.Fired.count": {
     "one": "{count:number} se activó",
     "other": "{count:number} se activaron"
   },
-  "ui.rules.state.Passed": "superada",
+  "ui.rules.state.Passed": "Superada",
   "ui.rules.state.Passed.count": {
     "one": "{count:number} superada",
     "other": "{count:number} superadas"
   },
-  "ui.rules.state.NotApplicable": "no llegó a aplicar",
+  "ui.rules.state.NotApplicable": "No llegó a aplicar",
   "ui.rules.state.NotApplicable.count": "{count:number} sin aplicar",
   "ui.rules.SPOF.detects": "Un componente sin equivalente del que cuelga el resto del sistema. No cuenta a quien lo llama en asíncrono ni a quien ya tiene una respuesta alternativa. Un balanceador que reparte —sobre dos componentes dibujados o sobre una que declara instancias— es la salida, no un nuevo punto único de fallo; una puerta, un balanceador, una caché o un broker que declaran dos o más copias dejan de serlo, y un almacén lo hace con sus réplicas —un bucket, con su replicación—; y al CDN no se le gradúa: su redundancia es del proveedor.",
   "ui.rules.TRAFFIC_REJECTED.detects": "Una puerta cuyo límite de peticiones rechaza una parte sustancial del tráfico que le llega: aviso desde una de cada cinco peticiones, crítico desde la mitad. Limitar no es escalar: el límite protege lo que hay detrás, pero a esos usuarios no los atiende nadie. O falta capacidad y el límite es bajo, o la carga declarada está inflada.",
@@ -1875,7 +1883,7 @@
   "web.home.access.progress": "El progreso se guarda en este navegador y en ningún otro lugar.",
   "web.home.access.languages": "En español y en inglés.",
   "web.home.notWhat": "Bondstone no es un diagramador, ni un simulador de producción, ni un curso. Es un entorno donde se toman decisiones de arquitectura y se observan sus consecuencias. Sin cuenta, sin clasificación y sin IA de por medio.",
-  "web.engine.readOnly": "solo lectura",
+  "web.engine.readOnly": "Solo lectura",
   "web.engine.fault": "fallo: {name} caído",
   "web.engine.propagation": "propagación calculada",
   "web.engine.lost": "{value:percent} de las peticiones afectadas",

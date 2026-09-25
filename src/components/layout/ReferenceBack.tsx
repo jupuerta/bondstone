@@ -14,7 +14,7 @@ export function ReferenceBack() {
         <h2 className="text-[26px] tracking-[-0.02em] text-ink md:text-[32px]">{t("web.reference.back.title")}</h2>
         <div className="flex flex-col gap-2.5 md:flex-row md:flex-wrap">
           {DEMO && (
-            <Button size="md" href="/#demo">
+            <Button size="md" to="/#demo">
               {t("web.reference.back.demo")}
             </Button>
           )}

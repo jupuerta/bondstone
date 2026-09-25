@@ -39,7 +39,7 @@ export function EditorBar({ name, onRename, shareToken, chips, narrow, status, m
 
   if (narrow) {
     return (
-      <header className="flex flex-col border-b border-panel-line bg-panel-2">
+      <header className="relative z-40 flex flex-col border-b border-panel-line bg-panel-2">
         <div className="flex h-12 items-center gap-2.5 px-3">
           <Link to="/" aria-label={t("editor.bar.home")} className="flex shrink-0 items-center text-panel-ink">
             <LogoMark size={20} />
@@ -72,7 +72,7 @@ export function EditorBar({ name, onRename, shareToken, chips, narrow, status, m
   }
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-4 border-b border-panel-line bg-panel-2 px-4">
+    <header className="relative z-40 flex h-14 shrink-0 items-center gap-4 border-b border-panel-line bg-panel-2 px-4">
       <div className="flex min-w-0 flex-1 items-center gap-3.5">
         <Link to="/" aria-label={t("editor.bar.home")} className="flex shrink-0 items-center gap-2 font-display text-[15px] font-semibold text-panel-ink no-underline">
           <LogoMark size={20} />
