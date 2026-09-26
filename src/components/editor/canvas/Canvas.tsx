@@ -13,7 +13,6 @@ import {
   type Edge,
   type Node,
 } from "@xyflow/react";
-import { resizingColumns } from "../../../domain/columnResize";
 import { useT } from "../../../i18n";
 import type { ArchitectureDto, ConnectionLoad, ElementState, NodeType, PositionDto } from "../../../types/architecture";
 import { tintOf } from "../../engine/tints";
@@ -111,9 +110,28 @@ function CanvasInner({ architecture, states, faultIds, callLoad, selection, onSe
     setEdges((current) => (current.some((edge) => edge.selected) ? current.map((edge) => ({ ...edge, selected: false })) : current));
   }, [selection, setNodes, setEdges]);
 
+  // React Flow with selectNodesOnDrag=false calls unselectNodesAndEdges() on the
+  // mousedown of any unselected node — before onNodeDragStart fires. That closes
+  // the inspector panel, shifts the canvas left, and corrupts the ongoing drag.
+  // Fix: buffer selection changes while the pointer is down and flush on pointer-up.
+  const pointerDown = useRef(false);
+  const pendingSelection = useRef<Selection | null | undefined>(undefined); // undefined = nothing buffered
+
+  const flushSelection = useCallback(() => {
+    pointerDown.current = false;
+    if (pendingSelection.current !== undefined) {
+      onSelect(pendingSelection.current);
+      pendingSelection.current = undefined;
+    }
+  }, [onSelect]);
+
   const onSelectionChange = useCallback(
     ({ nodes: picked, edges: pickedEdges }: { nodes: Node[]; edges: Edge[] }) => {
       const next: Selection | null = picked[0] ? { kind: "node", id: picked[0].id } : pickedEdges[0] ? { kind: "edge", id: pickedEdges[0].id } : null;
+      if (pointerDown.current) {
+        pendingSelection.current = next;
+        return;
+      }
       onSelect(next);
     },
     [onSelect],
@@ -122,7 +140,6 @@ function CanvasInner({ architecture, states, faultIds, callLoad, selection, onSe
 
   const { fitView, getViewport, getZoom, screenToFlowPosition, setViewport } = useReactFlow();
   const frame = useRef<HTMLElement>(null);
-  const lastWidth = useRef<number | null>(null);
   const lastLeft = useRef<number | null>(null);
   const chosen = useRef<Selection | null>(selection);
   chosen.current = selection;
@@ -134,37 +151,25 @@ function CanvasInner({ architecture, states, faultIds, callLoad, selection, onSe
     if (!element) return;
 
     const observer = new ResizeObserver(([entry]) => {
-      const width = entry.contentRect.width;
+      void entry;
       const left = element.getBoundingClientRect().left;
-      const previous = lastWidth.current;
       const previousLeft = lastLeft.current;
-      lastWidth.current = width;
       lastLeft.current = left;
-      if (previous === null || previousLeft === null) return;
+      if (previousLeft === null) return;
 
-      if (resizingColumns()) {
-        const shift = left - previousLeft;
-        if (Math.abs(shift) > 0.5) {
-          const viewport = getViewport();
-          setViewport({ ...viewport, x: viewport.x - shift });
-        }
-        return;
+      // Only compensate for a horizontal shift of the canvas frame (column resize,
+      // panel open/close). Never call fitView from here: doing so would jump the
+      // viewport whenever a panel opens or a drag triggers a deselection resize.
+      const shift = left - previousLeft;
+      if (Math.abs(shift) > 0.5) {
+        const viewport = getViewport();
+        setViewport({ ...viewport, x: viewport.x - shift });
       }
-
-      const duration = still() ? 0 : 150;
-
-      if (Math.abs(width - previous) > 1) {
-        void fitView({ padding, maxZoom: 1, duration });
-        return;
-      }
-
-      const picked = chosen.current;
-      if (picked?.kind === "node") void fitView({ nodes: [{ id: picked.id }], maxZoom: getZoom(), padding: 0.6, duration });
     });
 
     observer.observe(element);
     return () => observer.disconnect();
-  }, [fitView, getViewport, getZoom, padding, setViewport]);
+  }, [getViewport, setViewport]);
 
   const drawn = architecture.nodes.length > 0;
   const wasDrawn = useRef(drawn);
@@ -223,6 +228,9 @@ function CanvasInner({ architecture, states, faultIds, callLoad, selection, onSe
       ref={frame}
       aria-label={t("editor.a11y.canvas", { name: architecture.name })}
       className={`flex min-h-0 min-w-0 flex-1 flex-col bg-canvas ${editable ? "af-editable" : ""} ${legend?.open ? "af-legend-open" : ""}`}
+      onPointerDownCapture={() => { pointerDown.current = true; }}
+      onPointerUpCapture={flushSelection}
+      onPointerCancelCapture={flushSelection}
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
@@ -243,6 +251,7 @@ function CanvasInner({ architecture, states, faultIds, callLoad, selection, onSe
           nodesConnectable={editable}
           edgesReconnectable={false}
           elementsSelectable
+          selectNodesOnDrag={false}
           deleteKeyCode={editable ? DELETE_KEYS : null}
           selectionKeyCode={null}
           multiSelectionKeyCode={null}
