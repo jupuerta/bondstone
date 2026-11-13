@@ -1,0 +1,42 @@
+{
+  "id": "11111111-1111-1111-1111-111111111111",
+  "name": "minimal-api-db",
+  "shareToken": "8fK29x",
+  "version": 1,
+  "createdAt": "0001-01-01T00:00:00",
+  "updatedAt": "0001-01-01T00:00:00",
+  "nodes": [
+    {
+      "id": "a0000000-0000-0000-0000-000000000001",
+      "type": "Api",
+      "name": "Api",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "configuration": {}
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000002",
+      "type": "Database",
+      "name": "Db",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "configuration": {}
+    }
+  ],
+  "connections": [
+    {
+      "id": "c0000000-0000-0000-0000-000000000001",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000001",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000002",
+      "protocol": "Sql",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    }
+  ]
+}

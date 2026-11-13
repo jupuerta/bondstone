@@ -1,0 +1,20 @@
+# Lo que NO sube al contexto del builder. `nginx.conf` sí: el Dockerfile lo copia a la etapa
+# de runtime. Las variables VITE_ entran por --build-arg desde compose, no por este `.env`.
+
+node_modules/
+dist/
+*.tsbuildinfo
+
+.env
+.env.local
+*.local
+
+.git/
+.github/
+.gitignore
+README.md
+
+.vscode/
+.idea/
+.DS_Store
+npm-debug.log*

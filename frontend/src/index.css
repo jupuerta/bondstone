@@ -1,0 +1,599 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Bondstone · la cara pública · dirección B1
+   Clara, editorial técnica. Filetes, píldoras, monoespaciada para cifras y
+   etiquetas, un solo acento (cobalto) fuera del motor, y el panel oscuro solo
+   donde está el motor. Los valores viven aquí una vez; nada más los repite.
+   Fuente: docs/Design/UI/README.md (Paso 6 · Piezas y estados).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@theme inline {
+  --color-bg: var(--af-bg);
+  --color-surface: var(--af-surface);
+  --color-surface-2: var(--af-surface-2);
+  --color-line: var(--af-line);
+  --color-line-2: var(--af-line-2);
+  --color-ink: var(--af-ink);
+  --color-ink-2: var(--af-ink-2);
+  --color-ink-3: var(--af-ink-3);
+  --color-accent: var(--af-accent);
+  --color-accent-ink: var(--af-accent-ink);
+  --color-accent-tint: var(--af-accent-tint);
+  --color-accent-line: var(--af-accent-line);
+  --color-hot: var(--af-hot);
+  --color-panel: var(--af-panel);
+  --color-panel-2: var(--af-panel-2);
+  --color-panel-line: var(--af-panel-line);
+  --color-panel-ink: var(--af-panel-ink);
+  --color-panel-ink-2: var(--af-panel-ink-2);
+  --color-panel-ink-3: var(--af-panel-ink-3);
+  --color-hot-panel: var(--af-hot-panel);
+  --color-warm-panel: var(--af-warm-panel);
+  --color-ok-panel: var(--af-ok-panel);
+  --color-canvas: var(--af-canvas);
+  --color-panel-3: var(--af-panel-3);
+  --color-panel-line-2: var(--af-panel-line-2);
+  --color-accent-panel: var(--af-accent-panel);
+  --color-warm: var(--af-warm);
+  --color-ok: var(--af-ok);
+  --color-wash: var(--af-panel-wash);
+  --color-panel-focus: var(--af-panel-focus);
+  --color-panel-on-ink: var(--af-panel-on-ink);
+  --color-panel-on-hot: var(--af-panel-on-hot);
+  --color-panel-on-warm: var(--af-panel-on-warm);
+  --color-zone-ink: var(--af-zone-ink);
+  --color-on-ink: var(--af-on-ink);
+
+  --font-sans: var(--af-font-ui);
+  --font-display: var(--af-font-display);
+  --font-mono: var(--af-font-mono);
+
+  /* Escala: once tamaños con un papel cada uno. */
+  --text-hero: 92px;
+  --text-hero--line-height: 0.98;
+  --text-hero--letter-spacing: -0.035em;
+  --text-page: 64px;
+  --text-page--line-height: 1;
+  --text-page--letter-spacing: -0.03em;
+  --text-section: 40px;
+  --text-section--line-height: 1.05;
+  --text-section--letter-spacing: -0.025em;
+  --text-block: 24px;
+  --text-block--line-height: 1.15;
+  --text-block--letter-spacing: -0.015em;
+  --text-lead: 19px;
+  --text-lead--line-height: 1.5;
+  --text-body: 16px;
+  --text-body--line-height: 1.55;
+  --text-small: 14px;
+  --text-small--line-height: 1.5;
+  --text-figure: 40px;
+  --text-figure--line-height: 1;
+  --text-figure--letter-spacing: -0.02em;
+  --text-code: 13px;
+  --text-code--line-height: 1.5;
+  --text-meta: 12px;
+  --text-meta--line-height: 1.4;
+  --text-label: 11px;
+  --text-label--line-height: 1.2;
+  --text-label--letter-spacing: 0.08em;
+  --text-panel: 15px;
+  --text-panel--line-height: 1.2;
+  --text-panel--letter-spacing: -0.01em;
+
+  --radius-pill: 999px;
+  --radius-card: 8px;
+  --radius-panel: 10px;
+  --radius-node: 6px;
+}
+
+:root {
+  --af-font-ui: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --af-font-display: "Bricolage Grotesque Variable", "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
+  --af-font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+
+  --af-bg: #fafaf7;
+  --af-surface: #ffffff;
+  --af-surface-2: #f2f2ee;
+  --af-line: #e3e3dc;
+  --af-line-2: #cfcfc6;
+  --af-ink: #101012;
+  --af-ink-2: #5b5b61;
+  /* 4,91:1 sobre el fondo y 4,57:1 sobre `--af-surface-2`, que es el peor de los tres. El anterior
+     (#8a8a90) daba 3,28:1 — B30 de la QA del 09-09 — y era justo el color del texto que explica en
+     la portada qué es esto. Bajar aquí no aplana la jerarquía: `--af-ink-2` sigue en 6,01:1. */
+  --af-ink-3: #6d6d74;
+  --af-accent: #1f3fd1;
+  --af-accent-ink: #ffffff;
+  --af-accent-tint: color-mix(in oklab, var(--af-accent) 7%, #ffffff);
+  --af-accent-line: color-mix(in oklab, var(--af-accent) 28%, #ffffff);
+  --af-hot: #c9302c;
+  --af-warm: oklch(0.55 0.15 75);
+  --af-ok: #1a7f52;
+
+  /* Lo que el oscuro de la web redefine y el claro tenía escrito a mano:
+     docs/Design/UI/oscuro.md §2. */
+  --af-on-ink: #ffffff;
+  --af-focus: var(--af-accent);
+  --af-press: #000000;
+
+  --af-panel: #0f1115;
+  --af-panel-2: #14171d;
+  --af-panel-line: rgba(255, 255, 255, 0.12);
+  --af-panel-ink: #eef0f4;
+  --af-panel-ink-2: #a3aab8;
+  /* 4,76:1 sobre `--af-panel-3`, que es el peor fondo del panel. El anterior (#7c8494) daba
+     4,39:1 y axe lo cazaba en la cenefa del panel del motor, en la portada en oscuro. */
+  --af-panel-ink-3: #828a9a;
+  --af-hot-panel: #ff5f5f;
+  --af-warm-panel: #f3b64f;
+  --af-ok-panel: #3ecf8e;
+
+  /* Lo que el editor añade al panel: docs/Design/Editor/06_ui.md §2. */
+  --af-canvas: #0a0c0e;
+  --af-panel-3: #1b1f27;
+  --af-panel-line-2: rgba(255, 255, 255, 0.24);
+  --af-accent-panel: oklch(0.72 0.17 267);
+
+  /* Lo que el modo claro redefine y el oscuro tenía escrito a mano: docs/Design/Editor/07_modo_claro.md §1. */
+  --af-panel-wash: #ffffff;
+  --af-panel-focus: #ffffff;
+  --af-panel-on-ink: #0f1115;
+  --af-panel-on-hot: #210505;
+  --af-panel-on-warm: #1a1206;
+  --af-panel-grid: rgba(255, 255, 255, 0.055);
+  --af-panel-mask: rgba(10, 12, 14, 0.6);
+  --af-minimap: color-mix(in oklab, var(--af-panel-wash) 3%, transparent);
+  --af-minimap-line: var(--af-panel-line);
+  --af-node-line: var(--af-panel-line);
+  --af-zone-ink: var(--af-panel-ink-3);
+
+  /* Un tinte por tipo de componente, misma luminosidad y saturación, distinto tono.
+     Pensados para el panel oscuro. */
+  --af-t-Gateway: oklch(0.78 0.1 40);
+  --af-t-LoadBalancer: oklch(0.78 0.1 155);
+  --af-t-Api: oklch(0.78 0.1 230);
+  --af-t-Service: oklch(0.78 0.1 288);
+  --af-t-Worker: oklch(0.78 0.1 55);
+  --af-t-Database: oklch(0.78 0.1 78);
+  --af-t-Cache: oklch(0.78 0.1 118);
+  --af-t-ObjectStorage: oklch(0.78 0.1 198);
+  --af-t-Queue: oklch(0.78 0.1 262);
+  --af-t-Topic: oklch(0.78 0.1 262);
+  --af-t-Observability: oklch(0.78 0.1 330);
+  --af-t-ExternalService: oklch(0.78 0.1 8);
+  --af-t-Client: oklch(0.78 0.1 212);
+  --af-t-Cdn: oklch(0.78 0.1 176);
+  --af-t-Scheduler: oklch(0.78 0.1 98);
+  --af-t-IdentityProvider: oklch(0.78 0.1 310);
+
+  /* La placa de la ficha, un token por tipo. Sobre el panel oscuro el tinte es más claro que la
+     superficie y el 9 % la sube; en claro hace lo contrario, así que el claro trae su propia escala
+     en vez de una mezcla. docs/Design/Editor/UI/claro-v2/. */
+  --af-p-Gateway: color-mix(in oklab, var(--af-t-Gateway) 9%, var(--af-panel-2));
+  --af-p-LoadBalancer: color-mix(in oklab, var(--af-t-LoadBalancer) 9%, var(--af-panel-2));
+  --af-p-Api: color-mix(in oklab, var(--af-t-Api) 9%, var(--af-panel-2));
+  --af-p-Service: color-mix(in oklab, var(--af-t-Service) 9%, var(--af-panel-2));
+  --af-p-Worker: color-mix(in oklab, var(--af-t-Worker) 9%, var(--af-panel-2));
+  --af-p-Database: color-mix(in oklab, var(--af-t-Database) 9%, var(--af-panel-2));
+  --af-p-Cache: color-mix(in oklab, var(--af-t-Cache) 9%, var(--af-panel-2));
+  --af-p-ObjectStorage: color-mix(in oklab, var(--af-t-ObjectStorage) 9%, var(--af-panel-2));
+  --af-p-Queue: color-mix(in oklab, var(--af-t-Queue) 9%, var(--af-panel-2));
+  --af-p-Topic: color-mix(in oklab, var(--af-t-Topic) 9%, var(--af-panel-2));
+  --af-p-Observability: color-mix(in oklab, var(--af-t-Observability) 9%, var(--af-panel-2));
+  --af-p-ExternalService: color-mix(in oklab, var(--af-t-ExternalService) 9%, var(--af-panel-2));
+  --af-p-Client: color-mix(in oklab, var(--af-t-Client) 9%, var(--af-panel-2));
+  --af-p-Cdn: color-mix(in oklab, var(--af-t-Cdn) 9%, var(--af-panel-2));
+  --af-p-Scheduler: color-mix(in oklab, var(--af-t-Scheduler) 9%, var(--af-panel-2));
+  --af-p-IdentityProvider: color-mix(in oklab, var(--af-t-IdentityProvider) 9%, var(--af-panel-2));
+
+  color-scheme: light;
+}
+
+/* El editor en claro: una preferencia, oscuro por defecto. Tiene paleta propia y fría —no la cálida
+   de la web—, porque las superficies cálidas con las tintas frías de la web se leían como barro y la
+   placa teñida al 4 % sobre blanco no llegaba a tener color. docs/Design/Editor/UI/claro-v2/. */
+[data-theme="light"] {
+  --af-canvas: #dde2e9;
+  --af-panel: #f7f8fa;
+  --af-panel-2: #ffffff;
+  --af-panel-3: #eef0f4;
+  --af-panel-line: #dde1e8;
+  --af-panel-line-2: #c4cad4;
+  --af-panel-ink: #0f1115;
+  --af-panel-ink-2: #4e5663;
+  /* 4,57:1 sobre `--af-panel-3` (#eef0f4). El anterior (#6a7280) daba 4,25:1: el mismo fallo
+     que el oscuro, en el claro del editor, donde axe no llega porque no abre el editor. */
+  --af-panel-ink-3: #656d7b;
+  --af-accent-panel: var(--af-accent);
+  --af-hot-panel: var(--af-hot);
+  --af-warm-panel: var(--af-warm);
+  --af-ok-panel: var(--af-ok);
+  --af-panel-wash: #000000;
+  --af-panel-focus: var(--af-accent);
+  --af-panel-on-ink: #ffffff;
+  --af-panel-on-hot: #ffffff;
+  --af-panel-on-warm: #ffffff;
+  --af-panel-grid: rgba(15, 17, 21, 0.09);
+  --af-panel-mask: rgba(221, 226, 233, 0.6);
+  --af-minimap: color-mix(in oklab, var(--af-panel-2) 78%, transparent);
+  --af-minimap-line: var(--af-panel-line-2);
+  --af-node-line: var(--af-panel-line-2);
+  --af-zone-ink: var(--af-panel-ink-2);
+  --af-t-Gateway: oklch(0.52 0.16 40);
+  --af-t-LoadBalancer: oklch(0.52 0.16 155);
+  --af-t-Api: oklch(0.52 0.16 230);
+  --af-t-Service: oklch(0.52 0.16 288);
+  --af-t-Worker: oklch(0.52 0.16 55);
+  --af-t-Database: oklch(0.52 0.16 78);
+  --af-t-Cache: oklch(0.52 0.16 118);
+  --af-t-ObjectStorage: oklch(0.52 0.16 198);
+  --af-t-Queue: oklch(0.52 0.16 262);
+  --af-t-Topic: oklch(0.52 0.16 262);
+  --af-t-Observability: oklch(0.52 0.16 330);
+  --af-t-ExternalService: oklch(0.52 0.16 8);
+  --af-t-Client: oklch(0.52 0.16 212);
+  --af-t-Cdn: oklch(0.52 0.16 176);
+  --af-t-Scheduler: oklch(0.52 0.16 98);
+  --af-t-IdentityProvider: oklch(0.52 0.16 310);
+  --af-p-Gateway: oklch(0.968 0.034 40);
+  --af-p-LoadBalancer: oklch(0.968 0.034 155);
+  --af-p-Api: oklch(0.968 0.034 230);
+  --af-p-Service: oklch(0.968 0.034 288);
+  --af-p-Worker: oklch(0.968 0.034 55);
+  --af-p-Database: oklch(0.968 0.034 78);
+  --af-p-Cache: oklch(0.968 0.034 118);
+  --af-p-ObjectStorage: oklch(0.968 0.034 198);
+  --af-p-Queue: oklch(0.968 0.034 262);
+  --af-p-Topic: oklch(0.968 0.034 262);
+  --af-p-Observability: oklch(0.968 0.034 330);
+  --af-p-ExternalService: oklch(0.968 0.034 8);
+  --af-p-Client: oklch(0.968 0.034 212);
+  --af-p-Cdn: oklch(0.968 0.034 176);
+  --af-p-Scheduler: oklch(0.968 0.034 98);
+  --af-p-IdentityProvider: oklch(0.968 0.034 310);
+  color: var(--af-panel-ink);
+}
+
+/* La web en oscuro: una preferencia, clara por defecto. Los valores son los del panel del editor,
+   token a token; el editor no cambia un píxel. docs/Design/UI/oscuro.md. */
+[data-appearance="dark"] {
+  --af-bg: #0f1115; /* --af-panel */
+  --af-surface: #14171d; /* --af-panel-2 */
+  --af-surface-2: #1b1f27; /* --af-panel-3 */
+  --af-line: rgba(255, 255, 255, 0.12); /* --af-panel-line */
+  --af-line-2: rgba(255, 255, 255, 0.24); /* --af-panel-line-2 */
+  --af-ink: #eef0f4; /* --af-panel-ink */
+  --af-ink-2: #a3aab8; /* --af-panel-ink-2 */
+  --af-ink-3: #828a9a; /* --af-panel-ink-3 */
+  --af-accent: oklch(0.72 0.17 267); /* --af-accent-panel */
+  --af-accent-ink: #0f1115;
+  --af-accent-tint: color-mix(in oklab, var(--af-accent) 16%, #0f1115);
+  --af-accent-line: color-mix(in oklab, var(--af-accent) 42%, #0f1115);
+  --af-hot: #ff5f5f; /* --af-hot-panel */
+  --af-warm: #f3b64f; /* --af-warm-panel */
+  --af-ok: #3ecf8e; /* --af-ok-panel */
+  --af-on-ink: #0f1115;
+  --af-focus: #ffffff;
+  --af-press: #ffffff;
+  color-scheme: dark;
+}
+
+/* El motor dentro de la web oscura sube un escalón y pasa a ser una tarjeta más, en vez de
+   confundirse con el suelo. Solo el panel de la portada: el editor y su menú se quedan donde están. */
+[data-appearance="dark"] .af-engine {
+  --af-panel: #14171d;
+  --af-panel-2: #1b1f27;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--af-font-ui);
+  font-size: 16px;
+  background: var(--af-bg);
+  color: var(--af-ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--af-font-display);
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--af-accent) 22%, transparent);
+}
+
+/* El cerco de foco: cobalto de 2 px, a 3 px del borde. Blanco dentro del panel oscuro. */
+:focus-visible {
+  outline: 2px solid var(--af-focus);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.panel :focus-visible {
+  outline-color: var(--af-panel-focus);
+}
+
+@layer components {
+  .eyebrow {
+    font-family: var(--af-font-mono);
+    font-size: 11px;
+    line-height: 1.2;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--af-ink-2);
+  }
+
+  .eyebrow-accent {
+    color: var(--af-accent);
+  }
+
+  .num {
+    font-family: var(--af-font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .link {
+    color: var(--af-accent);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+  }
+
+  .link:hover {
+    color: var(--af-ink);
+  }
+
+  .hairline-rows > * + * {
+    border-top: 1px solid var(--af-line);
+  }
+
+  /* La medida de lectura de la prosa larga: 74 caracteres a 16 px. La referencia usa 880 px
+     para entradillas de una línea; un texto legal de párrafos enteros necesita la medida corta. */
+  .max-w-prose-legal {
+    max-width: 620px;
+  }
+
+  /* Contenedor de página: 1440 de diseño, con los márgenes de 56 px del lienzo. */
+  .page {
+    width: 100%;
+    max-width: 1440px;
+    margin-inline: auto;
+    padding-inline: 16px;
+  }
+
+  @media (min-width: 768px) {
+    .page {
+      padding-inline: 40px;
+    }
+  }
+
+  @media (min-width: 1200px) {
+    .page {
+      padding-inline: 56px;
+    }
+  }
+}
+
+/* Mientras se arrastra el asa del panel: el cursor no cambia al pasar por el lienzo. */
+.af-col-resizing,
+.af-col-resizing * {
+  cursor: col-resize !important;
+  user-select: none;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation-duration: 2s;
+  }
+}
+
+/* ── el lienzo del editor ──────────────────────────────────────────────── */
+
+.react-flow {
+  --xy-background-color: var(--af-canvas);
+  --xy-background-pattern-color: var(--af-panel-grid);
+  --xy-edge-stroke: var(--af-panel-ink);
+  --xy-edge-stroke-width: 1.6;
+  --xy-edge-stroke-selected: var(--af-accent-panel);
+  --xy-handle-background-color: var(--af-panel);
+  --xy-handle-border-color: var(--af-accent-panel);
+  --xy-controls-button-background-color: var(--af-panel-2);
+  --xy-controls-button-background-color-hover: var(--af-panel-3);
+  --xy-controls-button-color: var(--af-panel-ink-2);
+  --xy-controls-button-color-hover: var(--af-panel-ink);
+  --xy-controls-button-border-color: var(--af-panel-line);
+  --xy-controls-box-shadow: none;
+  --xy-minimap-background-color: var(--af-minimap);
+  --xy-minimap-mask-background-color: var(--af-panel-mask);
+  --xy-minimap-node-background-color: var(--af-panel-line-2);
+  --xy-attribution-background-color: transparent;
+  --xy-selection-background-color: color-mix(in oklab, var(--af-accent-panel) 10%, transparent);
+  --xy-selection-border: 1px dashed var(--af-accent-panel);
+}
+
+.react-flow__viewport-portal {
+  z-index: -1;
+}
+
+.react-flow__controls {
+  overflow: hidden;
+  border: 1px solid var(--af-panel-line);
+  border-radius: 8px;
+}
+
+.react-flow__controls-button {
+  width: 30px;
+  height: 30px;
+  border-bottom: 1px solid var(--af-panel-line);
+}
+
+.react-flow__controls-button svg {
+  fill: currentColor;
+}
+
+.react-flow__minimap {
+  border: 1px solid var(--af-minimap-line);
+  border-radius: 8px;
+}
+
+.react-flow__attribution a {
+  color: var(--af-panel-ink-3);
+}
+
+.react-flow__node:focus-visible {
+  outline: none;
+}
+
+.af-node {
+  background: var(--af-node-plate);
+  transition:
+    background-color 240ms ease-out,
+    border-color 240ms ease-out;
+}
+
+.af-node:hover {
+  background: color-mix(in oklab, var(--af-panel-wash) 6%, var(--af-node-plate));
+}
+
+.react-flow__node.selected .af-node {
+  outline: 2px solid var(--af-accent-panel);
+  outline-offset: 3px;
+}
+
+.react-flow__node:focus-visible .af-node {
+  outline: 2px solid var(--af-panel-focus);
+  outline-offset: 3px;
+}
+
+.af-node-contained,
+.af-node-highlighted {
+  box-shadow:
+    0 0 0 3px var(--af-canvas),
+    0 0 0 5px var(--af-warm-panel);
+}
+
+.react-flow__handle.af-port {
+  width: 9px;
+  height: 9px;
+  border-width: 2px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+
+.af-editable .react-flow__node:hover .af-port,
+.af-editable .react-flow__node.selected .af-port,
+.af-editable .react-flow__node.dragging .af-port {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.af-editable .react-flow__node.selected .af-node {
+  cursor: grab;
+}
+
+.af-editable .react-flow__node.dragging .af-node {
+  cursor: grabbing;
+}
+
+.react-flow__connectionline path {
+  stroke: var(--af-accent-panel);
+  stroke-width: 1.6;
+  stroke-dasharray: 4 4;
+}
+
+/* ── la tira de control y lo que enciende ─────────────────────────────── */
+
+.react-flow__node.af-dim,
+.react-flow__edge.af-dim {
+  opacity: 0.34;
+  transition: opacity 150ms ease-out;
+}
+
+.af-legend {
+  transition: transform 220ms ease-out;
+}
+
+.af-legend-open .react-flow__panel.right {
+  right: 300px;
+  transition: right 220ms ease-out;
+}
+
+.af-dial {
+  appearance: none;
+  height: 16px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.af-dial:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.af-dial::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--af-panel-wash) 12%, transparent);
+}
+
+.af-dial::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--af-panel-wash) 12%, transparent);
+}
+
+.af-dial::-webkit-slider-thumb {
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  margin-top: -4.5px;
+  border-radius: 999px;
+  background: var(--af-accent-panel);
+  border: 2px solid var(--af-panel);
+}
+
+.af-dial::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  background: var(--af-accent-panel);
+  border: 2px solid var(--af-panel);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .af-node,
+  .react-flow__node.af-dim,
+  .react-flow__edge.af-dim,
+  .af-legend,
+  .af-legend-open .react-flow__panel.right {
+    transition: none;
+  }
+}

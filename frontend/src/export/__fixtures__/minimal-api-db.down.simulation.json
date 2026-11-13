@@ -1,0 +1,107 @@
+{
+  "simulationVersion": "v3",
+  "states": [
+    {
+      "type": "Node",
+      "id": "a0000000-0000-0000-0000-000000000002",
+      "state": "Down",
+      "reason": {
+        "key": "sim.node.injected",
+        "args": null
+      },
+      "mechanism": null,
+      "causedBy": null,
+      "propagationStep": 0,
+      "utilization": null
+    },
+    {
+      "type": "Node",
+      "id": "a0000000-0000-0000-0000-000000000001",
+      "state": "Down",
+      "reason": {
+        "key": "sim.node.unprotected",
+        "args": {
+          "target": "Db"
+        }
+      },
+      "mechanism": null,
+      "causedBy": {
+        "type": "Connection",
+        "id": "c0000000-0000-0000-0000-000000000001"
+      },
+      "propagationStep": 1,
+      "utilization": null
+    },
+    {
+      "type": "Connection",
+      "id": "c0000000-0000-0000-0000-000000000001",
+      "state": "Down",
+      "reason": {
+        "key": "sim.edge.unprotected",
+        "args": {
+          "target": "Db"
+        }
+      },
+      "mechanism": null,
+      "causedBy": {
+        "type": "Node",
+        "id": "a0000000-0000-0000-0000-000000000002"
+      },
+      "propagationStep": 1,
+      "utilization": null
+    }
+  ],
+  "metrics": {
+    "componentsDown": 2,
+    "componentsDegraded": 0,
+    "componentsTotal": 2,
+    "blastRadius": 1,
+    "entryPointsAffected": 1,
+    "entryPointsTotal": 1,
+    "nominalLatencyMs": 27,
+    "faultedLatencyMs": 5005,
+    "requestAmplification": 1,
+    "requestsAffected": 1,
+    "bottleneck": {
+      "type": "Node",
+      "id": "a0000000-0000-0000-0000-000000000002"
+    },
+    "backlogRps": 0,
+    "loadAmplification": 1
+  },
+  "discardedFaults": [],
+  "criticalPath": [
+    {
+      "nodeId": "a0000000-0000-0000-0000-000000000001",
+      "connectionId": null,
+      "outcome": "Completed",
+      "processingMs": 5,
+      "queueingMs": 0,
+      "queueingFactor": 1,
+      "networkMs": 0,
+      "injectedMs": 0,
+      "totalMs": 5,
+      "cumulativeMs": 5,
+      "callMs": 0,
+      "rawCallMs": null,
+      "timeoutMs": null,
+      "retries": 0
+    },
+    {
+      "nodeId": "a0000000-0000-0000-0000-000000000002",
+      "connectionId": "c0000000-0000-0000-0000-000000000001",
+      "outcome": "Unreachable",
+      "processingMs": 0,
+      "queueingMs": 0,
+      "queueingFactor": 1,
+      "networkMs": 0,
+      "injectedMs": 0,
+      "totalMs": 5000,
+      "cumulativeMs": 5005,
+      "callMs": 5000,
+      "rawCallMs": null,
+      "timeoutMs": 5000,
+      "retries": 0
+    }
+  ]
+}

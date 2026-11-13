@@ -1,0 +1,134 @@
+{
+  "id": "11111111-1111-1111-1111-111111111111",
+  "name": "gateway-microservices",
+  "shareToken": "8fK29x",
+  "version": 1,
+  "createdAt": "0001-01-01T00:00:00",
+  "updatedAt": "0001-01-01T00:00:00",
+  "nodes": [
+    {
+      "id": "a0000000-0000-0000-0000-000000000001",
+      "type": "Gateway",
+      "name": "Gateway",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "configuration": {}
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000002",
+      "type": "Service",
+      "name": "Users",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "configuration": {}
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000003",
+      "type": "Service",
+      "name": "Orders",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "configuration": {}
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000004",
+      "type": "Service",
+      "name": "Payments",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "configuration": {}
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000005",
+      "type": "Database",
+      "name": "Db",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "configuration": {
+        "readReplicas": null
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "c0000000-0000-0000-0000-000000000001",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000001",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000002",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000002",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000001",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000003",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000003",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000001",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000004",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000004",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000003",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000004",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "retries": 3
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000005",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000002",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000005",
+      "protocol": "Sql",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000006",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000003",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000005",
+      "protocol": "Sql",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000007",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000004",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000005",
+      "protocol": "Sql",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    }
+  ]
+}

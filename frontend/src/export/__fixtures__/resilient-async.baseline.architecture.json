@@ -1,0 +1,129 @@
+{
+  "id": "11111111-1111-1111-1111-111111111111",
+  "name": "resilient-async",
+  "shareToken": "8fK29x",
+  "version": 1,
+  "createdAt": "0001-01-01T00:00:00",
+  "updatedAt": "0001-01-01T00:00:00",
+  "nodes": [
+    {
+      "id": "a0000000-0000-0000-0000-000000000001",
+      "type": "LoadBalancer",
+      "name": "LB",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "configuration": {}
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000002",
+      "type": "Api",
+      "name": "Api1",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "configuration": {}
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000003",
+      "type": "Api",
+      "name": "Api2",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "configuration": {
+        "replicas": 2
+      }
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000006",
+      "type": "Service",
+      "name": "Worker",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "configuration": {}
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000007",
+      "type": "Database",
+      "name": "Db",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "configuration": {}
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000008",
+      "type": "ExternalService",
+      "name": "Legacy",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "configuration": {}
+    }
+  ],
+  "connections": [
+    {
+      "id": "c0000000-0000-0000-0000-000000000001",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000001",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000002",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {}
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000002",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000001",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000003",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 3,
+        "circuitBreaker": true
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000009",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000006",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000007",
+      "protocol": "Http",
+      "synchronous": false,
+      "configuration": {}
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000010",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000006",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000008",
+      "protocol": "Http",
+      "synchronous": true,
+      "configuration": {}
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000011",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000002",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000007",
+      "protocol": "Sql",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000012",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000003",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000007",
+      "protocol": "Sql",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    }
+  ]
+}
