@@ -1,0 +1,23 @@
+{
+  "slug": "who-is-calling",
+  "titleKey": "challenge.who-is-calling.title",
+  "storyKey": "challenge.who-is-calling.story",
+  "difficulty": "beginner",
+  "order": 7,
+  "topic": "Security",
+  "starter": "who-is-calling.starter.json",
+  "referenceSolution": "who-is-calling.solution.json",
+  "requirements": [
+    { "kind": "declaresLoad", "labelKey": "challenge.who-is-calling.requirement.1", "min": 120 },
+    { "kind": "containsNode", "labelKey": "challenge.who-is-calling.requirement.2", "nodeType": "Database" },
+    { "kind": "noFinding", "labelKey": "challenge.who-is-calling.requirement.3", "code": "UNAUTHENTICATED_ENTRY" }
+  ],
+  "optionalGoals": [
+    { "kind": "noSeverity", "labelKey": "challenge.who-is-calling.goal.1", "severity": "Critical" }
+  ],
+  "hintKeys": [
+    "challenge.who-is-calling.hint.1",
+    "challenge.who-is-calling.hint.2",
+    "challenge.who-is-calling.hint.3"
+  ]
+}

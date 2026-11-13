@@ -1,0 +1,13 @@
+{
+  "name": "it-does-not-fit solution",
+  "nodes": [
+    { "name": "Storefront", "type": "Api", "x": 0, "y": 160, "configuration": { "requestsPerSecond": 500, "instances": 2, "authentication": true, "rateLimit": 1000 } },
+    { "name": "Search", "type": "Service", "x": 300, "y": 160, "configuration": { "instances": 3 } },
+    { "name": "Telemetry", "type": "Observability", "x": 150, "y": 400 }
+  ],
+  "connections": [
+    { "from": "Storefront", "to": "Search", "synchronous": true, "configuration": { "timeoutSeconds": 2 } },
+    { "from": "Storefront", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Search", "to": "Telemetry", "synchronous": false, "configuration": {} }
+  ]
+}

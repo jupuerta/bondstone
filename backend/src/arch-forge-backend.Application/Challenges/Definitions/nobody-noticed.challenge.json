@@ -1,0 +1,82 @@
+{
+  "slug": "nobody-noticed",
+  "titleKey": "challenge.nobody-noticed.title",
+  "storyKey": "challenge.nobody-noticed.story",
+  "difficulty": "advanced",
+  "order": 5,
+  "topic": "Availability",
+  "starter": "nobody-noticed.starter.json",
+  "referenceSolution": "nobody-noticed.solution.json",
+  "requirements": [
+    {
+      "kind": "declaresLoad",
+      "labelKey": "challenge.nobody-noticed.requirement.1",
+      "min": 300
+    },
+    {
+      "kind": "containsNode",
+      "labelKey": "challenge.nobody-noticed.requirement.2",
+      "nodeType": "Database"
+    },
+    {
+      "kind": "edge",
+      "labelKey": "challenge.nobody-noticed.requirement.3",
+      "from": "Storefront",
+      "to": "Catalog",
+      "synchronous": true
+    },
+    {
+      "kind": "allEdgesTo",
+      "labelKey": "challenge.nobody-noticed.requirement.4",
+      "nodeType": "Database",
+      "mechanism": "timeout"
+    },
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.nobody-noticed.requirement.5",
+      "faults": [
+        {
+          "node": "Products",
+          "kind": "down"
+        }
+      ],
+      "metric": "requestsAffected",
+      "operator": "eq",
+      "value": 0
+    },
+    {
+      "kind": "edge",
+      "labelKey": "challenge.nobody-noticed.requirement.6",
+      "from": "Catalog",
+      "to": "Products",
+      "synchronous": true
+    },
+    {
+      "kind": "edge",
+      "labelKey": "challenge.nobody-noticed.requirement.7",
+      "from": "Reviews",
+      "to": "Products",
+      "synchronous": true
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.nobody-noticed.goal.1",
+      "faults": [
+        {
+          "node": "Catalog",
+          "kind": "down"
+        }
+      ],
+      "metric": "requestsAffected",
+      "operator": "eq",
+      "value": 0
+    }
+  ],
+  "hintKeys": [
+    "challenge.nobody-noticed.hint.1",
+    "challenge.nobody-noticed.hint.2",
+    "challenge.nobody-noticed.hint.3"
+  ]
+}

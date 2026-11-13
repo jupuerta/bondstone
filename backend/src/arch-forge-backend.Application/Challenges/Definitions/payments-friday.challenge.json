@@ -1,0 +1,67 @@
+{
+  "slug": "payments-friday",
+  "titleKey": "challenge.payments-friday.title",
+  "storyKey": "challenge.payments-friday.story",
+  "difficulty": "intermediate",
+  "order": 4,
+  "topic": "Resilience",
+  "starter": "payments-friday.starter.json",
+  "referenceSolution": "payments-friday.solution.json",
+  "requirements": [
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.payments-friday.requirement.1",
+      "faults": [
+        {
+          "node": "Payments",
+          "kind": "down"
+        }
+      ],
+      "metric": "entryPointsAffected",
+      "operator": "eq",
+      "value": 0
+    },
+    {
+      "kind": "allEdgesTo",
+      "labelKey": "challenge.payments-friday.requirement.2",
+      "nodeType": "Service",
+      "mechanism": "timeout"
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.payments-friday.requirement.3",
+      "code": "MISSING_RESILIENCE"
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.payments-friday.requirement.4",
+      "code": "ASYNC_NO_QUEUE"
+    },
+    {
+      "kind": "pathExists",
+      "labelKey": "challenge.payments-friday.requirement.5",
+      "fromType": "Service",
+      "toType": "Service"
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.payments-friday.goal.1",
+      "faults": [
+        {
+          "node": "Db",
+          "kind": "down"
+        }
+      ],
+      "metric": "entryPointsAffected",
+      "operator": "eq",
+      "value": 0
+    }
+  ],
+  "hintKeys": [
+    "challenge.payments-friday.hint.1",
+    "challenge.payments-friday.hint.2",
+    "challenge.payments-friday.hint.3"
+  ]
+}

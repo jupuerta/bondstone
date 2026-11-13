@@ -1,0 +1,68 @@
+{
+  "slug": "timeout-was-enough",
+  "titleKey": "challenge.timeout-was-enough.title",
+  "storyKey": "challenge.timeout-was-enough.story",
+  "difficulty": "advanced",
+  "order": 4,
+  "topic": "Resilience",
+  "starter": "timeout-was-enough.starter.json",
+  "referenceSolution": "timeout-was-enough.solution.json",
+  "requirements": [
+    {
+      "kind": "declaresLoad",
+      "labelKey": "challenge.timeout-was-enough.requirement.1",
+      "min": 600
+    },
+    {
+      "kind": "containsNode",
+      "labelKey": "challenge.timeout-was-enough.requirement.2",
+      "nodeType": "Database"
+    },
+    {
+      "kind": "allEdgesTo",
+      "labelKey": "challenge.timeout-was-enough.requirement.3",
+      "nodeType": "Service",
+      "mechanism": "timeout"
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.timeout-was-enough.requirement.4",
+      "code": "TIMEOUT_TOO_SHORT"
+    },
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.timeout-was-enough.requirement.5",
+      "faults": [],
+      "metric": "nominalLatencyMs",
+      "operator": "lt",
+      "value": 400
+    },
+    {
+      "kind": "maxInstances",
+      "labelKey": "challenge.timeout-was-enough.requirement.6",
+      "max": 4
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.timeout-was-enough.requirement.7",
+      "code": "ASYNC_NO_QUEUE"
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.timeout-was-enough.requirement.8",
+      "code": "TRAFFIC_REJECTED"
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.timeout-was-enough.goal.1",
+      "code": "UNDERSIZED_COMPONENT"
+    }
+  ],
+  "hintKeys": [
+    "challenge.timeout-was-enough.hint.1",
+    "challenge.timeout-was-enough.hint.2",
+    "challenge.timeout-was-enough.hint.3"
+  ]
+}

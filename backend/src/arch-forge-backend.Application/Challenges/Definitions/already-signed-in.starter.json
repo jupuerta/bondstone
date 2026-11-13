@@ -1,0 +1,18 @@
+{
+  "name": "already-signed-in starter",
+  "nodes": [
+    { "name": "Storefront", "type": "Api", "x": 260, "y": 0, "configuration": { "requestsPerSecond": 80, "instances": 2, "authentication": true, "rateLimit": 300 } },
+    { "name": "Auth0", "type": "IdentityProvider", "x": 0, "y": 220 },
+    { "name": "Orders", "type": "Service", "x": 520, "y": 220, "configuration": { "instances": 2 } },
+    { "name": "Db", "type": "Database", "x": 520, "y": 440, "configuration": { "replicas": 1 } },
+    { "name": "Telemetry", "type": "Observability", "x": 0, "y": 440 }
+  ],
+  "connections": [
+    { "from": "Storefront", "to": "Auth0", "synchronous": true, "configuration": { "timeoutSeconds": 2 } },
+    { "from": "Storefront", "to": "Orders", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
+    { "from": "Orders", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
+    { "from": "Storefront", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Orders", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Db", "to": "Telemetry", "synchronous": false, "configuration": {} }
+  ]
+}

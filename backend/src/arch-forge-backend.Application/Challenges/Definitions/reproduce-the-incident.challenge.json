@@ -1,0 +1,50 @@
+{
+  "slug": "reproduce-the-incident",
+  "titleKey": "challenge.reproduce-the-incident.title",
+  "storyKey": "challenge.reproduce-the-incident.story",
+  "difficulty": "advanced",
+  "order": 3,
+  "topic": "Resilience",
+  "starter": "reproduce-the-incident.starter.json",
+  "referenceSolution": "reproduce-the-incident.solution.json",
+  "requirements": [
+    {
+      "kind": "hasFinding",
+      "labelKey": "challenge.reproduce-the-incident.requirement.1",
+      "code": "SYNC_CHAIN"
+    },
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.reproduce-the-incident.requirement.2",
+      "faults": [{ "node": "Recommendations", "kind": "degraded" }],
+      "metric": "componentsDegraded",
+      "operator": "gte",
+      "value": 3
+    },
+    {
+      "kind": "maxFanOut",
+      "labelKey": "challenge.reproduce-the-incident.requirement.3",
+      "max": 2
+    },
+    {
+      "kind": "maxNodes",
+      "labelKey": "challenge.reproduce-the-incident.requirement.4",
+      "max": 5
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.reproduce-the-incident.goal.1",
+      "faults": [{ "node": "Recommendations", "kind": "degraded" }],
+      "metric": "componentsDegraded",
+      "operator": "gte",
+      "value": 4
+    }
+  ],
+  "hintKeys": [
+    "challenge.reproduce-the-incident.hint.1",
+    "challenge.reproduce-the-incident.hint.2",
+    "challenge.reproduce-the-incident.hint.3"
+  ]
+}

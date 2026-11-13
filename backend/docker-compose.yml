@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bondstone}
+      POSTGRES_USER: ${POSTGRES_USER:-bondstone}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the environment or a .env beside this file}
+    ports:
+      # Loopback: published so backend-only work can reach the database from the host, which is
+      # no reason for the LAN to reach it too. Docker binds 0.0.0.0 when the host part is left
+      # off, and that is how a database ends up listening to a coffee shop.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - bondstone-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bondstone} -d ${POSTGRES_DB:-bondstone}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: src/arch-forge-backend.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Bondstone: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-bondstone};Username=${POSTGRES_USER:-bondstone};Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the environment or a .env beside this file}"
+      Cors__AllowedOrigins__0: "http://localhost:5173"
+    ports:
+      # Loopback only: this compose runs the API with no nginx in front, so nothing
+      # here can vouch for a client's address — off-machine traffic has no business
+      # reaching it.
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  bondstone-postgres-data:

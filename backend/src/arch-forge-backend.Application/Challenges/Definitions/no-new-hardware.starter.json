@@ -1,0 +1,12 @@
+{
+  "name": "no-new-hardware starter",
+  "nodes": [
+    { "name": "Storefront", "type": "Api", "x": 0, "y": 160, "configuration": { "requestsPerSecond": 350, "authentication": true } },
+    { "name": "Catalog", "type": "Service", "x": 260, "y": 160 },
+    { "name": "Db", "type": "Database", "x": 520, "y": 160 }
+  ],
+  "connections": [
+    { "from": "Storefront", "to": "Catalog", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Catalog", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 5 } }
+  ]
+}

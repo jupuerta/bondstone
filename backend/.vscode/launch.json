@@ -1,0 +1,24 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C#: arch-forge-backend.Api (http, Swagger)",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/src/arch-forge-backend.Api/arch-forge-backend.Api.csproj",
+      "launchSettingsProfile": "http"
+    },
+    {
+      "name": "C#: arch-forge-backend.Api (https, Swagger)",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/src/arch-forge-backend.Api/arch-forge-backend.Api.csproj",
+      "launchSettingsProfile": "https"
+    },
+    {
+      "name": ".NET Core Attach",
+      "type": "coreclr",
+      "request": "attach"
+    }
+  ]
+}

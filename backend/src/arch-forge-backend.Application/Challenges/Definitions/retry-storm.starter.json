@@ -1,0 +1,63 @@
+{
+  "name": "retry-storm starter",
+  "nodes": [
+    {
+      "name": "Edge",
+      "type": "Gateway",
+      "x": 0,
+      "y": 160,
+      "configuration": {
+        "requestsPerSecond": 100,
+        "authentication": true,
+        "rateLimit": 200
+      }
+    },
+    {
+      "name": "Orders",
+      "type": "Service",
+      "x": 260,
+      "y": 160
+    },
+    {
+      "name": "Inventory",
+      "type": "Service",
+      "x": 520,
+      "y": 160
+    },
+    {
+      "name": "Pricing",
+      "type": "Service",
+      "x": 780,
+      "y": 160
+    }
+  ],
+  "connections": [
+    {
+      "from": "Edge",
+      "to": "Orders",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 2,
+        "retries": 2
+      }
+    },
+    {
+      "from": "Orders",
+      "to": "Inventory",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 2,
+        "retries": 2
+      }
+    },
+    {
+      "from": "Inventory",
+      "to": "Pricing",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 2,
+        "retries": 2
+      }
+    }
+  ]
+}

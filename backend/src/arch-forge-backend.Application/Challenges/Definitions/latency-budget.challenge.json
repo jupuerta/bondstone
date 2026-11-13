@@ -1,0 +1,60 @@
+{
+  "slug": "latency-budget",
+  "titleKey": "challenge.latency-budget.title",
+  "storyKey": "challenge.latency-budget.story",
+  "difficulty": "intermediate",
+  "order": 2,
+  "topic": "Scalability",
+  "starter": "latency-budget.starter.json",
+  "referenceSolution": "latency-budget.solution.json",
+  "requirements": [
+    {
+      "kind": "declaresLoad",
+      "labelKey": "challenge.latency-budget.requirement.1",
+      "min": 300
+    },
+    {
+      "kind": "containsNode",
+      "labelKey": "challenge.latency-budget.requirement.2",
+      "nodeType": "Database"
+    },
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.latency-budget.requirement.3",
+      "faults": [],
+      "metric": "nominalLatencyMs",
+      "operator": "lt",
+      "value": 100
+    },
+    {
+      "kind": "maxCost",
+      "labelKey": "challenge.latency-budget.requirement.4",
+      "max": 30
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.latency-budget.requirement.5",
+      "code": "ASYNC_NO_QUEUE"
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.latency-budget.requirement.6",
+      "code": "TRAFFIC_REJECTED"
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.latency-budget.goal.1",
+      "faults": [],
+      "metric": "nominalLatencyMs",
+      "operator": "lt",
+      "value": 75
+    }
+  ],
+  "hintKeys": [
+    "challenge.latency-budget.hint.1",
+    "challenge.latency-budget.hint.2",
+    "challenge.latency-budget.hint.3"
+  ]
+}

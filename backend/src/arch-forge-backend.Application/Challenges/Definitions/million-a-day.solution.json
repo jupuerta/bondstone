@@ -1,0 +1,29 @@
+{
+  "name": "million-a-day solution",
+  "nodes": [
+    {
+      "name": "Gateway", "type": "Gateway", "x": 0, "y": 200,
+      "configuration": { "requestsPerSecond": 116, "rateLimit": 200, "authentication": true }
+    },
+    { "name": "Api", "type": "Api", "x": 220, "y": 200 },
+    { "name": "Uploads", "type": "ObjectStorage", "x": 440, "y": 40 },
+    { "name": "Jobs", "type": "Queue", "x": 440, "y": 200, "configuration": { "deadLetterQueue": true } },
+    { "name": "Telemetry", "type": "Observability", "x": 220, "y": 360 },
+    { "name": "Worker", "type": "Worker", "x": 660, "y": 200 },
+    { "name": "Db", "type": "Database", "x": 880, "y": 120, "configuration": { "readReplicas": 1 } }
+  ],
+  "connections": [
+    { "from": "Gateway", "to": "Api", "synchronous": true, "configuration": { "timeoutSeconds": 5, "circuitBreaker": true } },
+    { "from": "Api", "to": "Uploads", "synchronous": true, "configuration": { "timeoutSeconds": 5, "fallback": true } },
+    { "from": "Api", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 5, "circuitBreaker": true, "fallback": true } },
+    { "from": "Api", "to": "Jobs", "synchronous": false },
+    { "from": "Api", "to": "Telemetry", "synchronous": false },
+    { "from": "Gateway", "to": "Telemetry", "synchronous": false },
+    { "from": "Uploads", "to": "Telemetry", "synchronous": false },
+    { "from": "Jobs", "to": "Telemetry", "synchronous": false },
+    { "from": "Worker", "to": "Telemetry", "synchronous": false },
+    { "from": "Db", "to": "Telemetry", "synchronous": false },
+    { "from": "Jobs", "to": "Worker", "synchronous": false },
+    { "from": "Worker", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 5, "circuitBreaker": true, "fallback": true } }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "million-a-day starter",
+  "nodes": [
+    { "name": "Gateway", "type": "Gateway", "x": 0, "y": 160, "configuration": { "requestsPerSecond": 116 } },
+    { "name": "Api", "type": "Api", "x": 220, "y": 160 },
+    { "name": "Db", "type": "Database", "x": 440, "y": 160 }
+  ],
+  "connections": [
+    {
+      "from": "Gateway",
+      "to": "Api",
+      "synchronous": true,
+      "configuration": { "timeoutSeconds": 5 }
+    },
+    {
+      "from": "Api",
+      "to": "Db",
+      "synchronous": true,
+      "configuration": { "timeoutSeconds": 5 }
+    }
+  ]
+}

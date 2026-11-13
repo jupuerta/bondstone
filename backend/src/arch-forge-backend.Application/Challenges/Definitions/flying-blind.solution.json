@@ -1,0 +1,16 @@
+{
+  "name": "flying-blind solution",
+  "nodes": [
+    { "name": "Storefront", "type": "Api", "x": 0, "y": 160, "configuration": { "requestsPerSecond": 150, "instances": 2, "authentication": true, "rateLimit": 400 } },
+    { "name": "Bookings", "type": "Service", "x": 260, "y": 160, "configuration": { "instances": 2 } },
+    { "name": "Db", "type": "Database", "x": 520, "y": 160, "configuration": { "replicas": 1 } },
+    { "name": "Telemetry", "type": "Observability", "x": 260, "y": 380 }
+  ],
+  "connections": [
+    { "from": "Storefront", "to": "Bookings", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
+    { "from": "Bookings", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
+    { "from": "Storefront", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Bookings", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Db", "to": "Telemetry", "synchronous": false, "configuration": {} }
+  ]
+}

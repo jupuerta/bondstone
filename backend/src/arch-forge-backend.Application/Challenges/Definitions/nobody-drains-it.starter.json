@@ -1,0 +1,19 @@
+{
+  "name": "nobody-drains-it starter",
+  "nodes": [
+    { "name": "Storefront", "type": "Api", "x": 0, "y": 160, "configuration": { "requestsPerSecond": 120, "instances": 2, "authentication": true, "rateLimit": 400 } },
+    { "name": "Orders", "type": "Service", "x": 260, "y": 160, "configuration": { "instances": 2 } },
+    { "name": "Invoices", "type": "Queue", "x": 520, "y": 160 },
+    { "name": "Billing", "type": "Worker", "x": 780, "y": 160, "configuration": { "instances": 2 } },
+    { "name": "Telemetry", "type": "Observability", "x": 260, "y": 400 }
+  ],
+  "connections": [
+    { "from": "Storefront", "to": "Orders", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
+    { "from": "Orders", "to": "Invoices", "synchronous": false, "configuration": {} },
+    { "from": "Billing", "to": "Invoices", "synchronous": false, "configuration": {} },
+    { "from": "Storefront", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Orders", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Invoices", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Billing", "to": "Telemetry", "synchronous": false, "configuration": {} }
+  ]
+}

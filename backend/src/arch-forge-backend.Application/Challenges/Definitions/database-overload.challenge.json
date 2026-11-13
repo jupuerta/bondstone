@@ -1,0 +1,62 @@
+{
+  "slug": "database-overload",
+  "titleKey": "challenge.database-overload.title",
+  "storyKey": "challenge.database-overload.story",
+  "difficulty": "intermediate",
+  "order": 1,
+  "topic": "Scalability",
+  "starter": "database-overload.starter.json",
+  "referenceSolution": "database-overload.solution.json",
+  "requirements": [
+    {
+      "kind": "declaresLoad",
+      "labelKey": "challenge.database-overload.requirement.1",
+      "min": 300
+    },
+    {
+      "kind": "containsNode",
+      "labelKey": "challenge.database-overload.requirement.2",
+      "nodeType": "Database"
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.database-overload.requirement.3",
+      "code": "UNDERSIZED_COMPONENT"
+    },
+    {
+      "kind": "maxCost",
+      "labelKey": "challenge.database-overload.requirement.4",
+      "max": 18
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.database-overload.requirement.5",
+      "code": "TRAFFIC_REJECTED"
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.database-overload.requirement.6",
+      "code": "IMPLAUSIBLE_DEPENDENCY"
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.database-overload.goal.1",
+      "faults": [
+        {
+          "node": "Db",
+          "kind": "down"
+        }
+      ],
+      "metric": "entryPointsAffected",
+      "operator": "eq",
+      "value": 0
+    }
+  ],
+  "hintKeys": [
+    "challenge.database-overload.hint.1",
+    "challenge.database-overload.hint.2",
+    "challenge.database-overload.hint.3"
+  ]
+}

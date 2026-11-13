@@ -1,0 +1,16 @@
+{
+  "name": "minimal-api-db",
+  "nodes": [
+    { "id": "a0000000-0000-0000-0000-000000000001", "type": "Api", "name": "Api" },
+    { "id": "a0000000-0000-0000-0000-000000000002", "type": "Database", "name": "Db" }
+  ],
+  "connections": [
+    {
+      "id": "c0000000-0000-0000-0000-000000000001",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000001",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000002",
+      "synchronous": true,
+      "configuration": { "timeoutSeconds": 5 }
+    }
+  ]
+}

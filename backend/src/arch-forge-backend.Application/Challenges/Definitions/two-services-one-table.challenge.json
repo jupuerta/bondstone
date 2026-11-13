@@ -1,0 +1,40 @@
+{
+  "slug": "two-services-one-table",
+  "titleKey": "challenge.two-services-one-table.title",
+  "storyKey": "challenge.two-services-one-table.story",
+  "difficulty": "intermediate",
+  "order": 9,
+  "topic": "Coupling",
+  "starter": "two-services-one-table.starter.json",
+  "referenceSolution": "two-services-one-table.solution.json",
+  "requirements": [
+    {
+      "kind": "declaresLoad",
+      "labelKey": "challenge.two-services-one-table.requirement.1",
+      "min": 80
+    },
+    {
+      "kind": "containsNode",
+      "labelKey": "challenge.two-services-one-table.requirement.2",
+      "nodeType": "Service",
+      "min": 2
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.two-services-one-table.requirement.3",
+      "code": "SHARED_DATABASE"
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.two-services-one-table.goal.1",
+      "code": "SYNC_CHAIN"
+    }
+  ],
+  "hintKeys": [
+    "challenge.two-services-one-table.hint.1",
+    "challenge.two-services-one-table.hint.2",
+    "challenge.two-services-one-table.hint.3"
+  ]
+}

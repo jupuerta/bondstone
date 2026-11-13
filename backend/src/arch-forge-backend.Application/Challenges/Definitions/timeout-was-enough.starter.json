@@ -1,0 +1,70 @@
+{
+  "name": "timeout-was-enough starter",
+  "nodes": [
+    {
+      "name": "Edge",
+      "type": "Gateway",
+      "x": 0,
+      "y": 160,
+      "configuration": {
+        "requestsPerSecond": 600,
+        "authentication": true,
+        "rateLimit": 1000
+      }
+    },
+    {
+      "name": "Storefront",
+      "type": "Service",
+      "x": 260,
+      "y": 160,
+      "configuration": { "instances": 2 }
+    },
+    {
+      "name": "Checkout",
+      "type": "Service",
+      "x": 520,
+      "y": 160,
+      "configuration": { "instances": 2 }
+    },
+    {
+      "name": "Billing",
+      "type": "Service",
+      "x": 780,
+      "y": 160,
+      "configuration": { "instances": 2 }
+    },
+    {
+      "name": "Ledger",
+      "type": "Database",
+      "x": 1040,
+      "y": 160,
+      "configuration": { "replicas": 2 }
+    }
+  ],
+  "connections": [
+    {
+      "from": "Edge",
+      "to": "Storefront",
+      "synchronous": true,
+      "configuration": { "timeoutSeconds": 1 }
+    },
+    {
+      "from": "Storefront",
+      "to": "Checkout",
+      "synchronous": true,
+      "configuration": { "timeoutSeconds": 1 }
+    },
+    {
+      "from": "Checkout",
+      "to": "Billing",
+      "synchronous": true,
+      "configuration": { "timeoutSeconds": 1 }
+    },
+    {
+      "from": "Billing",
+      "to": "Ledger",
+      "synchronous": true,
+      "configuration": { "timeoutSeconds": 1 }
+    }
+  ]
+}

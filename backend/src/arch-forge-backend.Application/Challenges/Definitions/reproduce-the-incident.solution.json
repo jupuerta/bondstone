@@ -1,0 +1,59 @@
+{
+  "name": "reproduce-the-incident solution",
+  "nodes": [
+    {
+      "name": "Storefront",
+      "type": "Api",
+      "x": 0,
+      "y": 160,
+      "configuration": {
+        "requestsPerSecond": 50,
+        "authentication": true
+      }
+    },
+    {
+      "name": "Orders",
+      "type": "Service",
+      "x": 280,
+      "y": 160
+    },
+    {
+      "name": "Cart",
+      "type": "Service",
+      "x": 560,
+      "y": 160
+    },
+    {
+      "name": "Recommendations",
+      "type": "Service",
+      "x": 840,
+      "y": 160
+    }
+  ],
+  "connections": [
+    {
+      "from": "Storefront",
+      "to": "Orders",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "from": "Orders",
+      "to": "Cart",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "from": "Cart",
+      "to": "Recommendations",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5
+      }
+    }
+  ]
+}

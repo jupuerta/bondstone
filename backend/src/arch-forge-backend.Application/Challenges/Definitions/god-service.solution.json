@@ -1,0 +1,163 @@
+{
+  "name": "god-service solution",
+  "nodes": [
+    {
+      "name": "Storefront",
+      "type": "Api",
+      "x": -280,
+      "y": 300,
+      "configuration": {
+        "requestsPerSecond": 100,
+        "authentication": true
+      }
+    },
+    {
+      "name": "Core",
+      "type": "Service",
+      "x": 0,
+      "y": 300
+    },
+    {
+      "name": "Orders",
+      "type": "Service",
+      "x": 280,
+      "y": 100
+    },
+    {
+      "name": "Catalog",
+      "type": "Service",
+      "x": 280,
+      "y": 320
+    },
+    {
+      "name": "Events",
+      "type": "Queue",
+      "x": 280,
+      "y": 560,
+      "configuration": {
+        "deadLetterQueue": true,
+        "maxRetries": 3
+      }
+    },
+    {
+      "name": "Users",
+      "type": "Service",
+      "x": 560,
+      "y": 20
+    },
+    {
+      "name": "Payments",
+      "type": "Service",
+      "x": 560,
+      "y": 180
+    },
+    {
+      "name": "Inventory",
+      "type": "Service",
+      "x": 560,
+      "y": 320
+    },
+    {
+      "name": "Pricing",
+      "type": "Service",
+      "x": 560,
+      "y": 440
+    },
+    {
+      "name": "Shipping",
+      "type": "Worker",
+      "x": 560,
+      "y": 580
+    },
+    {
+      "name": "Notifications",
+      "type": "Worker",
+      "x": 560,
+      "y": 700
+    }
+  ],
+  "connections": [
+    {
+      "from": "Storefront",
+      "to": "Core",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 3
+      }
+    },
+    {
+      "from": "Core",
+      "to": "Orders",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 2
+      }
+    },
+    {
+      "from": "Core",
+      "to": "Catalog",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 2
+      }
+    },
+    {
+      "from": "Core",
+      "to": "Events",
+      "synchronous": false,
+      "configuration": {}
+    },
+    {
+      "from": "Orders",
+      "to": "Users",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 2,
+        "circuitBreaker": true,
+        "fallback": true
+      }
+    },
+    {
+      "from": "Orders",
+      "to": "Payments",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 2,
+        "circuitBreaker": true,
+        "fallback": true
+      }
+    },
+    {
+      "from": "Catalog",
+      "to": "Inventory",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 2,
+        "circuitBreaker": true,
+        "fallback": true
+      }
+    },
+    {
+      "from": "Catalog",
+      "to": "Pricing",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 2,
+        "circuitBreaker": true,
+        "fallback": true
+      }
+    },
+    {
+      "from": "Events",
+      "to": "Shipping",
+      "synchronous": false,
+      "configuration": {}
+    },
+    {
+      "from": "Events",
+      "to": "Notifications",
+      "synchronous": false,
+      "configuration": {}
+    }
+  ]
+}

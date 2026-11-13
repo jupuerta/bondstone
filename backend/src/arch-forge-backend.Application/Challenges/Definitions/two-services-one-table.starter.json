@@ -1,0 +1,20 @@
+{
+  "name": "two-services-one-table starter",
+  "nodes": [
+    { "name": "Storefront", "type": "Api", "x": 260, "y": 0, "configuration": { "requestsPerSecond": 80, "instances": 2, "rateLimit": 600, "authentication": true } },
+    { "name": "Orders", "type": "Service", "x": 0, "y": 200, "configuration": { "instances": 2 } },
+    { "name": "Invoicing", "type": "Service", "x": 520, "y": 200, "configuration": { "instances": 2 } },
+    { "name": "Db", "type": "Database", "x": 260, "y": 420, "configuration": { "replicas": 1 } },
+    { "name": "Telemetry", "type": "Observability", "x": 780, "y": 420 }
+  ],
+  "connections": [
+    { "from": "Storefront", "to": "Orders", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
+    { "from": "Storefront", "to": "Invoicing", "synchronous": true, "configuration": { "timeoutSeconds": 3 } },
+    { "from": "Orders", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 3, "access": "both" } },
+    { "from": "Invoicing", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 3, "access": "both" } },
+    { "from": "Storefront", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Orders", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Invoicing", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Db", "to": "Telemetry", "synchronous": false, "configuration": {} }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "slug": "thirty-seconds",
+  "titleKey": "challenge.thirty-seconds.title",
+  "storyKey": "challenge.thirty-seconds.story",
+  "difficulty": "beginner",
+  "order": 5,
+  "topic": "Resilience",
+  "starter": "thirty-seconds.starter.json",
+  "referenceSolution": "thirty-seconds.solution.json",
+  "requirements": [
+    {
+      "kind": "declaresLoad",
+      "labelKey": "challenge.thirty-seconds.requirement.1",
+      "min": 60
+    },
+    {
+      "kind": "edge",
+      "labelKey": "challenge.thirty-seconds.requirement.2",
+      "from": "Storefront",
+      "to": "Orders",
+      "synchronous": true,
+      "mechanism": "timeout"
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.thirty-seconds.requirement.3",
+      "code": "TIMEOUT_TOO_LONG"
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.thirty-seconds.goal.1",
+      "faults": [{ "node": "Orders", "kind": "down" }],
+      "metric": "faultedLatencyMs",
+      "operator": "lte",
+      "value": 5000
+    }
+  ],
+  "hintKeys": [
+    "challenge.thirty-seconds.hint.1",
+    "challenge.thirty-seconds.hint.2",
+    "challenge.thirty-seconds.hint.3"
+  ]
+}

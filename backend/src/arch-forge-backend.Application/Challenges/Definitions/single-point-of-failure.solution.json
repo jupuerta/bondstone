@@ -1,0 +1,17 @@
+{
+  "name": "single-point-of-failure solution",
+  "nodes": [
+    { "name": "Edge", "type": "Gateway", "x": -520, "y": 160, "configuration": { "requestsPerSecond": 150, "authentication": true, "rateLimit": 300 } },
+    { "name": "Front", "type": "LoadBalancer", "x": -260, "y": 160, "configuration": { "healthCheck": true } },
+    { "name": "Api", "type": "Api", "x": 40, "y": 40 },
+    { "name": "Api 2", "type": "Api", "x": 40, "y": 280 },
+    { "name": "Db", "type": "Database", "x": 340, "y": 160 }
+  ],
+  "connections": [
+    { "from": "Edge", "to": "Front", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Front", "to": "Api", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Front", "to": "Api 2", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Api", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Api 2", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 5 } }
+  ]
+}

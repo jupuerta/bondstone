@@ -1,0 +1,12 @@
+{
+  "name": "single-point-of-failure starter",
+  "nodes": [
+    { "name": "Edge", "type": "Gateway", "x": -260, "y": 160, "configuration": { "requestsPerSecond": 150, "authentication": true, "rateLimit": 300 } },
+    { "name": "Api", "type": "Api", "x": 40, "y": 160 },
+    { "name": "Db", "type": "Database", "x": 340, "y": 160 }
+  ],
+  "connections": [
+    { "from": "Edge", "to": "Api", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Api", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 5 } }
+  ]
+}

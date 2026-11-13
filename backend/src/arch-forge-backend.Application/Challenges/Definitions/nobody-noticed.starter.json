@@ -1,0 +1,76 @@
+{
+  "name": "nobody-noticed starter",
+  "nodes": [
+    {
+      "name": "Edge",
+      "type": "Gateway",
+      "x": 0,
+      "y": 160,
+      "configuration": {
+        "requestsPerSecond": 300,
+        "authentication": true,
+        "rateLimit": 1000
+      }
+    },
+    {
+      "name": "Storefront",
+      "type": "Api",
+      "x": 260,
+      "y": 160,
+      "configuration": { "instances": 2 }
+    },
+    {
+      "name": "Catalog",
+      "type": "Service",
+      "x": 520,
+      "y": 60,
+      "configuration": { "instances": 2 }
+    },
+    {
+      "name": "Reviews",
+      "type": "Service",
+      "x": 520,
+      "y": 260,
+      "configuration": { "instances": 2 }
+    },
+    {
+      "name": "Products",
+      "type": "Database",
+      "x": 780,
+      "y": 160,
+      "configuration": { "replicas": 3 }
+    }
+  ],
+  "connections": [
+    {
+      "from": "Edge",
+      "to": "Storefront",
+      "synchronous": true,
+      "configuration": { "timeoutSeconds": 2 }
+    },
+    {
+      "from": "Storefront",
+      "to": "Catalog",
+      "synchronous": true,
+      "configuration": { "timeoutSeconds": 2 }
+    },
+    {
+      "from": "Storefront",
+      "to": "Reviews",
+      "synchronous": true,
+      "configuration": { "timeoutSeconds": 2 }
+    },
+    {
+      "from": "Catalog",
+      "to": "Products",
+      "synchronous": true,
+      "configuration": { "timeoutSeconds": 2 }
+    },
+    {
+      "from": "Reviews",
+      "to": "Products",
+      "synchronous": true,
+      "configuration": { "timeoutSeconds": 2 }
+    }
+  ]
+}

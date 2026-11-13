@@ -1,0 +1,14 @@
+{
+  "name": "third-party-outage solution",
+  "nodes": [
+    { "name": "Storefront", "type": "Api", "x": 0, "y": 180, "configuration": { "requestsPerSecond": 150, "authentication": true } },
+    { "name": "Checkout", "type": "Service", "x": 280, "y": 180 },
+    { "name": "Payments", "type": "ExternalService", "x": 560, "y": 40 },
+    { "name": "Db", "type": "Database", "x": 560, "y": 320 }
+  ],
+  "connections": [
+    { "from": "Storefront", "to": "Checkout", "synchronous": true, "configuration": { "timeoutSeconds": 3, "fallback": true } },
+    { "from": "Checkout", "to": "Payments", "synchronous": true, "configuration": { "timeoutSeconds": 1, "circuitBreaker": true, "fallback": true } },
+    { "from": "Checkout", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 3, "circuitBreaker": true, "fallback": true } }
+  ]
+}

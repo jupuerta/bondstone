@@ -1,0 +1,14 @@
+namespace bondstone_backend.Domain.Entities;
+
+public class Connection
+{
+    public Guid Id { get; set; }
+    public Guid ArchitectureId { get; set; }
+    public Guid SourceNodeId { get; set; }
+    public Guid TargetNodeId { get; set; }
+    public bool Synchronous { get; set; }
+
+    public string Configuration { get; set; } = EmptyConfiguration;
+
+    public const string EmptyConfiguration = "{}";
+}

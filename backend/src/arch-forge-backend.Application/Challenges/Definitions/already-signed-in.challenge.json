@@ -1,0 +1,45 @@
+{
+  "slug": "already-signed-in",
+  "titleKey": "challenge.already-signed-in.title",
+  "storyKey": "challenge.already-signed-in.story",
+  "difficulty": "intermediate",
+  "order": 10,
+  "topic": "Availability",
+  "starter": "already-signed-in.starter.json",
+  "referenceSolution": "already-signed-in.solution.json",
+  "requirements": [
+    {
+      "kind": "declaresLoad",
+      "labelKey": "challenge.already-signed-in.requirement.1",
+      "min": 80
+    },
+    {
+      "kind": "edge",
+      "labelKey": "challenge.already-signed-in.requirement.2",
+      "from": "Storefront",
+      "to": "Auth0",
+      "synchronous": true,
+      "mechanism": "fallback"
+    },
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.already-signed-in.requirement.3",
+      "faults": [{ "node": "Auth0", "kind": "down" }],
+      "metric": "requestsAffected",
+      "operator": "eq",
+      "value": 0
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "containsNode",
+      "labelKey": "challenge.already-signed-in.goal.1",
+      "nodeType": "Cache"
+    }
+  ],
+  "hintKeys": [
+    "challenge.already-signed-in.hint.1",
+    "challenge.already-signed-in.hint.2",
+    "challenge.already-signed-in.hint.3"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "email-can-wait solution",
+  "nodes": [
+    { "name": "Storefront", "type": "Api", "x": 0, "y": 160, "configuration": { "requestsPerSecond": 100, "authentication": true } },
+    { "name": "Orders", "type": "Service", "x": 260, "y": 160 },
+    { "name": "Emails", "type": "Queue", "x": 520, "y": 40, "configuration": { "deadLetterQueue": true } },
+    { "name": "Mailer", "type": "Service", "x": 780, "y": 40 },
+    { "name": "Db", "type": "Database", "x": 520, "y": 280 }
+  ],
+  "connections": [
+    { "from": "Storefront", "to": "Orders", "synchronous": true, "configuration": { "timeoutSeconds": 3, "fallback": true } },
+    { "from": "Orders", "to": "Emails", "synchronous": false, "configuration": {} },
+    { "from": "Emails", "to": "Mailer", "synchronous": false, "configuration": {} },
+    { "from": "Orders", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 3, "circuitBreaker": true, "fallback": true } }
+  ]
+}

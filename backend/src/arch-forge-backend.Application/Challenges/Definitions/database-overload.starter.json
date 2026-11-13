@@ -1,0 +1,15 @@
+{
+  "name": "database-overload starter",
+  "nodes": [
+    { "name": "Storefront", "type": "Api", "x": 0, "y": 120, "configuration": { "requestsPerSecond": 300 } },
+    { "name": "Db", "type": "Database", "x": 320, "y": 120 }
+  ],
+  "connections": [
+    {
+      "from": "Storefront",
+      "to": "Db",
+      "synchronous": true,
+      "configuration": { "timeoutSeconds": 5 }
+    }
+  ]
+}

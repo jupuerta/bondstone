@@ -1,0 +1,26 @@
+{
+  "name": "both-in-the-same-zone solution",
+  "nodes": [
+    { "name": "Edge", "type": "Gateway", "x": -520, "y": 160, "configuration": { "requestsPerSecond": 300, "authentication": true, "rateLimit": 600, "zone": "c" } },
+    { "name": "Front", "type": "LoadBalancer", "x": -260, "y": 160, "configuration": { "healthCheck": true, "zone": "c" } },
+    { "name": "Api", "type": "Api", "x": 40, "y": 40, "configuration": { "zone": "a" } },
+    { "name": "Api 2", "type": "Api", "x": 40, "y": 280, "configuration": { "zone": "b" } },
+    { "name": "Cache", "type": "Cache", "x": 340, "y": 160, "configuration": { "hitRatio": 0.8, "zone": "c" } },
+    { "name": "Db", "type": "Database", "x": 600, "y": 160, "configuration": { "zone": "c" } },
+    { "name": "Telemetry", "type": "Observability", "x": 170, "y": 480, "configuration": { "zone": "c" } }
+  ],
+  "connections": [
+    { "from": "Edge", "to": "Front", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Front", "to": "Api", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Front", "to": "Api 2", "synchronous": true, "configuration": { "timeoutSeconds": 5 } },
+    { "from": "Api", "to": "Cache", "synchronous": true, "configuration": { "timeoutSeconds": 2, "fallback": true } },
+    { "from": "Api 2", "to": "Cache", "synchronous": true, "configuration": { "timeoutSeconds": 2, "fallback": true } },
+    { "from": "Cache", "to": "Db", "synchronous": true, "configuration": { "timeoutSeconds": 5, "fallback": true } },
+    { "from": "Edge", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Front", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Api", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Api 2", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Cache", "to": "Telemetry", "synchronous": false, "configuration": {} },
+    { "from": "Db", "to": "Telemetry", "synchronous": false, "configuration": {} }
+  ]
+}

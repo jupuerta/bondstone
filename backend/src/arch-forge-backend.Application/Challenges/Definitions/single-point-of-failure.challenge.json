@@ -1,0 +1,51 @@
+{
+  "slug": "single-point-of-failure",
+  "titleKey": "challenge.single-point-of-failure.title",
+  "storyKey": "challenge.single-point-of-failure.story",
+  "difficulty": "beginner",
+  "order": 1,
+  "topic": "Availability",
+  "starter": "single-point-of-failure.starter.json",
+  "referenceSolution": "single-point-of-failure.solution.json",
+  "requirements": [
+    {
+      "kind": "declaresLoad",
+      "labelKey": "challenge.single-point-of-failure.requirement.1",
+      "min": 150
+    },
+    {
+      "kind": "containsNode",
+      "labelKey": "challenge.single-point-of-failure.requirement.2",
+      "nodeType": "LoadBalancer"
+    },
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.single-point-of-failure.requirement.3",
+      "faults": [{ "node": "Api", "kind": "down" }],
+      "metric": "entryPointsAffected",
+      "operator": "eq",
+      "value": 0
+    },
+    {
+      "kind": "containsNode",
+      "labelKey": "challenge.single-point-of-failure.requirement.4",
+      "nodeType": "Api",
+      "min": 2
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.single-point-of-failure.goal.1",
+      "faults": [{ "node": "Api", "kind": "down" }],
+      "metric": "blastRadius",
+      "operator": "lt",
+      "value": 0.5
+    }
+  ],
+  "hintKeys": [
+    "challenge.single-point-of-failure.hint.1",
+    "challenge.single-point-of-failure.hint.2",
+    "challenge.single-point-of-failure.hint.3"
+  ]
+}

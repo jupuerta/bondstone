@@ -1,0 +1,29 @@
+{
+  "name": "payments-friday starter",
+  "nodes": [
+    { "name": "Storefront", "type": "Api", "x": 0, "y": 160 },
+    { "name": "Orders", "type": "Service", "x": 260, "y": 160 },
+    { "name": "Payments", "type": "Service", "x": 520, "y": 60 },
+    { "name": "Db", "type": "Database", "x": 520, "y": 280 }
+  ],
+  "connections": [
+    {
+      "from": "Storefront",
+      "to": "Orders",
+      "synchronous": true,
+      "configuration": { "timeoutSeconds": 5 }
+    },
+    {
+      "from": "Orders",
+      "to": "Payments",
+      "synchronous": true,
+      "configuration": {}
+    },
+    {
+      "from": "Orders",
+      "to": "Db",
+      "synchronous": true,
+      "configuration": { "timeoutSeconds": 5 }
+    }
+  ]
+}

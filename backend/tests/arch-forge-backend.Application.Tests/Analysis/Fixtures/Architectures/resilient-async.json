@@ -1,0 +1,122 @@
+{
+  "name": "resilient-async",
+  "nodes": [
+    {
+      "id": "a0000000-0000-0000-0000-000000000001",
+      "type": "LoadBalancer",
+      "name": "LB"
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000002",
+      "type": "Api",
+      "name": "Api1"
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000003",
+      "type": "Api",
+      "name": "Api2"
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000004",
+      "type": "Cache",
+      "name": "Cache"
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000005",
+      "type": "Queue",
+      "name": "Queue"
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000006",
+      "type": "Service",
+      "name": "Orders"
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000007",
+      "type": "Database",
+      "name": "Db"
+    }
+  ],
+  "connections": [
+    {
+      "id": "c0000000-0000-0000-0000-000000000001",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000001",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000002",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 3,
+        "circuitBreaker": true
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000002",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000001",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000003",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 3,
+        "circuitBreaker": true
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000003",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000002",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000004",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 1,
+        "fallback": true
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000004",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000003",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000004",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 1,
+        "fallback": true
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000005",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000004",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000007",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5,
+        "circuitBreaker": true,
+        "fallback": true
+      }
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000006",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000002",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000005",
+      "synchronous": false
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000007",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000003",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000005",
+      "synchronous": false
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000008",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000005",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000006",
+      "synchronous": false
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000009",
+      "sourceNodeId": "a0000000-0000-0000-0000-000000000006",
+      "targetNodeId": "a0000000-0000-0000-0000-000000000007",
+      "synchronous": true,
+      "configuration": {
+        "timeoutSeconds": 5,
+        "circuitBreaker": true,
+        "fallback": true
+      }
+    }
+  ]
+}

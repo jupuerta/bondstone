@@ -1,0 +1,60 @@
+{
+  "slug": "both-in-the-same-zone",
+  "titleKey": "challenge.both-in-the-same-zone.title",
+  "storyKey": "challenge.both-in-the-same-zone.story",
+  "difficulty": "intermediate",
+  "order": 11,
+  "topic": "Availability",
+  "starter": "both-in-the-same-zone.starter.json",
+  "referenceSolution": "both-in-the-same-zone.solution.json",
+  "requirements": [
+    {
+      "kind": "declaresLoad",
+      "labelKey": "challenge.both-in-the-same-zone.requirement.1",
+      "min": 300
+    },
+    {
+      "kind": "containsNode",
+      "labelKey": "challenge.both-in-the-same-zone.requirement.2",
+      "nodeType": "Api",
+      "min": 2
+    },
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.both-in-the-same-zone.requirement.3",
+      "faults": [{ "zone": "a", "kind": "down" }],
+      "metric": "entryPointsAffected",
+      "operator": "eq",
+      "value": 0
+    },
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.both-in-the-same-zone.requirement.4",
+      "faults": [{ "zone": "a", "kind": "down" }],
+      "metric": "componentsDown",
+      "operator": "gte",
+      "value": 1
+    },
+    {
+      "kind": "spansZones",
+      "labelKey": "challenge.both-in-the-same-zone.requirement.5",
+      "nodeType": "Api",
+      "min": 2
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "underScenario",
+      "labelKey": "challenge.both-in-the-same-zone.goal.1",
+      "faults": [{ "zone": "b", "kind": "down" }],
+      "metric": "componentsDown",
+      "operator": "gte",
+      "value": 1
+    }
+  ],
+  "hintKeys": [
+    "challenge.both-in-the-same-zone.hint.1",
+    "challenge.both-in-the-same-zone.hint.2",
+    "challenge.both-in-the-same-zone.hint.3"
+  ]
+}

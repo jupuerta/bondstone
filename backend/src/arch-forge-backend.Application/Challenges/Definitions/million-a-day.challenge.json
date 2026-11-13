@@ -1,0 +1,64 @@
+{
+  "slug": "million-a-day",
+  "titleKey": "challenge.million-a-day.title",
+  "storyKey": "challenge.million-a-day.story",
+  "difficulty": "advanced",
+  "order": 1,
+  "topic": "Scalability",
+  "starter": "million-a-day.starter.json",
+  "referenceSolution": "million-a-day.solution.json",
+  "requirements": [
+    {
+      "kind": "declaresLoad",
+      "labelKey": "challenge.million-a-day.requirement.1",
+      "min": 116
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.million-a-day.requirement.2",
+      "code": "UNAUTHENTICATED_ENTRY"
+    },
+    {
+      "kind": "containsNode",
+      "labelKey": "challenge.million-a-day.requirement.3",
+      "nodeType": "ObjectStorage"
+    },
+    {
+      "kind": "containsNode",
+      "labelKey": "challenge.million-a-day.requirement.4",
+      "nodeType": "Worker"
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.million-a-day.requirement.5",
+      "code": "UNDERSIZED_COMPONENT"
+    },
+    {
+      "kind": "maxCost",
+      "labelKey": "challenge.million-a-day.requirement.6",
+      "max": 42
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.million-a-day.requirement.7",
+      "code": "TRAFFIC_REJECTED"
+    }
+  ],
+  "optionalGoals": [
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.million-a-day.goal.1",
+      "code": "NO_RATE_LIMIT"
+    },
+    {
+      "kind": "noFinding",
+      "labelKey": "challenge.million-a-day.goal.2",
+      "code": "NO_OBSERVABILITY"
+    }
+  ],
+  "hintKeys": [
+    "challenge.million-a-day.hint.1",
+    "challenge.million-a-day.hint.2",
+    "challenge.million-a-day.hint.3"
+  ]
+}
