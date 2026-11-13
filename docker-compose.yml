@@ -1,0 +1,145 @@
+# Full Bondstone stack: postgres + api + frontend (Technical_Design_V1 §9).
+# Un solo frontend desde el 07-09-2026: el editor antiguo se apagó al terminar la rebanada 6.
+# Backend and frontend live in their own subfolders of this monorepo, so each service builds
+# from its own context. For backend-only work there is a lighter compose file in
+# backend/ that brings up just postgres + api.
+#
+#   cp .env.example .env && docker compose up -d --build
+#   → http://localhost:8080
+
+# El nombre del proyecto lo fija esto, de modo que las imágenes y los contenedores se llamen
+# bondstone-* sea cual sea el nombre de la carpeta que contiene el repositorio.
+name: bondstone
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bondstone}
+      POSTGRES_USER: ${POSTGRES_USER:-bondstone}
+      # No default, and the `:?` makes compose refuse to start without it. A fallback password
+      # that works is the one nobody ever overrides — and this one was written in the repo.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (see .env.example)}
+    volumes:
+      - bondstone-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bondstone} -d ${POSTGRES_DB:-bondstone}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    # Techos, no reservas. Sin ellos, cualquiera de los tres puede comerse el servidor entero y
+    # llevarse por delante a los otros dos: el que falla es el que más memoria pedía en ese
+    # instante, que casi nunca es el culpable. Las cifras salen de medir la pila en reposo
+    # —postgres 38 MB, api 200 MB, nginx 10 MB— y dejar un orden de magnitud, contra los 4 GB del
+    # VPS de la fase 0. La suma de CPU pasa de 2 a propósito: son límites, y lo que un servicio no
+    # usa lo puede usar otro.
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: src/arch-forge-backend.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      # `Maximum Pool Size` is not a tuning knob here, it is a reservation. Npgsql defaults to 100
+      # and this postgres allows 100, so a busy API can hold every connection the server has — and
+      # the moment that happens there is none left for `psql`, for `pg_dump`, or for the backup
+      # that runs at four in the morning. 50 leaves the other half for the people who have to fix
+      # whatever made the API busy.
+      ConnectionStrings__Bondstone: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-bondstone};Username=${POSTGRES_USER:-bondstone};Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (see .env.example)};Maximum Pool Size=50"
+      # The one proxy whose X-Forwarded-For the API believes. It has to be an exact
+      # address, which is why the frontend gets a static IP below — trusting the whole
+      # compose subnet would let anything the host NATs through the gateway spoof the
+      # rate limiter's partition key. Change the subnet? Change this too.
+      ForwardedHeaders__KnownProxies__0: "172.28.100.11"
+      # One hop in this stack: browser → frontend nginx → api. Production puts Caddy in front and
+      # says 2. Get it wrong and everyone shares one rate-limit bucket.
+      ForwardedHeaders__ForwardLimit: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Not published: only nginx and, in dev, the host need to reach it. Uncomment to
+    # hit the API (or Swagger) directly from the host.
+    # ports:
+    #   - "8080:8080"
+    healthcheck:
+      # `/api/health` asks the database, so this goes red when the API is up and useless — which is
+      # the state the old "depends_on: api" could not tell apart from a working stack.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      # The first run applies migrations before it serves anything, so the probe must not start
+      # counting failures while that is happening.
+      start_period: 40s
+    # El que calcula: `/fragility` corre una simulación por nodo. 1,5 de 2 vCPU le deja adelantar a
+    # los otros dos sin poder dejar al servidor sin aire, y el GC de .NET dimensiona su montón
+    # contra el límite del cgroup, así que ponerlo aquí también le dice cuánto puede crecer.
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 1g
+    # Same criterion as the frontend: the API logs do not pile up either.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "2"
+    restart: unless-stopped
+
+  # El frontend: la web y el editor, contra la API de al lado. Su nginx proxya /api, así que todo
+  # viaja bajo un solo origen. Se llamaba `frontend-next` mientras convivió con el editor antiguo,
+  # apagado el 07-09-2026 (docs/Design/Editor/01_decisiones_de_partida.md, decisión 10).
+  frontend:
+    build:
+      context: ./frontend
+      # Vite las incrusta al construir. El .env del repo del frontend no llega al builder
+      # (.dockerignore), así que la demostración de la portada sale de aquí o no sale.
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_DEMO_BEFORE_TOKEN: ${VITE_DEMO_BEFORE_TOKEN:-}
+        VITE_DEMO_AFTER_TOKEN: ${VITE_DEMO_AFTER_TOKEN:-}
+        VITE_DEMO_FAULT_NODE: ${VITE_DEMO_FAULT_NODE:-Postgres}
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    # Static so the api service can name this nginx as the only trusted source of
+    # X-Forwarded-For (ForwardedHeaders__KnownProxies__0 above). Keep the two in step.
+    networks:
+      default:
+        ipv4_address: 172.28.100.11
+    depends_on:
+      api:
+        condition: service_healthy
+    # Sirve ficheros estáticos y proxya: 10 MB en reposo, y 128 son doce veces eso.
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128m
+    # El registro de accesos de nginx lleva la IP del cliente: rota a 10 MB y guarda dos ficheros,
+    # de modo que se sobrescribe solo y no crece sin fin (lo que la página de privacidad promete).
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "2"
+    restart: unless-stopped
+
+networks:
+  # Pinned so the frontend's address survives rebuilds. If this subnet collides with
+  # another network on the machine, `docker compose up` says so plainly — pick another
+  # /24 and update the frontend IP and the api's KnownProxies entry with it.
+  default:
+    ipam:
+      config:
+        - subnet: 172.28.100.0/24
+
+volumes:
+  bondstone-postgres-data:

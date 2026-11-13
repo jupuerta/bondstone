@@ -1,0 +1,4 @@
+# Root-level environment file for docker compose. Keep it out of the repo; copy
+# .env.example to .env and fill it in locally. The sub-projects have their own
+# .gitignore under backend/ and frontend/.
+.env
